@@ -8,10 +8,12 @@ import { PartyModule } from "./party/party.module";
 import { ReportModule } from "./report/report.module";
 import { SafetyModule } from "./safety/safety.module";
 import { DatePlanModule } from "./date-plan/date-plan.module";
+import { CacheConfigModule } from "./cache/cache.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CacheConfigModule,
     PrismaModule,
     HealthModule,
     AuthModule,

@@ -7,16 +7,19 @@ import {
   Body,
   UseGuards,
 } from "@nestjs/common";
+import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { ReportService } from "./report.service";
 import { GenerateReportDto } from "./dto/generate-report.dto";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 
+@ApiTags("Reports")
 @Controller("reports")
 export class ReportController {
   constructor(private reportService: ReportService) {}
 
   @Post("generate")
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   generate(@Body() dto: GenerateReportDto) {
     return this.reportService.generate(dto.partyId, dto.profileId, dto.reportType ?? "summary");
   }

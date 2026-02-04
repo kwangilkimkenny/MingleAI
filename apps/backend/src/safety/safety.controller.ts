@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { SafetyService } from "./safety.service";
 import { CheckContentDto } from "./dto/check-content.dto";
 import { ReportUserDto } from "./dto/report-user.dto";
@@ -10,6 +11,7 @@ import {
 } from "../common/decorators/current-user.decorator";
 import type { SafetyContext } from "@mingle/shared";
 
+@ApiTags("Safety")
 @Controller("safety")
 export class SafetyController {
   constructor(
@@ -27,6 +29,7 @@ export class SafetyController {
 
   @Post("report")
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   async report(@CurrentUser() user: JwtPayload, @Body() dto: ReportUserDto) {
     return this.safetyService.reportUser(
       user.userId,
