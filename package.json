@@ -1,0 +1,28 @@
+{
+  "name": "mingle-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MingleAI monorepo - Another I dating platform",
+  "scripts": {
+    "dev:mcp": "pnpm --filter @mingle/mcp dev",
+    "dev:backend": "pnpm --filter @mingle/backend start:dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r exec rm -rf dist"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "bcrypt",
+      "better-sqlite3",
+      "esbuild",
+      "prisma",
+      "@prisma/engines"
+    ]
+  }
+}

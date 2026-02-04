@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  profile Profile?
+
+  @@map("users")
+}
+
+model Profile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique @map("user_id")
+  name               String
+  age                Int
+  gender             String
+  location           String
+  occupation         String?
+  preferences        Json
+  values             Json
+  communicationStyle Json     @map("communication_style")
+  bio                String?
+  agentPersona       String   @default("") @map("agent_persona")
+  riskScore          Float    @default(0) @map("risk_score")
+  status             String   @default("active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user               User                @relation(fields: [userId], references: [id])
+  partyParticipants  PartyParticipant[]
+  reports            Report[]
+  datePlansAsFirst   DatePlan[]          @relation("DatePlanProfile1")
+  datePlansAsSecond  DatePlan[]          @relation("DatePlanProfile2")
+  reportsFiled       SafetyReport[]      @relation("Reporter")
+  reportsReceived    SafetyReport[]      @relation("Reported")
+
+  @@map("profiles")
+}
+
+model Party {
+  id                   String   @id @default(uuid())
+  name                 String
+  scheduledAt          DateTime @map("scheduled_at")
+  maxParticipants      Int      @default(20) @map("max_participants")
+  theme                String?
+  roundCount           Int      @default(3) @map("round_count")
+  roundDurationMinutes Int      @default(10) @map("round_duration_minutes")
+  status               String   @default("scheduled")
+  results              Json?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  participants PartyParticipant[]
+  reports      Report[]
+
+  @@map("parties")
+}
+
+model PartyParticipant {
+  partyId   String   @map("party_id")
+  profileId String   @map("profile_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  party   Party   @relation(fields: [partyId], references: [id])
+  profile Profile @relation(fields: [profileId], references: [id])
+
+  @@id([partyId, profileId])
+  @@map("party_participants")
+}
+
+model Report {
+  id              String   @id @default(uuid())
+  partyId         String   @map("party_id")
+  profileId       String   @map("profile_id")
+  reportType      String   @map("report_type")
+  matchScores     Json     @map("match_scores")
+  highlights      Json
+  recommendations Json
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  party   Party   @relation(fields: [partyId], references: [id])
+  profile Profile @relation(fields: [profileId], references: [id])
+
+  @@map("reports")
+}
+
+model DatePlan {
+  id          String   @id @default(uuid())
+  profileId1  String   @map("profile_id_1")
+  profileId2  String   @map("profile_id_2")
+  constraints Json
+  courses     Json
+  status      String   @default("draft")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  profile1 Profile @relation("DatePlanProfile1", fields: [profileId1], references: [id])
+  profile2 Profile @relation("DatePlanProfile2", fields: [profileId2], references: [id])
+
+  @@map("date_plans")
+}
+
+model SafetyReport {
+  id                String   @id @default(uuid())
+  reporterProfileId String   @map("reporter_profile_id")
+  reportedProfileId String   @map("reported_profile_id")
+  reason            String
+  details           String?
+  evidencePartyId   String?  @map("evidence_party_id")
+  status            String   @default("pending")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  reporter Profile @relation("Reporter", fields: [reporterProfileId], references: [id])
+  reported Profile @relation("Reported", fields: [reportedProfileId], references: [id])
+
+  @@map("safety_reports")
+}
