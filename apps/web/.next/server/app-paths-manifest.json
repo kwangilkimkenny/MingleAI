@@ -1,0 +1,14 @@
+{
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(auth)/register/page": "app/(auth)/register/page.js",
+  "/(main)/parties/page": "app/(main)/parties/page.js",
+  "/(main)/parties/[id]/page": "app/(main)/parties/[id]/page.js",
+  "/(main)/parties/[id]/results/page": "app/(main)/parties/[id]/results/page.js",
+  "/(main)/date-plans/create/page": "app/(main)/date-plans/create/page.js",
+  "/(main)/profile/create/page": "app/(main)/profile/create/page.js",
+  "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
+  "/(main)/reports/page": "app/(main)/reports/page.js",
+  "/(main)/safety/report/page": "app/(main)/safety/report/page.js",
+  "/(main)/reports/[id]/page": "app/(main)/reports/[id]/page.js",
+  "/(main)/date-plans/[id]/page": "app/(main)/date-plans/[id]/page.js"
+}

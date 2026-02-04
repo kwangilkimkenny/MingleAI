@@ -44,6 +44,10 @@ export class ProfileService {
     });
   }
 
+  async findByUserId(userId: string) {
+    return this.prisma.profile.findUnique({ where: { userId } });
+  }
+
   async findOne(id: string) {
     const profile = await this.prisma.profile.findUnique({ where: { id } });
     if (!profile) {

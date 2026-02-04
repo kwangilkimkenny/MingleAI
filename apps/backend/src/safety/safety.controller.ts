@@ -1,4 +1,10 @@
-import { Controller, Post, Body, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  NotFoundException,
+} from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { SafetyService } from "./safety.service";
 import { CheckContentDto } from "./dto/check-content.dto";
@@ -31,8 +37,12 @@ export class SafetyController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   async report(@CurrentUser() user: JwtPayload, @Body() dto: ReportUserDto) {
+    const profile = await this.profileService.findByUserId(user.userId);
+    if (!profile) {
+      throw new NotFoundException("신고자의 프로필을 찾을 수 없습니다");
+    }
     return this.safetyService.reportUser(
-      user.userId,
+      profile.id,
       dto.reportedProfileId,
       dto.reason,
       dto.details,
