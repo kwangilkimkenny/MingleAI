@@ -5,6 +5,7 @@
   "description": "MingleAI monorepo - Another I dating platform",
   "scripts": {
     "dev:mcp": "pnpm --filter @mingle/mcp dev",
+    "dev:mingleai-mcp": "pnpm --filter @mingle/mingleai-mcp dev",
     "dev:backend": "pnpm --filter @mingle/backend start:dev",
     "dev:web": "pnpm --filter @mingle/web dev",
     "build": "pnpm -r build",
