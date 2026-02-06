@@ -91,6 +91,16 @@ export class ApiClient {
 
   // ==================== Parties ====================
 
+  async listParties(filters?: { status?: string; limit?: number; offset?: number }): Promise<{
+    parties: (Party & { participantCount: number })[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const { data } = await this.client.get("/parties", { params: filters });
+    return data;
+  }
+
   async createParty(partyData: CreatePartyInput): Promise<Party> {
     const { data } = await this.client.post("/parties", partyData);
     return data;

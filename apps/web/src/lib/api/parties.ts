@@ -10,6 +10,32 @@ interface CreatePartyPayload {
   roundDurationMinutes?: number;
 }
 
+export interface PartyWithCount extends Party {
+  participantCount: number;
+}
+
+export interface ListPartiesResponse {
+  parties: PartyWithCount[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ListPartiesOptions {
+  status?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export function listParties(options: ListPartiesOptions = {}) {
+  const params = new URLSearchParams();
+  if (options.status) params.set("status", options.status);
+  if (options.limit) params.set("limit", options.limit.toString());
+  if (options.offset) params.set("offset", options.offset.toString());
+  const qs = params.toString();
+  return apiFetch<ListPartiesResponse>(`/parties${qs ? `?${qs}` : ""}`);
+}
+
 export function createParty(payload: CreatePartyPayload) {
   return apiFetch<Party>("/parties", {
     method: "POST",

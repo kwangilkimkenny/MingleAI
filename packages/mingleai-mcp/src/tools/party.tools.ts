@@ -1,5 +1,6 @@
 /**
  * 파티 도구
+ * - list_parties: 파티 목록 조회
  * - create_party: 에이전트 파티 생성
  * - get_party: 파티 정보 조회
  * - add_participant: 참가자 추가
@@ -11,6 +12,12 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { apiClient } from "../client/api-client.js";
 import { isAuthenticated } from "../config.js";
+
+const ListPartiesSchema = z.object({
+  status: z.enum(["scheduled", "in_progress", "completed", "cancelled"]).optional().describe("파티 상태 필터"),
+  limit: z.number().min(1).max(100).default(20).optional().describe("조회 개수"),
+  offset: z.number().min(0).default(0).optional().describe("오프셋"),
+});
 
 const CreatePartySchema = z.object({
   name: z.string().min(1).describe("파티 이름"),
@@ -39,6 +46,57 @@ const GetPartyResultsSchema = z.object({
 });
 
 export function registerPartyTools(server: McpServer): void {
+  // list_parties
+  server.tool(
+    "list_parties",
+    "파티 목록을 조회합니다. 상태별 필터링이 가능합니다.",
+    ListPartiesSchema.shape,
+    async (params) => {
+      try {
+        const result = await apiClient.listParties({
+          status: params.status,
+          limit: params.limit,
+          offset: params.offset,
+        });
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                success: true,
+                total: result.total,
+                parties: result.parties.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  scheduledAt: p.scheduledAt,
+                  theme: p.theme,
+                  status: p.status,
+                  participantCount: p.participantCount,
+                  maxParticipants: p.maxParticipants,
+                  roundCount: p.roundCount,
+                })),
+              }),
+            },
+          ],
+        };
+      } catch (error) {
+        const err = error as { message?: string };
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                success: false,
+                error: err.message || "파티 목록 조회 실패",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // create_party
   server.tool(
     "create_party",

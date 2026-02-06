@@ -44,9 +44,42 @@ type ProfileRow = {
   communicationStyle: { tone: string; topics: string[] };
 };
 
+export interface ListPartiesOptions {
+  status?: string;
+  limit?: number;
+  offset?: number;
+}
+
 @Injectable()
 export class PartyService {
   constructor(private prisma: PrismaService) {}
+
+  async findAll(options: ListPartiesOptions = {}) {
+    const { status, limit = 20, offset = 0 } = options;
+    const where = status ? { status } : {};
+    const [parties, total] = await Promise.all([
+      this.prisma.party.findMany({
+        where,
+        orderBy: { scheduledAt: "desc" },
+        take: limit,
+        skip: offset,
+        include: {
+          _count: { select: { participants: true } },
+        },
+      }),
+      this.prisma.party.count({ where }),
+    ]);
+    return {
+      parties: parties.map((p) => ({
+        ...p,
+        participantCount: p._count.participants,
+        _count: undefined,
+      })),
+      total,
+      limit,
+      offset,
+    };
+  }
 
   async create(dto: CreatePartyDto) {
     return this.prisma.party.create({
@@ -62,9 +95,16 @@ export class PartyService {
   }
 
   async findOne(id: string) {
-    const party = await this.prisma.party.findUnique({ where: { id } });
+    const party = await this.prisma.party.findUnique({
+      where: { id },
+      include: { _count: { select: { participants: true } } },
+    });
     if (!party) throw new NotFoundException(`파티를 찾을 수 없습니다: ${id}`);
-    return party;
+    return {
+      ...party,
+      participantCount: party._count.participants,
+      _count: undefined,
+    };
   }
 
   async addParticipant(partyId: string, profileId: string) {

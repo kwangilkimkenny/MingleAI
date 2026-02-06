@@ -41,10 +41,10 @@ async function main(): Promise<void> {
   console.error(`[${SERVER_NAME}] MCP Server started (v${SERVER_VERSION})`);
   console.error(`[${SERVER_NAME}] API URL: ${config.apiBaseUrl}`);
   console.error(`[${SERVER_NAME}] Auth: ${config.authToken ? "Pre-configured" : "Not set (use auth_login)"}`);
-  console.error(`[${SERVER_NAME}] Tools registered: 30`);
+  console.error(`[${SERVER_NAME}] Tools registered: 31`);
   console.error(`[${SERVER_NAME}]   - Auth: 4 (register, login, logout, status)`);
   console.error(`[${SERVER_NAME}]   - Profile: 4 (create, get, update, list)`);
-  console.error(`[${SERVER_NAME}]   - Party: 5 (create, get, add_participant, run, results)`);
+  console.error(`[${SERVER_NAME}]   - Party: 6 (list, create, get, add_participant, run, results)`);
   console.error(`[${SERVER_NAME}]   - Conversation: 4 (simulate, analyze_compatibility, icebreaker, suggest_message)`);
   console.error(`[${SERVER_NAME}]   - Report: 3 (generate, get, list)`);
   console.error(`[${SERVER_NAME}]   - DatePlan: 2 (create, get)`);
