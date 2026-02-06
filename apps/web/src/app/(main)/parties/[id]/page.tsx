@@ -18,6 +18,7 @@ import DialogActions from "@mui/material/DialogActions";
 import LinearProgress from "@mui/material/LinearProgress";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import LiveTvIcon from "@mui/icons-material/LiveTv";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import PeopleIcon from "@mui/icons-material/People";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -239,6 +240,16 @@ export default function PartyDetailPage({
               관리자 기능
             </Typography>
           </Divider>
+
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<LiveTvIcon />}
+            onClick={() => router.push(`/parties/${id}/live`)}
+            fullWidth
+          >
+            3D 생중계 보기
+          </Button>
 
           <Button
             variant="outlined"
