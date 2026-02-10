@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -17,7 +18,13 @@ import CelebrationIcon from "@mui/icons-material/Celebration";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import EventIcon from "@mui/icons-material/Event";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 import { useAuthStore } from "@/lib/store/auth";
+import StatsCard from "@/components/dashboard/StatsCard";
+import MyPartiesSection from "@/components/dashboard/MyPartiesSection";
+import UpcomingReservations from "@/components/dashboard/UpcomingReservations";
+import { getDashboardSummary, type DashboardSummary } from "@/lib/api/dashboard";
 
 const QUICK_ACTIONS = [
   {
@@ -66,6 +73,15 @@ const ONBOARDING_STEPS = [
 export default function DashboardPage() {
   const router = useRouter();
   const profileId = useAuthStore((s) => s.profileId);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+
+  useEffect(() => {
+    if (profileId) {
+      getDashboardSummary(profileId)
+        .then(setSummary)
+        .catch(console.error);
+    }
+  }, [profileId]);
 
   const steps = ONBOARDING_STEPS.map((step, index) => ({
     ...step,
@@ -133,6 +149,56 @@ export default function DashboardPage() {
         <Alert severity="success" sx={{ mb: 4 }} icon={<CheckCircleIcon />}>
           프로필이 활성화되었습니다! 이제 파티에 참가할 수 있습니다.
         </Alert>
+      )}
+
+      {/* 통계 카드 - 프로필이 있는 경우에만 표시 */}
+      {profileId && summary && (
+        <Grid container spacing={3} mb={4}>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <StatsCard
+              title="예정된 예약"
+              value={summary.upcomingReservations}
+              icon={EventIcon}
+              color="primary"
+            />
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <StatsCard
+              title="참여한 파티"
+              value={summary.completedParties}
+              icon={CelebrationIcon}
+              color="success"
+            />
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <StatsCard
+              title="매칭 결과"
+              value={summary.totalMatches}
+              icon={FavoriteIcon}
+              color="error"
+            />
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <StatsCard
+              title="알림"
+              value={summary.unreadNotifications}
+              icon={NotificationsIcon}
+              color="warning"
+            />
+          </Grid>
+        </Grid>
+      )}
+
+      {/* 예약 및 파티 위젯 - 프로필이 있는 경우에만 표시 */}
+      {profileId && (
+        <Grid container spacing={3} mb={4}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <UpcomingReservations />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <MyPartiesSection />
+          </Grid>
+        </Grid>
       )}
 
       <Typography variant="h6" fontWeight={600} mb={2}>

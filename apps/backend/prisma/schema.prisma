@@ -11,10 +11,12 @@ model User {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String   @map("password_hash")
+  role         String   @default("user") // "user" | "admin" | "super_admin"
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  profile Profile?
+  profile       Profile?
+  notifications Notification[]
 
   @@map("users")
 }
@@ -44,6 +46,7 @@ model Profile {
   datePlansAsSecond  DatePlan[]          @relation("DatePlanProfile2")
   reportsFiled       SafetyReport[]      @relation("Reporter")
   reportsReceived    SafetyReport[]      @relation("Reported")
+  reservations       PartyReservation[]
 
   @@map("profiles")
 }
@@ -54,6 +57,9 @@ model Party {
   scheduledAt          DateTime @map("scheduled_at")
   maxParticipants      Int      @default(20) @map("max_participants")
   theme                String?
+  location             String?
+  ageMin               Int?     @map("age_min")
+  ageMax               Int?     @map("age_max")
   roundCount           Int      @default(3) @map("round_count")
   roundDurationMinutes Int      @default(10) @map("round_duration_minutes")
   status               String   @default("scheduled")
@@ -63,6 +69,7 @@ model Party {
 
   participants PartyParticipant[]
   reports      Report[]
+  reservations PartyReservation[]
 
   @@map("parties")
 }
@@ -124,4 +131,35 @@ model SafetyReport {
   reported Profile @relation("Reported", fields: [reportedProfileId], references: [id])
 
   @@map("safety_reports")
+}
+
+model PartyReservation {
+  id        String   @id @default(uuid())
+  partyId   String   @map("party_id")
+  profileId String   @map("profile_id")
+  status    String   @default("confirmed") // confirmed | cancelled | attended
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  party   Party   @relation(fields: [partyId], references: [id])
+  profile Profile @relation(fields: [profileId], references: [id])
+
+  @@unique([partyId, profileId])
+  @@map("party_reservations")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String   // party_reminder | match_result | reservation | system
+  title     String
+  message   String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+  @@map("notifications")
 }

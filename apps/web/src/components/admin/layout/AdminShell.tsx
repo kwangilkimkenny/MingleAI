@@ -1,26 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Drawer from "@mui/material/Drawer";
+import CircularProgress from "@mui/material/CircularProgress";
 import MenuIcon from "@mui/icons-material/Menu";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import NavDrawer from "./NavDrawer";
-import NotificationBell from "@/components/notification/NotificationBell";
 import { useAuthStore } from "@/lib/store/auth";
+import AdminSidebar from "./AdminSidebar";
 
 const DRAWER_WIDTH = 260;
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+interface AdminShellProps {
+  children: React.ReactNode;
+}
+
+export default function AdminShell({ children }: AdminShellProps) {
   const theme = useTheme();
+  const router = useRouter();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const token = useAuthStore((s) => s.token);
+  const [mounted, setMounted] = useState(false);
+
+  const { token, role } = useAuthStore();
+  const isAdmin = role === "admin" || role === "super_admin";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && (!token || !isAdmin)) {
+      router.replace("/login");
+    }
+  }, [mounted, token, isAdmin, router]);
+
+  if (!mounted) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!token || !isAdmin) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
@@ -35,7 +80,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             bgcolor: "background.paper",
           }}
         >
-          <NavDrawer />
+          <AdminSidebar />
         </Box>
       ) : (
         <>
@@ -48,10 +93,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <MenuIcon />
               </IconButton>
-              <Typography variant="h6" fontWeight={700} color="primary" sx={{ flexGrow: 1 }}>
-                MingleAI
+              <Typography variant="h6" fontWeight={700} color="primary">
+                MingleAI Admin
               </Typography>
-              {token && <NotificationBell />}
             </Toolbar>
           </AppBar>
           <Drawer
@@ -59,7 +103,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             onClose={() => setMobileOpen(false)}
             ModalProps={{ keepMounted: true }}
           >
-            <NavDrawer onClose={() => setMobileOpen(false)} />
+            <AdminSidebar onClose={() => setMobileOpen(false)} />
           </Drawer>
         </>
       )}

@@ -16,14 +16,21 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import ShieldIcon from "@mui/icons-material/Shield";
 import LogoutIcon from "@mui/icons-material/Logout";
+import EventIcon from "@mui/icons-material/Event";
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import ExploreIcon from "@mui/icons-material/Explore";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import { useAuthStore } from "@/lib/store/auth";
 
 const NAV_ITEMS = [
   { label: "대시보드", icon: <DashboardIcon />, path: "/dashboard" },
   { label: "내 프로필", icon: <PersonIcon />, path: "/profile" },
   { label: "파티 둘러보기", icon: <CelebrationIcon />, path: "/parties" },
+  { label: "파티 탐색", icon: <ExploreIcon />, path: "/parties/discover" },
+  { label: "내 예약", icon: <EventIcon />, path: "/reservations" },
   { label: "매칭 리포트", icon: <AssessmentIcon />, path: "/reports" },
   { label: "데이트 코스", icon: <FavoriteIcon />, path: "/date-plans/create" },
+  { label: "알림", icon: <NotificationsIcon />, path: "/notifications" },
   { label: "안전 신고", icon: <ShieldIcon />, path: "/safety/report" },
 ];
 
@@ -36,6 +43,8 @@ export default function NavDrawer({
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
   const profileId = useAuthStore((s) => s.profileId);
+  const role = useAuthStore((s) => s.role);
+  const isAdmin = role === "admin" || role === "super_admin";
 
   const handleNav = (path: string) => {
     router.push(path);
@@ -91,6 +100,14 @@ export default function NavDrawer({
 
       <Divider />
       <List>
+        {isAdmin && (
+          <ListItemButton onClick={() => handleNav("/admin")}>
+            <ListItemIcon>
+              <AdminPanelSettingsIcon />
+            </ListItemIcon>
+            <ListItemText primary="관리자 대시보드" />
+          </ListItemButton>
+        )}
         <ListItemButton
           onClick={() => {
             logout();

@@ -9,6 +9,10 @@ import { ReportModule } from "./report/report.module";
 import { SafetyModule } from "./safety/safety.module";
 import { DatePlanModule } from "./date-plan/date-plan.module";
 import { CacheConfigModule } from "./cache/cache.module";
+import { NotificationModule } from "./notification/notification.module";
+import { ReservationModule } from "./reservation/reservation.module";
+import { DashboardModule } from "./dashboard/dashboard.module";
+import { AdminModule } from "./admin/admin.module";
 
 @Module({
   imports: [
@@ -22,6 +26,10 @@ import { CacheConfigModule } from "./cache/cache.module";
     ReportModule,
     SafetyModule,
     DatePlanModule,
+    NotificationModule,
+    ReservationModule,
+    DashboardModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

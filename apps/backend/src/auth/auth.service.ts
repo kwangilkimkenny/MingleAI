@@ -25,7 +25,7 @@ export class AuthService {
       data: { email, passwordHash },
     });
 
-    return this.createToken(user.id, user.email);
+    return this.createToken(user.id, user.email, user.role);
   }
 
   async login(email: string, password: string) {
@@ -33,7 +33,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException("이메일 또는 비밀번호가 올바르지 않습니다");
     }
-    return this.createToken(user.id, user.email);
+    return this.createToken(user.id, user.email, user.role);
   }
 
   async validateUser(email: string, password: string) {
@@ -43,11 +43,11 @@ export class AuthService {
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) return null;
 
-    return { id: user.id, email: user.email };
+    return { id: user.id, email: user.email, role: user.role };
   }
 
-  private createToken(userId: string, email: string) {
-    const payload = { sub: userId, email };
-    return { accessToken: this.jwtService.sign(payload) };
+  private createToken(userId: string, email: string, role: string) {
+    const payload = { sub: userId, email, role };
+    return { accessToken: this.jwtService.sign(payload), role };
   }
 }
