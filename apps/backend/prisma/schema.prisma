@@ -71,8 +71,10 @@ model Party {
   reports      Report[]
   reservations PartyReservation[]
 
+  @@index([status, scheduledAt])
   @@map("parties")
 }
+
 
 model PartyParticipant {
   partyId   String   @map("party_id")
@@ -83,6 +85,7 @@ model PartyParticipant {
   profile Profile @relation(fields: [profileId], references: [id])
 
   @@id([partyId, profileId])
+  @@index([profileId])
   @@map("party_participants")
 }
 
@@ -99,17 +102,23 @@ model Report {
   party   Party   @relation(fields: [partyId], references: [id])
   profile Profile @relation(fields: [profileId], references: [id])
 
+  @@index([profileId])
   @@map("reports")
 }
 
 model DatePlan {
-  id          String   @id @default(uuid())
-  profileId1  String   @map("profile_id_1")
-  profileId2  String   @map("profile_id_2")
-  constraints Json
-  courses     Json
-  status      String   @default("draft")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id               String   @id @default(uuid())
+  profileId1       String   @map("profile_id_1")
+  profileId2       String   @map("profile_id_2")
+  constraints      Json
+  courses          Json
+  status           String   @default("draft")
+  selectedCourseId String?  @map("selected_course_id")
+  merchantPayKey   String?  @map("merchant_pay_key")
+  paymentId        String?  @map("payment_id")
+  paymentStatus    String?  @map("payment_status")
+  paymentAmount    Int?     @map("payment_amount")
+  createdAt        DateTime @default(now()) @map("created_at")
 
   profile1 Profile @relation("DatePlanProfile1", fields: [profileId1], references: [id])
   profile2 Profile @relation("DatePlanProfile2", fields: [profileId2], references: [id])
@@ -130,6 +139,7 @@ model SafetyReport {
   reporter Profile @relation("Reporter", fields: [reporterProfileId], references: [id])
   reported Profile @relation("Reported", fields: [reportedProfileId], references: [id])
 
+  @@index([status, createdAt])
   @@map("safety_reports")
 }
 
@@ -145,6 +155,8 @@ model PartyReservation {
   profile Profile @relation(fields: [profileId], references: [id])
 
   @@unique([partyId, profileId])
+  @@index([profileId, status])
+  @@index([partyId, status])
   @@map("party_reservations")
 }
 
@@ -162,4 +174,12 @@ model Notification {
 
   @@index([userId, read])
   @@map("notifications")
+}
+
+model SystemSettings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
 }

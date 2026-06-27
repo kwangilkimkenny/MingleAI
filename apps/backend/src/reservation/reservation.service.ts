@@ -16,84 +16,68 @@ export class ReservationService {
   ) {}
 
   async create(dto: CreateReservationDto) {
-    // 파티 확인
-    const party = await this.prisma.party.findUnique({
-      where: { id: dto.partyId },
-      include: { _count: { select: { reservations: true } } },
-    });
+    // Serializable 트랜잭션으로 정원 초과 레이스 컨디션 방지
+    let reservation: Awaited<ReturnType<typeof this.prisma.partyReservation.create>>;
+    let partyName: string;
+    let scheduledAt: Date;
+    let userId: string;
 
-    if (!party) {
-      throw new NotFoundException("파티를 찾을 수 없습니다");
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await this.prisma.$transaction(async (tx: any) => {
+        const [party, profile] = await Promise.all([
+          tx.party.findUnique({ where: { id: dto.partyId } }),
+          tx.profile.findUnique({ where: { id: dto.profileId }, include: { user: true } }),
+        ]);
+
+        if (!party) throw new NotFoundException("파티를 찾을 수 없습니다");
+        if (!profile) throw new NotFoundException("프로필을 찾을 수 없습니다");
+        if (party.status !== "scheduled") throw new BadRequestException("예약 가능한 파티가 아닙니다");
+
+        if (party.ageMin && profile.age < party.ageMin)
+          throw new BadRequestException(`이 파티는 ${party.ageMin}세 이상만 참여 가능합니다`);
+        if (party.ageMax && profile.age > party.ageMax)
+          throw new BadRequestException(`이 파티는 ${party.ageMax}세 이하만 참여 가능합니다`);
+
+        const [existing, count] = await Promise.all([
+          tx.partyReservation.findUnique({
+            where: { partyId_profileId: { partyId: dto.partyId, profileId: dto.profileId } },
+          }),
+          tx.partyReservation.count({ where: { partyId: dto.partyId, status: "confirmed" } }),
+        ]);
+
+        if (existing) throw new ConflictException("이미 예약한 파티입니다");
+        if (count >= party.maxParticipants) throw new BadRequestException("파티 정원이 가득 찼습니다");
+
+        const res = await tx.partyReservation.create({
+          data: { partyId: dto.partyId, profileId: dto.profileId, status: "confirmed" },
+          include: { party: true, profile: true },
+        });
+
+        return { res, party, userId: profile.userId };
+      }, { isolationLevel: "Serializable", maxWait: 5000, timeout: 10000 });
+
+      reservation = result.res;
+      partyName = result.party.name;
+      scheduledAt = result.party.scheduledAt;
+      userId = result.userId;
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      if (code === "P2034") throw new ConflictException("잠시 후 다시 시도해주세요");
+      if (code === "P2002") throw new ConflictException("이미 예약한 파티입니다");
+      throw e;
     }
 
-    if (party.status !== "scheduled") {
-      throw new BadRequestException("예약 가능한 파티가 아닙니다");
-    }
-
-    // 정원 체크
-    if (party._count.reservations >= party.maxParticipants) {
-      throw new BadRequestException("파티 정원이 가득 찼습니다");
-    }
-
-    // 프로필 확인
-    const profile = await this.prisma.profile.findUnique({
-      where: { id: dto.profileId },
-      include: { user: true },
-    });
-
-    if (!profile) {
-      throw new NotFoundException("프로필을 찾을 수 없습니다");
-    }
-
-    // 나이 제한 확인
-    if (party.ageMin && profile.age < party.ageMin) {
-      throw new BadRequestException(
-        `이 파티는 ${party.ageMin}세 이상만 참여 가능합니다`,
-      );
-    }
-
-    if (party.ageMax && profile.age > party.ageMax) {
-      throw new BadRequestException(
-        `이 파티는 ${party.ageMax}세 이하만 참여 가능합니다`,
-      );
-    }
-
-    // 중복 예약 체크
-    const existing = await this.prisma.partyReservation.findUnique({
-      where: {
-        partyId_profileId: {
-          partyId: dto.partyId,
-          profileId: dto.profileId,
-        },
-      },
-    });
-
-    if (existing) {
-      throw new ConflictException("이미 예약한 파티입니다");
-    }
-
-    const reservation = await this.prisma.partyReservation.create({
-      data: {
-        partyId: dto.partyId,
-        profileId: dto.profileId,
-        status: "confirmed",
-      },
-      include: {
-        party: true,
-        profile: true,
-      },
-    });
-
-    // 예약 확인 알림 생성
+    // 트랜잭션 외부에서 알림 전송 (알림 실패가 예약을 롤백하지 않도록)
     await this.notificationService.create({
-      userId: profile.userId,
+      userId,
       type: "reservation",
       title: "파티 예약 완료",
-      message: `${party.name} 파티 예약이 완료되었습니다.`,
+      message: `${partyName} 파티 예약이 완료되었습니다.`,
       data: {
-        partyId: party.id,
-        partyName: party.name,
-        scheduledAt: party.scheduledAt.toISOString(),
+        partyId: dto.partyId,
+        partyName,
+        scheduledAt: scheduledAt.toISOString(),
         reservationId: reservation.id,
       },
     });

@@ -101,6 +101,23 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+    // 빈 파티 룸 정리: 마지막 클라이언트가 나가면 메모리 해제
+    for (const [partyId] of this.partyStates) {
+      const room = this.server.sockets.adapter.rooms.get(`party:${partyId}`);
+      if (!room || room.size === 0) {
+        this.cleanupParty(partyId);
+      }
+    }
+  }
+
+  private cleanupParty(partyId: string) {
+    const interval = this.partyIntervals.get(partyId);
+    if (interval) {
+      clearInterval(interval);
+      this.partyIntervals.delete(partyId);
+    }
+    this.partyStates.delete(partyId);
+    this.logger.log(`Party ${partyId} state cleaned up`);
   }
 
   // 파티 룸 참가
@@ -269,6 +286,9 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       where: { id: partyId },
       data: { status: "completed" },
     });
+
+    // 클라이언트가 partyCompleted 수신 후 30초 뒤 메모리 해제
+    setTimeout(() => this.partyStates.delete(partyId), 30_000);
   }
 
   // 참가자들을 테이블로 이동
@@ -309,87 +329,70 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`party:${partyId}`).emit("partyState", state);
   }
 
-  // 대화 시뮬레이션
+  // 대화 시뮬레이션 — 모든 테이블 병렬 진행
   private async simulateConversations(
     partyId: string,
     state: PartyState,
     round: number,
   ) {
-    const conversationsPerRound = 6; // 각 라운드당 대화 횟수
+    const conversationsPerRound = 6;
 
-    for (const table of state.tables) {
-      const participants = table.participantIds
-        .map((id) => state.participants.find((p) => p.profileId === id))
-        .filter(Boolean) as ParticipantState[];
+    await Promise.all(
+      state.tables.map(async (table) => {
+        const participants = table.participantIds
+          .map((id) => state.participants.find((p) => p.profileId === id))
+          .filter(Boolean) as ParticipantState[];
 
-      if (participants.length < 2) continue;
+        if (participants.length < 2) return;
 
-      // 아이스브레이커
-      const icebreaker = ICEBREAKERS[(round - 1) % ICEBREAKERS.length];
+        const icebreaker = ICEBREAKERS[(round - 1) % ICEBREAKERS.length];
 
-      // 시스템 메시지
-      this.server.to(`party:${partyId}`).emit("systemMessage", {
-        tableId: table.tableId,
-        message: `💬 ${icebreaker}`,
-      });
-
-      await this.delay(2000);
-
-      // 대화 진행
-      for (let i = 0; i < conversationsPerRound; i++) {
-        const speaker = participants[i % 2];
-        const listener = participants[(i + 1) % 2];
-
-        // 대화 생성 (Claude API 또는 템플릿)
-        const message = this.generateConversation(speaker, listener, i);
-
-        // 말하기 상태
-        speaker.isTalking = true;
-        speaker.animation = "talking";
-        speaker.currentMessage = message.message;
-
-        // 대화 이벤트 전송
-        this.server.to(`party:${partyId}`).emit("conversation", {
+        this.server.to(`party:${partyId}`).emit("systemMessage", {
           tableId: table.tableId,
-          speaker: {
+          message: `💬 ${icebreaker}`,
+        });
+
+        await this.delay(2000);
+
+        for (let i = 0; i < conversationsPerRound; i++) {
+          const speaker = participants[i % 2];
+          const listener = participants[(i + 1) % 2];
+
+          const message = this.generateConversation(speaker, listener, i);
+
+          speaker.isTalking = true;
+          speaker.animation = "talking";
+          speaker.currentMessage = message.message;
+
+          this.server.to(`party:${partyId}`).emit("conversation", {
+            tableId: table.tableId,
+            speaker: { profileId: speaker.profileId, name: speaker.name },
+            message: message.message,
+            emotion: message.emotion,
+            timestamp: Date.now(),
+          });
+
+          this.server.to(`party:${partyId}`).emit("participantUpdate", {
             profileId: speaker.profileId,
-            name: speaker.name,
-          },
-          message: message.message,
-          emotion: message.emotion,
-          timestamp: Date.now(),
-        });
+            changes: { isTalking: true, animation: "talking", currentMessage: message.message },
+          });
 
-        this.server.to(`party:${partyId}`).emit("participantUpdate", {
-          profileId: speaker.profileId,
-          changes: {
-            isTalking: true,
-            animation: "talking",
-            currentMessage: message.message,
-          },
-        });
+          const speakDuration = Math.max(2000, message.message.length * 80);
+          await this.delay(speakDuration);
 
-        // 대화 시간 (메시지 길이에 비례)
-        const speakDuration = Math.max(2000, message.message.length * 80);
-        await this.delay(speakDuration);
+          speaker.isTalking = false;
+          speaker.animation = "idle";
+          speaker.currentMessage = undefined;
 
-        // 말하기 종료
-        speaker.isTalking = false;
-        speaker.animation = "idle";
-        speaker.currentMessage = undefined;
+          this.server.to(`party:${partyId}`).emit("participantUpdate", {
+            profileId: speaker.profileId,
+            changes: { isTalking: false, animation: "idle", currentMessage: null },
+          });
 
-        this.server.to(`party:${partyId}`).emit("participantUpdate", {
-          profileId: speaker.profileId,
-          changes: {
-            isTalking: false,
-            animation: "idle",
-            currentMessage: null,
-          },
-        });
-
-        await this.delay(500);
-      }
-    }
+          await this.delay(500);
+        }
+      }),
+    );
   }
 
   // 대화 생성 (간단한 템플릿 기반)

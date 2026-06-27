@@ -88,11 +88,11 @@ function SceneContent({
   return (
     <>
       {/* 카메라 */}
-      <PerspectiveCamera makeDefault position={[0, 8, 12]} fov={50} />
+      <PerspectiveCamera makeDefault position={[0, 9, 14]} fov={48} />
       <CameraController focusPosition={focusPosition} autoRotate={autoRotate} />
 
       {/* 파티 공간 */}
-      <PartyVenue theme="lounge" />
+      <PartyVenue />
 
       {/* 테이블 */}
       {partyState?.tables.map((table) => (
@@ -115,10 +115,12 @@ function SceneContent({
       <OrbitControls
         enablePan={false}
         minDistance={5}
-        maxDistance={20}
-        minPolarAngle={Math.PI / 6}
+        maxDistance={22}
+        minPolarAngle={Math.PI / 8}
         maxPolarAngle={Math.PI / 2.2}
-        target={[0, 1, 0]}
+        target={[0, 1.5, 0]}
+        dampingFactor={0.08}
+        enableDamping
       />
     </>
   );
@@ -152,9 +154,9 @@ export default function PartyScene({
         gl={{
           antialias: true,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.2,
+          toneMappingExposure: 0.9,
         }}
-        style={{ background: "linear-gradient(to bottom, #1a1a2e, #16213e)" }}
+        style={{ background: "linear-gradient(to bottom, #060612 0%, #0e062a 60%, #060612 100%)" }}
       >
         <Suspense fallback={<LoadingFallback />}>
           <SceneContent partyState={partyState} conversations={conversations} />
