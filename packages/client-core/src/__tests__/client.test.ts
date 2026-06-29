@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { apiFetch, ApiError } from "../api/client.js";
 import { configureClient, setTokenAccessor } from "../config.js";
 
@@ -14,6 +14,10 @@ describe("apiFetch", () => {
   beforeEach(() => {
     configureClient({ baseUrl: "http://api.test" });
     setTokenAccessor(() => null);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("prepends baseUrl and sends JSON content type", async () => {
