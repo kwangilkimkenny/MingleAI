@@ -1,0 +1,57 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { apiFetch, ApiError } from "../api/client.js";
+import { configureClient, setTokenAccessor } from "../config.js";
+
+function mockFetch(status: number, body: unknown) {
+  return vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as Response);
+}
+
+describe("apiFetch", () => {
+  beforeEach(() => {
+    configureClient({ baseUrl: "http://api.test" });
+    setTokenAccessor(() => null);
+  });
+
+  it("prepends baseUrl and sends JSON content type", async () => {
+    const f = mockFetch(200, { ok: true });
+    vi.stubGlobal("fetch", f);
+    await apiFetch("/ping");
+    expect(f).toHaveBeenCalledWith(
+      "http://api.test/ping",
+      expect.objectContaining({
+        headers: expect.objectContaining({ "Content-Type": "application/json" }),
+      }),
+    );
+  });
+
+  it("adds Authorization header when a token is present", async () => {
+    const f = mockFetch(200, {});
+    vi.stubGlobal("fetch", f);
+    setTokenAccessor(() => "abc");
+    await apiFetch("/secure");
+    const headers = (f.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe("Bearer abc");
+  });
+
+  it("calls onUnauthorized and throws ApiError(401) on 401", async () => {
+    const onUnauthorized = vi.fn();
+    configureClient({ baseUrl: "http://api.test", onUnauthorized });
+    vi.stubGlobal("fetch", mockFetch(401, {}));
+    await expect(apiFetch("/secure")).rejects.toBeInstanceOf(ApiError);
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+  });
+
+  it("throws ApiError with server message on non-2xx", async () => {
+    vi.stubGlobal("fetch", mockFetch(400, { message: "bad input" }));
+    await expect(apiFetch("/x")).rejects.toMatchObject({ status: 400, message: "bad input" });
+  });
+
+  it("returns undefined on 204", async () => {
+    vi.stubGlobal("fetch", mockFetch(204, null));
+    await expect(apiFetch("/no-content")).resolves.toBeUndefined();
+  });
+});
