@@ -16,6 +16,9 @@ export default function Login() {
     setError(null);
     try {
       const { accessToken } = await login(email.trim(), password);
+      if (!accessToken) {
+        throw new Error("서버에서 토큰을 받지 못했습니다.");
+      }
       setAuth({ token: accessToken });
       router.replace("/(app)/home");
     } catch (e) {
