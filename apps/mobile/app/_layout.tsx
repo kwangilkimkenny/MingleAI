@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import "../src/lib/client";
 
 export {
   // Catch any errors thrown by the Layout component.
