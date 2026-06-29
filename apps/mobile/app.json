@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "mingleai",
+    "slug": "mingleai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "mingleai",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
