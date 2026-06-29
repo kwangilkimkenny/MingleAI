@@ -78,4 +78,18 @@ describe("apiFetch", () => {
     vi.stubGlobal("fetch", mockFetch(204, null));
     await expect(apiFetch("/no-content")).resolves.toBeUndefined();
   });
+
+  it("returns undefined when a 2xx body is not valid JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError("Unexpected end of JSON input");
+        },
+      } as unknown as Response),
+    );
+    await expect(apiFetch("/empty-ok")).resolves.toBeUndefined();
+  });
 });
