@@ -140,13 +140,28 @@ cd apps/backend
 npx prisma studio
 ```
 
+### 모바일 앱 (Expo)
+
+```bash
+# client-core 빌드 (최초 1회 / 변경 시)
+pnpm --filter @mingle/client-core build
+
+# 환경 변수 (디바이스/시뮬레이터에 맞게 EXPO_PUBLIC_API_URL 수정)
+cp apps/mobile/.env.example apps/mobile/.env
+
+# 개발 서버
+pnpm dev:mobile   # i = iOS 시뮬레이터, a = Android 에뮬레이터
+```
+
 ## 스크립트
 
 | 명령어 | 설명 |
 |--------|------|
 | `pnpm build` | 전체 빌드 |
+| `pnpm test` | 전체 테스트 |
 | `pnpm dev:backend` | 백엔드 개발 서버 |
 | `pnpm dev:mcp` | MCP 서버 |
+| `pnpm dev:mobile` | 모바일 Expo 개발 서버 |
 | `pnpm lint` | ESLint |
 | `pnpm clean` | dist 정리 |
 
