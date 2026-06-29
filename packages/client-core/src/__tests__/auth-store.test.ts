@@ -27,4 +27,15 @@ describe("createAuthStore", () => {
     expect(store.getState().profileId).toBe("p1");
     expect(store.getState().token).toBe("t2");
   });
+
+  it("rehydrates persisted state from storage and exposes the persist API", async () => {
+    const storage = createMemoryStorage();
+    await storage.setItem(
+      "mingle-auth",
+      JSON.stringify({ state: { token: "saved", profileId: "p", role: "user" }, version: 0 }),
+    );
+    const store = createAuthStore(storage);
+    await store.persist.rehydrate();
+    expect(store.getState().token).toBe("saved");
+  });
 });

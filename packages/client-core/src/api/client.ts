@@ -27,14 +27,17 @@ export async function apiFetch<T>(
 
   const res = await fetch(`${baseUrl}${path}`, { ...options, headers });
 
-  if (res.status === 401) {
+  if (res.status === 401 && token) {
     onUnauthorized?.();
     throw new ApiError(401, "인증이 만료되었습니다.");
   }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.message || `요청 실패 (${res.status})`);
+    const rawMessage = Array.isArray(body.message)
+      ? body.message.join("\n")
+      : body.message;
+    throw new ApiError(res.status, rawMessage || `요청 실패 (${res.status})`);
   }
 
   if (res.status === 204) {

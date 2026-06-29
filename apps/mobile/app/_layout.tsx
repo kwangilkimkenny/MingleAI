@@ -1,6 +1,8 @@
 import { Stack } from "expo-router";
 import "../src/lib/client";
 
+export { ErrorBoundary } from "expo-router";
+
 export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerTitle: "MingleAI" }}>

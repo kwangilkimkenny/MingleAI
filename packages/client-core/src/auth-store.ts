@@ -1,5 +1,5 @@
 import { create, type UseBoundStore, type StoreApi } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, type PersistOptions } from "zustand/middleware";
 import type { KeyValueStorage } from "./storage.js";
 
 export type UserRole = "user" | "admin" | "super_admin";
@@ -13,9 +13,21 @@ export interface AuthState {
   isAdmin: () => boolean;
 }
 
+type AuthStoreApi = StoreApi<AuthState> & {
+  persist: {
+    setOptions: (options: Partial<PersistOptions<AuthState, unknown>>) => void;
+    clearStorage: () => void;
+    rehydrate: () => Promise<void> | void;
+    hasHydrated: () => boolean;
+    onHydrate: (fn: (state: AuthState) => void) => () => void;
+    onFinishHydration: (fn: (state: AuthState) => void) => () => void;
+    getOptions: () => Partial<PersistOptions<AuthState, unknown>>;
+  };
+};
+
 export function createAuthStore(
   storage: KeyValueStorage,
-): UseBoundStore<StoreApi<AuthState>> {
+): UseBoundStore<AuthStoreApi> {
   return create<AuthState>()(
     persist(
       (set, get) => ({

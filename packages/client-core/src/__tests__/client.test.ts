@@ -41,17 +41,37 @@ describe("apiFetch", () => {
     expect(headers["Authorization"]).toBe("Bearer abc");
   });
 
-  it("calls onUnauthorized and throws ApiError(401) on 401", async () => {
+  it("calls onUnauthorized and throws ApiError(401) on 401 WITH a token", async () => {
     const onUnauthorized = vi.fn();
     configureClient({ baseUrl: "http://api.test", onUnauthorized });
+    setTokenAccessor(() => "expired-token");
     vi.stubGlobal("fetch", mockFetch(401, {}));
     await expect(apiFetch("/secure")).rejects.toBeInstanceOf(ApiError);
     expect(onUnauthorized).toHaveBeenCalledOnce();
   });
 
+  it("on 401 without a token surfaces server message and does not call onUnauthorized", async () => {
+    const onUnauthorized = vi.fn();
+    configureClient({ baseUrl: "http://api.test", onUnauthorized });
+    vi.stubGlobal("fetch", mockFetch(401, { message: "이메일 또는 비밀번호가 올바르지 않습니다." }));
+    await expect(apiFetch("/auth/login")).rejects.toMatchObject({
+      status: 401,
+      message: "이메일 또는 비밀번호가 올바르지 않습니다.",
+    });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
   it("throws ApiError with server message on non-2xx", async () => {
     vi.stubGlobal("fetch", mockFetch(400, { message: "bad input" }));
     await expect(apiFetch("/x")).rejects.toMatchObject({ status: 400, message: "bad input" });
+  });
+
+  it("joins array error messages from the server", async () => {
+    vi.stubGlobal("fetch", mockFetch(400, { message: ["email must be an email", "password too short"] }));
+    await expect(apiFetch("/x")).rejects.toMatchObject({
+      status: 400,
+      message: "email must be an email\npassword too short",
+    });
   });
 
   it("returns undefined on 204", async () => {

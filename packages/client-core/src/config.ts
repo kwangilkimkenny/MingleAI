@@ -11,7 +11,7 @@ export function configureClient(next: ClientConfig): void {
 }
 
 export function getClientConfig(): ClientConfig {
-  return config;
+  return { ...config };
 }
 
 export function setTokenAccessor(fn: () => string | null): void {
