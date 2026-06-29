@@ -1,425 +1,237 @@
-# MingleAI 서비스 진단 및 개발 계획
+# MingleAI 기획문서 v2 — "가벼운 만남" 소셜 매칭 앱
 
-## 1. 현재 상태 진단
+> 작성일: 2026-06-29 · 상태: 설계 확정 대기(리뷰 요청 중)
+> 이전 버전(v1, AI 에이전트 대화 시뮬레이션 중심)은 본 문서로 대체됨. v1 원문은 git 히스토리 참조.
 
-### 1.1 구현 완료된 기능 ✅
+---
 
-| 영역 | 기능 | 상태 |
+## 0. 비전 / 컨셉
+
+**오프라인에서 직접 사람을 만나 파티하는 것이 부담스러운 사람들에게, 가벼운 만남을 도와주는 모바일 앱.**
+
+- 부담 없는 진입: 무거운 프로필 작성 없이 **성별·나이·직업 3가지 + 원하는 파티 유형(자연어)** 만으로 시작
+- AI는 "대신 대화"하지 않는다. AI의 역할은 **선호 분석 & 비슷한 사람 매칭 추천**으로 한정한다.
+- 실제 만남 전 단계의 "가벼운" 소통: 온라인 파티에서 **실제 유저들이** 대화하고 게임하며 분위기를 익힌다.
+- 마음에 드는 상대에게 **프로포즈** → 수락 시 1:1 메신저 → 원하면 **식당 예약**까지.
+
+### 플랫폼 방향
+- **모바일 우선**: iOS + Android 네이티브 앱 (React Native + Expo)
+- **웹**: 소비자 웹은 최소 유지, **Admin 대시보드는 웹 전용**으로 존속
+- 백엔드(NestJS) · DB(PostgreSQL) · 실시간(Socket.IO)은 유지하되 신규 도메인에 맞게 확장
+
+---
+
+## 1. v1 → v2 핵심 변경 요약
+
+| 영역 | v1 (기존 구현) | v2 (신규 기획) |
+|------|----------------|----------------|
+| AI 역할 | 에이전트가 **유저 대신 대화** (시뮬레이션) | **선호 분석 & 매칭 추천만** (대화 대행 제거) |
+| 파티 참여자 | AI 에이전트 | **실제 유저** |
+| 파티 진행 | 라운드 기반 AI 자동 대화 | 실시간 유저 채팅 + 아이스브레이커 미니게임 |
+| 파티 형성 | 예약/스케줄 + 수동 참가자 추가 | **즉석 매칭형 큐** (비슷한 선호 모이면 시작) |
+| 파티 시각화 | 3D (Three.js) | **2D 탑다운 "어몽어스" 스타일** (RN Skia) |
+| 가입 프로필 | 풍부한 프로필 + agentPersona 자동생성 | **최소(성별/나이/직업+자연어 선호)** + 선택적 추가 |
+| 관계 진전 | AI 매치 리포트(점수/추천) | **프로포즈 → 수락 → 1:1 메신저** |
+| 식당 예약 | 데이트 플랜(AI 코스+결제) | **유지** (매칭된 상대와 연결) |
+| 클라이언트 | Next.js 웹 | **Expo 모바일 앱** + 최소 웹/Admin |
+
+---
+
+## 2. 사용자 여정 (End-to-End)
+
+```
+가입(성별·나이·직업 + 원하는 파티 유형 자연어)
+   ↓  AI 선호 분석 (자연어 → 선호 태그/벡터)
+매칭 큐 입장 ("매칭 시작")
+   ↓  비슷한 선호의 유저가 정원만큼 모이면
+파티 시작 (2D 공간) — 실시간 채팅 + 아이스브레이커 미니게임
+   ↓  마음에 드는 상대에게
+프로포즈 전송 → 상대가 수락/거절 결정
+   ↓  수락 시
+1:1 대화방 생성 (메신저)
+   ↓  원하면
+식당 예약 (데이트 코스/예약)
+```
+
+---
+
+## 3. 기능 명세
+
+### 3.1 온보딩 / 가입
+- 인증: 이메일/비밀번호(기존 JWT 유지) — 추후 소셜 로그인 확장 가능
+- 필수 입력 3가지: **성별(gender), 나이(age), 직업(occupation)**
+- **원하는 파티 유형**: 자유 서술(자연어) 입력
+  - 예: "조용히 보드게임 하면서 천천히 친해지는 분위기", "활발하고 술 없이 가볍게 떠드는 모임"
+- 선택적 추가(나중에): 프로필 사진, 관심사 태그, 한 줄 소개
+- 산출물: 최소 프로필 + `partyPreferenceText`
+
+### 3.2 AI 매칭 엔진 (대화 대행 ❌, 분석 ✅)
+- 입력: 자연어 파티 선호 + (성별/나이/직업)
+- 처리: LLM(Claude)으로 자연어 선호를 **구조화된 선호 신호**로 변환
+  - 예: `{ vibe: "calm", activity: ["boardgame"], drinking: "none", pace: "slow", tags: [...] }`
+  - 임베딩/태그 기반 유사도로 비슷한 유저 그룹핑
+- 출력: 매칭 큐에서 **유사 선호 유저들을 한 파티로 묶음**
+- 비고: 가입 시 1회 분석 + 선호 변경 시 재분석. 매칭 자체는 큐에서 실시간 수행.
+
+### 3.3 파티 — 즉석 매칭형 큐
+- 유저가 "매칭 시작" → 매칭 큐 진입
+- 매칭 조건: 선호 유사도 + (옵션) 성비/연령대 밸런스
+- 정원(예: 4~8명) 충족 시 **파티 룸 생성 & 즉시 시작**
+- 대기 UX: 큐 대기 화면(예상 대기시간, 매칭 중 애니메이션), 타임아웃/취소 가능
+- 파티 종료: 시간제한 또는 호스트리스 자동 종료 → 종료 후에도 프로포즈/매칭 결과는 유지
+
+### 3.4 파티 공간 — 2D 탑다운 ("어몽어스" 스타일)
+- **렌더링**: React Native Skia 캔버스(탑다운 2D) + Reanimated 이동 보간
+- 기존 WebSocket 페이로드 **재사용**: `position{x,y,z}` → x/z 평면을 2D x/y로 매핑, `animation`(idle/walking/talking/...) → 2D 스프라이트 상태로 매핑
+- 구성: 베뉴 맵(구역/테이블) + 캐릭터(원형 아바타 + 이름표 + 말풍선)
+- 인터랙션: 캐릭터 탭 → 미니 프로필/프로포즈 버튼, 구역 탭 → 해당 그룹 채팅
+- **실시간 채팅**: 파티/구역 단위 텍스트 채팅 (Socket.IO)
+
+### 3.5 아이스브레이커 미니게임
+- 목적: 어색함 해소, 자연스러운 대화 유도
+- 후보 게임(가벼움 우선): **밸런스 게임**, **스무고개**, **투표/이상형 월드컵**, **간단 퀴즈**
+- 구조: 서버 권위(state authority) + 실시간 동기화, 라운드/타이머/결과 집계
+- MVP 범위: 1~2종 먼저 구현 후 확장 (게임 타입 플러그형 설계)
+
+### 3.6 프로포즈 & 매칭
+- **프로포즈**: 파티 중(또는 종료 직후) 특정 상대에게 "개인적으로 연락하고 싶다"는 제안 전송
+- 결정권은 **받은 사람**: 수락/거절
+- 수락 시 **상호 매칭 성사** → 1:1 대화방 생성
+- 제약: 중복 프로포즈 방지, 거절 시 알림 비노출(상대 보호), 1파티 내 프로포즈 횟수 제한(스팸 방지) 검토
+
+### 3.7 1:1 메신저
+- 매칭 성사 쌍에게만 생성되는 **전용 대화방**
+- 실시간 텍스트 메시지(Socket.IO) + 읽음 표시 + 푸시 알림
+- 안전: 신고/차단 진입점, 부적절 콘텐츠 필터(기존 안전 모듈 확장)
+
+### 3.8 식당 예약 (데이트 플랜)
+- 매칭된 1:1 상대와 **식당/데이트 코스 예약** (기존 DatePlan 기능 계승)
+- 코스 추천(예산/위치 기반) → 선택 → 예약
+- 결제 연동은 기존 필드 존재하나 v2 MVP에서는 **예약 확정까지**를 우선(결제는 후속 단계 검토)
+
+### 3.9 알림
+- 실시간(Socket.IO) + **푸시 알림(Expo Notifications)**
+- 트리거: 매칭 성사 임박/파티 시작, 프로포즈 수신, 매칭 성사, 새 메시지, 예약 리마인더
+
+### 3.10 안전 / 신고 / 차단
+- 신고(SafetyReport) 유지 + **차단(Block)** 신규 추가
+- 앱스토어 데이팅 정책 대응: 신고/차단 상시 노출, 연령 게이트, 콘텐츠 모더레이션
+- Admin(웹)에서 신고 처리/유저 제재
+
+---
+
+## 4. 제거 / 변경되는 기존 기능
+
+| 항목 | 처리 |
+|------|------|
+| AI 에이전트 대화 시뮬레이션 (`conversation.service`, `simulate_*`) | **제거** |
+| 라운드 기반 AI 파티(`roundCount`, `roundDurationMinutes`) | **제거/대체** (실시간 유저 파티) |
+| AI 매치 리포트(`Report` 모델, matchScores/highlights) | **제거** (또는 가벼운 파티 요약으로 축소 검토) |
+| `Profile.agentPersona`, `communicationStyle`, `values` | **제거** |
+| 3D 뷰어(Three.js, react-three-fiber) | **제거** → 2D Skia |
+| MCP 서버 | 핵심 제품 경로에서 분리(개발/운영 도구로만 유지, 선택) |
+
+---
+
+## 5. 기술 아키텍처
+
+### 5.1 모노레포 구조 (확장)
+```
+mingle-ai/
+├── apps/
+│   ├── backend/        # NestJS (유지 + 신규 도메인 확장)
+│   ├── web/            # Next.js (소비자 최소 유지 + Admin 전용)
+│   └── mobile/         # ⭐ 신규: Expo (React Native) — iOS + Android
+├── packages/
+│   ├── shared/         # 공유 타입 (유지·확장)
+│   ├── client-core/    # ⭐ 신규: API클라이언트·소켓·인증·스토어 (web/mobile 공용)
+│   └── (mcp/ mingleai-mcp/ : 개발 도구로만 선택 유지)
+```
+
+**`@mingle/client-core` 추출**: 현재 `apps/web/src/lib/api/*`, `lib/store/*`(Zustand), `hooks/usePartySocket.ts`, `useApi.ts`는 대부분 플랫폼 무관 TS. 플랫폼 의존성은 ① 토큰 저장소(`localStorage` ↔ `expo-secure-store`) ② 환경변수 접근 뿐 → 두 가지를 **주입 인터페이스**로 추상화하면 web/mobile이 데이터 레이어를 공유.
+
+### 5.2 모바일 스택 (Expo)
+| 영역 | 선택 | 비고 |
 |------|------|------|
-| **인증** | 이메일/비밀번호 회원가입, JWT 로그인 | ✅ 완료 |
-| **프로필** | 생성, 조회, 수정, 목록, AI 에이전트 페르소나 자동 생성 | ✅ 완료 |
-| **파티** | 생성, 참가자 추가, 실행, 결과 조회 | ✅ 완료 |
-| **리포트** | 매칭 점수 계산, 하이라이트, 추천 액션 | ✅ 완료 |
-| **데이트 플랜** | 예산/위치 기반 코스 생성 | ✅ 완료 |
-| **안전** | 콘텐츠 검사, 유저 신고, 자동 정지 | ✅ 완료 |
-| **프론트엔드** | Next.js 15 + MUI v6 전체 UI | ✅ 완료 |
-| **MCP 서버** | 기본 도구 15개 (프로필, 파티, 리포트, 데이트, 안전) | ✅ 완료 |
+| 프레임워크 | Expo SDK(최신) + Expo Router | Next.js App Router와 동일한 파일기반 라우팅 |
+| UI 키트 | React Native Paper (Material) | 기존 MUI와 디자인 연속성 / 대안 Tamagui |
+| 상태 | Zustand(재사용) + TanStack Query | 서버 캐싱/리페치 |
+| 실시간 | socket.io-client(재사용) | |
+| 2D 파티 뷰 | @shopify/react-native-skia + Reanimated | 어몽어스 탑다운 |
+| 인증 저장 | expo-secure-store | JWT 안전 보관 |
+| 푸시 | expo-notifications | 백엔드 연동 |
+| 빌드/배포 | EAS Build + Submit + Update | iOS/Android 빌드·스토어 제출·OTA |
 
-### 1.2 핵심 문제점 🔴
-
-#### P0 (Critical)
-1. **데이터베이스 이중화 문제**
-   - Backend: PostgreSQL, MCP: SQLite
-   - 데이터 동기화 없음 → 불일치 발생
-
-2. **AI 통합 부재**
-   - 파티 실행 시 실제 LLM 대화 없음 (Mock 데이터)
-   - 매칭 점수가 하드코딩된 알고리즘
-
-#### P1 (High)
-3. **실제 장소 데이터 없음**
-   - 데이트 플랜이 가상 템플릿 사용
-   - 지도/장소 API 미연동
-
-4. **안전 탐지 한계**
-   - Regex 기반 (ML/NLP 없음)
-   - 문맥 기반 사기 탐지 불가
-
-#### P2 (Medium)
-5. **에이전트 대화 로그 미노출**
-   - 사용자가 에이전트 상호작용 확인 불가
-
-6. **테스트 커버리지 부족**
-   - E2E 테스트 없음
-
-7. **개인정보 보호**
-   - DB 평문 저장, 감사 로그 없음
+### 5.3 백엔드 변경
+1. **매칭 큐 서비스**: 큐 입장/이탈, 유사도 그룹핑, 정원 충족 시 파티 생성
+2. **선호 분석**: 가입/수정 시 자연어 선호 → 구조화 신호(LLM) 저장
+3. **실시간 파티/채팅/게임 게이트웨이**: 기존 `party.gateway` 확장(유저 메시지/게임 상태)
+4. **프로포즈/매칭/메신저 도메인**: 신규 모듈
+5. **푸시 알림**: 디바이스 토큰 등록 + Expo Push 발송
+6. **인증 보강**: 모바일 장기 세션용 **리프레시 토큰**(access+refresh)
+7. **차단(Block)** + 안전 모듈 확장, CORS/모바일 오리진 설정
 
 ---
 
-## 2. 개선 개발 계획
+## 6. 데이터 모델 변경 (Prisma)
 
-### Phase 1: MCP 서버 고도화 (mingleai-mcp)
+### 신규 / 변경
+- **Profile (간소화)**: `gender`, `age`, `occupation` 필수. `partyPreferenceText`(자연어) + `preferenceSignals`(Json, AI 분석 결과) 추가. `photoUrl`, `interests`, `bio` 선택. 제거: `agentPersona`, `communicationStyle`, `values`, (가입 단계의)`location` 필수성 완화.
+- **MatchmakingQueueEntry (신규)**: `profileId`, `status`(waiting/matched/cancelled), `enqueuedAt`, `preferenceSnapshot`.
+- **Party (변경)**: 실시간 룸. `status`(matching→active→ended), `startedAt`, `endedAt`, `maxParticipants`. 제거: `scheduledAt` 필수성, `roundCount`, `roundDurationMinutes`.
+- **PartyMessage (신규)**: 파티/구역 채팅 메시지.
+- **GameSession (신규)**: `partyId`, `gameType`, `state`(Json), `startedAt`, `endedAt`, `result`(Json).
+- **Proposal (신규)**: `partyId`, `fromProfileId`, `toProfileId`, `status`(pending/accepted/declined), 타임스탬프. (중복 방지 unique)
+- **Match (신규)**: 수락된 프로포즈로 생성. `profileId1`, `profileId2`, `createdAt`. → DirectMessageRoom 1:1.
+- **DirectMessageRoom / DirectMessage (신규)**: 매칭 쌍 전용 메신저.
+- **Block (신규)**: `blockerProfileId`, `blockedProfileId`.
+- **DatePlan (유지)**: `matchId` 연결로 변경. 코스/예약 필드 유지.
+- **제거**: `Report`(AI 매치 리포트) — v2에서 미사용(또는 경량 파티 요약으로 축소 검토).
 
-#### 1.1 백엔드 API 연동으로 전환
-현재 MCP가 독립 SQLite를 사용하는 문제 해결
-
-```
-기존: MCP → SQLite (독립)
-변경: MCP → Backend REST API → PostgreSQL
-```
-
-**새 MCP 아키텍처:**
-```
-packages/mingleai-mcp/
-├── src/
-│   ├── index.ts                 # MCP 서버 엔트리
-│   ├── client/
-│   │   └── api-client.ts        # Backend API 클라이언트
-│   ├── tools/
-│   │   ├── profile.tools.ts     # API 연동 버전
-│   │   ├── party.tools.ts
-│   │   ├── report.tools.ts
-│   │   ├── date-plan.tools.ts
-│   │   ├── safety.tools.ts
-│   │   └── ai-conversation.tools.ts  # NEW: Claude 대화
-│   ├── services/
-│   │   ├── conversation.service.ts   # NEW: 에이전트 대화 시뮬레이션
-│   │   ├── matching.service.ts       # NEW: AI 매칭 분석
-│   │   └── venue.service.ts          # NEW: 장소 검색
-│   └── config.ts
-├── package.json
-└── tsconfig.json
-```
-
-#### 1.2 새로운 MCP 도구 추가
-
-| 도구 | 설명 | 우선순위 |
-|------|------|----------|
-| `simulate_agent_conversation` | Claude로 에이전트 간 실제 대화 생성 | P0 |
-| `analyze_compatibility_deep` | AI 기반 심층 호환성 분석 | P0 |
-| `generate_conversation_starters` | 맞춤형 대화 주제 추천 | P1 |
-| `search_real_venues` | Kakao/Naver Maps 연동 장소 검색 | P1 |
-| `get_conversation_logs` | 에이전트 대화 기록 조회 | P1 |
-| `bulk_safety_scan` | 다중 프로필 안전 검사 | P2 |
-| `get_platform_analytics` | 플랫폼 통계 조회 | P2 |
+> 마이그레이션은 신규 스키마로 재설계하되, 기존 인증/유저 데이터는 보존하는 점진적 마이그레이션을 작성.
 
 ---
 
-### Phase 2: AI 대화 시뮬레이션 엔진
+## 7. 단계별 로드맵
 
-파티 실행 시 실제 Claude API로 에이전트 대화 생성
-
-#### 2.1 대화 시스템 설계
-
-```typescript
-// 에이전트 대화 플로우
-interface AgentConversation {
-  roundId: string;
-  participants: AgentProfile[];
-  messages: ConversationMessage[];
-  analysis: ConversationAnalysis;
-}
-
-interface ConversationMessage {
-  agentId: string;
-  content: string;
-  timestamp: string;
-  sentiment: 'positive' | 'neutral' | 'negative';
-  topics: string[];
-}
-
-interface ConversationAnalysis {
-  rapport: number;        // 0-1
-  sharedInterests: string[];
-  conversationFlow: 'natural' | 'awkward' | 'engaging';
-  compatibility: number;  // 0-1
-}
-```
-
-#### 2.2 Claude Prompt 설계
-
-```
-System: 당신은 "{name}"의 Another I 에이전트입니다.
-{agentPersona}
-
-상대방 에이전트: {partnerAgentPersona}
-
-대화 상황: {icebreaker}
-추천 주제: {topics}
-
-규칙:
-- 페르소나에 충실하게 대화하세요
-- 개인 안전 정보는 공유하지 마세요
-- 자연스럽고 진정성 있는 대화를 나누세요
-- 상대방의 관심사에 질문하세요
-```
+- **Phase 0 — 기반 정리**
+  - 모노레포 정리, `client-core` 추출(스토리지/환경 주입 추상화), Expo 앱 스캐폴딩, EAS·CI 설정
+  - 데이터 모델 v2 마이그레이션, 백엔드에서 AI 대화/3D 잔재 제거
+- **Phase 1 — 가입 & 매칭 기반**
+  - 최소 온보딩(성별/나이/직업 + 자연어 선호), 인증(secure-store, 리프레시 토큰)
+  - AI 선호 분석 파이프라인
+- **Phase 2 — 즉석 매칭 큐 & 파티 룸**
+  - 매칭 큐 서비스, 파티 생성/입장, 실시간 채팅
+  - 2D 탑다운 뷰(Skia) + WebSocket 연결 (가장 큰 클라이언트 작업)
+- **Phase 3 — 아이스브레이커 미니게임**
+  - 게임 게이트웨이/상태 동기화, 1~2종 게임 구현(플러그형)
+- **Phase 4 — 프로포즈 → 매칭 → 메신저**
+  - 프로포즈 흐름, 매칭 성사, 1:1 메신저, 푸시 알림
+- **Phase 5 — 식당 예약 & 출시**
+  - 데이트 플랜/식당 예약(매칭 연결), 안전/차단/연령 게이트
+  - 폴리시(제스처/햅틱/딥링크), 성능 튜닝, 스토어 메타데이터, EAS 빌드·제출
 
 ---
 
-### Phase 3: 외부 API 연동
-
-#### 3.1 지도/장소 API (Kakao Maps)
-
-```typescript
-// 장소 검색 서비스
-interface VenueSearchService {
-  searchByKeyword(query: string, location: Location): Promise<Venue[]>;
-  searchByCategory(category: VenueCategory, location: Location): Promise<Venue[]>;
-  getRouteTime(from: Location, to: Location): Promise<number>;
-}
-
-interface Venue {
-  id: string;
-  name: string;
-  category: VenueCategory;
-  address: string;
-  location: { lat: number; lng: number };
-  rating: number;
-  priceRange: 'low' | 'medium' | 'high';
-  openingHours: string;
-  photos: string[];
-}
-```
-
-#### 3.2 연동 API 목록
-
-| API | 용도 | 우선순위 |
-|-----|------|----------|
-| Kakao Maps API | 장소 검색, 경로 계산 | P1 |
-| Naver Search API | 맛집/카페 정보 | P1 |
-| OpenWeather API | 날씨 기반 코스 추천 | P2 |
+## 8. 리스크 & 고려사항
+- **앱스토어 데이팅 정책**: 연령 확인, 신고/차단/콘텐츠 모더레이션 필수(Apple/Google). 신고는 이미 존재, **차단·연령 게이트 보강** 필요.
+- **매칭 큐 동시성**: 정원 충족·중복 매칭 방지(트랜잭션/락). 기존 동시성 안정화 작업 활용.
+- **실시간 인프라 스케일**: 파티 룸 다수 동시 운영 시 Socket.IO 룸/Redis 어댑터.
+- **2D 렌더 성능**: 다수 아바타 동시 이동 시 Skia/Reanimated 최적화.
+- **AI 선호 분석 비용/지연**: 가입 시 1회 분석 + 캐시. 매칭은 사전계산된 신호로 빠르게.
+- **인증 마이그레이션**: 리프레시 토큰 도입 시 web/mobile 동시 호환.
 
 ---
 
-### Phase 4: 안전 시스템 강화
-
-#### 4.1 ML 기반 콘텐츠 모더레이션
-
-```typescript
-// 향상된 안전 검사
-interface EnhancedSafetyService {
-  // 기존 Regex + ML 하이브리드
-  checkContent(content: string, context: SafetyContext): Promise<SafetyResult>;
-
-  // NEW: 행동 패턴 분석
-  analyzeUserBehavior(profileId: string): Promise<BehaviorAnalysis>;
-
-  // NEW: 대화 맥락 기반 탐지
-  analyzeConversation(messages: Message[]): Promise<ConversationSafetyResult>;
-}
-
-interface BehaviorAnalysis {
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  flags: BehaviorFlag[];
-  recommendations: string[];
-}
-```
-
-#### 4.2 자동 모더레이션 규칙
-
-| 규칙 | 조건 | 액션 |
-|------|------|------|
-| 자동 경고 | riskScore >= 0.3 | 경고 메시지 발송 |
-| 자동 제한 | riskScore >= 0.5 | 파티 참가 제한 |
-| 자동 정지 | riskScore >= 0.7 | 계정 일시 정지 |
-| 자동 차단 | 신고 3회 이상 | 계정 영구 정지 |
+## 9. 범위 밖 (Out of Scope / YAGNI)
+- AI 에이전트 대화 대행 (명시적 제외)
+- 음성/영상 통화, 그룹 영상
+- 결제(식당 예약 결제)는 v2 MVP 이후 검토
+- 소셜 로그인(후속), Admin 모바일화(웹 유지)
 
 ---
 
-### Phase 5: 프론트엔드 고도화
-
-#### 5.1 새 페이지/컴포넌트
-
-| 페이지 | 설명 |
-|--------|------|
-| `/parties/[id]/conversations` | 에이전트 대화 로그 뷰어 |
-| `/profile/[id]/agent` | 내 에이전트 설정/미리보기 |
-| `/matches` | 매칭된 상대 목록 |
-| `/messages` | 실제 유저 간 메시지 |
-
-#### 5.2 UI 개선
-
-- 실시간 파티 진행 상황 표시
-- 대화 분석 시각화 (감정, 주제, 호환성)
-- 데이트 코스 지도 표시
-
----
-
-### Phase 6: 인프라 및 보안
-
-#### 6.1 개인정보 보호
-
-```typescript
-// 필드 레벨 암호화
-interface EncryptedProfile {
-  id: string;
-  userId: string;
-  name: string;                    // 평문
-  age: number;                     // 평문
-  email_encrypted: string;         // AES-256 암호화
-  phone_encrypted?: string;        // AES-256 암호화
-  location_encrypted: string;      // AES-256 암호화
-}
-```
-
-#### 6.2 감사 로그
-
-```typescript
-interface AuditLog {
-  id: string;
-  userId: string;
-  action: 'read' | 'write' | 'delete' | 'export';
-  resource: string;
-  resourceId: string;
-  timestamp: Date;
-  ipAddress: string;
-  userAgent: string;
-}
-```
-
----
-
-## 3. 구현 우선순위 및 일정
-
-### 즉시 착수 (Week 1-2)
-1. **mingleai-mcp 신규 구현**
-   - Backend API 클라이언트 구현
-   - 기존 도구를 API 연동 버전으로 교체
-   - 새 도구 스캐폴딩
-
-### 단기 (Week 3-4)
-2. **AI 대화 시뮬레이션**
-   - Claude API 연동
-   - 에이전트 대화 생성 로직
-   - 대화 분석 및 점수화
-
-### 중기 (Week 5-6)
-3. **외부 API 연동**
-   - Kakao Maps API 연동
-   - 실제 장소 기반 데이트 플랜
-
-### 장기 (Week 7-8)
-4. **안전 시스템 강화**
-   - ML 모델 통합
-   - 행동 패턴 분석
-
----
-
-## 4. mingleai-mcp 상세 설계
-
-### 4.1 디렉토리 구조
-
-```
-packages/mingleai-mcp/
-├── src/
-│   ├── index.ts                    # MCP 서버 메인
-│   ├── config.ts                   # 환경 설정
-│   │
-│   ├── client/
-│   │   ├── api-client.ts           # Backend REST 클라이언트
-│   │   ├── claude-client.ts        # Claude API 클라이언트
-│   │   └── maps-client.ts          # Kakao Maps 클라이언트
-│   │
-│   ├── tools/
-│   │   ├── index.ts                # 도구 등록
-│   │   ├── auth.tools.ts           # 인증 도구
-│   │   ├── profile.tools.ts        # 프로필 도구
-│   │   ├── party.tools.ts          # 파티 도구
-│   │   ├── conversation.tools.ts   # 대화 시뮬레이션 도구
-│   │   ├── report.tools.ts         # 리포트 도구
-│   │   ├── date-plan.tools.ts      # 데이트 플랜 도구
-│   │   ├── venue.tools.ts          # 장소 검색 도구
-│   │   ├── safety.tools.ts         # 안전 도구
-│   │   └── analytics.tools.ts      # 분석 도구
-│   │
-│   ├── services/
-│   │   ├── conversation.service.ts # 대화 생성 서비스
-│   │   ├── matching.service.ts     # 매칭 분석 서비스
-│   │   ├── venue.service.ts        # 장소 서비스
-│   │   └── safety.service.ts       # 안전 서비스
-│   │
-│   └── types/
-│       └── index.ts                # 타입 정의
-│
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-### 4.2 MCP 도구 목록 (총 25개)
-
-#### 인증 (2개)
-| 도구명 | 설명 |
-|--------|------|
-| `auth_register` | 회원가입 |
-| `auth_login` | 로그인 → JWT 토큰 반환 |
-
-#### 프로필 (5개)
-| 도구명 | 설명 |
-|--------|------|
-| `create_profile` | 프로필 생성 + 에이전트 페르소나 자동 생성 |
-| `get_profile` | 프로필 조회 |
-| `update_profile` | 프로필 수정 |
-| `list_profiles` | 프로필 목록 (필터링) |
-| `preview_agent_persona` | 에이전트 페르소나 미리보기 |
-
-#### 파티 (5개)
-| 도구명 | 설명 |
-|--------|------|
-| `create_party` | 파티 생성 |
-| `add_participant` | 참가자 추가 |
-| `run_party` | 파티 실행 (AI 대화 시뮬레이션 포함) |
-| `get_party_results` | 파티 결과 조회 |
-| `get_conversation_logs` | 에이전트 대화 로그 조회 |
-
-#### 대화 시뮬레이션 (3개) - NEW
-| 도구명 | 설명 |
-|--------|------|
-| `simulate_conversation` | 두 에이전트 간 대화 시뮬레이션 |
-| `analyze_conversation` | 대화 분석 (호감도, 공통점, 분위기) |
-| `generate_icebreaker` | 맞춤형 아이스브레이커 생성 |
-
-#### 리포트 (3개)
-| 도구명 | 설명 |
-|--------|------|
-| `generate_report` | 매칭 리포트 생성 |
-| `get_report` | 리포트 조회 |
-| `list_reports` | 리포트 목록 |
-
-#### 데이트 플랜 (3개)
-| 도구명 | 설명 |
-|--------|------|
-| `create_date_plan` | 데이트 코스 생성 |
-| `get_date_plan` | 데이트 플랜 조회 |
-| `search_venues` | 실제 장소 검색 (Kakao Maps) |
-
-#### 안전 (3개)
-| 도구명 | 설명 |
-|--------|------|
-| `check_content` | 콘텐츠 안전 검사 |
-| `check_profile` | 프로필 안전 검사 |
-| `report_user` | 유저 신고 |
-
-#### 분석 (1개) - NEW
-| 도구명 | 설명 |
-|--------|------|
-| `get_platform_stats` | 플랫폼 통계 (파티 수, 매칭 성공률 등) |
-
----
-
-## 5. 예상 결과물
-
-### 5.1 mingleai-mcp 완성 시
-- Claude Desktop/Code에서 MingleAI 전체 기능 사용 가능
-- 실제 AI 대화 시뮬레이션으로 현실감 있는 에이전트 상호작용
-- 실제 장소 기반 데이트 코스 추천
-- 통합된 안전 시스템
-
-### 5.2 KPI
-| 지표 | 현재 | 목표 |
-|------|------|------|
-| MCP 도구 수 | 15개 | 25개 |
-| AI 대화 품질 | Mock | Claude 기반 |
-| 장소 데이터 | 템플릿 | 실제 API |
-| 데이터 일관성 | 이중화 | 단일 소스 |
-
----
-
-## 6. 다음 단계
-
-1. **mingleai-mcp 패키지 생성**
-2. **Backend API 클라이언트 구현**
-3. **기존 도구를 API 연동 버전으로 마이그레이션**
-4. **새 AI 대화 도구 구현**
-5. **테스트 및 문서화**
+## 10. 다음 단계
+1. 본 기획문서 리뷰/승인
+2. 상세 구현 계획(writing-plans) 작성 — Phase 0부터 작업 단위로 분해
+3. 데이터 모델 v2 마이그레이션 설계 확정
