@@ -1,5 +1,4 @@
 import { View, Text, Button, StyleSheet } from "react-native";
-import { router } from "expo-router";
 import { useAuthStore } from "../../src/lib/client";
 
 export default function Home() {
@@ -7,7 +6,6 @@ export default function Home() {
 
   function onLogout() {
     logout();
-    router.replace("/login");
   }
 
   return (
