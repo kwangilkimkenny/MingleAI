@@ -39,6 +39,12 @@ describe("auth api", () => {
 
     const res = await register("c@d.com", "pw2");
     expect(res.accessToken).toBe("jwt2");
-    expect(f.mock.calls[0][0]).toBe("http://api.test/auth/register");
+    expect(f).toHaveBeenCalledWith(
+      "http://api.test/auth/register",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ email: "c@d.com", password: "pw2" }),
+      }),
+    );
   });
 });
