@@ -38,4 +38,12 @@ describe("createAuthStore", () => {
     await store.persist.rehydrate();
     expect(store.getState().token).toBe("saved");
   });
+
+  it("stays logged out and does not throw when stored JSON is corrupt", async () => {
+    const storage = createMemoryStorage();
+    await storage.setItem("mingle-auth", "{ not valid json");
+    const store = createAuthStore(storage);
+    await store.persist.rehydrate();
+    expect(store.getState().token).toBeNull();
+  });
 });

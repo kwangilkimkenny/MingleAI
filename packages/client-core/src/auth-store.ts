@@ -46,7 +46,20 @@ export function createAuthStore(
           return role === "admin" || role === "super_admin";
         },
       }),
-      { name: "mingle-auth", storage: createJSONStorage(() => storage) },
+      {
+        name: "mingle-auth",
+        storage: createJSONStorage(() => storage),
+        partialize: (state) => ({
+          token: state.token,
+          profileId: state.profileId,
+          role: state.role,
+        }),
+        onRehydrateStorage: () => (_state, error) => {
+          if (error) {
+            console.error("[mingle-auth] failed to rehydrate auth state:", error);
+          }
+        },
+      },
     ),
   );
 }
