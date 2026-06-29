@@ -46,4 +46,24 @@ describe("createAuthStore", () => {
     await store.persist.rehydrate();
     expect(store.getState().token).toBeNull();
   });
+
+  it("isAdmin returns true for super_admin", () => {
+    const store = createAuthStore(createMemoryStorage());
+    store.getState().setAuth({ token: "t", role: "super_admin" });
+    expect(store.getState().isAdmin()).toBe(true);
+  });
+
+  it("preserves existing role when setAuth omits it", () => {
+    const store = createAuthStore(createMemoryStorage());
+    store.getState().setAuth({ token: "t1", role: "admin" });
+    store.getState().setAuth({ token: "t2" });
+    expect(store.getState().role).toBe("admin");
+  });
+
+  it("clears profileId on logout", () => {
+    const store = createAuthStore(createMemoryStorage());
+    store.getState().setAuth({ token: "t", profileId: "p", role: "user" });
+    store.getState().logout();
+    expect(store.getState().profileId).toBeNull();
+  });
 });
