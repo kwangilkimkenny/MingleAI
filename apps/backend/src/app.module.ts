@@ -11,6 +11,10 @@ import { CacheConfigModule } from "./cache/cache.module";
 import { NotificationModule } from "./notification/notification.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { AdminModule } from "./admin/admin.module";
+import { MatchmakingModule } from "./matchmaking/matchmaking.module";
+import { ProposalModule } from "./proposal/proposal.module";
+import { MatchModule } from "./match/match.module";
+import { MessengerModule } from "./messenger/messenger.module";
 
 @Module({
   imports: [
@@ -26,6 +30,10 @@ import { AdminModule } from "./admin/admin.module";
     NotificationModule,
     DashboardModule,
     AdminModule,
+    MatchmakingModule,
+    ProposalModule,
+    MatchModule,
+    MessengerModule,
   ],
 })
 export class AppModule {}
