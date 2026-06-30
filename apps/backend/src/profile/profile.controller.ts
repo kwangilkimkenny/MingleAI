@@ -37,7 +37,6 @@ export class ProfileController {
     @Query("location") location?: string,
     @Query("ageMin") ageMin?: string,
     @Query("ageMax") ageMax?: string,
-    @Query("relationshipGoal") relationshipGoal?: string,
     @Query("limit") limit?: string,
     @Query("offset") offset?: string,
   ) {
@@ -45,7 +44,6 @@ export class ProfileController {
       location,
       ageMin: ageMin ? Number(ageMin) : undefined,
       ageMax: ageMax ? Number(ageMax) : undefined,
-      relationshipGoal,
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined,
     });

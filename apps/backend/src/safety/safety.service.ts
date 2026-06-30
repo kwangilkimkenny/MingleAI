@@ -118,6 +118,14 @@ export class SafetyService {
     return report;
   }
 
+  createBlock(blockerProfileId: string, blockedProfileId: string) {
+    return this.prisma.block.create({ data: { blockerProfileId, blockedProfileId } });
+  }
+
+  listBlocks(profileId: string) {
+    return this.prisma.block.findMany({ where: { blockerProfileId: profileId } });
+  }
+
   private calculateRiskScore(violations: Violation[]): number {
     if (violations.length === 0) return 0;
     const weights: Record<ViolationSeverity, number> = {

@@ -97,3 +97,25 @@ describe("SafetyService", () => {
     });
   });
 });
+
+describe("SafetyService — Block", () => {
+  it("creates a block between two profiles", async () => {
+    const prisma = { block: { create: jest.fn().mockResolvedValue({ id: "b1" }) } } as any;
+    const service = new SafetyService(prisma);
+    await service.createBlock("blocker-1", "blocked-2");
+    expect(prisma.block.create).toHaveBeenCalledWith({
+      data: { blockerProfileId: "blocker-1", blockedProfileId: "blocked-2" },
+    });
+  });
+
+  it("lists blocks for a profile", async () => {
+    const blocks = [{ id: "b1", blockerProfileId: "blocker-1", blockedProfileId: "blocked-2" }];
+    const prisma = { block: { findMany: jest.fn().mockResolvedValue(blocks) } } as any;
+    const service = new SafetyService(prisma);
+    const result = await service.listBlocks("blocker-1");
+    expect(prisma.block.findMany).toHaveBeenCalledWith({
+      where: { blockerProfileId: "blocker-1" },
+    });
+    expect(result).toEqual(blocks);
+  });
+});

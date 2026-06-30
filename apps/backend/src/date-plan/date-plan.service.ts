@@ -39,27 +39,11 @@ const RATIONALE_MAP: Record<string, string> = {
   bar: "편안한 분위기에서 하루를 마무리할 수 있습니다",
 };
 
-type ProfileRow = {
-  values: { lifestyle: string[] };
-  communicationStyle: { topics: string[] };
-};
-
 @Injectable()
 export class DatePlanService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateDatePlanDto) {
-    const profile1 = await this.prisma.profile.findUnique({ where: { id: dto.profileId1 } });
-    if (!profile1) throw new NotFoundException(`프로필을 찾을 수 없습니다: ${dto.profileId1}`);
-
-    const profile2 = await this.prisma.profile.findUnique({ where: { id: dto.profileId2 } });
-    if (!profile2) throw new NotFoundException(`프로필을 찾을 수 없습니다: ${dto.profileId2}`);
-
-    const p1 = profile1 as unknown as ProfileRow;
-    const p2 = profile2 as unknown as ProfileRow;
-
-    const sharedLifestyle = p1.values.lifestyle.filter((l) => p2.values.lifestyle.includes(l));
-
     const constraints: DateConstraints = {
       budget: { total: dto.budget.total, currency: dto.budget.currency ?? "KRW" },
       location: {
@@ -79,7 +63,7 @@ export class DatePlanService {
     const avoidTypes = constraints.preferences?.avoidTypes ?? [];
 
     const courses: DateCourse[] = COURSE_THEMES.map((theme) => {
-      const stops = this.buildCourse(theme.types, budget, durationMinutes, avoidTypes, sharedLifestyle);
+      const stops = this.buildCourse(theme.types, budget, durationMinutes, avoidTypes);
       return {
         courseId: randomUUID(),
         label: theme.label,
@@ -104,8 +88,7 @@ export class DatePlanService {
 
     return this.prisma.datePlan.create({
       data: {
-        profileId1: dto.profileId1,
-        profileId2: dto.profileId2,
+        matchId: dto.matchId,
         constraints: constraints as object,
         courses: courses as object[],
         status: "draft",
@@ -124,7 +107,6 @@ export class DatePlanService {
     budget: number,
     maxMinutes: number,
     avoidTypes: string[],
-    sharedLifestyle: string[],
   ): DateStop[] {
     const stops: DateStop[] = [];
     let remainingBudget = budget;
@@ -140,10 +122,7 @@ export class DatePlanService {
       if (costFor2 > remainingBudget || template.avgMinutes > remainingMinutes) continue;
 
       const nameIndex = Math.floor(Math.random() * template.names.length);
-      let rationale = RATIONALE_MAP[type] ?? "좋은 데이트 장소입니다";
-      if (sharedLifestyle.length > 0) {
-        rationale += ` (공유 라이프스타일: ${sharedLifestyle.slice(0, 2).join(", ")})`;
-      }
+      const rationale = RATIONALE_MAP[type] ?? "좋은 데이트 장소입니다";
 
       stops.push({
         order: stops.length + 1,

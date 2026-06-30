@@ -9,9 +9,9 @@ export interface AdminStatsResult {
   totalUsers: number;
   activeUsers: number;
   totalParties: number;
-  scheduledParties: number;
-  completedParties: number;
-  totalReservations: number;
+  matchingParties: number;
+  activeParties: number;
+  endedParties: number;
   pendingReports: number;
 }
 
@@ -45,17 +45,17 @@ export class AdminService {
       totalUsers,
       activeUsers,
       totalParties,
-      scheduledParties,
-      completedParties,
-      totalReservations,
+      matchingParties,
+      activeParties,
+      endedParties,
       pendingReports,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.profile.count({ where: { status: "active" } }),
       this.prisma.party.count(),
-      this.prisma.party.count({ where: { status: "scheduled" } }),
-      this.prisma.party.count({ where: { status: "completed" } }),
-      this.prisma.partyReservation.count({ where: { status: "confirmed" } }),
+      this.prisma.party.count({ where: { status: "matching" } }),
+      this.prisma.party.count({ where: { status: "active" } }),
+      this.prisma.party.count({ where: { status: "ended" } }),
       this.prisma.safetyReport.count({ where: { status: "pending" } }),
     ]);
 
@@ -63,9 +63,9 @@ export class AdminService {
       totalUsers,
       activeUsers,
       totalParties,
-      scheduledParties,
-      completedParties,
-      totalReservations,
+      matchingParties,
+      activeParties,
+      endedParties,
       pendingReports,
     };
   }
@@ -98,7 +98,6 @@ export class AdminService {
               _count: {
                 select: {
                   partyParticipants: true,
-                  reservations: true,
                 },
               },
             },
@@ -127,7 +126,6 @@ export class AdminService {
               status: u.profile.status,
               riskScore: u.profile.riskScore,
               partyCount: u.profile._count.partyParticipants,
-              reservationCount: u.profile._count.reservations,
             }
           : null,
       })),
@@ -146,11 +144,6 @@ export class AdminService {
             partyParticipants: {
               include: { party: true },
               orderBy: { joinedAt: "desc" },
-              take: 10,
-            },
-            reservations: {
-              include: { party: true },
-              orderBy: { createdAt: "desc" },
               take: 10,
             },
             reportsFiled: {
@@ -207,36 +200,21 @@ export class AdminService {
     }
 
     // 프로필 상태를 deleted로 변경 (소프트 삭제)
-    if (user) {
-      await this.prisma.profile.updateMany({
-        where: { userId },
-        data: { status: "deleted" },
-      });
-    }
+    await this.prisma.profile.updateMany({
+      where: { userId },
+      data: { status: "deleted" },
+    });
 
     return { success: true };
   }
 
   async listParties(options: ListPartiesOptions = {}) {
-    const { status, dateFrom, dateTo, limit = 20, offset = 0 } = options;
+    const { status, limit = 20, offset = 0 } = options;
 
-    const where: {
-      status?: string;
-      scheduledAt?: { gte?: Date; lte?: Date };
-    } = {};
+    const where: { status?: string } = {};
 
     if (status) {
       where.status = status;
-    }
-
-    if (dateFrom || dateTo) {
-      where.scheduledAt = {};
-      if (dateFrom) {
-        where.scheduledAt.gte = new Date(dateFrom);
-      }
-      if (dateTo) {
-        where.scheduledAt.lte = new Date(dateTo);
-      }
     }
 
     const [parties, total] = await Promise.all([
@@ -246,11 +224,10 @@ export class AdminService {
           _count: {
             select: {
               participants: true,
-              reservations: true,
             },
           },
         },
-        orderBy: { scheduledAt: "desc" },
+        orderBy: { createdAt: "desc" },
         take: limit,
         skip: offset,
       }),
@@ -261,7 +238,6 @@ export class AdminService {
       parties: parties.map((p) => ({
         ...p,
         participantCount: p._count.participants,
-        reservationCount: p._count.reservations,
         _count: undefined,
       })),
       total,
@@ -275,16 +251,6 @@ export class AdminService {
       where: { id: partyId },
       include: {
         participants: {
-          include: {
-            profile: true,
-          },
-        },
-        reservations: {
-          include: {
-            profile: true,
-          },
-        },
-        reports: {
           include: {
             profile: true,
           },
@@ -303,12 +269,8 @@ export class AdminService {
     partyId: string,
     data: {
       name?: string;
-      scheduledAt?: string;
       maxParticipants?: number;
-      theme?: string;
       location?: string;
-      ageMin?: number;
-      ageMax?: number;
       status?: string;
     },
   ) {
@@ -322,22 +284,14 @@ export class AdminService {
 
     const updateData: {
       name?: string;
-      scheduledAt?: Date;
       maxParticipants?: number;
-      theme?: string;
       location?: string;
-      ageMin?: number;
-      ageMax?: number;
       status?: string;
     } = {};
 
     if (data.name) updateData.name = data.name;
-    if (data.scheduledAt) updateData.scheduledAt = new Date(data.scheduledAt);
     if (data.maxParticipants) updateData.maxParticipants = data.maxParticipants;
-    if (data.theme !== undefined) updateData.theme = data.theme;
     if (data.location !== undefined) updateData.location = data.location;
-    if (data.ageMin !== undefined) updateData.ageMin = data.ageMin;
-    if (data.ageMax !== undefined) updateData.ageMax = data.ageMax;
     if (data.status) updateData.status = data.status;
 
     return this.prisma.party.update({
@@ -407,13 +361,11 @@ export class AdminService {
       throw new NotFoundException("신고를 찾을 수 없습니다");
     }
 
-    // 신고 상태 업데이트
     const updatedReport = await this.prisma.safetyReport.update({
       where: { id: reportId },
       data: { status: resolution.status },
     });
 
-    // 조치가 필요한 경우 대상 프로필 상태 변경
     if (resolution.action && resolution.action !== "none") {
       let profileStatus = "active";
       if (resolution.action === "suspend") {

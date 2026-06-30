@@ -24,32 +24,28 @@ export class CreateProfileDto {
 
   @IsString()
   @IsNotEmpty()
-  location!: string;
+  occupation!: string;
 
-  @IsOptional()
   @IsString()
-  occupation?: string;
-
-  preferences!: {
-    ageRange: { min: number; max: number };
-    genderPreference: string[];
-    locationRadius: number;
-    dealbreakers?: string[];
-  };
-
-  values!: {
-    relationshipGoal: string;
-    lifestyle: string[];
-    importantValues: string[];
-  };
-
-  communicationStyle!: {
-    tone: string;
-    topics: string[];
-  };
+  @IsNotEmpty()
+  partyPreferenceText!: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(500)
   bio?: string;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
+
+  @IsOptional()
+  interests?: unknown;
+
+  @IsOptional()
+  preferenceSignals?: unknown;
 }

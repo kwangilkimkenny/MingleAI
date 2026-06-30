@@ -66,10 +66,7 @@ class PreferencesDto {
 
 export class CreateDatePlanDto {
   @IsString()
-  profileId1!: string;
-
-  @IsString()
-  profileId2!: string;
+  matchId!: string;
 
   @ValidateNested()
   @Type(() => BudgetDto)

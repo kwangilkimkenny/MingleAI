@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsOptional, Min, IsDateString } from "class-validator";
+import { IsString, IsInt, IsOptional, Min } from "class-validator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class UpdatePartyDto {
@@ -6,11 +6,6 @@ export class UpdatePartyDto {
   @IsString()
   @IsOptional()
   name?: string;
-
-  @ApiPropertyOptional()
-  @IsDateString()
-  @IsOptional()
-  scheduledAt?: string;
 
   @ApiPropertyOptional()
   @IsInt()
@@ -21,23 +16,7 @@ export class UpdatePartyDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  theme?: string;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
   location?: string;
-
-  @ApiPropertyOptional()
-  @IsInt()
-  @Min(18)
-  @IsOptional()
-  ageMin?: number;
-
-  @ApiPropertyOptional()
-  @IsInt()
-  @IsOptional()
-  ageMax?: number;
 
   @ApiPropertyOptional()
   @IsString()

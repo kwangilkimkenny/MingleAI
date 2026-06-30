@@ -1,26 +1,37 @@
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import {
+  IsOptional,
+  IsString,
+  IsInt,
+  IsEnum,
+  IsNotEmpty,
+  Min,
+  Max,
+  MaxLength,
+} from "class-validator";
 
 export class UpdateProfileDto {
   @IsOptional()
-  preferences?: {
-    ageRange?: { min: number; max: number };
-    genderPreference?: string[];
-    locationRadius?: number;
-    dealbreakers?: string[];
-  };
+  @IsString()
+  @IsNotEmpty()
+  name?: string;
 
   @IsOptional()
-  values?: {
-    relationshipGoal: string;
-    lifestyle: string[];
-    importantValues: string[];
-  };
+  @IsInt()
+  @Min(19)
+  @Max(100)
+  age?: number;
 
   @IsOptional()
-  communicationStyle?: {
-    tone: string;
-    topics: string[];
-  };
+  @IsEnum(["male", "female", "non_binary", "prefer_not_to_say"])
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  occupation?: string;
+
+  @IsOptional()
+  @IsString()
+  partyPreferenceText?: string;
 
   @IsOptional()
   @IsString()
@@ -30,4 +41,14 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   location?: string;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
+
+  @IsOptional()
+  interests?: unknown;
+
+  @IsOptional()
+  preferenceSignals?: unknown;
 }

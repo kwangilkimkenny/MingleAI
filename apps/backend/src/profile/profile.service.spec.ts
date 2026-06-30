@@ -10,13 +10,49 @@ const mockProfile = {
   age: 28,
   gender: "male",
   location: "서울",
-  preferences: { ageRange: { min: 25, max: 35 }, genderPreference: ["female"], locationRadius: 50 },
-  values: { relationshipGoal: "serious", lifestyle: ["운동", "독서"], importantValues: ["성실함"] },
-  communicationStyle: { tone: "warm", topics: ["여행", "음식"] },
-  agentPersona: "",
+  occupation: "developer",
+  partyPreferenceText: "활발한 보드게임 모임",
+  bio: null,
+  photoUrl: null,
+  interests: null,
+  preferenceSignals: null,
   riskScore: 0,
   status: "active",
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
+
+describe("ProfileService (v2 shape)", () => {
+  it("creates a profile with v2 fields and no v1 fields", async () => {
+    const created = { id: "p1", partyPreferenceText: "조용한 보드게임 모임" };
+    const prisma = {
+      profile: {
+        create: jest.fn().mockResolvedValue(created),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [ProfileService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const service = moduleRef.get(ProfileService);
+
+    const dto = {
+      name: "A",
+      age: 27,
+      gender: "female",
+      occupation: "designer",
+      partyPreferenceText: "조용한 보드게임 모임",
+    } as any;
+    await service.create("user-1", dto);
+
+    const arg = prisma.profile.create.mock.calls[0][0].data;
+    expect(arg.partyPreferenceText).toBe("조용한 보드게임 모임");
+    expect(arg.occupation).toBe("designer");
+    expect(arg).not.toHaveProperty("agentPersona");
+    expect(arg).not.toHaveProperty("communicationStyle");
+    expect(arg).not.toHaveProperty("values");
+  });
+});
 
 describe("ProfileService", () => {
   let service: ProfileService;
@@ -50,27 +86,7 @@ describe("ProfileService", () => {
   });
 
   describe("create", () => {
-    it("should create a profile with generated agent persona", async () => {
-      prisma.profile.findUnique.mockResolvedValue(null);
-      prisma.profile.create.mockImplementation(({ data }) => Promise.resolve({ id: "profile-1", ...data }));
-
-      const result = await service.create("user-1", {
-        name: "테스트",
-        age: 28,
-        gender: "male",
-        location: "서울",
-        preferences: { ageRange: { min: 25, max: 35 }, genderPreference: ["female"], locationRadius: 50 },
-        values: { relationshipGoal: "serious", lifestyle: ["운동"], importantValues: ["성실함"] },
-        communicationStyle: { tone: "warm", topics: ["여행"] },
-      });
-
-      expect(prisma.profile.create).toHaveBeenCalled();
-      const createCall = prisma.profile.create.mock.calls[0][0];
-      expect(createCall.data.agentPersona).toBeTruthy();
-      expect(createCall.data.userId).toBe("user-1");
-    });
-
-    it("should throw ConflictException if user already has a profile", async () => {
+    it("should throw BadRequestException if user already has a profile", async () => {
       prisma.profile.findUnique.mockResolvedValue(mockProfile);
 
       await expect(
@@ -78,10 +94,8 @@ describe("ProfileService", () => {
           name: "테스트",
           age: 28,
           gender: "male",
-          location: "서울",
-          preferences: { ageRange: { min: 25, max: 35 }, genderPreference: ["female"], locationRadius: 50 },
-          values: { relationshipGoal: "serious", lifestyle: [], importantValues: [] },
-          communicationStyle: { tone: "warm", topics: [] },
+          occupation: "developer",
+          partyPreferenceText: "보드게임",
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -103,10 +117,10 @@ describe("ProfileService", () => {
   });
 
   describe("findAll", () => {
-    it("should return profiles with filters", async () => {
+    it("should return profiles with location filter", async () => {
       prisma.profile.findMany.mockResolvedValue([mockProfile]);
 
-      const result = await service.findAll({ location: "서울" });
+      await service.findAll({ location: "서울" });
 
       expect(prisma.profile.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -124,7 +138,7 @@ describe("ProfileService", () => {
       prisma.profile.findUnique.mockResolvedValue(mockProfile);
       prisma.profile.update.mockResolvedValue({ ...mockProfile, location: "부산" });
 
-      const result = await service.update("profile-1", "user-1", { location: "부산" });
+      await service.update("profile-1", "user-1", { location: "부산" });
 
       expect(prisma.profile.update).toHaveBeenCalledWith(
         expect.objectContaining({

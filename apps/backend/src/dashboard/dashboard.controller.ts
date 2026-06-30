@@ -38,41 +38,4 @@ export class DashboardController {
       offset ? parseInt(offset, 10) : undefined,
     );
   }
-
-  @Get("my-reservations")
-  @ApiOperation({ summary: "내 예약 목록" })
-  @ApiQuery({ name: "profileId", required: true })
-  @ApiQuery({ name: "status", required: false })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiQuery({ name: "offset", required: false, type: Number })
-  getMyReservations(
-    @Query("profileId") profileId: string,
-    @Query("status") status?: string,
-    @Query("limit") limit?: string,
-    @Query("offset") offset?: string,
-  ) {
-    return this.dashboardService.getMyReservations(
-      profileId,
-      status,
-      limit ? parseInt(limit, 10) : undefined,
-      offset ? parseInt(offset, 10) : undefined,
-    );
-  }
-
-  @Get("my-matches")
-  @ApiOperation({ summary: "내 매칭 결과" })
-  @ApiQuery({ name: "profileId", required: true })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiQuery({ name: "offset", required: false, type: Number })
-  getMyMatches(
-    @Query("profileId") profileId: string,
-    @Query("limit") limit?: string,
-    @Query("offset") offset?: string,
-  ) {
-    return this.dashboardService.getMyMatches(
-      profileId,
-      limit ? parseInt(limit, 10) : undefined,
-      offset ? parseInt(offset, 10) : undefined,
-    );
-  }
 }
