@@ -2,16 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  Inject,
 } from "@nestjs/common";
-import { CACHE_MANAGER } from "@nestjs/cache-manager";
-import type { Cache } from "cache-manager";
 import { PrismaService } from "../prisma/prisma.service";
-import {
-  AISettings,
-  AI_SETTINGS_DEFAULTS,
-  UpdateAISettingsDto,
-} from "./dto/update-ai-settings.dto";
 
 export interface AdminStatsResult {
   totalUsers: number;
@@ -44,14 +36,9 @@ export interface ListReportsOptions {
   offset?: number;
 }
 
-const AI_SETTINGS_CACHE_KEY = "admin:ai_settings";
-
 @Injectable()
 export class AdminService {
-  constructor(
-    private prisma: PrismaService,
-    @Inject(CACHE_MANAGER) private cache: Cache,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async getStats(): Promise<AdminStatsResult> {
     const [
@@ -444,114 +431,5 @@ export class AdminService {
     }
 
     return updatedReport;
-  }
-
-  async getAISettings(): Promise<AISettings> {
-    const cached = await this.cache.get<AISettings>(AI_SETTINGS_CACHE_KEY);
-    if (cached) return cached;
-
-    const rows = await this.prisma.systemSettings.findMany({
-      where: { key: { startsWith: "ai_" } },
-    });
-    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-    const rawKey = map["ai_claude_api_key"] ?? "";
-    const maskedKey = rawKey ? `${rawKey.slice(0, 8)}****` : "";
-    const settings: AISettings = {
-      provider: (map["ai_provider"] as AISettings["provider"]) ?? AI_SETTINGS_DEFAULTS.provider,
-      claudeModel: map["ai_claude_model"] ?? AI_SETTINGS_DEFAULTS.claudeModel,
-      claudeApiKey: maskedKey,
-      ollamaBaseUrl: map["ai_ollama_base_url"] ?? AI_SETTINGS_DEFAULTS.ollamaBaseUrl,
-      ollamaModel: map["ai_ollama_model"] ?? AI_SETTINGS_DEFAULTS.ollamaModel,
-    };
-    await this.cache.set(AI_SETTINGS_CACHE_KEY, settings, 60_000);
-    return settings;
-  }
-
-  async updateAISettings(dto: UpdateAISettingsDto): Promise<AISettings> {
-    const entries: Array<{ key: string; value: string }> = [
-      { key: "ai_provider", value: dto.provider },
-    ];
-    if (dto.claudeModel !== undefined)
-      entries.push({ key: "ai_claude_model", value: dto.claudeModel });
-    // 마스킹된 값(****)은 스킵하여 기존 키 보존
-    if (dto.claudeApiKey !== undefined && !dto.claudeApiKey.includes("****"))
-      entries.push({ key: "ai_claude_api_key", value: dto.claudeApiKey });
-    if (dto.ollamaBaseUrl !== undefined)
-      entries.push({ key: "ai_ollama_base_url", value: dto.ollamaBaseUrl });
-    if (dto.ollamaModel !== undefined)
-      entries.push({ key: "ai_ollama_model", value: dto.ollamaModel });
-
-    await Promise.all(
-      entries.map((e) =>
-        this.prisma.systemSettings.upsert({
-          where: { key: e.key },
-          create: { key: e.key, value: e.value },
-          update: { value: e.value },
-        }),
-      ),
-    );
-
-    await this.cache.del(AI_SETTINGS_CACHE_KEY);
-    return this.getAISettings();
-  }
-
-  async testAIConnection(provider: "claude" | "ollama", options: {
-    claudeApiKey?: string;
-    ollamaBaseUrl?: string;
-    ollamaModel?: string;
-  }): Promise<{ success: boolean; message: string }> {
-    if (provider === "ollama") {
-      const baseUrl = options.ollamaBaseUrl ?? "http://localhost:11434";
-      const model = options.ollamaModel ?? "llama3.2";
-      try {
-        const res = await fetch(`${baseUrl}/api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: "user", content: "안녕" }],
-            stream: false,
-          }),
-          signal: AbortSignal.timeout(3000),
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          return { success: false, message: `Ollama 오류: ${text}` };
-        }
-        return { success: true, message: `Ollama (${model}) 연결 성공` };
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return { success: false, message: `Ollama 연결 실패: ${msg}` };
-      }
-    } else {
-      const apiKey = options.claudeApiKey || process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        return { success: false, message: "ANTHROPIC_API_KEY가 설정되지 않았습니다" };
-      }
-      try {
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 10,
-            messages: [{ role: "user", content: "hi" }],
-          }),
-          signal: AbortSignal.timeout(3000),
-        });
-        if (!res.ok) {
-          const json = (await res.json()) as { error?: { message?: string } };
-          return { success: false, message: `Claude API 오류: ${json.error?.message ?? res.statusText}` };
-        }
-        return { success: true, message: "Claude API 연결 성공" };
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return { success: false, message: `Claude 연결 실패: ${msg}` };
-      }
-    }
   }
 }

@@ -57,13 +57,6 @@ export class PartyController {
     return this.partyService.addParticipant(id, dto.profileId);
   }
 
-  @Post(":id/run")
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  run(@Param("id") id: string) {
-    return this.partyService.run(id);
-  }
-
   @Get(":id/results")
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(120_000)
