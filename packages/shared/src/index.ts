@@ -1,34 +1,26 @@
-export type {
-  Gender,
-  GenderPreference,
-  RelationshipGoal,
-  ConversationTone,
-  ProfileStatus,
-  UserPreferences,
-  UserValues,
-  CommunicationStyle,
-  Profile,
-} from "./types/profile.js";
+export type { Profile } from "./types/profile.js";
+
+export type { PartyStatus, Party } from "./types/party.js";
 
 export type {
-  PartyStatus,
-  Party,
-  TableAssignment,
-  ParticipantContext,
-  ConversationContext,
-  RoundResult,
-  InteractionSignal,
-  PartyResults,
-} from "./types/party.js";
+  MatchmakingQueueStatus,
+  MatchmakingQueueEntry,
+} from "./types/matching.js";
 
 export type {
-  ReportType,
-  MatchScore,
-  ConversationHighlight,
-  RecommendedAction,
-  ActionRecommendation,
-  Report,
-} from "./types/report.js";
+  ProposalStatus,
+  Proposal,
+  Match,
+  Block,
+} from "./types/social.js";
+
+export type {
+  DirectMessageRoom,
+  DirectMessage,
+  PartyMessage,
+  GameSessionStatus,
+  GameSession,
+} from "./types/messaging.js";
 
 export type {
   SafetyContext,

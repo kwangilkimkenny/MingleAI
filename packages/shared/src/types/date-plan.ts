@@ -40,10 +40,14 @@ export type DatePlanStatus = "draft" | "confirmed" | "completed";
 
 export interface DatePlan {
   id: string;
-  profileId1: string;
-  profileId2: string;
+  matchId: string;
   constraints: DateConstraints;
   courses: DateCourse[];
   status: DatePlanStatus;
+  selectedCourseId?: string;
+  merchantPayKey?: string;
+  paymentId?: string;
+  paymentStatus?: string;
+  paymentAmount?: number;
   createdAt: string;
 }
