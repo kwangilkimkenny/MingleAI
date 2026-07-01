@@ -46,7 +46,10 @@ export class OpenAICompatPreferenceAnalyzer implements PreferenceAnalyzer {
   private async call(messages: Array<{ role: string; content: string }>): Promise<string> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.cfg.apiKey) headers.Authorization = `Bearer ${this.cfg.apiKey}`;
-    const res = await fetch(new URL(this.cfg.chatPath, this.cfg.url).toString(), {
+    // Join base + path preserving any base sub-path (e.g. host/api) and collapsing double slashes
+    const base = this.cfg.url.replace(/\/+$/, "");
+    const path = this.cfg.chatPath.startsWith("/") ? this.cfg.chatPath : `/${this.cfg.chatPath}`;
+    const res = await fetch(`${base}${path}`, {
       method: "POST", headers,
       body: JSON.stringify({ model: this.cfg.model, temperature: 0, response_format: { type: "json_object" }, messages }),
       signal: AbortSignal.timeout(this.cfg.timeoutMs),

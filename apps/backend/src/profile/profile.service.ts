@@ -179,13 +179,17 @@ export class ProfileService {
     if (dto.photoUrl !== undefined) data.photoUrl = dto.photoUrl;
     if (dto.interests !== undefined) data.interests = dto.interests as object;
 
+    // I3: only re-analyze when the preference text is provided AND actually changed
+    const textChanged =
+      dto.partyPreferenceText !== undefined &&
+      dto.partyPreferenceText !== profile.partyPreferenceText;
+    // M1: when the text changes, the old signals no longer describe it — clear them so a
+    // failed re-analysis leaves preferenceSignals=null (needs reanalysis), not stale data.
+    if (textChanged) data.preferenceSignals = null;
+
     const updated = await this.prisma.profile.update({ where: { id }, data, omit: { riskScore: true } });
 
-    // I3: only re-analyze when the preference text is provided AND actually changed
-    if (
-      dto.partyPreferenceText !== undefined &&
-      dto.partyPreferenceText !== profile.partyPreferenceText
-    ) {
+    if (textChanged) {
       return this.runAnalysis(updated, updated as any);
     }
     return updated;

@@ -153,6 +153,7 @@ export default function Onboarding() {
       <TextInput
         style={styles.input}
         placeholder="예: 대학원생"
+        maxLength={120}
         value={occupation}
         onChangeText={setOccupation}
       />
@@ -163,6 +164,7 @@ export default function Onboarding() {
         placeholder="예: 조용히 보드게임 하면서 천천히 친해지는 분위기"
         multiline
         numberOfLines={4}
+        maxLength={1000}
         value={partyPreferenceText}
         onChangeText={setPartyPreferenceText}
       />
