@@ -25,14 +25,14 @@ export class OpenAICompatPreferenceAnalyzer implements PreferenceAnalyzer {
   constructor(private readonly cfg: OpenAICompatConfig) {}
 
   async analyze(input: AnalyzeInput): Promise<PreferenceSignals> {
-    const user = `Party preference: "${input.partyPreferenceText}"\nGender: ${input.gender}, Age: ${input.age}, Occupation: ${input.occupation}`;
+    const user = `Party preference: ${JSON.stringify(input.partyPreferenceText)}\nGender: ${JSON.stringify(input.gender)}, Age: ${input.age}, Occupation: ${JSON.stringify(input.occupation)}`;
     const messages = [{ role: "system", content: SYSTEM }, { role: "user", content: user }];
     let lastErr: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
       let content: string;
       try {
         content = await this.call(attempt === 0 ? messages
-          : [...messages, { role: "user", content: "Your previous reply was not valid JSON. Reply with ONLY the JSON object." }]);
+          : [...messages, { role: "user", content: `Your previous reply could not be parsed (${(lastErr as Error)?.message ?? "invalid"}). Reply with ONLY the JSON object matching the schema.` }]);
       } catch (e) {
         throw new PreferenceAnalysisError("LLM request failed", e); // network/non-2xx: no repair
       }
@@ -46,7 +46,7 @@ export class OpenAICompatPreferenceAnalyzer implements PreferenceAnalyzer {
   private async call(messages: Array<{ role: string; content: string }>): Promise<string> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.cfg.apiKey) headers.Authorization = `Bearer ${this.cfg.apiKey}`;
-    const res = await fetch(`${this.cfg.url}${this.cfg.chatPath}`, {
+    const res = await fetch(new URL(this.cfg.chatPath, this.cfg.url).toString(), {
       method: "POST", headers,
       body: JSON.stringify({ model: this.cfg.model, temperature: 0, response_format: { type: "json_object" }, messages }),
       signal: AbortSignal.timeout(this.cfg.timeoutMs),
