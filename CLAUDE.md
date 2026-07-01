@@ -48,6 +48,8 @@ Concept: "hand-drawn black & white sketchbook." Cute-yet-simple comes from wonky
 - **`prisma migrate dev/reset` is blocked by the auto-mode permission classifier** (AI-run DB mutation) — the user must run it (via `!` prefix or a Bash permission rule).
 - Checking backend TS errors: `grep "error TS"` falsely returns 0 because ANSI color codes sit between "error" and "TS". Grep `"Found N error"` or strip ANSI first.
 - Backend ports: dev `3000` (env `PORT`), PM2/prod `4000` (`ecosystem.config.js`, pinned `instances: 1` until `@socket.io/redis-adapter` is added). Web `3100`.
+- Matchmaking env (backend `.env`, all optional → validated defaults): `MIN_PARTY_SIZE`(4, floor 2)/`MAX_PARTY_SIZE`(8)/`MATCH_SWEEP_MS`(2500)/`MATCH_MAX_WAIT_MS`(120000)/`MATCH_BASE_THRESHOLD`(0.5, clamped [0,1]). Sweep is a lifecycle `setInterval` (NOT `@nestjs/schedule`); safe only at `instances:1`.
+- **`@mingle/shared` is dual-package**: the CJS-compiled backend `require()`s the `preferenceScore` *value* at runtime, so shared's `build` emits both ESM (`dist/`) and CJS (`dist/cjs/` via `tsconfig.cjs.json` + a `{"type":"commonjs"}` marker) behind an `exports` `require`/`import` split. Run `pnpm --filter @mingle/shared build` before the backend or its runtime `require` fails.
 
 ## Data model (v2, `apps/backend/prisma/schema.prisma` — 16 models)
 
@@ -55,9 +57,9 @@ Concept: "hand-drawn black & white sketchbook." Cute-yet-simple comes from wonky
 - Concurrency: capacity/count-then-create paths use `prisma.$transaction(..., { isolationLevel: "Serializable" })`; handle `P2034` (retry) + `P2002` (conflict); send notifications **outside** the transaction.
 - Carry-forward invariants (Phases 2–5): Match creation must **normalize `(profileId1,profileId2)` ordering** (order-sensitive `@@unique`); `date-plan.create` needs a `matchId` existence guard; dashboard `getSummary/getMyParties` has a known **IDOR** (profileId from query, JwtAuthGuard only) for the auth-hardening phase.
 
-## Status (this branch, not merged to main)
+## Status (branch `megahuni`, not merged to main; Phase 3 not yet pushed to origin)
 
-- v2 **Phase 0 + Phase 1 implemented**: Expo scaffold + `@mingle/client-core` (secure-store auth, login/register/home/onboarding), and the v2 data model + backend domain pivot (skeleton modules `matchmaking/proposal/match/messenger`). Backend builds green; jest passing. Native on-device E2E still pending (needs a human `pnpm dev:mobile` run with the backend up).
+- v2 **Phases 0–3 implemented + exhaustively QA'd**: Phase 0 Expo scaffold + `@mingle/client-core`; Phase 1 v2 data model + backend domain pivot; Phase 2 onboarding + AI preference analysis; **Phase 3 matchmaking queue + party formation** — `matchmaking` module is now full (`preferenceScore` in `@mingle/shared`, service enqueue/cancel/status, `setInterval` sweep worker forming parties, public party projection, client-core API, mobile matching/party screens). `proposal/match/messenger` remain skeletons. Backend build clean + jest green + boots; client-core vitest green; mobile tsc clean; matchmaking E2E verified live. Native on-device E2E still pending (needs a human `pnpm dev:mobile` run with the backend up).
 
 ## Conventions
 
