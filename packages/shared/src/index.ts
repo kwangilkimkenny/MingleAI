@@ -40,3 +40,10 @@ export type {
   DatePlanStatus,
   DatePlan,
 } from "./types/date-plan.js";
+
+export type {
+  PreferenceVibe,
+  PreferenceDrinking,
+  PreferencePace,
+  PreferenceSignals,
+} from "./types/preference.js";
