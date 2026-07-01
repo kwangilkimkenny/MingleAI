@@ -8,11 +8,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "require": "./dist/cjs/index.js",
       "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p tsconfig.cjs.json && echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
     "clean": "rm -rf dist"
   },
   "devDependencies": {

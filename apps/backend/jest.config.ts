@@ -11,7 +11,8 @@ const config: Config = {
   coverageDirectory: "../coverage",
   testEnvironment: "node",
   moduleNameMapper: {
-    "^@mingle/shared$": "<rootDir>/../../packages/shared/src/index",
+    "^@mingle/shared$": "<rootDir>/../../../packages/shared/src/index",
+    "^(\\.{1,2}/.*)\\.js$": "$1",
   },
 };
 
