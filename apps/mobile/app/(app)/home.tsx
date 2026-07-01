@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Button, StyleSheet } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useAuthStore } from "../../src/lib/client";
 
 export default function Home() {
@@ -22,6 +22,7 @@ export default function Home() {
       ) : null}
       <Text style={styles.title}>MingleAI</Text>
       <Text style={styles.subtitle}>가벼운 만남, 편안한 연결</Text>
+      <Button title="매칭 시작" onPress={() => router.push("/(app)/matching")} />
       <Button title="로그아웃" onPress={onLogout} />
     </View>
   );
