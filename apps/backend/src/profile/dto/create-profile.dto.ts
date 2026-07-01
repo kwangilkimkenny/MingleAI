@@ -4,14 +4,19 @@ import {
   IsEnum,
   IsOptional,
   IsNotEmpty,
+  IsUrl,
+  IsArray,
   Min,
   Max,
   MaxLength,
+  MinLength,
+  ArrayMaxSize,
 } from "class-validator";
 
 export class CreateProfileDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(80)
   name!: string;
 
   @IsInt()
@@ -24,10 +29,13 @@ export class CreateProfileDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(120)
   occupation!: string;
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(8)
+  @MaxLength(1000)
   partyPreferenceText!: string;
 
   @IsOptional()
@@ -37,12 +45,18 @@ export class CreateProfileDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   location?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(500)
   photoUrl?: string;
 
   @IsOptional()
-  interests?: unknown;
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(30)
+  @MaxLength(40, { each: true })
+  interests?: string[];
 }

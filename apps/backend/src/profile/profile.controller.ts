@@ -9,6 +9,8 @@ import {
   UseGuards,
   UseInterceptors,
   NotFoundException,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import { CacheInterceptor, CacheTTL } from "@nestjs/cache-manager";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
@@ -22,13 +24,13 @@ import {
 } from "../common/decorators/current-user.decorator";
 
 @ApiTags("Profiles")
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller("profiles")
 export class ProfileController {
   constructor(private profileService: ProfileService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateProfileDto) {
     return this.profileService.create(user.userId, dto);
   }
@@ -51,8 +53,6 @@ export class ProfileController {
   }
 
   @Get("me")
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   async me(@CurrentUser() user: JwtPayload) {
     const p = await this.profileService.findByUserId(user.userId);
     if (!p) throw new NotFoundException("프로필이 없습니다");
@@ -60,8 +60,7 @@ export class ProfileController {
   }
 
   @Post("me/reanalyze")
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   reanalyze(@CurrentUser() user: JwtPayload) {
     return this.profileService.reanalyze(user.userId);
   }
@@ -74,8 +73,6 @@ export class ProfileController {
   }
 
   @Patch(":id")
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   update(
     @Param("id") id: string,
     @CurrentUser() user: JwtPayload,
