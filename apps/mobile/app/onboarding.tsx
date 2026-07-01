@@ -1,0 +1,182 @@
+import { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
+import { Redirect, router } from "expo-router";
+import { createProfile, ApiError } from "@mingle/client-core";
+import { useAuthStore } from "../src/lib/client";
+import { useAuthHydrated } from "../src/lib/use-hydrated";
+
+const GENDER_OPTIONS = [
+  { label: "남성", value: "male" },
+  { label: "여성", value: "female" },
+  { label: "기타", value: "other" },
+] as const;
+
+type Gender = (typeof GENDER_OPTIONS)[number]["value"];
+
+function validate(fields: {
+  name: string;
+  gender: Gender | null;
+  ageText: string;
+  occupation: string;
+  partyPreferenceText: string;
+}): string | null {
+  if (!fields.name.trim()) return "닉네임을 입력해 주세요.";
+  if (!fields.gender) return "성별을 선택해 주세요.";
+  if (!fields.ageText.trim()) return "나이를 입력해 주세요.";
+  const age = parseInt(fields.ageText, 10);
+  if (isNaN(age) || age < 18 || age > 99) return "나이는 18~99 사이여야 합니다.";
+  if (!fields.occupation.trim()) return "직업을 입력해 주세요.";
+  if (fields.partyPreferenceText.trim().length < 8)
+    return "선호 스타일을 8자 이상 입력해 주세요.";
+  return null;
+}
+
+export default function Onboarding() {
+  const hydrated = useAuthHydrated();
+  const token = useAuthStore((s) => s.token);
+
+  const [name, setName] = useState("");
+  const [gender, setGender] = useState<Gender | null>(null);
+  const [ageText, setAgeText] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [partyPreferenceText, setPartyPreferenceText] = useState("");
+
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!hydrated) return null;
+  if (!token) return <Redirect href="/login" />;
+
+  async function onSubmit() {
+    if (busy) return;
+    const err = validate({ name, gender, ageText, occupation, partyPreferenceText });
+    if (err) {
+      setValidationError(err);
+      return;
+    }
+    setValidationError(null);
+    setSubmitError(null);
+    setBusy(true);
+    try {
+      const profile = await createProfile({
+        name: name.trim(),
+        age: parseInt(ageText, 10),
+        gender: gender!,
+        occupation: occupation.trim(),
+        partyPreferenceText: partyPreferenceText.trim(),
+      });
+      if (!profile.preferenceSignals) {
+        router.replace({ pathname: "/(app)/home", params: { notice: "선호 분석은 곧 반영됩니다." } });
+      } else {
+        router.replace("/(app)/home");
+      }
+    } catch (e) {
+      setSubmitError(
+        e instanceof ApiError ? e.message : "프로필 저장에 실패했습니다.",
+      );
+      setBusy(false);
+    }
+  }
+
+  if (busy) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>선호 분석 중...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <Text style={styles.title}>프로필 설정</Text>
+      <Text style={styles.label}>닉네임 / 이름</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="표시될 이름"
+        value={name}
+        onChangeText={setName}
+      />
+
+      <Text style={styles.label}>성별</Text>
+      <View style={styles.segmentRow}>
+        {GENDER_OPTIONS.map((opt) => (
+          <TouchableOpacity
+            key={opt.value}
+            style={[styles.segment, gender === opt.value && styles.segmentActive]}
+            onPress={() => setGender(opt.value)}
+          >
+            <Text style={[styles.segmentText, gender === opt.value && styles.segmentTextActive]}>
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.label}>나이</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="예: 25"
+        keyboardType="numeric"
+        value={ageText}
+        onChangeText={setAgeText}
+      />
+
+      <Text style={styles.label}>직업</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="예: 대학원생"
+        value={occupation}
+        onChangeText={setOccupation}
+      />
+
+      <Text style={styles.label}>파티 선호 스타일</Text>
+      <TextInput
+        style={[styles.input, styles.multiline]}
+        placeholder="예: 조용히 보드게임 하면서 천천히 친해지는 분위기"
+        multiline
+        numberOfLines={4}
+        value={partyPreferenceText}
+        onChangeText={setPartyPreferenceText}
+      />
+
+      {validationError ? <Text style={styles.error}>{validationError}</Text> : null}
+      {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
+
+      <Button title="저장하기" onPress={onSubmit} />
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
+  loadingText: { fontSize: 16, color: "#444" },
+  container: { padding: 24, gap: 8 },
+  title: { fontSize: 22, fontWeight: "600", marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: "500", color: "#333", marginTop: 8 },
+  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12 },
+  multiline: { height: 96, textAlignVertical: "top" },
+  segmentRow: { flexDirection: "row", gap: 8 },
+  segment: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    alignItems: "center",
+  },
+  segmentActive: { borderColor: "#6200ee", backgroundColor: "#6200ee" },
+  segmentText: { color: "#333" },
+  segmentTextActive: { color: "#fff" },
+  error: { color: "red", marginTop: 4 },
+});
