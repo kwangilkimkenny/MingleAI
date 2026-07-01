@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,14 +10,15 @@ import {
   StyleSheet,
 } from "react-native";
 import { Redirect, router } from "expo-router";
-import { createProfile, ApiError } from "@mingle/client-core";
+import { createProfile, getMyProfile, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
 
 const GENDER_OPTIONS = [
   { label: "남성", value: "male" },
   { label: "여성", value: "female" },
-  { label: "기타", value: "other" },
+  { label: "논바이너리", value: "non_binary" },
+  { label: "응답 안 함", value: "prefer_not_to_say" },
 ] as const;
 
 type Gender = (typeof GENDER_OPTIONS)[number]["value"];
@@ -30,10 +31,12 @@ function validate(fields: {
   partyPreferenceText: string;
 }): string | null {
   if (!fields.name.trim()) return "닉네임을 입력해 주세요.";
+  if (fields.name.trim().length > 40) return "닉네임은 40자 이하로 입력해 주세요.";
   if (!fields.gender) return "성별을 선택해 주세요.";
   if (!fields.ageText.trim()) return "나이를 입력해 주세요.";
-  const age = parseInt(fields.ageText, 10);
-  if (isNaN(age) || age < 18 || age > 99) return "나이는 18~99 사이여야 합니다.";
+  if (!/^\d+$/.test(fields.ageText.trim())) return "나이를 숫자로 입력해 주세요.";
+  const age = parseInt(fields.ageText.trim(), 10);
+  if (age < 19 || age > 100) return "나이는 19~100 사이여야 합니다.";
   if (!fields.occupation.trim()) return "직업을 입력해 주세요.";
   if (fields.partyPreferenceText.trim().length < 8)
     return "선호 스타일을 8자 이상 입력해 주세요.";
@@ -50,12 +53,25 @@ export default function Onboarding() {
   const [occupation, setOccupation] = useState("");
   const [partyPreferenceText, setPartyPreferenceText] = useState("");
 
+  const [profileChecked, setProfileChecked] = useState<"loading" | "none" | "has">("loading");
+
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (!hydrated || !token) return;
+    let alive = true;
+    getMyProfile()
+      .then((p) => { if (alive) setProfileChecked(p ? "has" : "none"); })
+      .catch(() => { if (alive) setProfileChecked("none"); });
+    return () => { alive = false; };
+  }, [hydrated, token]);
+
   if (!hydrated) return null;
   if (!token) return <Redirect href="/login" />;
+  if (profileChecked === "loading") return null;
+  if (profileChecked === "has") return <Redirect href="/(app)/home" />;
 
   async function onSubmit() {
     if (busy) return;
@@ -106,6 +122,7 @@ export default function Onboarding() {
         placeholder="표시될 이름"
         value={name}
         onChangeText={setName}
+        maxLength={40}
       />
 
       <Text style={styles.label}>성별</Text>
@@ -166,9 +183,10 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: "500", color: "#333", marginTop: 8 },
   input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12 },
   multiline: { height: 96, textAlignVertical: "top" },
-  segmentRow: { flexDirection: "row", gap: 8 },
+  segmentRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   segment: {
-    flex: 1,
+    flexBasis: "47%",
+    flexGrow: 1,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 8,

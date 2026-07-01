@@ -20,8 +20,8 @@ export default function Home() {
           <Text style={styles.noticeDismiss} onPress={() => setShowNotice(false)}>✕</Text>
         </View>
       ) : null}
-      <Text style={styles.title}>로그인 성공 🎉</Text>
-      <Text style={styles.subtitle}>토큰이 안전하게 저장되었습니다.</Text>
+      <Text style={styles.title}>MingleAI</Text>
+      <Text style={styles.subtitle}>가벼운 만남, 편안한 연결</Text>
       <Button title="로그아웃" onPress={onLogout} />
     </View>
   );
