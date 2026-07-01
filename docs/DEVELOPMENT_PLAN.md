@@ -18,6 +18,7 @@
 - **모바일 우선**: iOS + Android 네이티브 앱 (React Native + Expo)
 - **웹**: 소비자 웹은 최소 유지, **Admin 대시보드는 웹 전용**으로 존속
 - 백엔드(NestJS) · DB(PostgreSQL) · 실시간(Socket.IO)은 유지하되 신규 도메인에 맞게 확장
+- **디자인 언어**: "손그림 흑백 스케치북" — 순수 흑백(유채색 0) 두들 아트, 모바일 특화. 상세는 §5.4.
 
 ---
 
@@ -154,7 +155,7 @@ mingle-ai/
 | 영역 | 선택 | 비고 |
 |------|------|------|
 | 프레임워크 | Expo SDK(최신) + Expo Router | Next.js App Router와 동일한 파일기반 라우팅 |
-| UI 키트 | React Native Paper (Material) | 기존 MUI와 디자인 연속성 / 대안 Tamagui |
+| UI 키트 | **커스텀 두들 흑백 디자인 시스템** (Material 미사용) | react-native-svg 기반 두들 보더/아이콘. §5.4 · `design/DESIGN.md` |
 | 상태 | Zustand(재사용) + TanStack Query | 서버 캐싱/리페치 |
 | 실시간 | socket.io-client(재사용) | |
 | 2D 파티 뷰 | @shopify/react-native-skia + Reanimated | 어몽어스 탑다운 |
@@ -170,6 +171,18 @@ mingle-ai/
 5. **푸시 알림**: 디바이스 토큰 등록 + Expo Push 발송
 6. **인증 보강**: 모바일 장기 세션용 **리프레시 토큰**(access+refresh)
 7. **차단(Block)** + 안전 모듈 확장, CORS/모바일 오리진 설정
+
+### 5.4 디자인 시스템 — 두들 흑백 (mobile-first)
+
+**컨셉: "손으로 그린 흑백 스케치북."** 모든 화면은 검정 펜으로 흰 종이에 그린 한 페이지. 귀여움은 컬러가 아니라 삐뚤한 손선·굵은 흑백 대비에서 나온다 → 귀엽지만 심플. **단일 소스: `apps/web/design/DESIGN.md`**, 레퍼런스 구현 `design/mobile-wireframes.html`(모바일 6화면: 온보딩·홈 피드·모임 상세·궁합 리포트·채팅/매칭·프로필 + 하단 탭바). 이 흑백·모바일 시스템이 **v2(RN+Expo) 확정 기준**이다.
+
+- **컬러 = 순수 흑백(유채색 0).** 먹 `#17150F` on 종이 `#FFFFFF` + 회색 3단계(`#45413A`/`#8A857C`/`#D9D5CC`) + 면(`#F1EFE9`/`#E7E4DC`). 상태(예정/진행/완료)조차 색이 아니라 채움으로 구분.
+- **색 없이 위계 3원칙:** 강조 = **검정 반전 블록 + 흰 글자**(화면당 1~2개), 밀도 = **검정 해칭**(`repeating-linear-gradient(45deg)`), 형광펜 = 회색 밑줄 블록.
+- **두들 표면 = 4기법(이미지 애셋 0, 신규 의존성 0):** ① 삐뚤 per-corner `border-radius` ② `::before` 테두리에 SVG `feTurbulence`→`feDisplacementMap` 변위(테두리만 떨리고 텍스트는 선명) ③ 블러 없는 단색 오프셋 그림자(`4px 5px 0`) ④ 미세 회전(−1.5°~2°).
+- **타이포:** Gaegu 700(디스플레이/짧은 카피) · Pretendard(본문) · Shantell Sans(영문·숫자 강조) · Gamja Flower(가끔 스크리블). 14px 이하 긴 한글 본문에 손글씨 금지.
+- **모티프/모션:** `DoodleHeart/Sparkle/Face/Connector/Speech/MatchGauge/Spinner`; 등장은 `stroke-dashoffset`로 "그려짐", boil은 아껴 쓰고 `prefers-reduced-motion` 준수.
+
+**RN 이식 주의:** 위 기법은 웹 CSS/SVG 기준이다. Expo에선 `react-native-svg`의 동일 `feTurbulence`/`feDisplacementMap` 또는 미리 렌더한 SVG 보더 애셋으로 재구현한다. **MUI/React Native Paper/Material 미사용**(§5.2 개정). 현재 레퍼런스(`design/*`)는 `worktree-doodle-style-tile` 브랜치에 미커밋 상태 — `apps/mobile`로 아직 미포팅.
 
 ---
 
@@ -197,6 +210,7 @@ mingle-ai/
 - **Phase 0 — 기반 정리**
   - 모노레포 정리, `client-core` 추출(스토리지/환경 주입 추상화), Expo 앱 스캐폴딩, EAS·CI 설정
   - 데이터 모델 v2 마이그레이션, 백엔드에서 AI 대화/3D 잔재 제거
+  - **두들 흑백 디자인 시스템 이식**: `design/DESIGN.md` 토큰 → RN 신규 토큰, 두들 보더 Hook·SVG 아이콘 세트(§5.4)
 - **Phase 1 — 가입 & 매칭 기반**
   - 최소 온보딩(성별/나이/직업 + 자연어 선호), 인증(secure-store, 리프레시 토큰)
   - AI 선호 분석 파이프라인
