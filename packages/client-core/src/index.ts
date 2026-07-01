@@ -19,3 +19,5 @@ export type { AuthResponse } from "./api/auth.js";
 
 export { getMyProfile, createProfile } from "./api/profiles.js";
 export type { CreateProfileInput } from "./api/profiles.js";
+
+export { enqueueMatchmaking, cancelMatchmaking, getMatchmakingStatus } from "./api/matchmaking.js";
