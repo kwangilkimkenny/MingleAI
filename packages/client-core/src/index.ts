@@ -16,3 +16,6 @@ export { apiFetch, ApiError } from "./api/client.js";
 
 export { register, login } from "./api/auth.js";
 export type { AuthResponse } from "./api/auth.js";
+
+export { getMyProfile, createProfile } from "./api/profiles.js";
+export type { CreateProfileInput } from "./api/profiles.js";

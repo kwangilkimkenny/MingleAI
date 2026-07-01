@@ -286,6 +286,9 @@ importers:
 
   packages/client-core:
     dependencies:
+      '@mingle/shared':
+        specifier: workspace:*
+        version: link:../shared
       zustand:
         specifier: ^5.0.0
         version: 5.0.11(@types/react@19.2.10)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
@@ -10916,7 +10919,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

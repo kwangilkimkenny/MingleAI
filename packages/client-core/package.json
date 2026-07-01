@@ -18,6 +18,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mingle/shared": "workspace:*",
     "zustand": "^5.0.0"
   },
   "peerDependencies": {
