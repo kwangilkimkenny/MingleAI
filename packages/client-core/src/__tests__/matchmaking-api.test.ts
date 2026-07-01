@@ -49,6 +49,7 @@ describe("matchmaking api", () => {
 
     const res = await getMatchmakingStatus();
     expect(String(f.mock.calls[0][0])).toContain("/matchmaking/status");
+    expect(f.mock.calls[0][1]?.method ?? "GET").toBe("GET");
     expect(res.status).toBe("waiting");
   });
 });

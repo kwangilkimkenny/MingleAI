@@ -15,14 +15,14 @@ function intOr(raw: string | undefined, def: number, { min = 1 } = {}): number {
 }
 function floatOr(raw: string | undefined, def: number): number {
   const n = Number(raw);
-  return Number.isFinite(n) && n >= 0 ? n : def;
+  return Number.isFinite(n) && n >= 0 ? Math.min(1, Math.max(0, n)) : def;
 }
 
 @Injectable()
 export class MatchmakingConfigProvider {
   readonly value: MatchmakingConfig;
   constructor(config: ConfigService) {
-    const min = intOr(config.get("MIN_PARTY_SIZE"), 4);
+    const min = intOr(config.get("MIN_PARTY_SIZE"), 4, { min: 2 });
     const maxRaw = intOr(config.get("MAX_PARTY_SIZE"), 8);
     this.value = {
       min,

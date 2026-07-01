@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import type { MatchmakingQueueEntry, MatchmakingStatus, PublicParty } from "@mingle/shared";
 
@@ -12,6 +12,10 @@ export class MatchmakingService {
     if (!profile.preferenceSignals) throw new BadRequestException("선호 분석이 필요합니다");
 
     return this.prisma.$transaction(async (tx) => {
+      const activeMembership = await tx.partyParticipant.findFirst({
+        where: { profileId: profile.id, party: { status: { not: "ended" } } },
+      });
+      if (activeMembership) throw new ConflictException("이미 참여 중인 파티가 있습니다");
       const existing = await tx.matchmakingQueueEntry.findFirst({
         where: { profileId: profile.id, status: "waiting" },
       });
@@ -40,10 +44,15 @@ export class MatchmakingService {
   async getStatus(userId: string): Promise<MatchmakingStatus> {
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     if (!profile) return { status: "none" };
-    const entry = await this.prisma.matchmakingQueueEntry.findFirst({
-      where: { profileId: profile.id },
-      orderBy: { enqueuedAt: "desc" },
-    });
+    const entry =
+      (await this.prisma.matchmakingQueueEntry.findFirst({
+        where: { profileId: profile.id, status: { in: ["waiting", "matched"] } },
+        orderBy: { enqueuedAt: "desc" },
+      })) ??
+      (await this.prisma.matchmakingQueueEntry.findFirst({
+        where: { profileId: profile.id },
+        orderBy: { enqueuedAt: "desc" },
+      }));
     if (!entry) return { status: "none" };
     if (entry.status === "waiting") {
       return { status: "waiting", elapsedMs: Date.now() - new Date(entry.enqueuedAt).getTime() };
