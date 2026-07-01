@@ -46,6 +46,7 @@ export class ProfileService {
           interests: (dto.interests as object) ?? undefined,
           preferenceSignals: undefined, // server-owned
         },
+        omit: { riskScore: true },
       });
     } catch (e: any) {
       if (e?.code === "P2002") {
@@ -76,7 +77,9 @@ export class ProfileService {
         `[preference] analysis failed for profile ${profile.id}:`,
         (e as Error).message,
       );
-      return profile;
+      // Strip riskScore before returning (reanalyze path loads profile via findUnique)
+      const { riskScore: _r1, ...safeOnAnalysisFail } = profile;
+      return safeOnAnalysisFail;
     }
 
     // I1: persist signals best-effort — a transient DB error must not 500 onboarding
@@ -84,13 +87,15 @@ export class ProfileService {
       return await this.prisma.profile.update({
         where: { id: profile.id },
         data: { preferenceSignals: signals as object },
+        omit: { riskScore: true },
       });
     } catch (e) {
       console.warn(
         `[preference] failed to persist signals for profile ${profile.id}:`,
         (e as Error).message,
       );
-      return { ...profile, preferenceSignals: null };
+      const { riskScore: _r2, ...safeOnPersistFail } = profile;
+      return { ...safeOnPersistFail, preferenceSignals: null };
     }
   }
 
@@ -174,7 +179,7 @@ export class ProfileService {
     if (dto.photoUrl !== undefined) data.photoUrl = dto.photoUrl;
     if (dto.interests !== undefined) data.interests = dto.interests as object;
 
-    const updated = await this.prisma.profile.update({ where: { id }, data });
+    const updated = await this.prisma.profile.update({ where: { id }, data, omit: { riskScore: true } });
 
     // I3: only re-analyze when the preference text is provided AND actually changed
     if (

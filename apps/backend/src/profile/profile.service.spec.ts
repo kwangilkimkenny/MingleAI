@@ -241,6 +241,8 @@ describe("ProfileService (analyzer integration)", () => {
     expect(analyzer.analyze).toHaveBeenCalledWith(expect.objectContaining({ partyPreferenceText: "조용한 보드게임", occupation: "designer" }));
     expect(prisma.profile.update).toHaveBeenCalledWith(expect.objectContaining({ data: { preferenceSignals: signals } }));
     expect(out.preferenceSignals).toEqual(signals);
+    // riskScore must not appear on any write-path response
+    expect(out).not.toHaveProperty("riskScore");
   });
 
   it("create falls back to null signals when the analyzer throws PreferenceAnalysisError", async () => {
@@ -249,6 +251,7 @@ describe("ProfileService (analyzer integration)", () => {
     const out = await service.create("u1", baseDto);
     expect(prisma.profile.create).toHaveBeenCalled();
     expect(out.preferenceSignals).toBeNull();
+    expect(out).not.toHaveProperty("riskScore");
   });
 
   it("create returns profile with null signals when signal persist (update) fails (I1)", async () => {
@@ -259,6 +262,7 @@ describe("ProfileService (analyzer integration)", () => {
     const out = await service.create("u1", baseDto);
     expect(out).toBeDefined();
     expect(out.preferenceSignals).toBeNull();
+    expect(out).not.toHaveProperty("riskScore");
   });
 
   it("create throws ConflictException when a profile already exists", async () => {
