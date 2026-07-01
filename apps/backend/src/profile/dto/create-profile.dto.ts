@@ -45,7 +45,4 @@ export class CreateProfileDto {
 
   @IsOptional()
   interests?: unknown;
-
-  @IsOptional()
-  preferenceSignals?: unknown;
 }

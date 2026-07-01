@@ -1,7 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { NotFoundException, ConflictException } from "@nestjs/common";
 import { ProfileService } from "./profile.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { PREFERENCE_ANALYZER } from "../ai/preference-analyzer.interface";
+import { PreferenceAnalysisError } from "../ai/preference-analyzer.interface";
 
 const mockProfile = {
   id: "profile-1",
@@ -22,6 +24,8 @@ const mockProfile = {
   updatedAt: new Date(),
 };
 
+const stubSignals = { vibe: "calm", activity: [], drinking: "none", pace: "slow", tags: [], summary: "s" };
+
 describe("ProfileService (v2 shape)", () => {
   it("creates a profile with v2 fields and no v1 fields", async () => {
     const created = { id: "p1", partyPreferenceText: "조용한 보드게임 모임" };
@@ -29,10 +33,15 @@ describe("ProfileService (v2 shape)", () => {
       profile: {
         create: jest.fn().mockResolvedValue(created),
         findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({ ...created, preferenceSignals: stubSignals }),
       },
     };
     const moduleRef = await Test.createTestingModule({
-      providers: [ProfileService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        ProfileService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: PREFERENCE_ANALYZER, useValue: { analyze: jest.fn().mockResolvedValue(stubSignals) } },
+      ],
     }).compile();
     const service = moduleRef.get(ProfileService);
 
@@ -79,6 +88,7 @@ describe("ProfileService", () => {
       providers: [
         ProfileService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PREFERENCE_ANALYZER, useValue: { analyze: jest.fn().mockResolvedValue(stubSignals) } },
       ],
     }).compile();
 
@@ -86,7 +96,7 @@ describe("ProfileService", () => {
   });
 
   describe("create", () => {
-    it("should throw BadRequestException if user already has a profile", async () => {
+    it("should throw ConflictException if user already has a profile", async () => {
       prisma.profile.findUnique.mockResolvedValue(mockProfile);
 
       await expect(
@@ -97,7 +107,7 @@ describe("ProfileService", () => {
           occupation: "developer",
           partyPreferenceText: "보드게임",
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -153,5 +163,81 @@ describe("ProfileService", () => {
 
       await expect(service.update("nonexistent", "user-1", {})).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+describe("ProfileService (analyzer integration)", () => {
+  const signals = { vibe: "calm", activity: ["boardgame"], drinking: "none", pace: "slow", tags: ["quiet"], summary: "s" };
+  const baseDto = { name: "A", age: 27, gender: "female", occupation: "designer", partyPreferenceText: "조용한 보드게임" } as any;
+  function make(analyzer: any, profileOverrides: any = {}) {
+    const created = { id: "p1", userId: "u1", preferenceSignals: null, ...baseDto, ...profileOverrides };
+    const prisma = {
+      profile: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(created),
+        update: jest.fn().mockImplementation(({ data }) => ({ ...created, ...data })),
+      },
+    };
+    return { service: new ProfileService(prisma as any, analyzer), prisma };
+  }
+
+  it("create runs the analyzer and stores signals", async () => {
+    const analyzer = { analyze: jest.fn().mockResolvedValue(signals) };
+    const { service, prisma } = make(analyzer);
+    const out = await service.create("u1", baseDto);
+    expect(analyzer.analyze).toHaveBeenCalledWith(expect.objectContaining({ partyPreferenceText: "조용한 보드게임", occupation: "designer" }));
+    expect(prisma.profile.update).toHaveBeenCalledWith(expect.objectContaining({ data: { preferenceSignals: signals } }));
+    expect(out.preferenceSignals).toEqual(signals);
+  });
+
+  it("create falls back to null signals when the analyzer throws", async () => {
+    const analyzer = { analyze: jest.fn().mockRejectedValue(new PreferenceAnalysisError("boom")) };
+    const { service, prisma } = make(analyzer);
+    const out = await service.create("u1", baseDto);
+    expect(prisma.profile.create).toHaveBeenCalled();
+    expect(out.preferenceSignals).toBeNull();
+  });
+
+  it("create throws ConflictException when a profile already exists", async () => {
+    const analyzer = { analyze: jest.fn() };
+    const { service, prisma } = make(analyzer);
+    prisma.profile.findUnique.mockResolvedValue({ id: "existing" });
+    await expect(service.create("u1", baseDto)).rejects.toBeInstanceOf(ConflictException);
+    expect(analyzer.analyze).not.toHaveBeenCalled();
+  });
+
+  it("create rethrows non-PreferenceAnalysisError errors from the analyzer", async () => {
+    const genericError = new Error("db down");
+    const analyzer = { analyze: jest.fn().mockRejectedValue(genericError) };
+    const { service } = make(analyzer);
+    await expect(service.create("u1", baseDto)).rejects.toThrow("db down");
+  });
+
+  it("reanalyze throws NotFoundException when no profile exists", async () => {
+    const analyzer = { analyze: jest.fn() };
+    const { service } = make(analyzer);
+    // findUnique returns null by default from make()
+    await expect(service.reanalyze("u1")).rejects.toBeInstanceOf(NotFoundException);
+    expect(analyzer.analyze).not.toHaveBeenCalled();
+  });
+
+  it("reanalyze calls analyzer and stores signals when profile exists", async () => {
+    const analyzer = { analyze: jest.fn().mockResolvedValue(signals) };
+    const { service, prisma } = make(analyzer);
+    const existingProfile = { id: "p1", userId: "u1", preferenceSignals: null, ...baseDto };
+    prisma.profile.findUnique.mockResolvedValue(existingProfile);
+    await service.reanalyze("u1");
+    expect(analyzer.analyze).toHaveBeenCalledWith(expect.objectContaining({ partyPreferenceText: "조용한 보드게임" }));
+    expect(prisma.profile.update).toHaveBeenCalledWith(expect.objectContaining({ data: { preferenceSignals: signals } }));
+  });
+
+  it("update triggers re-analysis when partyPreferenceText is provided", async () => {
+    const analyzer = { analyze: jest.fn().mockResolvedValue(signals) };
+    const { service, prisma } = make(analyzer);
+    const existingProfile = { id: "p1", userId: "u1", preferenceSignals: null, ...baseDto };
+    prisma.profile.findUnique.mockResolvedValue(existingProfile);
+    await service.update("p1", "u1", { partyPreferenceText: "새로운 선호" });
+    expect(analyzer.analyze).toHaveBeenCalled();
+    expect(prisma.profile.update).toHaveBeenCalledWith(expect.objectContaining({ data: { preferenceSignals: signals } }));
   });
 });

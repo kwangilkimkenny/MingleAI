@@ -27,6 +27,7 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   occupation?: string;
 
   @IsOptional()
@@ -48,7 +49,4 @@ export class UpdateProfileDto {
 
   @IsOptional()
   interests?: unknown;
-
-  @IsOptional()
-  preferenceSignals?: unknown;
 }

@@ -2,25 +2,34 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  BadRequestException,
+  ConflictException,
+  Inject,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateProfileDto } from "./dto/create-profile.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
+import {
+  PREFERENCE_ANALYZER,
+  PreferenceAnalyzer,
+  PreferenceAnalysisError,
+} from "../ai/preference-analyzer.interface";
 
 @Injectable()
 export class ProfileService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(PREFERENCE_ANALYZER) private analyzer: PreferenceAnalyzer,
+  ) {}
 
   async create(userId: string, dto: CreateProfileDto) {
     const existing = await this.prisma.profile.findUnique({
       where: { userId },
     });
     if (existing) {
-      throw new BadRequestException("이미 프로필이 존재합니다");
+      throw new ConflictException("이미 프로필이 존재합니다");
     }
 
-    return this.prisma.profile.create({
+    const profile = await this.prisma.profile.create({
       data: {
         userId,
         name: dto.name,
@@ -31,10 +40,42 @@ export class ProfileService {
         bio: dto.bio,
         location: dto.location,
         photoUrl: dto.photoUrl,
-        interests: dto.interests as object ?? undefined,
-        preferenceSignals: dto.preferenceSignals as object ?? undefined,
+        interests: (dto.interests as object) ?? undefined,
+        preferenceSignals: undefined, // server-owned
       },
     });
+    return this.runAnalysis(profile, dto);
+  }
+
+  private async runAnalysis(
+    profile: { id: string } & Record<string, any>,
+    src: { partyPreferenceText: string; gender: string; age: number; occupation: string },
+  ) {
+    try {
+      const signals = await this.analyzer.analyze({
+        partyPreferenceText: src.partyPreferenceText,
+        gender: src.gender,
+        age: src.age,
+        occupation: src.occupation,
+      });
+      return this.prisma.profile.update({
+        where: { id: profile.id },
+        data: { preferenceSignals: signals as object },
+      });
+    } catch (e) {
+      if (!(e instanceof PreferenceAnalysisError)) throw e;
+      console.warn(
+        `[preference] analysis failed for profile ${profile.id}:`,
+        (e as Error).message,
+      );
+      return profile;
+    }
+  }
+
+  async reanalyze(userId: string) {
+    const profile = await this.prisma.profile.findUnique({ where: { userId } });
+    if (!profile) throw new NotFoundException("프로필이 없습니다");
+    return this.runAnalysis(profile, profile as any);
   }
 
   async findByUserId(userId: string) {
@@ -97,8 +138,12 @@ export class ProfileService {
     if (dto.location !== undefined) data.location = dto.location;
     if (dto.photoUrl !== undefined) data.photoUrl = dto.photoUrl;
     if (dto.interests !== undefined) data.interests = dto.interests as object;
-    if (dto.preferenceSignals !== undefined) data.preferenceSignals = dto.preferenceSignals as object;
 
-    return this.prisma.profile.update({ where: { id }, data });
+    const updated = await this.prisma.profile.update({ where: { id }, data });
+
+    if (dto.partyPreferenceText !== undefined) {
+      return this.runAnalysis(updated, updated as any);
+    }
+    return updated;
   }
 }

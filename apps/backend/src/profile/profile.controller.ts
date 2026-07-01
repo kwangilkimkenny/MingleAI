@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   UseInterceptors,
+  NotFoundException,
 } from "@nestjs/common";
 import { CacheInterceptor, CacheTTL } from "@nestjs/cache-manager";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
@@ -47,6 +48,22 @@ export class ProfileController {
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined,
     });
+  }
+
+  @Get("me")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async me(@CurrentUser() user: JwtPayload) {
+    const p = await this.profileService.findByUserId(user.userId);
+    if (!p) throw new NotFoundException("프로필이 없습니다");
+    return p;
+  }
+
+  @Post("me/reanalyze")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  reanalyze(@CurrentUser() user: JwtPayload) {
+    return this.profileService.reanalyze(user.userId);
   }
 
   @Get(":id")
