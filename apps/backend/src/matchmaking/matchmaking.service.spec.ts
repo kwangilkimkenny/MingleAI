@@ -80,6 +80,23 @@ describe("MatchmakingService", () => {
     await expect(svc.enqueue("u1")).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it("enqueue → ConflictException from inside the transaction is NOT swallowed by the P2034 retry loop", async () => {
+    const prisma = makePrisma();
+    prisma.profile.findUnique.mockResolvedValue({ id: "p1", preferenceSignals: signals });
+    let callCount = 0;
+    prisma.$transaction.mockImplementation(async (fn: any) => {
+      callCount++;
+      return fn({
+        partyParticipant: { findFirst: jest.fn().mockResolvedValue({ partyId: "party1", profileId: "p1" }) },
+        matchmakingQueueEntry: { findFirst: jest.fn(), create: jest.fn() },
+      });
+    });
+    const svc = new MatchmakingService(prisma);
+    await expect(svc.enqueue("u1")).rejects.toBeInstanceOf(ConflictException);
+    // Must not loop — ConflictException has no code "P2034"
+    expect(callCount).toBe(1);
+  });
+
   it("cancel → 404 when there is no active entry", async () => {
     const prisma = makePrisma();
     prisma.profile.findUnique.mockResolvedValue({ id: "p1" });

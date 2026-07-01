@@ -128,14 +128,23 @@ describe("ProfileService", () => {
   });
 
   describe("findOne", () => {
-    it("should return a profile by id without riskScore", async () => {
+    it("should return a profile by id without riskScore or preferenceSignals", async () => {
       prisma.profile.findUnique.mockResolvedValue(mockProfile);
 
       const result = await service.findOne("profile-1");
-      // riskScore is an internal field and must not be exposed
+      // riskScore and raw preferenceSignals are internal fields and must not be exposed
       expect(result).not.toHaveProperty("riskScore");
-      const { riskScore: _r, ...expected } = mockProfile;
-      expect(result).toEqual(expected);
+      expect(result).not.toHaveProperty("preferenceSignals");
+    });
+
+    it("should expose preferenceSummary (not raw signals) on findOne when signals have a summary", async () => {
+      const profileWithSignals = { ...mockProfile, preferenceSignals: { summary: "조용한 스타일", vibe: "calm" } };
+      prisma.profile.findUnique.mockResolvedValue(profileWithSignals);
+
+      const result = await service.findOne("profile-1") as any;
+      expect(result).not.toHaveProperty("preferenceSignals");
+      expect(result.preferenceSummary).toBe("조용한 스타일");
+      expect(result).not.toHaveProperty("riskScore");
     });
 
     it("should throw NotFoundException if not found", async () => {

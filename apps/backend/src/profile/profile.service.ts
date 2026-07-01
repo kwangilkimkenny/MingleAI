@@ -118,8 +118,11 @@ export class ProfileService {
     if (!profile || profile.status !== "active") {
       throw new NotFoundException("프로필을 찾을 수 없습니다");
     }
-    const { riskScore: _riskScore, ...safeProfile } = profile;
-    return safeProfile;
+    const { riskScore: _riskScore, preferenceSignals, ...rest } = profile;
+    return {
+      ...rest,
+      preferenceSummary: (preferenceSignals as { summary?: string } | null)?.summary ?? undefined,
+    };
   }
 
   async findAll(filters?: {
@@ -155,8 +158,11 @@ export class ProfileService {
       skip: offset,
       orderBy: { createdAt: "desc" },
     });
-    // Strip internal safety score before returning to callers
-    return profiles.map(({ riskScore: _riskScore, ...p }) => p);
+    // Strip internal safety score and raw signals before returning to callers
+    return profiles.map(({ riskScore: _riskScore, preferenceSignals, ...p }) => ({
+      ...p,
+      preferenceSummary: (preferenceSignals as { summary?: string } | null)?.summary ?? undefined,
+    }));
   }
 
   async update(id: string, userId: string, dto: UpdateProfileDto) {

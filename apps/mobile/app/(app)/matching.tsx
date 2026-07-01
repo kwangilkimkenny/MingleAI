@@ -24,8 +24,13 @@ export default function Matching() {
       try {
         const s = await getMatchmakingStatus();
         if (!alive.current) return;
-        if (s.status === "matched" && s.matchedPartyId) {
-          router.replace({ pathname: "/(app)/party/[id]", params: { id: s.matchedPartyId } });
+        // FIX B: matched is terminal regardless of whether matchedPartyId is present.
+        if (s.status === "matched") {
+          if (s.matchedPartyId) {
+            router.replace({ pathname: "/(app)/party/[id]", params: { id: s.matchedPartyId } });
+          } else {
+            setPhase("failed");
+          }
           return;
         }
         if (s.status === "cancelled" || s.status === "none") {
@@ -93,7 +98,11 @@ export default function Matching() {
     <View style={styles.center}>
       <ActivityIndicator size="large" />
       <Text style={styles.msg}>매칭 중...</Text>
-      <Text style={styles.sub}>{Math.floor(elapsed / 1000)}초 경과</Text>
+      {phase === "waiting" ? (
+        <Text style={styles.sub}>{Math.floor(elapsed / 1000)}초 경과</Text>
+      ) : (
+        <Text style={styles.sub}>매칭 준비 중...</Text>
+      )}
       <Button title="취소" onPress={onCancel} />
     </View>
   );

@@ -1,15 +1,25 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { View, Text, Button, StyleSheet } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAuthStore } from "../../src/lib/client";
 
 export default function Home() {
   const logout = useAuthStore((s) => s.logout);
   const { notice } = useLocalSearchParams<{ notice?: string }>();
   const [showNotice, setShowNotice] = useState(true);
+  const navigatingRef = useRef(false);
+
+  // Reset guard when home regains focus, so a normal second visit still works.
+  useFocusEffect(useCallback(() => { navigatingRef.current = false; }, []));
 
   function onLogout() {
     logout();
+  }
+
+  function onStartMatching() {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+    router.push("/(app)/matching");
   }
 
   return (
@@ -22,7 +32,7 @@ export default function Home() {
       ) : null}
       <Text style={styles.title}>MingleAI</Text>
       <Text style={styles.subtitle}>가벼운 만남, 편안한 연결</Text>
-      <Button title="매칭 시작" onPress={() => router.push("/(app)/matching")} />
+      <Button title="매칭 시작" onPress={onStartMatching} />
       <Button title="로그아웃" onPress={onLogout} />
     </View>
   );

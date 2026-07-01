@@ -11,24 +11,36 @@ export class MatchmakingService {
     if (!profile) throw new NotFoundException("프로필이 없습니다");
     if (!profile.preferenceSignals) throw new BadRequestException("선호 분석이 필요합니다");
 
-    return this.prisma.$transaction(async (tx) => {
-      const activeMembership = await tx.partyParticipant.findFirst({
-        where: { profileId: profile.id, party: { status: { not: "ended" } } },
-      });
-      if (activeMembership) throw new ConflictException("이미 참여 중인 파티가 있습니다");
-      const existing = await tx.matchmakingQueueEntry.findFirst({
-        where: { profileId: profile.id, status: "waiting" },
-      });
-      if (existing) return this.toEntry(existing);
-      const entry = await tx.matchmakingQueueEntry.create({
-        data: {
-          profileId: profile.id,
-          status: "waiting",
-          preferenceSnapshot: profile.preferenceSignals as object,
-        },
-      });
-      return this.toEntry(entry);
-    });
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const activeMembership = await tx.partyParticipant.findFirst({
+              where: { profileId: profile.id, party: { status: { not: "ended" } } },
+            });
+            if (activeMembership) throw new ConflictException("이미 참여 중인 파티가 있습니다");
+            const existing = await tx.matchmakingQueueEntry.findFirst({
+              where: { profileId: profile.id, status: "waiting" },
+            });
+            if (existing) return this.toEntry(existing);
+            const entry = await tx.matchmakingQueueEntry.create({
+              data: {
+                profileId: profile.id,
+                status: "waiting",
+                preferenceSnapshot: profile.preferenceSignals as object,
+              },
+            });
+            return this.toEntry(entry);
+          },
+          { isolationLevel: "Serializable" },
+        );
+      } catch (e) {
+        // P2034 = serialization/write-conflict → retry; everything else rethrows immediately
+        if ((e as { code?: string }).code === "P2034" && attempt < MAX_ATTEMPTS) continue;
+        throw e;
+      }
+    }
   }
 
   async cancel(userId: string): Promise<void> {
