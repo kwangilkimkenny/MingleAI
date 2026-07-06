@@ -28,3 +28,36 @@ export type {
   PublicParty,
   MatchmakingStatus,
 } from "@mingle/shared";
+
+export {
+  sendProposal,
+  getReceivedProposals,
+  getSentProposals,
+  acceptProposal,
+  declineProposal,
+} from "./api/proposals.js";
+
+export { getMatches } from "./api/matches.js";
+
+export { getRoomMessages, sendMessage, markRoomRead } from "./api/messenger.js";
+
+export { createBlock, getBlocks, removeBlock } from "./api/blocks.js";
+
+export { connectMessengerSocket } from "./socket/messenger-socket.js";
+export type {
+  MessengerSocketHandlers,
+  MessengerSocketHandle,
+} from "./socket/messenger-socket.js";
+
+export type {
+  Proposal,
+  ProposalView,
+  ProposalStatus,
+  MatchSummary,
+  PeerProfile,
+  DirectMessageRoom,
+  DirectMessage,
+  NewMessageEvent,
+  ReadEvent,
+  TypingEvent,
+} from "@mingle/shared";
