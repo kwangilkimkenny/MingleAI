@@ -10,6 +10,7 @@ type ProfileState = "loading" | "none" | "ok" | "error";
 export default function AppLayout() {
   const hydrated = useAuthHydrated();
   const token = useAuthStore((s) => s.token);
+  const setAuth = useAuthStore((s) => s.setAuth);
   const [profileState, setProfileState] = useState<ProfileState>("loading");
 
   const fetchProfile = useCallback(() => {
@@ -17,10 +18,18 @@ export default function AppLayout() {
     let alive = true;
     setProfileState("loading");
     getMyProfile()
-      .then((p) => { if (alive) setProfileState(p ? "ok" : "none"); })
+      .then((p) => {
+        if (!alive) return;
+        if (p) {
+          setAuth({ token: token!, profileId: p.id });
+          setProfileState("ok");
+        } else {
+          setProfileState("none");
+        }
+      })
       .catch(() => { if (alive) setProfileState("error"); });
     return () => { alive = false; };
-  }, [hydrated, token]);
+  }, [hydrated, token, setAuth]);
 
   useEffect(() => {
     return fetchProfile();

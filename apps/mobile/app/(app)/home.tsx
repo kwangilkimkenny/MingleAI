@@ -33,6 +33,8 @@ export default function Home() {
       <Text style={styles.title}>MingleAI</Text>
       <Text style={styles.subtitle}>가벼운 만남, 편안한 연결</Text>
       <Button title="매칭 시작" onPress={onStartMatching} />
+      <Button title="프로포즈" onPress={() => router.push("/(app)/proposals")} />
+      <Button title="채팅" onPress={() => router.push("/(app)/chats")} />
       <Button title="로그아웃" onPress={onLogout} />
     </View>
   );
