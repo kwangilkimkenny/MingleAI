@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { SafetyService } from "./safety.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { blockPairKey } from "@mingle/shared";
 
 describe("SafetyService", () => {
   let service: SafetyService;
@@ -117,5 +118,42 @@ describe("SafetyService — Block", () => {
       where: { blockerProfileId: "blocker-1" },
     });
     expect(result).toEqual(blocks);
+  });
+});
+
+describe("SafetyService — block queries", () => {
+  it("isBlockedBetween is true when a block exists in EITHER direction", async () => {
+    const prisma = { block: { findFirst: jest.fn().mockResolvedValue({ id: "b1" }) } } as any;
+    const service = new SafetyService(prisma);
+    await expect(service.isBlockedBetween("a", "b")).resolves.toBe(true);
+    expect(prisma.block.findFirst).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { blockerProfileId: "a", blockedProfileId: "b" },
+          { blockerProfileId: "b", blockedProfileId: "a" },
+        ],
+      },
+    });
+  });
+
+  it("isBlockedBetween is false when no block row exists", async () => {
+    const prisma = { block: { findFirst: jest.fn().mockResolvedValue(null) } } as any;
+    const service = new SafetyService(prisma);
+    await expect(service.isBlockedBetween("a", "b")).resolves.toBe(false);
+  });
+
+  it("blocksForProfiles returns order-independent pair keys", async () => {
+    const prisma = {
+      block: {
+        findMany: jest.fn().mockResolvedValue([{ blockerProfileId: "b", blockedProfileId: "a" }]),
+      },
+    } as any;
+    const service = new SafetyService(prisma);
+    const set = await service.blocksForProfiles(["a", "b", "c"]);
+    expect(set.has(blockPairKey("a", "b"))).toBe(true);
+    expect(set.has(blockPairKey("a", "c"))).toBe(false);
+    expect(prisma.block.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { blockerProfileId: { in: ["a", "b", "c"] }, blockedProfileId: { in: ["a", "b", "c"] } },
+    }));
   });
 });

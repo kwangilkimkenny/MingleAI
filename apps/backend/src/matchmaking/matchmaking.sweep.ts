@@ -1,8 +1,9 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { MatchmakingConfigProvider } from "./matchmaking.config";
-import { preferenceScore } from "@mingle/shared";
+import { preferenceScore, blockPairKey } from "@mingle/shared";
 import type { PreferenceSignals } from "@mingle/shared";
+import { SafetyService } from "../safety/safety.service";
 
 type Entry = {
   id: string;
@@ -22,6 +23,7 @@ export class MatchmakingSweepService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configProvider: MatchmakingConfigProvider,
+    private readonly safety: SafetyService,
   ) {}
 
   private get cfg() {
@@ -94,6 +96,10 @@ export class MatchmakingSweepService implements OnModuleInit, OnModuleDestroy {
     // formation pass
     let formed = 0;
     const pool = [...active];
+
+    // load all block pairs among waiting profiles once, before the formation loop
+    const blocked = await this.safety.blocksForProfiles(active.map((e) => e.profileId));
+
     while (pool.length >= this.cfg.min) {
       const anchor = pool.shift()!;
       try {
@@ -104,15 +110,22 @@ export class MatchmakingSweepService implements OnModuleInit, OnModuleDestroy {
         const ranked = pool
           .map((e) => ({ e, s: preferenceScore(anchorSig, e.preferenceSnapshot as PreferenceSignals) }))
           .filter((x) => x.s >= threshold)
-          .sort((a, b) => b.s - a.s)
-          .slice(0, this.cfg.max - 1);
+          .sort((a, b) => b.s - a.s);
 
-        if (1 + ranked.length >= this.cfg.min) {
-          const group = [anchor, ...ranked.map((x) => x.e)];
+        // build the group with block exclusion: reject any candidate that is blocked
+        // with the anchor or with any member already selected
+        const group: Entry[] = [anchor];
+        for (const { e } of ranked) {
+          if (group.length >= this.cfg.max) break;
+          const conflict = group.some((m) => blocked.has(blockPairKey(m.profileId, e.profileId)));
+          if (!conflict) group.push(e);
+        }
+
+        if (group.length >= this.cfg.min) {
           const ok = await this.formParty(group, now);
           if (ok) {
             formed++;
-            const ids = new Set(ranked.map((x) => x.e.id));
+            const ids = new Set(group.slice(1).map((e) => e.id));
             for (let i = pool.length - 1; i >= 0; i--) if (ids.has(pool[i].id)) pool.splice(i, 1);
           }
         }

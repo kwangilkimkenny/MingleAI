@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { blockPairKey } from "@mingle/shared";
 import type {
   SafetyContext,
   SafetyResult,
@@ -124,6 +125,33 @@ export class SafetyService {
 
   listBlocks(profileId: string) {
     return this.prisma.block.findMany({ where: { blockerProfileId: profileId } });
+  }
+
+  isBlockedBetween(a: string, b: string): Promise<boolean> {
+    return this.prisma.block
+      .findFirst({
+        where: {
+          OR: [
+            { blockerProfileId: a, blockedProfileId: b },
+            { blockerProfileId: b, blockedProfileId: a },
+          ],
+        },
+      })
+      .then((row) => row !== null);
+  }
+
+  /** All block pairs (as order-independent keys) among the given profile ids. */
+  async blocksForProfiles(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const rows = await this.prisma.block.findMany({
+      where: { blockerProfileId: { in: ids }, blockedProfileId: { in: ids } },
+      select: { blockerProfileId: true, blockedProfileId: true },
+    });
+    return new Set(rows.map((r) => blockPairKey(r.blockerProfileId, r.blockedProfileId)));
+  }
+
+  async removeBlock(blockerProfileId: string, blockedProfileId: string): Promise<void> {
+    await this.prisma.block.deleteMany({ where: { blockerProfileId, blockedProfileId } });
   }
 
   private calculateRiskScore(violations: Violation[]): number {

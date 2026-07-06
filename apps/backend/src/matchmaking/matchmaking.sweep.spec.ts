@@ -1,4 +1,5 @@
 import { MatchmakingSweepService } from "./matchmaking.sweep";
+import { blockPairKey } from "@mingle/shared";
 import type { MatchmakingConfig } from "./matchmaking.config";
 
 const cfg: MatchmakingConfig = { min: 4, max: 8, sweepMs: 2500, maxWaitMs: 120000, baseThreshold: 0.5 };
@@ -38,7 +39,7 @@ describe("MatchmakingSweepService.runSweep", () => {
     const waiting = ["a", "b", "c", "d"].map((id) => entry(id, "calm", 1, now));
     const prisma = makePrisma(waiting);
     prismaTx = prisma; // same guarded updateMany + create used inside the tx
-    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any);
+    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any, { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any);
     const res = await svc.runSweep(now);
     expect(res.formed).toBe(1);
     expect(prisma.party.create).toHaveBeenCalledTimes(1);
@@ -49,7 +50,7 @@ describe("MatchmakingSweepService.runSweep", () => {
     const now = new Date("2026-07-01T00:00:00Z");
     const prisma = makePrisma(["a", "b", "c"].map((id) => entry(id, "calm", 1, now)));
     prismaTx = prisma;
-    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any);
+    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any, { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any);
     const res = await svc.runSweep(now);
     expect(res.formed).toBe(0);
   });
@@ -58,7 +59,7 @@ describe("MatchmakingSweepService.runSweep", () => {
     const now = new Date("2026-07-01T00:00:00Z");
     const prisma = makePrisma([entry("old", "calm", 200, now)]); // 200s > 120s
     prismaTx = prisma;
-    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any);
+    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any, { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any);
     const res = await svc.runSweep(now);
     expect(res.cancelled).toBe(1);
     expect(prisma.matchmakingQueueEntry.updateMany).toHaveBeenCalledWith(
@@ -71,11 +72,11 @@ describe("MatchmakingSweepService.runSweep", () => {
     // 4 users, all different vibes → score between any pair is low; fresh → no match
     const fresh = ["a", "b", "c", "d"].map((id, i) => entry(id, ["calm","energetic","balanced","calm"][i], 1, now));
     const p1 = makePrisma(fresh); prismaTx = p1;
-    expect((await new MatchmakingSweepService(p1, { value: cfg } as any).runSweep(now)).formed).toBe(0);
+    expect((await new MatchmakingSweepService(p1, { value: cfg } as any, { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any).runSweep(now)).formed).toBe(0);
     // same users but each waited ~119s → threshold ~0 → they match
     const aged = ["a", "b", "c", "d"].map((id, i) => entry(id, ["calm","energetic","balanced","calm"][i], 119, now));
     const p2 = makePrisma(aged); prismaTx = p2;
-    expect((await new MatchmakingSweepService(p2, { value: cfg } as any).runSweep(now)).formed).toBe(1);
+    expect((await new MatchmakingSweepService(p2, { value: cfg } as any, { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any).runSweep(now)).formed).toBe(1);
   });
 
   it("dedupes multiple waiting entries from the same profile", async () => {
@@ -84,7 +85,7 @@ describe("MatchmakingSweepService.runSweep", () => {
     const rest = ["b", "c", "d"].map((id) => entry(id, "calm", 1, now));
     const prisma = makePrisma([...dup, ...rest]);
     prismaTx = prisma;
-    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any);
+    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any, { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any);
     await svc.runSweep(now);
     // only 4 distinct profiles → party of exactly 4; the duplicate profile appears once
     const createArg = prisma.partyParticipant.createMany.mock.calls[0][0].data;
@@ -98,7 +99,7 @@ describe("MatchmakingSweepService.runSweep", () => {
     const entries = Array.from({ length: 11 }, (_, i) => entry(String(i), "calm", 1, now));
     const prisma = makePrisma(entries);
     prismaTx = prisma;
-    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any);
+    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any, { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any);
     const res = await svc.runSweep(now);
     expect(res.formed).toBe(1);
     const createArg = prisma.partyParticipant.createMany.mock.calls[0][0].data;
@@ -134,9 +135,28 @@ describe("MatchmakingSweepService.runSweep", () => {
       $transaction: jest.fn(async (fn: any) => fn(txMock)),
     } as any;
     prismaTx = txMock;
-    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any);
+    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any, { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any);
     const res = await svc.runSweep(now);
     expect(res.formed).toBe(0);
     expect(txMock.partyParticipant.createMany).not.toHaveBeenCalled();
+  });
+
+  it("formation excludes a candidate blocked with the anchor", async () => {
+    // anchor=pa, candidates=pb,pc,pd all same vibe → normally 4 total ≥ min(4) → party forms.
+    // block (pa,pb) → only 3 remain after exclusion → party does NOT form.
+    const now = new Date("2026-07-01T00:00:00Z");
+    const waiting = [
+      { id: "qa", profileId: "pa", status: "waiting", matchedPartyId: null, preferenceSnapshot: sig("calm"), enqueuedAt: new Date(now.getTime() - 1000) },
+      { id: "qb", profileId: "pb", status: "waiting", matchedPartyId: null, preferenceSnapshot: sig("calm"), enqueuedAt: new Date(now.getTime() - 1000) },
+      { id: "qc", profileId: "pc", status: "waiting", matchedPartyId: null, preferenceSnapshot: sig("calm"), enqueuedAt: new Date(now.getTime() - 1000) },
+      { id: "qd", profileId: "pd", status: "waiting", matchedPartyId: null, preferenceSnapshot: sig("calm"), enqueuedAt: new Date(now.getTime() - 1000) },
+    ];
+    const prisma = makePrisma(waiting);
+    prismaTx = prisma;
+    const safetyMock = { blocksForProfiles: jest.fn().mockResolvedValue(new Set([blockPairKey("pa", "pb")])) };
+    const svc = new MatchmakingSweepService(prisma, { value: cfg } as any, safetyMock as any);
+    const res = await svc.runSweep(now);
+    expect(res.formed).toBe(0);
+    expect(prisma.party.create).not.toHaveBeenCalled();
   });
 });
