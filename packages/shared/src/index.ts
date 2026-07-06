@@ -17,11 +17,18 @@ export type {
   Proposal,
   Match,
   Block,
-} from "./types/social.js";
-
-export type {
   DirectMessageRoom,
   DirectMessage,
+  PeerProfile,
+  MatchSummary,
+  ProposalView,
+  NewMessageEvent,
+  ReadEvent,
+  TypingEvent,
+} from "./types/social.js";
+export { normalizeMatchPair, blockPairKey } from "./social/pair.js";
+
+export type {
   PartyMessage,
   GameSessionStatus,
   GameSession,
