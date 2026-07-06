@@ -4,7 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 export interface CreateNotificationDto {
   userId: string;
-  type: "party_reminder" | "match_result" | "reservation" | "system";
+  type: "party_reminder" | "match_result" | "reservation" | "system" | "proposal_received" | "match_made" | "message_received";
   title: string;
   message: string;
   data?: Prisma.InputJsonValue;
