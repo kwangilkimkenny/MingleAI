@@ -16,6 +16,11 @@ export class MessengerService {
     @Inject(MESSENGER_EMITTER) private readonly emitter: MessengerEmitter,
   ) {}
 
+  /** Public authz check for the Socket.IO gateway — returns the caller's profile id, or null if not a member. */
+  async assertMember(userId: string, roomId: string): Promise<string | null> {
+    try { const { me } = await this.memberContext(userId, roomId); return me; } catch { return null; }
+  }
+
   private maxLen(): number {
     const n = Number(this.config.get("MESSAGE_MAX_LEN"));
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 2000;
