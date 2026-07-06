@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationService } from "../notification/notification.service";
@@ -31,6 +31,11 @@ export class MatchService {
             if (guarded.count === 0) throw new NotFoundException("응답할 프로포즈가 없습니다");
             const proposal = await tx.proposal.findUnique({ where: { id: proposalId } });
             if (!proposal) throw new NotFoundException("프로포즈를 찾을 수 없습니다");
+
+            // F3: block guard — a blocked pair must not create a Match/room. Fails fast; the
+            // Serializable tx rolls back the status update above so nothing is created.
+            if (await this.safety.isBlockedBetween(proposal.fromProfileId, proposal.toProfileId))
+              throw new ForbiddenException("차단된 상대입니다");
 
             const [profileId1, profileId2] = normalizeMatchPair(proposal.fromProfileId, proposal.toProfileId);
             // FIX 1: upsert avoids the tx-abort bug — a failed INSERT (unique violation) in Postgres

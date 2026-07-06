@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, ConflictException, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { ProposalService } from "./proposal.service";
 
 const cfg = { get: (k: string) => ({ PROPOSAL_WINDOW_HOURS: "24", PROPOSAL_MAX_PER_PARTY: "3" }[k]) } as any;
@@ -34,12 +35,14 @@ it("send → 403 when blocked either direction", async () => {
 });
 
 it("send → 409 when the caller is over PROPOSAL_MAX_PER_PARTY", async () => {
+  const txProposal = { count: jest.fn().mockResolvedValue(3), create: jest.fn() };
   const prisma = {
     profile: { findUnique: jest.fn().mockResolvedValue(meProfile) },
     party: { findFirst: jest.fn().mockResolvedValue({ id: "party1", status: "active" }) },
     partyParticipant: { count: jest.fn().mockResolvedValue(2) },
-    proposal: { count: jest.fn().mockResolvedValue(3), findFirst: jest.fn().mockResolvedValue(null), create: jest.fn() },
+    proposal: { findFirst: jest.fn().mockResolvedValue(null) },
     match: { findUnique: jest.fn().mockResolvedValue(null) },
+    $transaction: jest.fn().mockImplementation(async (fn: (tx: any) => Promise<any>) => fn({ proposal: txProposal })),
   } as any;
   await expect(svcWith(prisma).send("ua", "party1", "pb")).rejects.toBeInstanceOf(ConflictException);
 });
@@ -69,6 +72,10 @@ it("send → 409 on a duplicate proposal", async () => {
 it("send → creates a pending proposal on the happy path", async () => {
   const senderProfile = { id: "pa", userId: "ua" };
   const recipientProfile = { id: "pb", userId: "ub" };
+  const txProposal = {
+    count: jest.fn().mockResolvedValue(0),
+    create: jest.fn().mockResolvedValue({ id: "prop1", status: "pending" }),
+  };
   const prisma = {
     profile: {
       findUnique: jest.fn().mockImplementation(({ where }: { where: Record<string, string> }) => {
@@ -79,13 +86,14 @@ it("send → creates a pending proposal on the happy path", async () => {
     },
     party: { findFirst: jest.fn().mockResolvedValue({ id: "party1", status: "active" }) },
     partyParticipant: { count: jest.fn().mockResolvedValue(2) },
-    proposal: { count: jest.fn().mockResolvedValue(0), findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "prop1", status: "pending" }) },
+    proposal: { findFirst: jest.fn().mockResolvedValue(null) },
     match: { findUnique: jest.fn().mockResolvedValue(null) },
+    $transaction: jest.fn().mockImplementation(async (fn: (tx: any) => Promise<any>) => fn({ proposal: txProposal })),
   } as any;
   notify.create.mockClear();
   const res = await svcWith(prisma).send("ua", "party1", "pb");
   expect(res.status).toBe("pending");
-  expect(prisma.proposal.create).toHaveBeenCalled();
+  expect(txProposal.create).toHaveBeenCalled();
   expect(notify.create).toHaveBeenCalledWith(
     expect.objectContaining({ type: "proposal_received", userId: "ub" }),
   );
@@ -157,6 +165,10 @@ it("listSent → returns ProposalView[] with peer (recipient) — no riskScore/p
 
 it("send → notification failure does not reject the send (proposal row is returned)", async () => {
   notify.create.mockRejectedValueOnce(new Error("notify down"));
+  const txProposal = {
+    count: jest.fn().mockResolvedValue(0),
+    create: jest.fn().mockResolvedValue({ id: "prop3", status: "pending" }),
+  };
   const prisma = {
     profile: {
       findUnique: jest.fn().mockImplementation(({ where }: { where: Record<string, string> }) => {
@@ -167,9 +179,27 @@ it("send → notification failure does not reject the send (proposal row is retu
     },
     party: { findFirst: jest.fn().mockResolvedValue({ id: "party1", status: "active" }) },
     partyParticipant: { count: jest.fn().mockResolvedValue(2) },
-    proposal: { count: jest.fn().mockResolvedValue(0), findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "prop3", status: "pending" }) },
+    proposal: { findFirst: jest.fn().mockResolvedValue(null) },
     match: { findUnique: jest.fn().mockResolvedValue(null) },
+    $transaction: jest.fn().mockImplementation(async (fn: (tx: any) => Promise<any>) => fn({ proposal: txProposal })),
   } as any;
   const res = await svcWith(prisma).send("ua", "party1", "pb");
   expect(res.id).toBe("prop3");
+});
+
+it("send → 409 when DB throws P2002 (concurrent duplicate bypasses the pre-tx findFirst)", async () => {
+  const p2002 = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+    code: "P2002",
+    clientVersion: "5.0.0",
+  });
+  const txProposal = { count: jest.fn().mockResolvedValue(0), create: jest.fn().mockRejectedValue(p2002) };
+  const prisma = {
+    profile: { findUnique: jest.fn().mockResolvedValue(meProfile) },
+    party: { findFirst: jest.fn().mockResolvedValue({ id: "party1", status: "active" }) },
+    partyParticipant: { count: jest.fn().mockResolvedValue(2) },
+    proposal: { findFirst: jest.fn().mockResolvedValue(null) },
+    match: { findUnique: jest.fn().mockResolvedValue(null) },
+    $transaction: jest.fn().mockImplementation(async (fn: (tx: any) => Promise<any>) => fn({ proposal: txProposal })),
+  } as any;
+  await expect(svcWith(prisma).send("ua", "party1", "pb")).rejects.toBeInstanceOf(ConflictException);
 });

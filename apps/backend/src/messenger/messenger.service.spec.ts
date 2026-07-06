@@ -55,3 +55,19 @@ it("send → notification failure does not reject; dto is still returned", async
   const res = await svc(prismaWith()).send("ua", "r1", "hi");
   expect(res.content).toBe("hi");
 });
+
+// F2: block enforcement now lives in memberContext, so it covers read paths + the gateway, not just send.
+it("history → 403 when the pair is blocked (F2)", async () => {
+  safety.isBlockedBetween.mockResolvedValueOnce(true);
+  await expect(svc(prismaWith()).history("ua", "r1", undefined, 50)).rejects.toBeInstanceOf(ForbiddenException);
+});
+
+it("markRead → 403 when the pair is blocked (F2)", async () => {
+  safety.isBlockedBetween.mockResolvedValueOnce(true);
+  await expect(svc(prismaWith()).markRead("ua", "r1")).rejects.toBeInstanceOf(ForbiddenException);
+});
+
+it("assertMember → returns null when the pair is blocked so the gateway rejects join/typing (F2)", async () => {
+  safety.isBlockedBetween.mockResolvedValueOnce(true);
+  await expect(svc(prismaWith()).assertMember("ua", "r1")).resolves.toBeNull();
+});

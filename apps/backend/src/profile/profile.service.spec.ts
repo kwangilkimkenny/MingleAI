@@ -147,6 +147,24 @@ describe("ProfileService", () => {
       expect(result).not.toHaveProperty("riskScore");
     });
 
+    it("should not leak userId, partyPreferenceText, status, or timestamps (F1)", async () => {
+      prisma.profile.findUnique.mockResolvedValue(mockProfile);
+
+      const result = (await service.findOne("profile-1")) as any;
+      // userId is an FK to the users table (email + passwordHash) — must never reach a peer
+      expect(result).not.toHaveProperty("userId");
+      expect(result).not.toHaveProperty("riskScore");
+      expect(result).not.toHaveProperty("preferenceSignals");
+      expect(result).not.toHaveProperty("partyPreferenceText");
+      expect(result).not.toHaveProperty("status");
+      expect(result).not.toHaveProperty("createdAt");
+      expect(result).not.toHaveProperty("updatedAt");
+      // only the public fields survive
+      expect(Object.keys(result).sort()).toEqual(
+        ["age", "gender", "id", "name", "occupation", "photoUrl", "preferenceSummary"].sort(),
+      );
+    });
+
     it("should throw NotFoundException if not found", async () => {
       prisma.profile.findUnique.mockResolvedValue(null);
 
@@ -202,6 +220,18 @@ describe("ProfileService", () => {
       prisma.profile.findMany.mockResolvedValue([mockProfile]);
       const results = await service.findAll({});
       expect(results[0]).not.toHaveProperty("riskScore");
+    });
+
+    it("should not leak userId, partyPreferenceText, or raw signals in findAll (F1)", async () => {
+      prisma.profile.findMany.mockResolvedValue([mockProfile]);
+      const results = (await service.findAll({})) as any[];
+      expect(results[0]).not.toHaveProperty("userId");
+      expect(results[0]).not.toHaveProperty("partyPreferenceText");
+      expect(results[0]).not.toHaveProperty("preferenceSignals");
+      expect(results[0]).not.toHaveProperty("status");
+      expect(Object.keys(results[0]).sort()).toEqual(
+        ["age", "gender", "id", "name", "occupation", "photoUrl", "preferenceSummary"].sort(),
+      );
     });
   });
 

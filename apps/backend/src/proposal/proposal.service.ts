@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Logger,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { SafetyService } from "../safety/safety.service";
@@ -91,15 +92,36 @@ export class ProposalService {
     )
       throw new ConflictException("이미 매칭된 상대입니다");
 
-    const sent = await this.prisma.proposal.count({ where: { partyId, fromProfileId: from } });
-    if (sent >= this.maxPerParty()) throw new ConflictException("이 파티의 프로포즈 한도를 초과했습니다");
-
+    // pre-tx duplicate check (optimistic; the DB unique constraint + P2002 handler covers the race)
     if (await this.prisma.proposal.findFirst({ where: { partyId, fromProfileId: from, toProfileId } }))
       throw new ConflictException("이미 프로포즈한 상대입니다");
 
-    const created = await this.prisma.proposal.create({
-      data: { partyId, fromProfileId: from, toProfileId, status: "pending" },
-    });
+    // FIX 1: cap check + create in a Serializable tx so concurrent sends can't race past the cap.
+    // FIX 2: P2002 (unique violation from concurrent duplicate) is caught and mapped to 409.
+    const MAX_ATTEMPTS = 3;
+    let created!: Awaited<ReturnType<typeof this.prisma.proposal.create>>;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        created = await this.prisma.$transaction(
+          async (tx) => {
+            const sent = await tx.proposal.count({ where: { partyId, fromProfileId: from } });
+            if (sent >= this.maxPerParty())
+              throw new ConflictException("이 파티의 프로포즈 한도를 초과했습니다");
+            return tx.proposal.create({
+              data: { partyId, fromProfileId: from, toProfileId, status: "pending" },
+            });
+          },
+          { isolationLevel: "Serializable" },
+        );
+        break;
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034" && attempt < MAX_ATTEMPTS)
+          continue;
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")
+          throw new ConflictException("이미 보낸 프로포즈입니다");
+        throw e;
+      }
+    }
 
     // proposal-received notification (outside any transaction, non-fatal)
     const recipient = await this.prisma.profile.findUnique({ where: { id: toProfileId } });

@@ -118,11 +118,8 @@ export class ProfileService {
     if (!profile || profile.status !== "active") {
       throw new NotFoundException("프로필을 찾을 수 없습니다");
     }
-    const { riskScore: _riskScore, preferenceSignals, ...rest } = profile;
-    return {
-      ...rest,
-      preferenceSummary: (preferenceSignals as { summary?: string } | null)?.summary ?? undefined,
-    };
+    // F1: explicit public projection — never leak userId / raw signals / partyPreferenceText / status / timestamps
+    return this.toPublicProfile(profile);
   }
 
   async findAll(filters?: {
@@ -158,11 +155,34 @@ export class ProfileService {
       skip: offset,
       orderBy: { createdAt: "desc" },
     });
-    // Strip internal safety score and raw signals before returning to callers
-    return profiles.map(({ riskScore: _riskScore, preferenceSignals, ...p }) => ({
-      ...p,
-      preferenceSummary: (preferenceSignals as { summary?: string } | null)?.summary ?? undefined,
-    }));
+    // F1: explicit public projection for every peer-facing result (see toPublicProfile)
+    return profiles.map((p) => this.toPublicProfile(p));
+  }
+
+  /**
+   * F1: peer-facing projection. Returns ONLY the public fields — never userId (FK to users:
+   * email/passwordHash), raw preferenceSignals, riskScore, partyPreferenceText, status, or timestamps.
+   * Mirrors match.service.ts `toPeer`. The owner path (findByUserId / GET /profiles/me) is unaffected.
+   */
+  private toPublicProfile(profile: {
+    id: string;
+    name: string;
+    age: number;
+    gender: string;
+    occupation: string;
+    photoUrl: string | null;
+    preferenceSignals: unknown;
+  }) {
+    return {
+      id: profile.id,
+      name: profile.name,
+      age: profile.age,
+      gender: profile.gender,
+      occupation: profile.occupation,
+      photoUrl: profile.photoUrl ?? undefined,
+      preferenceSummary:
+        (profile.preferenceSignals as { summary?: string } | null)?.summary ?? undefined,
+    };
   }
 
   async update(id: string, userId: string, dto: UpdateProfileDto) {

@@ -39,7 +39,11 @@ export class MessengerService {
     if (!room) throw new NotFoundException("대화방을 찾을 수 없습니다");
     const { profileId1, profileId2 } = room.match;
     if (me.id !== profileId1 && me.id !== profileId2) throw new ForbiddenException("이 대화방의 멤버가 아닙니다");
-    return { me: me.id, peer: me.id === profileId1 ? profileId2 : profileId1 };
+    const peer = me.id === profileId1 ? profileId2 : profileId1;
+    // F2: block enforcement lives here so it covers history / markRead / gateway join+typing
+    // (via assertMember), not just send. Bidirectional check.
+    if (await this.safety.isBlockedBetween(me.id, peer)) throw new ForbiddenException("차단된 상대입니다");
+    return { me: me.id, peer };
   }
 
   private toDto(m: {
@@ -61,9 +65,8 @@ export class MessengerService {
   }
 
   async send(userId: string, roomId: string, content: string): Promise<DirectMessage> {
-    // Guard order: member → block → length (authz before content validation)
+    // Guard order: member + block (both in memberContext) → length (authz before content validation)
     const { me, peer } = await this.memberContext(userId, roomId);
-    if (await this.safety.isBlockedBetween(me, peer)) throw new ForbiddenException("차단된 상대입니다");
     const trimmed = (content ?? "").trim();
     if (!trimmed || trimmed.length > this.maxLen()) throw new BadRequestException("메시지 길이가 올바르지 않습니다");
 

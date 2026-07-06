@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { blockPairKey } from "@mingle/shared";
 import type {
@@ -85,12 +85,22 @@ export class SafetyService {
     details?: string,
     evidencePartyId?: string,
   ) {
+    // Self-report guard
+    if (reporterProfileId === reportedProfileId) {
+      throw new BadRequestException("자신을 신고할 수 없습니다");
+    }
+
     const reported = await this.prisma.profile.findUnique({
       where: { id: reportedProfileId },
     });
     if (!reported) {
       throw new NotFoundException(`프로필을 찾을 수 없습니다: ${reportedProfileId}`);
     }
+
+    // Dedup: one reporter can raise riskScore at most once per target
+    const existingReport = await this.prisma.safetyReport.findFirst({
+      where: { reporterProfileId, reportedProfileId },
+    });
 
     const report = await this.prisma.safetyReport.create({
       data: {
@@ -102,26 +112,35 @@ export class SafetyService {
       },
     });
 
-    await this.prisma.profile.update({
-      where: { id: reportedProfileId },
-      data: { riskScore: { increment: 0.2 } },
-    });
-
-    const updated = await this.prisma.profile.findUnique({
-      where: { id: reportedProfileId },
-    });
-    if (updated && updated.riskScore >= 1.0) {
+    if (!existingReport) {
       await this.prisma.profile.update({
         where: { id: reportedProfileId },
-        data: { status: "suspended" },
+        data: { riskScore: { increment: 0.2 } },
       });
+
+      const updated = await this.prisma.profile.findUnique({
+        where: { id: reportedProfileId },
+      });
+      if (updated && updated.riskScore >= 1.0) {
+        await this.prisma.profile.update({
+          where: { id: reportedProfileId },
+          data: { status: "suspended" },
+        });
+      }
     }
 
     return report;
   }
 
-  createBlock(blockerProfileId: string, blockedProfileId: string) {
-    return this.prisma.block.create({ data: { blockerProfileId, blockedProfileId } });
+  async createBlock(blockerProfileId: string, blockedProfileId: string) {
+    if (blockerProfileId === blockedProfileId) {
+      throw new BadRequestException("자신을 차단할 수 없습니다");
+    }
+    return this.prisma.block.upsert({
+      where: { blockerProfileId_blockedProfileId: { blockerProfileId, blockedProfileId } },
+      create: { blockerProfileId, blockedProfileId },
+      update: {},
+    });
   }
 
   async listBlocks(profileId: string): Promise<PeerProfile[]> {

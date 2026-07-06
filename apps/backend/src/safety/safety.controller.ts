@@ -32,6 +32,8 @@ export class SafetyController {
   ) {}
 
   @Post("check")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   check(@Body() dto: CheckContentDto) {
     return this.safetyService.checkContent(
       dto.content,

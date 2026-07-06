@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { SafetyService } from "./safety.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -6,13 +7,13 @@ import { blockPairKey } from "@mingle/shared";
 describe("SafetyService", () => {
   let service: SafetyService;
   let prisma: {
-    safetyReport: { create: jest.Mock };
+    safetyReport: { create: jest.Mock; findFirst: jest.Mock };
     profile: { findUnique: jest.Mock; update: jest.Mock };
   };
 
   beforeEach(async () => {
     prisma = {
-      safetyReport: { create: jest.fn() },
+      safetyReport: { create: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
       profile: {
         findUnique: jest.fn(),
         update: jest.fn(),
@@ -96,17 +97,52 @@ describe("SafetyService", () => {
         }),
       );
     });
+
+    it("should NOT increment riskScore when the same reporter already reported the same target", async () => {
+      prisma.profile.findUnique.mockResolvedValueOnce({ id: "reported-1", riskScore: 0.2 });
+      prisma.safetyReport.findFirst.mockResolvedValueOnce({ id: "existing-report" });
+      prisma.safetyReport.create.mockResolvedValue({ id: "report-dup" });
+
+      await service.reportUser("reporter-1", "reported-1", "harassment");
+
+      expect(prisma.safetyReport.create).toHaveBeenCalled();
+      expect(prisma.profile.update).not.toHaveBeenCalled();
+    });
+
+    it("should throw BadRequestException when a profile reports itself", async () => {
+      await expect(service.reportUser("self-id", "self-id", "test")).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.safetyReport.create).not.toHaveBeenCalled();
+    });
   });
 });
 
 describe("SafetyService — Block", () => {
   it("creates a block between two profiles", async () => {
-    const prisma = { block: { create: jest.fn().mockResolvedValue({ id: "b1" }) } } as any;
+    const prisma = { block: { upsert: jest.fn().mockResolvedValue({ id: "b1" }) } } as any;
     const service = new SafetyService(prisma);
     await service.createBlock("blocker-1", "blocked-2");
-    expect(prisma.block.create).toHaveBeenCalledWith({
-      data: { blockerProfileId: "blocker-1", blockedProfileId: "blocked-2" },
+    expect(prisma.block.upsert).toHaveBeenCalledWith({
+      where: { blockerProfileId_blockedProfileId: { blockerProfileId: "blocker-1", blockedProfileId: "blocked-2" } },
+      create: { blockerProfileId: "blocker-1", blockedProfileId: "blocked-2" },
+      update: {},
     });
+  });
+
+  it("createBlock is idempotent — second call does not throw", async () => {
+    const prisma = { block: { upsert: jest.fn().mockResolvedValue({ id: "b1" }) } } as any;
+    const service = new SafetyService(prisma);
+    await service.createBlock("blocker-1", "blocked-2");
+    await service.createBlock("blocker-1", "blocked-2");
+    expect(prisma.block.upsert).toHaveBeenCalledTimes(2);
+  });
+
+  it("createBlock throws BadRequestException when blocker and blocked are the same profile", async () => {
+    const prisma = { block: { upsert: jest.fn() } } as any;
+    const service = new SafetyService(prisma);
+    await expect(service.createBlock("same-id", "same-id")).rejects.toThrow(BadRequestException);
+    expect(prisma.block.upsert).not.toHaveBeenCalled();
   });
 
   it("lists blocks for a profile — returns PeerProfile[] with blocked profile data", async () => {

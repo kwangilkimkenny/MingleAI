@@ -1,9 +1,12 @@
-import { NotFoundException } from "@nestjs/common";
+import { NotFoundException, ForbiddenException } from "@nestjs/common";
 import { blockPairKey } from "@mingle/shared";
 import { MatchService } from "./match.service";
 
 const notify = { create: jest.fn().mockResolvedValue({}) } as any;
-const safety = { blocksForProfiles: jest.fn().mockResolvedValue(new Set()) } as any;
+const safety = {
+  blocksForProfiles: jest.fn().mockResolvedValue(new Set()),
+  isBlockedBetween: jest.fn().mockResolvedValue(false),
+} as any;
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -46,6 +49,33 @@ it("acceptProposal → 404 when the caller is not the pending recipient", async 
     $transaction: jest.fn(async (fn: any) => fn(tx)),
   } as any;
   await expect(new MatchService(prisma, notify, safety).acceptProposal("ua", "prop1")).rejects.toBeInstanceOf(NotFoundException);
+});
+
+it("acceptProposal → 403 when the pair is blocked, creating no match or room (F3)", async () => {
+  const proposal = { id: "prop1", partyId: "party1", fromProfileId: "pb", toProfileId: "pa" };
+  const tx = {
+    proposal: {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      findUnique: jest.fn().mockResolvedValue(proposal),
+    },
+    match: { upsert: jest.fn() },
+    directMessageRoom: { upsert: jest.fn() },
+  };
+  const prisma = {
+    profile: { findUnique: jest.fn().mockResolvedValue({ id: "pa", userId: "ua" }) },
+    $transaction: jest.fn(async (fn: any) => fn(tx)),
+  } as any;
+  const blockedSafety = {
+    blocksForProfiles: jest.fn(),
+    isBlockedBetween: jest.fn().mockResolvedValue(true),
+  } as any;
+  await expect(
+    new MatchService(prisma, notify, blockedSafety).acceptProposal("ua", "prop1"),
+  ).rejects.toBeInstanceOf(ForbiddenException);
+  expect(blockedSafety.isBlockedBetween).toHaveBeenCalledWith("pb", "pa");
+  expect(tx.match.upsert).not.toHaveBeenCalled();
+  expect(tx.directMessageRoom.upsert).not.toHaveBeenCalled();
+  expect(notify.create).not.toHaveBeenCalled();
 });
 
 it("listMyMatches → hides a room whose peer is blocked", async () => {
