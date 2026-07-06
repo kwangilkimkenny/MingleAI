@@ -4,15 +4,18 @@ import {
   ForbiddenException,
   ConflictException,
   NotFoundException,
+  Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { SafetyService } from "../safety/safety.service";
 import { NotificationService } from "../notification/notification.service";
-import { normalizeMatchPair } from "@mingle/shared";
+import { normalizeMatchPair, type ProposalView, type PeerProfile } from "@mingle/shared";
 
 @Injectable()
 export class ProposalService {
+  private readonly log = new Logger(ProposalService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -34,6 +37,26 @@ export class ProposalService {
     const p = await this.prisma.profile.findUnique({ where: { userId } });
     if (!p) throw new NotFoundException("프로필이 없습니다");
     return p.id;
+  }
+
+  private toPeer(p: {
+    id: string;
+    name: string;
+    age: number;
+    gender: string;
+    occupation: string;
+    photoUrl: string | null;
+    preferenceSignals: unknown;
+  }): PeerProfile {
+    return {
+      profileId: p.id,
+      name: p.name,
+      age: p.age,
+      gender: p.gender,
+      occupation: p.occupation,
+      photoUrl: p.photoUrl ?? undefined,
+      preferenceSummary: (p.preferenceSignals as { summary?: string } | null)?.summary ?? undefined,
+    };
   }
 
   async send(userId: string, partyId: string, toProfileId: string) {
@@ -78,34 +101,54 @@ export class ProposalService {
       data: { partyId, fromProfileId: from, toProfileId, status: "pending" },
     });
 
-    // proposal-received notification (outside any transaction)
+    // proposal-received notification (outside any transaction, non-fatal)
     const recipient = await this.prisma.profile.findUnique({ where: { id: toProfileId } });
-    if (recipient)
-      await this.notifications.create({
-        userId: recipient.userId,
-        type: "proposal_received",
-        title: "새 프로포즈",
-        message: "누군가 당신에게 프로포즈했습니다.",
-        data: { proposalId: created.id, partyId },
-      });
+    try {
+      if (recipient)
+        await this.notifications.create({
+          userId: recipient.userId,
+          type: "proposal_received",
+          title: "새 프로포즈",
+          message: "누군가 당신에게 프로포즈했습니다.",
+          data: { proposalId: created.id, partyId },
+        });
+    } catch (notifyErr) {
+      this.log.warn(`proposal_received notification failed for proposal ${created.id}: ${notifyErr}`);
+    }
 
     return created;
   }
 
-  async listReceived(userId: string) {
+  async listReceived(userId: string): Promise<ProposalView[]> {
     const me = await this.profileId(userId);
-    return this.prisma.proposal.findMany({
+    const rows = await this.prisma.proposal.findMany({
       where: { toProfileId: me, status: "pending" },
       orderBy: { createdAt: "desc" },
+      include: { from: true },
     });
+    return rows.map((row) => ({
+      id: row.id,
+      partyId: row.partyId,
+      status: row.status as ProposalView["status"],
+      createdAt: row.createdAt.toISOString(),
+      peer: this.toPeer(row.from),
+    }));
   }
 
-  async listSent(userId: string) {
+  async listSent(userId: string): Promise<ProposalView[]> {
     const me = await this.profileId(userId);
-    return this.prisma.proposal.findMany({
+    const rows = await this.prisma.proposal.findMany({
       where: { fromProfileId: me },
       orderBy: { createdAt: "desc" },
+      include: { to: true },
     });
+    return rows.map((row) => ({
+      id: row.id,
+      partyId: row.partyId,
+      status: row.status as ProposalView["status"],
+      createdAt: row.createdAt.toISOString(),
+      peer: this.toPeer(row.to),
+    }));
   }
 
   async decline(userId: string, proposalId: string): Promise<void> {

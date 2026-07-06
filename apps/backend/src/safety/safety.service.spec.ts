@@ -109,15 +109,24 @@ describe("SafetyService — Block", () => {
     });
   });
 
-  it("lists blocks for a profile", async () => {
-    const blocks = [{ id: "b1", blockerProfileId: "blocker-1", blockedProfileId: "blocked-2" }];
+  it("lists blocks for a profile — returns PeerProfile[] with blocked profile data", async () => {
+    const blockedProfile = {
+      id: "blocked-2", name: "Carol", age: 24, gender: "female",
+      occupation: "artist", photoUrl: null, preferenceSignals: null,
+    };
+    const blocks = [{ id: "b1", blockerProfileId: "blocker-1", blockedProfileId: "blocked-2", blocked: blockedProfile }];
     const prisma = { block: { findMany: jest.fn().mockResolvedValue(blocks) } } as any;
     const service = new SafetyService(prisma);
     const result = await service.listBlocks("blocker-1");
     expect(prisma.block.findMany).toHaveBeenCalledWith({
       where: { blockerProfileId: "blocker-1" },
+      include: { blocked: true },
     });
-    expect(result).toEqual(blocks);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("Carol");
+    expect(result[0].profileId).toBe("blocked-2");
+    expect(result[0]).not.toHaveProperty("riskScore");
+    expect(result[0]).not.toHaveProperty("id");
   });
 });
 

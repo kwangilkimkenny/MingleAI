@@ -49,3 +49,9 @@ it("markRead → sets unread read, emits room-level message:read", async () => {
   expect(prisma.directMessage.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ roomId: "r1", senderProfileId: { not: "pa" }, readAt: null }) }));
   expect(emitter.emitRead).toHaveBeenCalledWith(expect.objectContaining({ roomId: "r1", readerProfileId: "pa" }));
 });
+
+it("send → notification failure does not reject; dto is still returned", async () => {
+  notify.create.mockRejectedValueOnce(new Error("notify down"));
+  const res = await svc(prismaWith()).send("ua", "r1", "hi");
+  expect(res.content).toBe("hi");
+});

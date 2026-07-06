@@ -1,4 +1,4 @@
-import { Injectable, Inject, ForbiddenException, BadRequestException, NotFoundException } from "@nestjs/common";
+import { Injectable, Inject, ForbiddenException, BadRequestException, NotFoundException, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { SafetyService } from "../safety/safety.service";
@@ -8,6 +8,8 @@ import type { DirectMessage } from "@mingle/shared";
 
 @Injectable()
 export class MessengerService {
+  private readonly log = new Logger(MessengerService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -73,16 +75,20 @@ export class MessengerService {
     // Emit is best-effort — REST persists regardless; a throwing gateway must not 500 the request
     try { this.emitter.emitNewMessage({ roomId, message: dto }); } catch { /* best-effort */ }
 
-    // Notify the peer's user (non-fatal)
+    // Notify the peer's user (non-fatal — write + broadcast already happened)
     const peerProfile = await this.prisma.profile.findUnique({ where: { id: peer } });
-    if (peerProfile)
-      await this.notifications.create({
-        userId: peerProfile.userId,
-        type: "message_received",
-        title: "새 메시지",
-        message: trimmed.slice(0, 80),
-        data: { roomId },
-      });
+    try {
+      if (peerProfile)
+        await this.notifications.create({
+          userId: peerProfile.userId,
+          type: "message_received",
+          title: "새 메시지",
+          message: trimmed.slice(0, 80),
+          data: { roomId },
+        });
+    } catch (notifyErr) {
+      this.log.warn(`message_received notification failed for room ${roomId}: ${notifyErr}`);
+    }
 
     return dto;
   }

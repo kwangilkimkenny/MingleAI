@@ -7,6 +7,7 @@ import type {
   Violation,
   ViolationType,
   ViolationSeverity,
+  PeerProfile,
 } from "@mingle/shared";
 
 const KOREAN_PHONE_REGEX = /01[016789][-\s]?\d{3,4}[-\s]?\d{4}/g;
@@ -123,8 +124,32 @@ export class SafetyService {
     return this.prisma.block.create({ data: { blockerProfileId, blockedProfileId } });
   }
 
-  listBlocks(profileId: string) {
-    return this.prisma.block.findMany({ where: { blockerProfileId: profileId } });
+  async listBlocks(profileId: string): Promise<PeerProfile[]> {
+    const rows = await this.prisma.block.findMany({
+      where: { blockerProfileId: profileId },
+      include: { blocked: true },
+    });
+    return rows.map((row) => this.toPeer(row.blocked));
+  }
+
+  private toPeer(p: {
+    id: string;
+    name: string;
+    age: number;
+    gender: string;
+    occupation: string;
+    photoUrl: string | null;
+    preferenceSignals: unknown;
+  }): PeerProfile {
+    return {
+      profileId: p.id,
+      name: p.name,
+      age: p.age,
+      gender: p.gender,
+      occupation: p.occupation,
+      photoUrl: p.photoUrl ?? undefined,
+      preferenceSummary: (p.preferenceSignals as { summary?: string } | null)?.summary ?? undefined,
+    };
   }
 
   isBlockedBetween(a: string, b: string): Promise<boolean> {

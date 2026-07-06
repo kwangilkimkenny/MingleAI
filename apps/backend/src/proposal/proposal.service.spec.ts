@@ -98,3 +98,78 @@ it("decline → 404 when the caller is not the recipient of a pending proposal",
   } as any;
   await expect(svcWith(prisma).decline("ua", "propX")).rejects.toBeInstanceOf(NotFoundException);
 });
+
+const senderProfile = {
+  id: "pa", name: "Alice", age: 25, gender: "female", occupation: "designer",
+  photoUrl: null, preferenceSignals: { summary: "likes music" },
+};
+const recipientProfile = {
+  id: "pb", name: "Bob", age: 27, gender: "male", occupation: "engineer",
+  photoUrl: "https://example.com/bob.jpg", preferenceSignals: null,
+};
+
+it("listReceived → returns ProposalView[] with peer (sender) — no riskScore/preferenceSignals", async () => {
+  const row = {
+    id: "prop1", partyId: "party1", status: "pending",
+    createdAt: new Date("2025-01-01T00:00:00Z"),
+    from: senderProfile,
+  };
+  const prisma = {
+    profile: { findUnique: jest.fn().mockResolvedValue(meProfile) },
+    proposal: { findMany: jest.fn().mockResolvedValue([row]) },
+  } as any;
+  const result = await svcWith(prisma).listReceived("ua");
+  expect(result).toHaveLength(1);
+  expect(result[0].peer.name).toBe("Alice");
+  expect(result[0].peer.profileId).toBe("pa");
+  expect(result[0].peer.preferenceSummary).toBe("likes music");
+  expect(result[0].createdAt).toBe("2025-01-01T00:00:00.000Z");
+  expect(result[0]).not.toHaveProperty("riskScore");
+  expect(result[0].peer).not.toHaveProperty("riskScore");
+  expect(result[0].peer).not.toHaveProperty("preferenceSignals");
+  expect(prisma.proposal.findMany).toHaveBeenCalledWith(
+    expect.objectContaining({ include: { from: true } }),
+  );
+});
+
+it("listSent → returns ProposalView[] with peer (recipient) — no riskScore/preferenceSignals", async () => {
+  const row = {
+    id: "prop2", partyId: "party1", status: "pending",
+    createdAt: new Date("2025-02-01T00:00:00Z"),
+    to: recipientProfile,
+  };
+  const prisma = {
+    profile: { findUnique: jest.fn().mockResolvedValue(meProfile) },
+    proposal: { findMany: jest.fn().mockResolvedValue([row]) },
+  } as any;
+  const result = await svcWith(prisma).listSent("ua");
+  expect(result).toHaveLength(1);
+  expect(result[0].peer.name).toBe("Bob");
+  expect(result[0].peer.profileId).toBe("pb");
+  expect(result[0].peer.photoUrl).toBe("https://example.com/bob.jpg");
+  expect(result[0].peer.preferenceSummary).toBeUndefined();
+  expect(result[0].peer).not.toHaveProperty("riskScore");
+  expect(result[0].peer).not.toHaveProperty("preferenceSignals");
+  expect(prisma.proposal.findMany).toHaveBeenCalledWith(
+    expect.objectContaining({ include: { to: true } }),
+  );
+});
+
+it("send → notification failure does not reject the send (proposal row is returned)", async () => {
+  notify.create.mockRejectedValueOnce(new Error("notify down"));
+  const prisma = {
+    profile: {
+      findUnique: jest.fn().mockImplementation(({ where }: { where: Record<string, string> }) => {
+        if (where.userId) return Promise.resolve({ id: "pa", userId: "ua" });
+        if (where.id === "pb") return Promise.resolve({ id: "pb", userId: "ub" });
+        return Promise.resolve(null);
+      }),
+    },
+    party: { findFirst: jest.fn().mockResolvedValue({ id: "party1", status: "active" }) },
+    partyParticipant: { count: jest.fn().mockResolvedValue(2) },
+    proposal: { count: jest.fn().mockResolvedValue(0), findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "prop3", status: "pending" }) },
+    match: { findUnique: jest.fn().mockResolvedValue(null) },
+  } as any;
+  const res = await svcWith(prisma).send("ua", "party1", "pb");
+  expect(res.id).toBe("prop3");
+});
