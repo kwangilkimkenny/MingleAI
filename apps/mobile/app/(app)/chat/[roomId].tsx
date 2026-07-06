@@ -82,6 +82,20 @@ export default function ChatRoom() {
         );
         markRoomRead(roomId).catch(() => {});
       },
+      onReconnect: () => {
+        // Refetch history to fill any gap that occurred during the disconnect.
+        if (!alive.current) return;
+        getRoomMessages(roomId)
+          .then((fresh) => {
+            if (!alive.current) return;
+            setMessages((prev) => {
+              const seen = new Set(prev.map((m) => m.id));
+              const added = fresh.filter((m) => !seen.has(m.id));
+              return added.length === 0 ? prev : [...added, ...prev];
+            });
+          })
+          .catch(() => {});
+      },
       onRead: (e) => {
         if (!alive.current || e.roomId !== roomId) return;
         // mark my sent messages ≤ lastReadAt as read
@@ -145,7 +159,9 @@ export default function ChatRoom() {
     stopTyping();
     try {
       const msg = await sendMessage(roomId, content);
-      if (alive.current) setMessages((prev) => [msg, ...prev]);
+      // dedup: the socket echo (message:new) may arrive before the REST response;
+      // guard absorbs the duplicate regardless of which arrives first.
+      if (alive.current) setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [msg, ...prev]);
     } catch (e) {
       Alert.alert("전송 실패", e instanceof ApiError ? e.message : "메시지를 보내지 못했어요");
     }

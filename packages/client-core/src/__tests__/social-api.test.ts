@@ -60,4 +60,53 @@ describe("connectMessengerSocket", () => {
       connectMessengerSocket({ ioFactory: vi.fn().mockReturnValue(mockSocket), baseUrl: "", token: "", handlers: {} })
     ).not.toThrow();
   });
+
+  it("re-emits room:join for tracked rooms after reconnect (second connect event)", () => {
+    const emitted: unknown[][] = [];
+    const socketHandlers = new Map<string, (...args: unknown[]) => void>();
+    const mockSocket = {
+      on: vi.fn((event: string, fn: (...args: unknown[]) => void) => {
+        socketHandlers.set(event, fn);
+      }),
+      emit: (...a: unknown[]) => emitted.push(a),
+      disconnect: vi.fn(),
+    };
+    const handle = connectMessengerSocket({
+      ioFactory: vi.fn().mockReturnValue(mockSocket),
+      baseUrl: "",
+      token: "",
+      handlers: {},
+    });
+    handle.joinRoom("room1");
+    // First connect fires — skipped (not treated as reconnect)
+    socketHandlers.get("connect")?.();
+    emitted.length = 0;
+    // Second connect fires — simulates auto-reconnect
+    socketHandlers.get("connect")?.();
+    expect(emitted).toEqual(expect.arrayContaining([["room:join", { roomId: "room1" }]]));
+  });
+
+  it("calls onReconnect handler after auto-rejoin", () => {
+    const onReconnect = vi.fn();
+    const socketHandlers = new Map<string, (...args: unknown[]) => void>();
+    const mockSocket = {
+      on: vi.fn((event: string, fn: (...args: unknown[]) => void) => {
+        socketHandlers.set(event, fn);
+      }),
+      emit: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    connectMessengerSocket({
+      ioFactory: vi.fn().mockReturnValue(mockSocket),
+      baseUrl: "",
+      token: "",
+      handlers: { onReconnect },
+    });
+    // First connect (ignored)
+    socketHandlers.get("connect")?.();
+    expect(onReconnect).not.toHaveBeenCalled();
+    // Reconnect
+    socketHandlers.get("connect")?.();
+    expect(onReconnect).toHaveBeenCalledOnce();
+  });
 });
