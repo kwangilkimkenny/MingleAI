@@ -1,10 +1,18 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { PushService } from "../push/push.service";
 
 export interface CreateNotificationDto {
   userId: string;
-  type: "party_reminder" | "match_result" | "reservation" | "system" | "proposal_received" | "match_made" | "message_received";
+  type:
+    | "party_reminder"
+    | "match_result"
+    | "reservation"
+    | "system"
+    | "proposal_received"
+    | "match_made"
+    | "message_received";
   title: string;
   message: string;
   data?: Prisma.InputJsonValue;
@@ -12,7 +20,11 @@ export interface CreateNotificationDto {
 
 @Injectable()
 export class NotificationService {
-  constructor(private prisma: PrismaService) {}
+  private readonly log = new Logger(NotificationService.name);
+  constructor(
+    private prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
 
   async findAllByUser(userId: string, limit = 50, offset = 0) {
     const [notifications, total] = await Promise.all([
@@ -50,7 +62,7 @@ export class NotificationService {
   }
 
   async create(dto: CreateNotificationDto) {
-    return this.prisma.notification.create({
+    const row = await this.prisma.notification.create({
       data: {
         userId: dto.userId,
         type: dto.type,
@@ -59,6 +71,17 @@ export class NotificationService {
         data: dto.data,
       },
     });
+    try {
+      await this.push.sendToUser(dto.userId, {
+        type: dto.type,
+        title: dto.title,
+        body: dto.message,
+        data: dto.data as Record<string, unknown> | undefined,
+      });
+    } catch (err) {
+      this.log.warn(`push notify failed for user ${dto.userId}: ${err}`);
+    }
+    return row;
   }
 
   async createMany(dtos: CreateNotificationDto[]) {
