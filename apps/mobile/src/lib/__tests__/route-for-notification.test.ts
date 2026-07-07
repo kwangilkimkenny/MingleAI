@@ -19,3 +19,12 @@ it("falls back to the notification center for system/unknown", () => {
 it("message_received without roomId falls back to chats", () => {
   expect(routeForNotification({ type: "message_received" })).toBe("/(app)/chats");
 });
+it("routes reservation with matchId to the date-plan screen", () => {
+  expect(routeForNotification({ type: "reservation", matchId: "m1" })).toEqual({
+    pathname: "/(app)/date-plan/[matchId]",
+    params: { matchId: "m1" },
+  });
+});
+it("routes reservation without matchId to home", () => {
+  expect(routeForNotification({ type: "reservation" })).toBe("/(app)/home");
+});
