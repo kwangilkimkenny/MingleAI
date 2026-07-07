@@ -6,6 +6,8 @@ import {
   setPushEnabled,
   getNotifications,
   markNotificationRead,
+  getUnreadCount,
+  markAllNotificationsRead,
 } from "../index.js";
 
 const fetchMock = vi.spyOn(client, "apiFetch").mockResolvedValue(undefined as never);
@@ -37,5 +39,13 @@ describe("devices + notifications API", () => {
   it("markNotificationRead PATCHes the item", async () => {
     await markNotificationRead("n1");
     expect(fetchMock).toHaveBeenCalledWith("/notifications/n1/read", { method: "PATCH" });
+  });
+  it("getUnreadCount GETs unread-count", async () => {
+    await getUnreadCount();
+    expect(fetchMock).toHaveBeenCalledWith("/notifications/unread-count");
+  });
+  it("markAllNotificationsRead POSTs read-all", async () => {
+    await markAllNotificationsRead();
+    expect(fetchMock).toHaveBeenCalledWith("/notifications/read-all", { method: "POST" });
   });
 });
