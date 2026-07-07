@@ -166,7 +166,7 @@ export class DatePlanService {
       });
     }
 
-    return this.prisma.datePlan.create({
+    const created = await this.prisma.datePlan.create({
       data: {
         matchId: dto.matchId,
         creatorProfileId: me.id,
@@ -175,6 +175,7 @@ export class DatePlanService {
         status: "draft",
       },
     });
+    return this.toView(created);
   }
 
   async select(userId: string, id: string, courseId: string): Promise<DatePlanView> {
@@ -209,8 +210,9 @@ export class DatePlanService {
       throw new ConflictException("확정할 수 없는 상태입니다");
     }
     const updated = await this.prisma.datePlan.findUnique({ where: { id } });
+    if (!updated) throw new ConflictException("확정 처리 중 플랜을 찾을 수 없습니다");
     await this.notify(plan.creatorProfileId, id, plan.matchId, "데이트 플랜 확정", "매칭 상대가 데이트 플랜을 확정했어요!");
-    return this.toView(updated!);
+    return this.toView(updated);
   }
 
   async cancel(userId: string, id: string): Promise<DatePlanView> {
