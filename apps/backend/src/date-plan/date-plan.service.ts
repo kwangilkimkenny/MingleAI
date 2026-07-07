@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { SafetyService } from "../safety/safety.service";
@@ -59,7 +59,7 @@ export class DatePlanService {
     status: string;
     selectedCourseId: string | null;
     confirmedAt: Date | null;
-    createdAt?: Date | null;
+    createdAt: Date;
   }): DatePlanView {
     return {
       id: plan.id,
@@ -70,7 +70,7 @@ export class DatePlanService {
       status: plan.status as DatePlanView["status"],
       selectedCourseId: plan.selectedCourseId ?? null,
       confirmedAt: plan.confirmedAt ? plan.confirmedAt.toISOString() : null,
-      createdAt: plan.createdAt ? plan.createdAt.toISOString() : new Date(0).toISOString(),
+      createdAt: plan.createdAt.toISOString(),
     };
   }
 
@@ -96,6 +96,7 @@ export class DatePlanService {
   }
 
   async listForMatch(userId: string, matchId: string): Promise<DatePlanView[]> {
+    if (!matchId) throw new BadRequestException("matchId가 필요합니다");
     const match = await this.prisma.match.findUnique({ where: { id: matchId } });
     if (!match) throw new NotFoundException("매치를 찾을 수 없습니다");
     const me = await this.prisma.profile.findUnique({ where: { userId } });
