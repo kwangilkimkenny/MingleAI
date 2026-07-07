@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { SafetyService } from "../safety/safety.service";
@@ -175,6 +175,74 @@ export class DatePlanService {
         status: "draft",
       },
     });
+  }
+
+  async select(userId: string, id: string, courseId: string): Promise<DatePlanView> {
+    const { plan, myProfileId, peerProfileId } = await this.memberContext(userId, id);
+    if (!plan.creatorProfileId || myProfileId !== plan.creatorProfileId) {
+      throw new ForbiddenException("코스는 플랜을 만든 사람만 선택할 수 있습니다");
+    }
+    if (plan.status !== "draft") throw new ConflictException("이미 확정되었거나 취소된 플랜입니다");
+    const courses = plan.courses as unknown as DateCourse[];
+    if (!courses.some((c) => c.courseId === courseId)) {
+      throw new BadRequestException("존재하지 않는 코스입니다");
+    }
+    const updated = await this.prisma.datePlan.update({ where: { id }, data: { selectedCourseId: courseId } });
+    await this.notify(peerProfileId, id, plan.matchId, "새 데이트 플랜", "매칭 상대가 데이트 코스를 제안했어요. 확인해 보세요!");
+    return this.toView(updated);
+  }
+
+  async confirm(userId: string, id: string): Promise<DatePlanView> {
+    const { plan, myProfileId } = await this.memberContext(userId, id);
+    if (!plan.creatorProfileId) throw new ConflictException("확정할 수 없는 플랜입니다");
+    if (myProfileId === plan.creatorProfileId) {
+      throw new ForbiddenException("데이트 플랜은 상대방이 확정해야 합니다");
+    }
+    if (!plan.selectedCourseId) throw new ConflictException("먼저 코스가 선택되어야 합니다");
+    const res = await this.prisma.datePlan.updateMany({
+      where: { id, status: "draft" },
+      data: { status: "confirmed", confirmedAt: new Date() },
+    });
+    if (res.count === 0) {
+      const fresh = await this.prisma.datePlan.findUnique({ where: { id } });
+      if (fresh?.status === "confirmed") return this.toView(fresh);
+      throw new ConflictException("확정할 수 없는 상태입니다");
+    }
+    const updated = await this.prisma.datePlan.findUnique({ where: { id } });
+    await this.notify(plan.creatorProfileId, id, plan.matchId, "데이트 플랜 확정", "매칭 상대가 데이트 플랜을 확정했어요!");
+    return this.toView(updated!);
+  }
+
+  async cancel(userId: string, id: string): Promise<DatePlanView> {
+    const { plan } = await this.memberContext(userId, id);
+    if (plan.status === "cancelled" || plan.status === "completed") {
+      throw new ConflictException("이미 취소되었거나 완료된 플랜입니다");
+    }
+    const updated = await this.prisma.datePlan.update({ where: { id }, data: { status: "cancelled" } });
+    return this.toView(updated);
+  }
+
+  /** Best-effort, non-fatal notification to a profile's owning user. */
+  private async notify(
+    targetProfileId: string,
+    datePlanId: string,
+    matchId: string,
+    title: string,
+    message: string,
+  ) {
+    try {
+      const p = await this.prisma.profile.findUnique({ where: { id: targetProfileId }, select: { userId: true } });
+      if (!p) return;
+      await this.notifications.create({
+        userId: p.userId,
+        type: "reservation",
+        title,
+        message,
+        data: { datePlanId, matchId },
+      });
+    } catch (err) {
+      this.log.warn(`date-plan notify failed for profile ${targetProfileId}: ${err}`);
+    }
   }
 
   private buildCourse(

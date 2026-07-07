@@ -102,3 +102,81 @@ it("listForMatch 400 when matchId is empty", async () => {
   const { svc } = make();
   await expect(svc.listForMatch("uA", "")).rejects.toBeInstanceOf(BadRequestException);
 });
+
+// Task 4 — select / confirm / cancel + notify
+const COURSES = [{ courseId: "c1", label: "x", stops: [], totalEstimatedCost: 0, totalEstimatedMinutes: 0 }];
+
+function makeWith(plan: any, profile: any) {
+  const prisma = {
+    match: { findUnique: jest.fn().mockResolvedValue(MATCH) },
+    profile: { findUnique: jest.fn().mockResolvedValue(profile) },
+    datePlan: {
+      findUnique: jest.fn().mockResolvedValue(plan),
+      update: jest.fn().mockImplementation(({ data }) => ({ ...plan, ...data })),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+  } as any;
+  const safety = { isBlockedBetween: jest.fn().mockResolvedValue(false) } as any;
+  const notifications = { create: jest.fn().mockResolvedValue({}) } as any;
+  return { svc: new DatePlanService(prisma, safety, notifications), prisma, notifications };
+}
+
+it("select: creator sets a valid course + notifies the peer", async () => {
+  const plan = { id: "d1", matchId: "m1", creatorProfileId: "pA", status: "draft", courses: COURSES, selectedCourseId: null, confirmedAt: null, createdAt: new Date() };
+  const { svc, notifications } = makeWith(plan, { id: "pA", userId: "uA" });
+  const view = await svc.select("uA", "d1", "c1");
+  expect(view.selectedCourseId).toBe("c1");
+  expect(notifications.create).toHaveBeenCalled();
+});
+
+it("select: rejects a non-creator", async () => {
+  const plan = { id: "d1", matchId: "m1", creatorProfileId: "pA", status: "draft", courses: COURSES, selectedCourseId: null, confirmedAt: null, createdAt: new Date() };
+  const { svc } = makeWith(plan, { id: "pB", userId: "uB" });
+  await expect(svc.select("uB", "d1", "c1")).rejects.toBeInstanceOf(ForbiddenException);
+});
+
+it("select: rejects an unknown courseId", async () => {
+  const plan = { id: "d1", matchId: "m1", creatorProfileId: "pA", status: "draft", courses: COURSES, selectedCourseId: null, confirmedAt: null, createdAt: new Date() };
+  const { svc } = makeWith(plan, { id: "pA", userId: "uA" });
+  await expect(svc.select("uA", "d1", "zzz")).rejects.toBeInstanceOf(BadRequestException);
+});
+
+it("confirm: peer confirms draft→confirmed + notifies creator", async () => {
+  const plan = { id: "d1", matchId: "m1", creatorProfileId: "pA", status: "draft", courses: COURSES, selectedCourseId: "c1", confirmedAt: null, createdAt: new Date() };
+  const { svc, prisma, notifications } = makeWith(plan, { id: "pB", userId: "uB" });
+  prisma.datePlan.findUnique.mockResolvedValueOnce(plan).mockResolvedValueOnce({ ...plan, status: "confirmed", confirmedAt: new Date() });
+  const view = await svc.confirm("uB", "d1");
+  expect(prisma.datePlan.updateMany).toHaveBeenCalledWith({ where: { id: "d1", status: "draft" }, data: expect.objectContaining({ status: "confirmed" }) });
+  expect(view.status).toBe("confirmed");
+  expect(notifications.create).toHaveBeenCalled();
+});
+
+it("confirm: creator cannot self-confirm", async () => {
+  const plan = { id: "d1", matchId: "m1", creatorProfileId: "pA", status: "draft", courses: COURSES, selectedCourseId: "c1", confirmedAt: null, createdAt: new Date() };
+  const { svc } = makeWith(plan, { id: "pA", userId: "uA" });
+  await expect(svc.confirm("uA", "d1")).rejects.toBeInstanceOf(ForbiddenException);
+});
+
+it("confirm: double-confirm is idempotent (count 0 but already confirmed)", async () => {
+  const plan = { id: "d1", matchId: "m1", creatorProfileId: "pA", status: "draft", courses: COURSES, selectedCourseId: "c1", confirmedAt: null, createdAt: new Date() };
+  const { svc, prisma } = makeWith(plan, { id: "pB", userId: "uB" });
+  prisma.datePlan.updateMany.mockResolvedValueOnce({ count: 0 });
+  prisma.datePlan.findUnique.mockResolvedValueOnce(plan).mockResolvedValueOnce({ ...plan, status: "confirmed", confirmedAt: new Date() });
+  const view = await svc.confirm("uB", "d1");
+  expect(view.status).toBe("confirmed");
+});
+
+it("confirm: still returns the row when notify throws (non-fatal)", async () => {
+  const plan = { id: "d1", matchId: "m1", creatorProfileId: "pA", status: "draft", courses: COURSES, selectedCourseId: "c1", confirmedAt: null, createdAt: new Date() };
+  const { svc, prisma, notifications } = makeWith(plan, { id: "pB", userId: "uB" });
+  notifications.create.mockRejectedValue(new Error("down"));
+  prisma.datePlan.findUnique.mockResolvedValueOnce(plan).mockResolvedValueOnce({ ...plan, status: "confirmed", confirmedAt: new Date() });
+  await expect(svc.confirm("uB", "d1")).resolves.toHaveProperty("status", "confirmed");
+});
+
+it("cancel: a member cancels → cancelled", async () => {
+  const plan = { id: "d1", matchId: "m1", creatorProfileId: "pA", status: "draft", courses: COURSES, selectedCourseId: null, confirmedAt: null, createdAt: new Date() };
+  const { svc } = makeWith(plan, { id: "pB", userId: "uB" });
+  const view = await svc.cancel("uB", "d1");
+  expect(view.status).toBe("cancelled");
+});
