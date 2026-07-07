@@ -43,6 +43,15 @@ export { getRoomMessages, sendMessage, markRoomRead } from "./api/messenger.js";
 
 export { createBlock, getBlocks, removeBlock } from "./api/blocks.js";
 
+export { registerDevice, unregisterDevice, setPushEnabled } from "./api/devices.js";
+export {
+  getNotifications,
+  getUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "./api/notifications.js";
+export type { AppNotification } from "./api/notifications.js";
+
 export { connectMessengerSocket } from "./socket/messenger-socket.js";
 export type {
   MessengerSocketHandlers,
