@@ -98,7 +98,9 @@ model DatePlan {
   constraints      Json
   courses          Json
   status           String   @default("draft")
-  selectedCourseId String?  @map("selected_course_id")
+  selectedCourseId String?   @map("selected_course_id")
+  creatorProfileId String?   @map("creator_profile_id")
+  confirmedAt      DateTime? @map("confirmed_at")
   merchantPayKey   String?  @map("merchant_pay_key") // 결제 필드 보존(v2 MVP 미사용)
   paymentId        String?  @map("payment_id")
   paymentStatus    String?  @map("payment_status")
