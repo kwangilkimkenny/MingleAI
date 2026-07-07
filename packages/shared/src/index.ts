@@ -51,6 +51,7 @@ export type {
   DateCourse,
   DatePlanStatus,
   DatePlan,
+  DatePlanView,
 } from "./types/date-plan.js";
 
 export type {
