@@ -5,6 +5,7 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   StyleSheet,
   KeyboardAvoidingView,
@@ -203,9 +204,26 @@ export default function ChatRoom() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerName}>{match?.peer.name ?? "채팅"}</Text>
-        <TouchableOpacity onPress={onBlockPress}>
-          <Text style={styles.blockText}>차단</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {match != null && (
+            <Pressable
+              style={styles.datePlanBtn}
+              onPress={() =>
+                // new route — Expo Router typegen updates on next `expo start`
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                router.push({
+                  pathname: "/(app)/date-plan/[matchId]" as any,
+                  params: { matchId: match.matchId },
+                })
+              }
+            >
+              <Text style={styles.datePlanText}>데이트 플랜</Text>
+            </Pressable>
+          )}
+          <TouchableOpacity onPress={onBlockPress}>
+            <Text style={styles.blockText}>차단</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Messages (inverted = newest at bottom) */}
@@ -268,6 +286,15 @@ const styles = StyleSheet.create({
     borderBottomColor: INK,
   },
   headerName: { fontSize: 17, fontWeight: "700", color: INK },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  datePlanBtn: {
+    borderWidth: 1.5,
+    borderColor: INK,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  datePlanText: { fontSize: 13, fontWeight: "700", color: INK },
   blockText: { fontSize: 13, color: GRAY_MED, textDecorationLine: "underline" },
   messages: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   bubble: {
