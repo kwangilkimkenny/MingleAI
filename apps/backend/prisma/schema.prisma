@@ -12,11 +12,13 @@ model User {
   email        String   @unique
   passwordHash String   @map("password_hash")
   role         String   @default("user") // "user" | "admin" | "super_admin"
+  pushEnabled  Boolean  @default(true) @map("push_enabled")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   profile       Profile?
   notifications Notification[]
+  deviceTokens  DeviceToken[]
 
   @@map("users")
 }
@@ -271,4 +273,18 @@ model Block {
 
   @@unique([blockerProfileId, blockedProfileId])
   @@map("blocks")
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  platform  String // "ios" | "android"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }
