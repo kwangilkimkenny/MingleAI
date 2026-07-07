@@ -13,6 +13,8 @@ const config: Config = {
   moduleNameMapper: {
     "^@mingle/shared$": "<rootDir>/../../../packages/shared/src/index",
     "^(\\.{1,2}/.*)\\.js$": "$1",
+    // expo-server-sdk is ESM-only; use a hand-crafted CJS-compatible mock in tests.
+    "^expo-server-sdk$": "<rootDir>/__mocks__/expo-server-sdk",
   },
 };
 
