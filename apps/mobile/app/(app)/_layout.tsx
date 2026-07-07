@@ -4,6 +4,7 @@ import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "../../src/lib/client";
 import { useAuthHydrated } from "../../src/lib/use-hydrated";
 import { getMyProfile } from "@mingle/client-core";
+import { usePushRegistration } from "../../src/lib/push";
 
 type ProfileState = "loading" | "none" | "ok" | "error";
 
@@ -34,6 +35,8 @@ export default function AppLayout() {
   useEffect(() => {
     return fetchProfile();
   }, [fetchProfile]);
+
+  usePushRegistration(profileState === "ok");
 
   if (!hydrated) return null;
   if (!token) return <Redirect href="/login" />;
