@@ -15,7 +15,6 @@ import {
   markAllNotificationsRead,
   setPushEnabled,
   type AppNotification,
-  ApiError,
 } from "@mingle/client-core";
 import { routeForNotification, type NotificationData } from "../../src/lib/route-for-notification";
 
@@ -46,7 +45,7 @@ export default function Notifications() {
 
   useFocusEffect(load);
 
-  async function onTapItem(n: AppNotification) {
+  function onTapItem(n: AppNotification) {
     if (!n.read) {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       markNotificationRead(n.id).catch(() => {});
@@ -54,7 +53,7 @@ export default function Notifications() {
     router.push(routeForNotification((n.data ?? { type: n.type }) as NotificationData));
   }
 
-  async function onMarkAll() {
+  function onMarkAll() {
     setItems((prev) => prev.map((x) => ({ ...x, read: true })));
     markAllNotificationsRead().catch(() => {});
   }
@@ -83,7 +82,13 @@ export default function Notifications() {
         <Text style={styles.title}>알림</Text>
         <View style={styles.toggle}>
           <Text style={styles.toggleLabel}>푸시</Text>
-          <Switch value={pushOn} onValueChange={onTogglePush} />
+          <Switch
+            value={pushOn}
+            onValueChange={onTogglePush}
+            trackColor={{ false: "#D9D5CC", true: "#17150F" }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#D9D5CC"
+          />
         </View>
       </View>
       <Pressable onPress={onMarkAll}>
