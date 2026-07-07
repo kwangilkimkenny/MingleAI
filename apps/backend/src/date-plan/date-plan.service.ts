@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
+import { SafetyService } from "../safety/safety.service";
+import { NotificationService } from "../notification/notification.service";
 import { CreateDatePlanDto } from "./dto/create-date-plan.dto";
-import type { DateCourse, DateStop, DateConstraints } from "@mingle/shared";
+import type { DateCourse, DateStop, DateConstraints, DatePlanView } from "@mingle/shared";
 
 interface VenueTemplate {
   type: string;
@@ -41,9 +43,86 @@ const RATIONALE_MAP: Record<string, string> = {
 
 @Injectable()
 export class DatePlanService {
-  constructor(private prisma: PrismaService) {}
+  private readonly log = new Logger(DatePlanService.name);
+  constructor(
+    private prisma: PrismaService,
+    private readonly safety: SafetyService,
+    private readonly notifications: NotificationService,
+  ) {}
 
-  async create(dto: CreateDatePlanDto) {
+  toView(plan: {
+    id: string;
+    matchId: string;
+    creatorProfileId: string | null;
+    constraints: unknown;
+    courses: unknown;
+    status: string;
+    selectedCourseId: string | null;
+    confirmedAt: Date | null;
+    createdAt?: Date | null;
+  }): DatePlanView {
+    return {
+      id: plan.id,
+      matchId: plan.matchId,
+      creatorProfileId: plan.creatorProfileId ?? null,
+      constraints: plan.constraints as DateConstraints,
+      courses: plan.courses as DateCourse[],
+      status: plan.status as DatePlanView["status"],
+      selectedCourseId: plan.selectedCourseId ?? null,
+      confirmedAt: plan.confirmedAt ? plan.confirmedAt.toISOString() : null,
+      createdAt: plan.createdAt ? plan.createdAt.toISOString() : new Date(0).toISOString(),
+    };
+  }
+
+  async memberContext(userId: string, datePlanId: string) {
+    const plan = await this.prisma.datePlan.findUnique({ where: { id: datePlanId } });
+    if (!plan) throw new NotFoundException(`데이트 플랜을 찾을 수 없습니다: ${datePlanId}`);
+    const match = await this.prisma.match.findUnique({ where: { id: plan.matchId } });
+    if (!match) throw new NotFoundException("매치를 찾을 수 없습니다");
+    const me = await this.prisma.profile.findUnique({ where: { userId } });
+    if (!me || (me.id !== match.profileId1 && me.id !== match.profileId2)) {
+      throw new ForbiddenException("이 데이트 플랜에 접근할 수 없습니다");
+    }
+    if (await this.safety.isBlockedBetween(match.profileId1, match.profileId2)) {
+      throw new ForbiddenException("차단된 상대와는 데이트 플랜을 진행할 수 없습니다");
+    }
+    const peerProfileId = me.id === match.profileId1 ? match.profileId2 : match.profileId1;
+    return { plan, match, myProfileId: me.id, peerProfileId };
+  }
+
+  async getOne(userId: string, id: string): Promise<DatePlanView> {
+    const { plan } = await this.memberContext(userId, id);
+    return this.toView(plan);
+  }
+
+  async listForMatch(userId: string, matchId: string): Promise<DatePlanView[]> {
+    const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+    if (!match) throw new NotFoundException("매치를 찾을 수 없습니다");
+    const me = await this.prisma.profile.findUnique({ where: { userId } });
+    if (!me || (me.id !== match.profileId1 && me.id !== match.profileId2)) {
+      throw new ForbiddenException("이 매치에 접근할 수 없습니다");
+    }
+    if (await this.safety.isBlockedBetween(match.profileId1, match.profileId2)) {
+      throw new ForbiddenException("차단된 상대입니다");
+    }
+    const plans = await this.prisma.datePlan.findMany({
+      where: { matchId },
+      orderBy: { createdAt: "desc" },
+    });
+    return plans.map((p) => this.toView(p));
+  }
+
+  async create(userId: string, dto: CreateDatePlanDto) {
+    const match = await this.prisma.match.findUnique({ where: { id: dto.matchId } });
+    if (!match) throw new NotFoundException(`매치를 찾을 수 없습니다: ${dto.matchId}`);
+    const me = await this.prisma.profile.findUnique({ where: { userId } });
+    if (!me || (me.id !== match.profileId1 && me.id !== match.profileId2)) {
+      throw new ForbiddenException("이 매치의 참여자만 데이트 플랜을 만들 수 있습니다");
+    }
+    if (await this.safety.isBlockedBetween(match.profileId1, match.profileId2)) {
+      throw new ForbiddenException("차단된 상대와는 데이트 플랜을 만들 수 없습니다");
+    }
+
     const constraints: DateConstraints = {
       budget: { total: dto.budget.total, currency: dto.budget.currency ?? "KRW" },
       location: {
@@ -89,17 +168,12 @@ export class DatePlanService {
     return this.prisma.datePlan.create({
       data: {
         matchId: dto.matchId,
+        creatorProfileId: me.id,
         constraints: constraints as object,
         courses: courses as object[],
         status: "draft",
       },
     });
-  }
-
-  async findOne(id: string) {
-    const plan = await this.prisma.datePlan.findUnique({ where: { id } });
-    if (!plan) throw new NotFoundException(`데이트 플랜을 찾을 수 없습니다: ${id}`);
-    return plan;
   }
 
   private buildCourse(
