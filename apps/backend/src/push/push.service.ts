@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Expo, type ExpoPushMessage, type ExpoPushTicket } from "expo-server-sdk";
+import type { Expo, ExpoPushMessage, ExpoPushTicket } from "expo-server-sdk";
 import { PrismaService } from "../prisma/prisma.service";
 
 export interface PushPayload {
@@ -13,13 +13,39 @@ export interface PushPayload {
 @Injectable()
 export class PushService {
   private readonly log = new Logger(PushService.name);
-  private readonly expo: Expo;
+
+  // undefined = not yet attempted, null = SDK failed to load, instance = ready
+  private expoClient: Expo | null | undefined = undefined;
+  private ExpoClass: typeof Expo | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
-    config: ConfigService,
-  ) {
-    this.expo = new Expo({ accessToken: config.get<string>("EXPO_ACCESS_TOKEN") });
+    private readonly config: ConfigService,
+  ) {}
+
+  /**
+   * Lazily loads expo-server-sdk on first use.
+   *
+   * expo-server-sdk@6 ships ESM-only. A top-level `require()` (from a static import
+   * compiled to CommonJS) throws ERR_REQUIRE_ESM at module load, crashing the whole
+   * NestJS process at boot — violating the invariant that push failures must be non-fatal.
+   *
+   * A lazy `import()` inside a try/catch defers loading to the first actual push attempt.
+   * If it fails (ERR_REQUIRE_ESM on Node <20.19, or any other load error) the catch sets
+   * `expoClient = null` and the service degrades to a no-op for the lifetime of the process.
+   */
+  private async ensureExpo(): Promise<boolean> {
+    if (this.expoClient !== undefined) return this.expoClient !== null;
+    try {
+      const mod = await import("expo-server-sdk");
+      this.ExpoClass = mod.Expo;
+      this.expoClient = new mod.Expo({ accessToken: this.config.get<string>("EXPO_ACCESS_TOKEN") });
+      return true;
+    } catch (err) {
+      this.log.warn(`expo-server-sdk failed to load — push disabled: ${err}`);
+      this.expoClient = null;
+      return false;
+    }
   }
 
   async sendToUser(userId: string, payload: PushPayload): Promise<void> {
@@ -28,7 +54,9 @@ export class PushService {
       if (!user || !user.pushEnabled) return;
 
       const rows = await this.prisma.deviceToken.findMany({ where: { userId }, select: { token: true } });
-      const tokens = rows.map((r) => r.token).filter((t) => Expo.isExpoPushToken(t));
+      if (!(await this.ensureExpo())) return;
+
+      const tokens = rows.map((r) => r.token).filter((t) => this.ExpoClass!.isExpoPushToken(t));
       if (tokens.length === 0) return;
 
       const messages: ExpoPushMessage[] = tokens.map((to) => ({
@@ -48,10 +76,10 @@ export class PushService {
 
   /** Chunked send — split out so tests can stub the network. */
   private async dispatch(messages: ExpoPushMessage[]): Promise<ExpoPushTicket[]> {
-    const chunks = this.expo.chunkPushNotifications(messages);
+    const chunks = this.expoClient!.chunkPushNotifications(messages);
     const tickets: ExpoPushTicket[] = [];
     for (const chunk of chunks) {
-      tickets.push(...(await this.expo.sendPushNotificationsAsync(chunk)));
+      tickets.push(...(await this.expoClient!.sendPushNotificationsAsync(chunk)));
     }
     return tickets;
   }

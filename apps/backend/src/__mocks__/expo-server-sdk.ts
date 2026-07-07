@@ -28,5 +28,11 @@ export class Expo {
 }
 
 // Type aliases used in push.service.ts imports.
-export type ExpoPushMessage = any;
+export type ExpoPushMessage = {
+  to: string;
+  sound?: string;
+  title?: string;
+  body?: string;
+  data?: Record<string, unknown>;
+};
 export type ExpoPushTicket = { status: "ok" } | { status: "error"; details?: { error?: string }; message: string };
