@@ -50,7 +50,12 @@ export default function Notifications() {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       markNotificationRead(n.id).catch(() => {});
     }
-    router.push(routeForNotification((n.data ?? { type: n.type }) as NotificationData));
+    router.push(
+      routeForNotification({
+        type: n.type,
+        ...((n.data as object) ?? {}),
+      } as NotificationData),
+    );
   }
 
   function onMarkAll() {
