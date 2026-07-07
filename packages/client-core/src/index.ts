@@ -52,6 +52,16 @@ export {
 } from "./api/notifications.js";
 export type { AppNotification } from "./api/notifications.js";
 
+export {
+  createDatePlan,
+  getDatePlan,
+  getDatePlansForMatch,
+  selectCourse,
+  confirmDatePlan,
+  cancelDatePlan,
+} from "./api/date-plans.js";
+export type { CreateDatePlanInput } from "./api/date-plans.js";
+
 export { connectMessengerSocket } from "./socket/messenger-socket.js";
 export type {
   MessengerSocketHandlers,
