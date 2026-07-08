@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { getMatchmakingStatus, sendProposal, ApiError } from "@mingle/client-core";
 import type { PublicParty } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
+import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 
 export default function PartyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -12,6 +13,7 @@ export default function PartyScreen() {
   const [error, setError] = useState<string | null>(null);
   const [proposeErrors, setProposeErrors] = useState<Record<string, string>>({});
   const [proposeSent, setProposeSent] = useState<Record<string, boolean>>({});
+  const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const alive = useRef(true);
 
   useEffect(() => {
@@ -61,31 +63,42 @@ export default function PartyScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{party.name}</Text>
       <Text style={styles.sub}>곧 파티가 시작됩니다 · {party.participants.length}명</Text>
-      {party.participants.map((p) => (
+      {party.participants
+        .filter((p) => !hidden[p.profileId])
+        .map((p) => (
         <View key={p.profileId} style={styles.card}>
           <Text style={styles.name}>{p.name} · {p.age}</Text>
           <Text style={styles.meta}>{p.occupation}</Text>
           {p.preferenceSummary ? <Text style={styles.summary}>{p.preferenceSummary}</Text> : null}
           {p.profileId !== myProfileId ? (
-            <View style={styles.proposeRow}>
-              <TouchableOpacity
-                style={[styles.proposeBtn, proposeSent[p.profileId] && styles.proposeBtnSent]}
-                disabled={proposeSent[p.profileId]}
-                onPress={() => onPropose(p.profileId)}
-              >
-                <Text
-                  style={[
-                    styles.proposeBtnText,
-                    proposeSent[p.profileId] && styles.proposeBtnTextSent,
-                  ]}
+            <>
+              <View style={styles.proposeRow}>
+                <TouchableOpacity
+                  style={[styles.proposeBtn, proposeSent[p.profileId] && styles.proposeBtnSent]}
+                  disabled={proposeSent[p.profileId]}
+                  onPress={() => onPropose(p.profileId)}
                 >
-                  {proposeSent[p.profileId] ? "프로포즈 완료" : "프로포즈 보내기"}
-                </Text>
-              </TouchableOpacity>
-              {proposeErrors[p.profileId] ? (
-                <Text style={styles.proposeError}>{proposeErrors[p.profileId]}</Text>
-              ) : null}
-            </View>
+                  <Text
+                    style={[
+                      styles.proposeBtnText,
+                      proposeSent[p.profileId] && styles.proposeBtnTextSent,
+                    ]}
+                  >
+                    {proposeSent[p.profileId] ? "프로포즈 완료" : "프로포즈 보내기"}
+                  </Text>
+                </TouchableOpacity>
+                {proposeErrors[p.profileId] ? (
+                  <Text style={styles.proposeError}>{proposeErrors[p.profileId]}</Text>
+                ) : null}
+              </View>
+              <View style={styles.menuRow}>
+                <PeerModerationMenu
+                  peer={{ profileId: p.profileId, name: p.name }}
+                  evidencePartyId={id}
+                  onBlocked={() => setHidden((prev) => ({ ...prev, [p.profileId]: true }))}
+                />
+              </View>
+            </>
           ) : null}
         </View>
       ))}
@@ -116,4 +129,5 @@ const styles = StyleSheet.create({
   proposeBtnText: { color: "#17150F", fontWeight: "700", fontSize: 13 },
   proposeBtnTextSent: { color: "#FFFFFF" },
   proposeError: { color: "#17150F", fontSize: 12 },
+  menuRow: { alignItems: "flex-end", marginTop: 4 },
 });

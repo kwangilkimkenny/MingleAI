@@ -15,6 +15,7 @@ import {
   ApiError,
   type ProposalView,
 } from "@mingle/client-core";
+import { PeerModerationMenu } from "../../src/components/PeerModerationMenu";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -88,6 +89,12 @@ export default function Proposals() {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <PeerModerationMenu
+                  peer={{ profileId: item.peer.profileId, name: item.peer.name }}
+                  onBlocked={() => setProposals((prev) => prev.filter((p) => p.id !== item.id))}
+                />
+              </View>
               <View style={styles.peerInfo}>
                 <Text style={styles.name}>
                   {item.peer.name} · {item.peer.age}
@@ -129,6 +136,7 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 4,
   },
+  cardHeader: { alignItems: "flex-end" },
   peerInfo: { marginBottom: 12 },
   name: { fontSize: 16, fontWeight: "700", color: INK },
   meta: { fontSize: 13, color: GRAY_DARK, marginTop: 2 },

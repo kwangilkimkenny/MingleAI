@@ -1,20 +1,14 @@
 import { useCallback, useRef, useState } from "react";
 import { View, Text, Button, StyleSheet } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useAuthStore } from "../../src/lib/client";
 
 export default function Home() {
-  const logout = useAuthStore((s) => s.logout);
   const { notice } = useLocalSearchParams<{ notice?: string }>();
   const [showNotice, setShowNotice] = useState(true);
   const navigatingRef = useRef(false);
 
   // Reset guard when home regains focus, so a normal second visit still works.
   useFocusEffect(useCallback(() => { navigatingRef.current = false; }, []));
-
-  function onLogout() {
-    logout();
-  }
 
   function onStartMatching() {
     if (navigatingRef.current) return;
@@ -36,7 +30,7 @@ export default function Home() {
       <Button title="프로포즈" onPress={() => router.push("/(app)/proposals")} />
       <Button title="채팅" onPress={() => router.push("/(app)/chats")} />
       <Button title="알림" onPress={() => router.push("/(app)/notifications")} />
-      <Button title="로그아웃" onPress={onLogout} />
+      <Button title="설정" onPress={() => router.push("/(app)/settings" as any)} />
     </View>
   );
 }

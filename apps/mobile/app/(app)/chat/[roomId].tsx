@@ -18,7 +18,6 @@ import {
   sendMessage,
   markRoomRead,
   getMatches,
-  createBlock,
   ApiError,
   type DirectMessage,
   type MatchSummary,
@@ -26,6 +25,7 @@ import {
 } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { openMessengerSocket } from "../../../src/lib/messenger-socket";
+import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -168,25 +168,6 @@ export default function ChatRoom() {
     }
   }
 
-  function onBlockPress() {
-    if (!match) return;
-    Alert.alert("차단", `${match.peer.name}님을 차단하시겠어요?`, [
-      { text: "취소", style: "cancel" },
-      {
-        text: "차단",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await createBlock(match.peer.profileId);
-            router.replace("/(app)/chats");
-          } catch (e) {
-            Alert.alert("오류", e instanceof ApiError ? e.message : "차단 실패");
-          }
-        },
-      },
-    ]);
-  }
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -220,9 +201,12 @@ export default function ChatRoom() {
               <Text style={styles.datePlanText}>데이트 플랜</Text>
             </Pressable>
           )}
-          <TouchableOpacity onPress={onBlockPress}>
-            <Text style={styles.blockText}>차단</Text>
-          </TouchableOpacity>
+          {match != null && (
+            <PeerModerationMenu
+              peer={{ profileId: match.peer.profileId, name: match.peer.name }}
+              onBlocked={() => router.replace("/(app)/chats")}
+            />
+          )}
         </View>
       </View>
 
@@ -295,7 +279,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   datePlanText: { fontSize: 13, fontWeight: "700", color: INK },
-  blockText: { fontSize: 13, color: GRAY_MED, textDecorationLine: "underline" },
   messages: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   bubble: {
     maxWidth: "75%",
