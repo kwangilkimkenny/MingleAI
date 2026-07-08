@@ -30,7 +30,14 @@ export default function Home() {
       <Button title="프로포즈" onPress={() => router.push("/(app)/proposals")} />
       <Button title="채팅" onPress={() => router.push("/(app)/chats")} />
       <Button title="알림" onPress={() => router.push("/(app)/notifications")} />
-      <Button title="설정" onPress={() => router.push("/(app)/settings" as any)} />
+      <Button
+        title="설정"
+        onPress={() =>
+          // new route — Expo Router typegen updates on next `expo start`
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          router.push("/(app)/settings" as any)
+        }
+      />
     </View>
   );
 }
