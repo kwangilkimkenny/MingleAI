@@ -43,6 +43,9 @@ export { getRoomMessages, sendMessage, markRoomRead } from "./api/messenger.js";
 
 export { createBlock, getBlocks, removeBlock } from "./api/blocks.js";
 
+export { reportUser, REPORT_REASONS } from "./api/reports.js";
+export type { ReportReason, ReportInput } from "./api/reports.js";
+
 export { registerDevice, unregisterDevice, setPushEnabled } from "./api/devices.js";
 export {
   getNotifications,
