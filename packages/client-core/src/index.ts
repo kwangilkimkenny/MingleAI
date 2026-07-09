@@ -71,6 +71,10 @@ export type {
   MessengerSocketHandle,
 } from "./socket/messenger-socket.js";
 
+export { getPartyMessages } from "./api/party.js";
+export { connectPartySocket } from "./socket/party-socket.js";
+export type { PartySocketHandlers, PartySocketHandle } from "./socket/party-socket.js";
+
 export type {
   Proposal,
   ProposalView,
