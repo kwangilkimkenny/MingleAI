@@ -118,4 +118,18 @@ it("handleDisconnect removes presence and re-broadcasts the roster", async () =>
   gw.handleDisconnect(client);
   const lastEmit = to.mock.results.at(-1)!.value.emit;
   expect(lastEmit).toHaveBeenCalledWith("party:presence", { partyId: "pt1", members: [] });
+  expect((gw as any).presence.has("pt1")).toBe(false);
+});
+
+it("party:leave leaves the room, deregisters presence, and re-broadcasts the roster", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  const gw = gatewayWith();
+  const to = (gw as any).server.to;
+  const client = clientWith("u1");
+  await gw.handleJoin(client, { partyId: "pt1" });
+  gw.handleLeave(client, { partyId: "pt1" });
+  expect(client.leave).toHaveBeenCalledWith("pt1");
+  const lastEmit = to.mock.results.at(-1)!.value.emit;
+  expect(lastEmit).toHaveBeenCalledWith("party:presence", { partyId: "pt1", members: [] });
+  expect((gw as any).presence.has("pt1")).toBe(false);
 });

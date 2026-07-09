@@ -36,7 +36,10 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket) {
     for (const [partyId, members] of this.presence) {
-      if (members.delete(client.id)) this.broadcastPresence(partyId);
+      if (members.delete(client.id)) {
+        if (members.size === 0) this.presence.delete(partyId);
+        this.broadcastPresence(partyId);
+      }
     }
   }
 
@@ -59,7 +62,10 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!body?.partyId) return;
     void client.leave(body.partyId);
     const members = this.presence.get(body.partyId);
-    if (members?.delete(client.id)) this.broadcastPresence(body.partyId);
+    if (members?.delete(client.id)) {
+      if (members.size === 0) this.presence.delete(body.partyId);
+      this.broadcastPresence(body.partyId);
+    }
   }
 
   @SubscribeMessage("party:chat")
