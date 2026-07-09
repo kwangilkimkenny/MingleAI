@@ -1,6 +1,16 @@
 export type { Profile } from "./types/profile.js";
 
-export type { PartyStatus, Party, PartyMessageView, PartyPresence, PartyMove } from "./types/party.js";
+export type {
+  PartyStatus,
+  Party,
+  PartyMessageView,
+  PartyPresence,
+  PartyMove,
+  GameChoice,
+  GameReveal,
+  GameSnapshot,
+  GameStateEvent,
+} from "./types/party.js";
 
 export { preferenceScore, DEFAULT_WEIGHTS } from "./matchmaking/score.js";
 export type { ScoreWeights } from "./matchmaking/score.js";
