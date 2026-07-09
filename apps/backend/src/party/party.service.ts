@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import type { PartyMessageView } from "@mingle/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 export interface ListPartiesOptions {
@@ -56,6 +57,57 @@ export class PartyService {
       ...party,
       participantCount: party._count.participants,
       _count: undefined,
+    };
+  }
+
+  /** Resolve the caller's profileId iff they are a participant of the party; else null. */
+  async assertParticipant(userId: string, partyId: string): Promise<string | null> {
+    const me = await this.prisma.profile.findUnique({ where: { userId } });
+    if (!me) return null;
+    const participant = await this.prisma.partyParticipant.findUnique({
+      where: { partyId_profileId: { partyId, profileId: me.id } },
+    });
+    return participant ? me.id : null;
+  }
+
+  async addPartyMessage(
+    profileId: string,
+    partyId: string,
+    content: string,
+  ): Promise<PartyMessageView> {
+    const trimmed = (content ?? "").trim();
+    if (!trimmed || trimmed.length > 2000) {
+      throw new BadRequestException("메시지는 1~2000자여야 합니다");
+    }
+    const row = await this.prisma.partyMessage.create({
+      data: { partyId, profileId, content: trimmed },
+    });
+    return this.toMessageView(row);
+  }
+
+  async getPartyMessages(partyId: string, limit = 50): Promise<PartyMessageView[]> {
+    const take = Math.min(Math.max(Math.floor(limit) || 50, 1), 100);
+    const rows = await this.prisma.partyMessage.findMany({
+      where: { partyId },
+      orderBy: { createdAt: "desc" },
+      take,
+    });
+    return rows.reverse().map((r) => this.toMessageView(r));
+  }
+
+  private toMessageView(row: {
+    id: string;
+    partyId: string;
+    profileId: string;
+    content: string;
+    createdAt: Date;
+  }): PartyMessageView {
+    return {
+      id: row.id,
+      partyId: row.partyId,
+      profileId: row.profileId,
+      content: row.content,
+      createdAt: row.createdAt.toISOString(),
     };
   }
 }
