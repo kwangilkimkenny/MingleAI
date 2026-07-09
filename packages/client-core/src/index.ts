@@ -87,4 +87,12 @@ export type {
   ReadEvent,
   TypingEvent,
 } from "@mingle/shared";
-export type { PartyMessageView, PartyPresence, PartyMove } from "@mingle/shared";
+export type {
+  PartyMessageView,
+  PartyPresence,
+  PartyMove,
+  GameSnapshot,
+  GameReveal,
+  GameChoice,
+  GameStateEvent,
+} from "@mingle/shared";

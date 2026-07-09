@@ -93,3 +93,44 @@ describe("connectPartySocket", () => {
     expect(onReconnect).toHaveBeenCalled();
   });
 });
+
+describe("game events", () => {
+  it("emits game:start / game:vote / game:sync / game:end with correct payloads", () => {
+    const emitted: unknown[][] = [];
+    const mockSocket = { on: vi.fn(), emit: (...a: unknown[]) => emitted.push(a), disconnect: vi.fn() };
+    const handle = connectPartySocket({
+      ioFactory: vi.fn().mockReturnValue(mockSocket),
+      baseUrl: "",
+      token: "",
+      handlers: {},
+    });
+    handle.startGame("pt1");
+    handle.voteGame("pt1", "a");
+    handle.syncGame("pt1");
+    handle.endGame("pt1");
+    expect(emitted).toEqual([
+      ["game:start", { partyId: "pt1" }],
+      ["game:vote", { partyId: "pt1", choice: "a" }],
+      ["game:sync", { partyId: "pt1" }],
+      ["game:end", { partyId: "pt1" }],
+    ]);
+  });
+
+  it("wires onGameState to game:state", () => {
+    const listeners = new Map<string, (e: unknown) => void>();
+    const mockSocket = {
+      on: (ev: string, fn: (e: unknown) => void) => listeners.set(ev, fn),
+      emit: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const onGameState = vi.fn();
+    connectPartySocket({
+      ioFactory: vi.fn().mockReturnValue(mockSocket),
+      baseUrl: "",
+      token: "",
+      handlers: { onGameState },
+    });
+    listeners.get("game:state")!({ partyId: "pt1", snapshot: null });
+    expect(onGameState).toHaveBeenCalledWith({ partyId: "pt1", snapshot: null });
+  });
+});
