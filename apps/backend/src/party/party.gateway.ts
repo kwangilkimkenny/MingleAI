@@ -9,7 +9,10 @@ import {
 } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
 import { JwtService } from "@nestjs/jwt";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
+import type { GameChoice } from "@mingle/shared";
 import { PartyService } from "./party.service";
+import { GameService } from "./game.service";
 
 @WebSocketGateway({ cors: { origin: true } })
 export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -21,6 +24,7 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwt: JwtService,
     private readonly party: PartyService,
+    private readonly game: GameService,
   ) {}
 
   handleConnection(client: Socket) {
@@ -92,6 +96,61 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const me = this.presence.get(body?.partyId)?.get(client.id);
     if (!me || typeof body.x !== "number" || typeof body.y !== "number") return;
     client.to(body.partyId).emit("party:moved", { profileId: me, x: body.x, y: body.y });
+  }
+
+  @SubscribeMessage("game:start")
+  async handleGameStart(@ConnectedSocket() client: Socket, @MessageBody() body: { partyId: string }) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const snapshot = await this.game.start(body.partyId);
+      this.server.to(body.partyId).emit("game:state", { partyId: body.partyId, snapshot });
+    } catch (e) {
+      client.emit("error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  @SubscribeMessage("game:vote")
+  async handleGameVote(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string; choice: GameChoice },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const roster = [...new Set(this.presence.get(body.partyId)?.values() ?? [])];
+      const snapshot = await this.game.vote(body.partyId, me, body.choice, roster);
+      this.server.to(body.partyId).emit("game:state", { partyId: body.partyId, snapshot });
+    } catch (e) {
+      client.emit("error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  @SubscribeMessage("game:sync")
+  async handleGameSync(@ConnectedSocket() client: Socket, @MessageBody() body: { partyId: string }) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    const snapshot = await this.game.current(body.partyId);
+    client.emit("game:state", { partyId: body.partyId, snapshot });
+  }
+
+  @SubscribeMessage("game:end")
+  async handleGameEnd(@ConnectedSocket() client: Socket, @MessageBody() body: { partyId: string }) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const snapshot = await this.game.end(body.partyId);
+      this.server.to(body.partyId).emit("game:state", { partyId: body.partyId, snapshot });
+    } catch (e) {
+      client.emit("error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  private gameErrorMessage(e: unknown): string {
+    if (e instanceof ConflictException) return "already-active";
+    if (e instanceof NotFoundException) return "no-active-game";
+    if (e instanceof BadRequestException) return "invalid";
+    return "invalid";
   }
 
   private async authorize(client: Socket, partyId?: string): Promise<string | null> {

@@ -5,9 +5,15 @@ const party = {
   assertParticipant: jest.fn(),
   addPartyMessage: jest.fn(),
 } as any;
+const game = {
+  start: jest.fn(),
+  vote: jest.fn(),
+  end: jest.fn(),
+  current: jest.fn(),
+} as any;
 
 function gatewayWith() {
-  const gw = new PartyGateway(jwt, party);
+  const gw = new PartyGateway(jwt, party, game);
   (gw as any).server = { to: jest.fn().mockReturnValue({ emit: jest.fn() }) };
   return gw;
 }
@@ -132,4 +138,76 @@ it("party:leave leaves the room, deregisters presence, and re-broadcasts the ros
   const lastEmit = to.mock.results.at(-1)!.value.emit;
   expect(lastEmit).toHaveBeenCalledWith("party:presence", { partyId: "pt1", members: [] });
   expect((gw as any).presence.has("pt1")).toBe(false);
+});
+
+it("game:start broadcasts the snapshot to the room", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  const snap = { sessionId: "g1", status: "active" };
+  game.start.mockResolvedValueOnce(snap);
+  const gw = gatewayWith();
+  const to = (gw as any).server.to;
+  const client = clientWith("u1");
+  await gw.handleGameStart(client, { partyId: "pt1" });
+  expect(to).toHaveBeenCalledWith("pt1");
+  expect(to.mock.results[0].value.emit).toHaveBeenCalledWith("game:state", {
+    partyId: "pt1",
+    snapshot: snap,
+  });
+});
+
+it("game:start maps a Conflict to an already-active error emit", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  const { ConflictException } = require("@nestjs/common");
+  game.start.mockRejectedValueOnce(new ConflictException("already-active"));
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleGameStart(client, { partyId: "pt1" });
+  expect(client.emit).toHaveBeenCalledWith("error", { message: "already-active" });
+});
+
+it("game:vote passes the present roster and broadcasts", async () => {
+  party.assertParticipant.mockResolvedValue("pf1");
+  const gw = gatewayWith();
+  const to = (gw as any).server.to;
+  const client = clientWith("u1");
+  await gw.handleJoin(client, { partyId: "pt1" });
+  const snap = { sessionId: "g1" };
+  game.vote.mockResolvedValueOnce(snap);
+  await gw.handleGameVote(client, { partyId: "pt1", choice: "a" });
+  expect(game.vote).toHaveBeenCalledWith("pt1", "pf1", "a", ["pf1"]);
+  const lastEmit = to.mock.results.at(-1)!.value.emit;
+  expect(lastEmit).toHaveBeenCalledWith("game:state", { partyId: "pt1", snapshot: snap });
+});
+
+it("game:sync answers only the requesting socket", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  game.current.mockResolvedValueOnce(null);
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleGameSync(client, { partyId: "pt1" });
+  expect(client.emit).toHaveBeenCalledWith("game:state", { partyId: "pt1", snapshot: null });
+  expect((gw as any).server.to).not.toHaveBeenCalled();
+});
+
+it("game:end broadcasts the ended snapshot", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  const snap = { sessionId: "g1", status: "ended" };
+  game.end.mockResolvedValueOnce(snap);
+  const gw = gatewayWith();
+  const to = (gw as any).server.to;
+  const client = clientWith("u1");
+  await gw.handleGameEnd(client, { partyId: "pt1" });
+  expect(to.mock.results.at(-1)!.value.emit).toHaveBeenCalledWith("game:state", {
+    partyId: "pt1",
+    snapshot: snap,
+  });
+});
+
+it("game handlers refuse non-participants", async () => {
+  party.assertParticipant.mockResolvedValueOnce(null);
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleGameStart(client, { partyId: "pt1" });
+  expect(client.emit).toHaveBeenCalledWith("error", { message: "forbidden" });
+  expect(game.start).not.toHaveBeenCalled();
 });
