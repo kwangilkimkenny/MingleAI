@@ -8,10 +8,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
+  Pressable,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { getMatchmakingStatus, sendProposal, ApiError } from "@mingle/client-core";
-import type { PublicParty, PartyMessageView, PartySocketHandle } from "@mingle/client-core";
+import type {
+  PublicParty,
+  PartyMessageView,
+  PartySocketHandle,
+  GameSnapshot,
+  GameChoice,
+} from "@mingle/client-core";
 import { getPartyMessages } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
@@ -35,6 +42,9 @@ export default function PartyScreen() {
   const [chatInput, setChatInput] = useState("");
   const [socketDown, setSocketDown] = useState(false);
   const socketRef = useRef<PartySocketHandle | null>(null);
+
+  const [game, setGame] = useState<GameSnapshot | null>(null);
+  const [myVote, setMyVote] = useState<GameChoice | null>(null);
 
   // 2D room positions — ref-driven; a tick state re-renders only when something moved.
   const posRef = useRef<Record<string, { pos: Vec2; target: Vec2 }>>({});
@@ -95,6 +105,13 @@ export default function PartyScreen() {
           setFrame((f) => f + 1);
         }
       },
+      onGameState: (e) => {
+        if (!alive) return;
+        setGame((prev) => (e.snapshot ? e.snapshot : prev && prev.status === "ended" ? prev : null));
+        if (e.snapshot && e.snapshot.status === "active") {
+          setMyVote((prev) => (e.snapshot!.votedProfileIds.includes(myProfileId ?? "") ? prev : null));
+        }
+      },
       onError: () => alive && setSocketDown(true),
       onReconnect: () => {
         if (!alive) return;
@@ -106,6 +123,7 @@ export default function PartyScreen() {
     });
     socketRef.current = handle;
     handle.joinParty(id);
+    handle.syncGame(id);
     if (myProfileId && !posRef.current[myProfileId]) {
       const spawn = spawnFor(myProfileId);
       posRef.current[myProfileId] = { pos: spawn, target: spawn };
@@ -189,6 +207,17 @@ export default function PartyScreen() {
     if (entry) entry.target = target;
   }
 
+  function onStartGame() {
+    socketRef.current?.startGame(id!);
+  }
+  function onVote(choice: GameChoice) {
+    setMyVote(choice);
+    socketRef.current?.voteGame(id!, choice);
+  }
+  function onEndGame() {
+    socketRef.current?.endGame(id!);
+  }
+
   const roomMembers = Object.entries(posRef.current).map(([pid, entry]) => ({
     profileId: pid,
     name:
@@ -246,6 +275,63 @@ export default function PartyScreen() {
       <View style={styles.roomSection}>
         <Text style={styles.roomTitle}>파티 공간 — 탭해서 이동</Text>
         <PartyRoomCanvas members={roomMembers} myProfileId={myProfileId} onTapMove={onTapMove} />
+      </View>
+      <View style={styles.gameSection}>
+        <View style={styles.gameHeader}>
+          <Text style={styles.gameTitle}>밸런스 게임</Text>
+          {game?.status === "active" ? (
+            <Pressable onPress={onEndGame} hitSlop={8}>
+              <Text style={styles.gameEnd}>게임 종료</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        {!game ? (
+          <Pressable style={styles.gameStartBtn} onPress={onStartGame}>
+            <Text style={styles.gameStartText}>밸런스 게임 시작</Text>
+          </Pressable>
+        ) : game.status === "active" && game.question ? (
+          <>
+            <Text style={styles.gameRound}>
+              {game.round + 1}/{game.totalRounds} 라운드 · {game.votedProfileIds.length}명 투표 완료
+            </Text>
+            <View style={styles.gameChoices}>
+              <Pressable
+                style={[styles.gameChoice, myVote === "a" && styles.gameChoiceMine]}
+                onPress={() => onVote("a")}
+              >
+                <Text style={[styles.gameChoiceText, myVote === "a" && styles.gameChoiceTextMine]}>
+                  {game.question.a}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.gameChoice, myVote === "b" && styles.gameChoiceMine]}
+                onPress={() => onVote("b")}
+              >
+                <Text style={[styles.gameChoiceText, myVote === "b" && styles.gameChoiceTextMine]}>
+                  {game.question.b}
+                </Text>
+              </Pressable>
+            </View>
+            {game.reveals.length > 0 ? (
+              <Text style={styles.gameReveal}>
+                지난 라운드: {game.reveals.at(-1)!.question.a} {game.reveals.at(-1)!.aVoters.length}
+                표 vs {game.reveals.at(-1)!.question.b} {game.reveals.at(-1)!.bVoters.length}표
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text style={styles.gameRound}>게임 결과</Text>
+            {game.reveals.map((r) => (
+              <Text key={r.round} style={styles.gameReveal}>
+                {r.question.a} {r.aVoters.length}표 vs {r.question.b} {r.bVoters.length}표
+              </Text>
+            ))}
+            <Pressable style={styles.gameStartBtn} onPress={onStartGame}>
+              <Text style={styles.gameStartText}>다시 하기</Text>
+            </Pressable>
+          </>
+        )}
       </View>
       <View style={styles.chatSection}>
         <View style={styles.chatHeader}>
@@ -340,4 +426,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   chatSendText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+  gameSection: { borderWidth: 2, borderColor: "#17150F", borderRadius: 10, padding: 12, gap: 8 },
+  gameHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  gameTitle: { fontSize: 15, fontWeight: "700", color: "#17150F" },
+  gameEnd: { fontSize: 12, color: "#8A857C", textDecorationLine: "underline" },
+  gameRound: { fontSize: 12, color: "#45413A" },
+  gameChoices: { flexDirection: "row", gap: 8 },
+  gameChoice: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: "#17150F",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  gameChoiceMine: { backgroundColor: "#17150F" },
+  gameChoiceText: { color: "#17150F", fontWeight: "700", fontSize: 13, textAlign: "center" },
+  gameChoiceTextMine: { color: "#FFFFFF" },
+  gameStartBtn: {
+    borderWidth: 2,
+    borderColor: "#17150F",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  gameStartText: { color: "#17150F", fontWeight: "700", fontSize: 14 },
+  gameReveal: { fontSize: 12, color: "#8A857C" },
 });
