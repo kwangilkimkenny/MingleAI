@@ -16,6 +16,8 @@ import { getPartyMessages } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { openPartySocket } from "../../../src/lib/party-socket";
+import { PartyRoomCanvas } from "../../../src/components/PartyRoomCanvas";
+import { clampToRoom, spawnFor, stepToward, shouldEmit, type Vec2 } from "../../../src/lib/party-space";
 
 export default function PartyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,6 +35,12 @@ export default function PartyScreen() {
   const [chatInput, setChatInput] = useState("");
   const [socketDown, setSocketDown] = useState(false);
   const socketRef = useRef<PartySocketHandle | null>(null);
+
+  // 2D room positions — ref-driven; a tick state re-renders only when something moved.
+  const posRef = useRef<Record<string, { pos: Vec2; target: Vec2 }>>({});
+  const rosterRef = useRef<string[]>([]);
+  const lastSentRef = useRef<{ pos: Vec2 | null; at: number }>({ pos: null, at: 0 });
+  const [, setFrame] = useState(0);
 
   useEffect(() => {
     alive.current = true;
@@ -59,7 +67,28 @@ export default function PartyScreen() {
     const handle = openPartySocket(token, {
       onMessage: (m) =>
         alive && setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m])),
-      onPresence: (p) => alive && setPresentCount(p.members.length),
+      onPresence: (p) => {
+        if (!alive) return;
+        setPresentCount(p.members.length);
+        rosterRef.current = p.members;
+        for (const pid of p.members) {
+          if (!posRef.current[pid]) {
+            const spawn = spawnFor(pid);
+            posRef.current[pid] = { pos: spawn, target: spawn };
+          }
+        }
+        for (const pid of Object.keys(posRef.current)) {
+          if (!p.members.includes(pid) && pid !== myProfileId) delete posRef.current[pid];
+        }
+        setFrame((f) => f + 1);
+      },
+      onMoved: (m) => {
+        if (!alive) return;
+        const entry = posRef.current[m.profileId];
+        const target = clampToRoom({ x: m.x, y: m.y });
+        if (entry) entry.target = target;
+        else posRef.current[m.profileId] = { pos: target, target };
+      },
       onError: () => alive && setSocketDown(true),
       onReconnect: () => {
         if (!alive) return;
@@ -71,6 +100,10 @@ export default function PartyScreen() {
     });
     socketRef.current = handle;
     handle.joinParty(id);
+    if (myProfileId && !posRef.current[myProfileId]) {
+      const spawn = spawnFor(myProfileId);
+      posRef.current[myProfileId] = { pos: spawn, target: spawn };
+    }
     return () => {
       alive = false;
       handle.leaveParty(id);
@@ -79,6 +112,36 @@ export default function PartyScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token, party != null]);
+
+  // Animation loop: lerp every avatar toward its target; emit self position, throttled.
+  useEffect(() => {
+    if (!id || !party) return;
+    let raf = 0;
+    let last = 0;
+    const loop = (now: number) => {
+      const dt = last ? now - last : 16;
+      last = now;
+      let moved = false;
+      for (const [pid, entry] of Object.entries(posRef.current)) {
+        const next = stepToward(entry.pos, entry.target, dt);
+        if (next.x !== entry.pos.x || next.y !== entry.pos.y) {
+          entry.pos = next;
+          moved = true;
+          if (pid === myProfileId) {
+            const sent = lastSentRef.current;
+            if (shouldEmit(sent.pos, sent.at, next, now)) {
+              socketRef.current?.move(id, next.x, next.y);
+              lastSentRef.current = { pos: next, at: now };
+            }
+          }
+        }
+      }
+      if (moved) setFrame((f) => f + 1);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [id, party != null, myProfileId]);
 
   if (error) {
     return (
@@ -113,6 +176,21 @@ export default function PartyScreen() {
     socketRef.current?.sendChat(id, content);
     setChatInput("");
   }
+
+  function onTapMove(target: Vec2) {
+    if (!myProfileId) return;
+    const entry = posRef.current[myProfileId];
+    if (entry) entry.target = target;
+  }
+
+  const roomMembers = Object.entries(posRef.current).map(([pid, entry]) => ({
+    profileId: pid,
+    name:
+      pid === myProfileId
+        ? "나"
+        : (party.participants.find((p) => p.profileId === pid)?.name ?? "?"),
+    pos: entry.pos,
+  }));
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -159,6 +237,10 @@ export default function PartyScreen() {
             ) : null}
           </View>
         ))}
+      <View style={styles.roomSection}>
+        <Text style={styles.roomTitle}>파티 공간 — 탭해서 이동</Text>
+        <PartyRoomCanvas members={roomMembers} myProfileId={myProfileId} onTapMove={onTapMove} />
+      </View>
       <View style={styles.chatSection}>
         <View style={styles.chatHeader}>
           <Text style={styles.chatTitle}>파티 채팅</Text>
@@ -223,6 +305,8 @@ const styles = StyleSheet.create({
   proposeBtnTextSent: { color: "#FFFFFF" },
   proposeError: { color: "#17150F", fontSize: 12 },
   menuRow: { alignItems: "flex-end", marginTop: 4 },
+  roomSection: { gap: 6 },
+  roomTitle: { fontSize: 13, fontWeight: "700", color: "#45413A" },
   chatSection: { borderWidth: 2, borderColor: "#17150F", borderRadius: 10, padding: 12, gap: 8 },
   chatHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   chatTitle: { fontSize: 15, fontWeight: "700", color: "#17150F" },
