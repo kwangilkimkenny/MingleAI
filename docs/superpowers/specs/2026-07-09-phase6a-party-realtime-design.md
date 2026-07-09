@@ -100,7 +100,7 @@ export interface PartyMove { profileId: string; x: number; y: number; }
 
 Add a minimal, pure-B&W **party chat + presence** section beneath the existing participant list:
 - On focus: `getPartyMessages(id)` for history, then `connectPartySocket(...)` (using the app's injected `io` from `socket.io-client`, the same wiring as the chat screen's `openMessengerSocket`) → `joinParty(id)`.
-- Render an inverted chat list (newest at bottom) fed by history + `onMessage`; a presence line ("N명 접속 중" from `onPresence`); a `TextInput` + send that calls `sendChat(id, content)` (optimistic add, dedup by message id).
+- Render an inverted chat list (newest at bottom) fed by history + `onMessage`; a presence line ("N명 접속 중" from `onPresence`); a `TextInput` + send that calls `sendChat(id, content)` — the message renders on the server echo (the gateway broadcasts `party:message` to the sender too), deduped by id; no client-side optimistic insert (a socket-only send has no persisted id to insert).
 - Clean up (`leaveParty` + `disconnect`) on blur/unmount.
 - The 2D space and movement are **not** added here — 6b replaces/augments this screen with the Skia canvas, reusing the same socket handle (`move`/`onMoved`).
 
