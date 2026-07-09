@@ -86,8 +86,14 @@ export default function PartyScreen() {
         if (!alive) return;
         const entry = posRef.current[m.profileId];
         const target = clampToRoom({ x: m.x, y: m.y });
-        if (entry) entry.target = target;
-        else posRef.current[m.profileId] = { pos: target, target };
+        if (entry) {
+          entry.target = target;
+        } else {
+          // First signal from this peer — create at the reported spot and force a frame,
+          // since an at-rest entry never marks the rAF loop as "moved".
+          posRef.current[m.profileId] = { pos: target, target };
+          setFrame((f) => f + 1);
+        }
       },
       onError: () => alive && setSocketDown(true),
       onReconnect: () => {
