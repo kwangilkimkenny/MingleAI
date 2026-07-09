@@ -35,7 +35,7 @@ Dependency order forces 6a first.
 
 ## Scope
 
-**In (6a):** the `PartyGateway`; `party.service` participant-assert + party-message read/write; a `GET /party/:id/messages` history endpoint; shared party realtime types; a client-core `connectPartySocket` wrapper + `getPartyMessages`; a minimal party **chat + presence** UI in the existing `party/[id].tsx`.
+**In (6a):** the `PartyGateway`; `party.service` participant-assert + party-message read/write; a `GET /parties/:id/messages` history endpoint; shared party realtime types; a client-core `connectPartySocket` wrapper + `getPartyMessages`; a minimal party **chat + presence** UI in the existing `party/[id].tsx`.
 
 **Out (later / not this phase):** the 2D Skia space + avatar movement rendering (6b), minigames (6c), the CORS `origin: true` → allowlist hardening (launch phase), position persistence, and per-message in-party block filtering (see Backlog).
 
@@ -74,7 +74,7 @@ Dependency order forces 6a first.
   - `assertParticipant(userId, partyId): Promise<string | null>` — resolve the caller's `profileId` via `profile.findUnique({ where: { userId } })`, then `partyParticipant.findUnique({ where: { partyId_profileId: { partyId, profileId } } })`; return `profileId` if a participant, else `null`.
   - `addPartyMessage(profileId, partyId, content): Promise<PartyMessageView>` — validate non-empty/`content` length (≤ 2000, matching DM bounds), create the `PartyMessage`, return the view.
   - `getPartyMessages(partyId, limit = 50): Promise<PartyMessageView[]>` — most-recent-first (or ascending for render — pick ascending to match a chat log), bounded.
-- **`party.controller`** (add): `GET /party/:id/messages` — `@UseGuards(JwtAuthGuard)`, `@CurrentUser()`; call `assertParticipant`, 403 if not a member; return `getPartyMessages`.
+- **`party.controller`** (add): `GET /parties/:id/messages` — `@UseGuards(JwtAuthGuard)`, `@CurrentUser()`; call `assertParticipant`, 403 if not a member; return `getPartyMessages`.
 - **`PartyGateway`** (new): mirrors `MessengerGateway`; injects `JwtService` + `PartyService`; implements the protocol above.
 - **`PartyModule`** (modify): import `AuthModule` (for `JwtService`); add `PartyGateway` to providers. No emitter provider is needed — party chat originates on the socket, not via a REST→socket seam.
 
@@ -106,7 +106,7 @@ Add a minimal, pure-B&W **party chat + presence** section beneath the existing p
 
 ## Data flow
 
-- **Chat:** client `sendChat` → gateway persists `PartyMessage` → `server.to(partyId).emit("party:message")` → all members (incl. sender, deduped). History via `GET /party/:id/messages`.
+- **Chat:** client `sendChat` → gateway persists `PartyMessage` → `server.to(partyId).emit("party:message")` → all members (incl. sender, deduped). History via `GET /parties/:id/messages`.
 - **Presence:** `party:join`/`leave`/`disconnect` mutate the in-memory roster → `party:presence` to the room.
 - **Position (transport only in 6a):** `party:move` → `party:moved` to others; ephemeral.
 
