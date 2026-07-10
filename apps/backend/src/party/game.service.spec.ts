@@ -40,6 +40,11 @@ describe("start", () => {
     prisma.gameSession.findFirst.mockResolvedValue(ROW(stateWith({})));
     await expect(service.start("pt1")).rejects.toBeInstanceOf(ConflictException);
   });
+  it("maps a P2002 unique-violation (concurrent start past the advisory lock) to already-active", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    gameSession.create.mockRejectedValue(Object.assign(new Error("unique"), { code: "P2002" }));
+    await expect(service.start("pt1")).rejects.toBeInstanceOf(ConflictException);
+  });
 });
 
 describe("vote", () => {

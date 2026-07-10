@@ -37,17 +37,25 @@ export class GameService {
   constructor(private prisma: PrismaService) {}
 
   async start(partyId: string): Promise<GameSnapshot> {
-    return this.prisma.$transaction(async (tx) => {
-      await this.lockParty(tx, partyId);
-      const active = await this.findActive(tx, partyId);
-      if (active) throw new ConflictException("already-active");
-      const order = shuffle([...QUESTIONS.keys()]).slice(0, TOTAL_ROUNDS);
-      const state: GameState = { order, round: 0, votes: {}, reveals: [] };
-      const row = await tx.gameSession.create({
-        data: { partyId, gameType: "balance", status: "active", state: state as unknown as object },
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await this.lockParty(tx, partyId);
+        const active = await this.findActive(tx, partyId);
+        if (active) throw new ConflictException("already-active");
+        const order = shuffle([...QUESTIONS.keys()]).slice(0, TOTAL_ROUNDS);
+        const state: GameState = { order, round: 0, votes: {}, reveals: [] };
+        const row = await tx.gameSession.create({
+          data: { partyId, gameType: "balance", status: "active", state: state as unknown as object },
+        });
+        return this.toSnapshot(row.id, "active", state);
       });
-      return this.toSnapshot(row.id, "active", state);
-    });
+    } catch (e) {
+      // DB backstop behind the advisory lock: the partial-unique index
+      // (game_sessions_party_active_key) rejects a concurrent start that somehow raced past the
+      // lock as P2002 → surface it as the same "already-active" conflict, not a raw 500.
+      if ((e as { code?: string }).code === "P2002") throw new ConflictException("already-active");
+      throw e;
+    }
   }
 
   async vote(

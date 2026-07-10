@@ -68,6 +68,35 @@ describe("MatchmakingService", () => {
     expect(createSpy).not.toHaveBeenCalled();
   });
 
+  it("enqueue → retries on P2002 (lost the partial-unique race) and returns the now-existing waiting entry", async () => {
+    const prisma = makePrisma();
+    prisma.profile.findUnique.mockResolvedValue({ id: "p1", preferenceSignals: signals });
+    const existing = { id: "eDup", status: "waiting", enqueuedAt: new Date(), matchedPartyId: null };
+    let attempt = 0;
+    prisma.$transaction.mockImplementation(async (fn: any) => {
+      attempt++;
+      if (attempt === 1) {
+        // no row visible yet; create loses the unique race → P2002
+        return fn({
+          partyParticipant: { findFirst: jest.fn().mockResolvedValue(null) },
+          matchmakingQueueEntry: {
+            findFirst: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockRejectedValue(Object.assign(new Error("unique"), { code: "P2002" })),
+          },
+        });
+      }
+      // retry: the concurrent winner's row is now visible → return it, no second create
+      return fn({
+        partyParticipant: { findFirst: jest.fn().mockResolvedValue(null) },
+        matchmakingQueueEntry: { findFirst: jest.fn().mockResolvedValue(existing), create: jest.fn() },
+      });
+    });
+    const svc = new MatchmakingService(prisma);
+    const res = await svc.enqueue("u1");
+    expect(res.id).toBe("eDup");
+    expect(attempt).toBe(2);
+  });
+
   it("enqueue → ConflictException when profile has an active party membership", async () => {
     const prisma = makePrisma();
     prisma.profile.findUnique.mockResolvedValue({ id: "p1", preferenceSignals: signals });

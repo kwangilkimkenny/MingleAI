@@ -167,6 +167,9 @@ model MatchmakingQueueEntry {
 
   @@index([status])
   @@index([profileId])
+  // Partial UNIQUE index `matchmaking_queue_entries_profile_waiting_key` (profile_id) WHERE
+  // status='waiting' — one live queue entry per profile. Managed via raw-SQL migration
+  // 20260710000000_qa_unique_invariants (Prisma PSL can't express partial/filtered unique indexes).
   @@map("matchmaking_queue_entries")
 }
 
@@ -197,6 +200,9 @@ model GameSession {
   party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
 
   @@index([partyId])
+  // Partial UNIQUE index `game_sessions_party_active_key` (party_id) WHERE status='active' — one
+  // active game per party. Managed via raw-SQL migration 20260710000000_qa_unique_invariants
+  // (Prisma PSL can't express partial/filtered unique indexes); backs the per-party advisory lock.
   @@map("game_sessions")
 }
 

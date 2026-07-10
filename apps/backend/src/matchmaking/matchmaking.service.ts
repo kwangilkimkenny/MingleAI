@@ -36,8 +36,11 @@ export class MatchmakingService {
           { isolationLevel: "Serializable" },
         );
       } catch (e) {
-        // P2034 = serialization/write-conflict → retry; everything else rethrows immediately
-        if ((e as { code?: string }).code === "P2034" && attempt < MAX_ATTEMPTS) continue;
+        const code = (e as { code?: string }).code;
+        // P2034 = serialization/write-conflict; P2002 = a concurrent enqueue won the partial-unique
+        // race (matchmaking_queue_entries_profile_waiting_key). Retry: the next attempt finds the
+        // now-committed waiting row and returns it (idempotent) — never surfaces a raw 500.
+        if ((code === "P2034" || code === "P2002") && attempt < MAX_ATTEMPTS) continue;
         throw e;
       }
     }
