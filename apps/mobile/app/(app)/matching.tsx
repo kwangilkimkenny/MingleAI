@@ -14,6 +14,9 @@ export default function Matching() {
   const [phase, setPhase] = useState<"joining" | "waiting" | "failed" | "error">("joining");
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  // Bumped by "다시 시도" to re-run the enqueue/poll effect deterministically, without relying on
+  // a navigator remount (router.replace to the same mounted route may reuse the instance).
+  const [attempt, setAttempt] = useState(0);
   const alive = useRef(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -64,7 +67,14 @@ export default function Matching() {
       alive.current = false;
       clearTimeout(timerRef.current);
     };
-  }, []);
+  }, [attempt]);
+
+  function onRetry() {
+    setError(null);
+    setElapsed(0);
+    setPhase("joining");
+    setAttempt((a) => a + 1);
+  }
 
   async function onCancel() {
     alive.current = false;
@@ -81,7 +91,7 @@ export default function Matching() {
     return (
       <View style={styles.center}>
         <Text style={styles.msg}>지금은 매칭이 어려워요. 잠시 후 다시 시도해 주세요.</Text>
-        <Button title="다시 시도" onPress={() => router.replace("/(app)/matching")} />
+        <Button title="다시 시도" onPress={onRetry} />
         <Button title="홈으로" onPress={() => router.replace("/(app)/home")} />
       </View>
     );

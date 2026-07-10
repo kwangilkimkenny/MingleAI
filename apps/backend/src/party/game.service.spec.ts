@@ -1,8 +1,15 @@
 import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { GameService, QUESTIONS, TOTAL_ROUNDS } from "./game.service";
 
+const gameSession = { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() };
+// tx.$executeRaw used by the per-party advisory lock; hoisted so tests can inspect it.
+const txExecuteRaw = jest.fn();
 const prisma = {
-  gameSession: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+  gameSession,
+  $executeRaw: jest.fn(),
+  // Interactive transaction: invoke the callback with a tx exposing the same gameSession mocks
+  // plus the hoisted $executeRaw (the advisory lock runs on the tx client).
+  $transaction: jest.fn((fn: any) => fn({ gameSession, $executeRaw: txExecuteRaw })),
 } as any;
 
 const service = new GameService(prisma);
@@ -93,6 +100,40 @@ describe("vote", () => {
     await expect(service.vote("pt1", "pfA", "a", ["pfA"])).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+
+describe("concurrency safety (per-party advisory lock)", () => {
+  it("start runs in a transaction and acquires the party advisory lock", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    gameSession.create.mockImplementation(async ({ data }: any) => ({ id: "g1", ...data }));
+    await service.start("pt1");
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(txExecuteRaw).toHaveBeenCalledTimes(1);
+    const sql = (txExecuteRaw.mock.calls[0][0] as string[]).join("?");
+    expect(sql).toContain("pg_advisory_xact_lock");
+    expect(txExecuteRaw.mock.calls[0][1]).toBe("pt1");
+  });
+  it("vote acquires the lock BEFORE reading/writing state (no lost-update window)", async () => {
+    gameSession.findFirst.mockResolvedValue(ROW(stateWith({})));
+    gameSession.update.mockResolvedValue({});
+    await service.vote("pt1", "pfA", "a", ["pfA", "pfB"]);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(txExecuteRaw).toHaveBeenCalledTimes(1);
+    // lock is taken before the state read and the write
+    expect(txExecuteRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      gameSession.findFirst.mock.invocationCallOrder[0],
+    );
+    expect(txExecuteRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      gameSession.update.mock.invocationCallOrder[0],
+    );
+  });
+  it("end runs in a transaction and acquires the party advisory lock", async () => {
+    gameSession.findFirst.mockResolvedValue(ROW(stateWith({ round: 2, reveals: [{ round: 0 }] as any })));
+    gameSession.update.mockResolvedValue({});
+    await service.end("pt1");
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(txExecuteRaw).toHaveBeenCalledTimes(1);
   });
 });
 

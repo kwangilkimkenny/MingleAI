@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import type { GameChoice, GameReveal, GameSnapshot } from "@mingle/shared";
 
@@ -36,14 +37,17 @@ export class GameService {
   constructor(private prisma: PrismaService) {}
 
   async start(partyId: string): Promise<GameSnapshot> {
-    const active = await this.findActive(partyId);
-    if (active) throw new ConflictException("already-active");
-    const order = shuffle([...QUESTIONS.keys()]).slice(0, TOTAL_ROUNDS);
-    const state: GameState = { order, round: 0, votes: {}, reveals: [] };
-    const row = await this.prisma.gameSession.create({
-      data: { partyId, gameType: "balance", status: "active", state: state as unknown as object },
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+      const active = await this.findActive(tx, partyId);
+      if (active) throw new ConflictException("already-active");
+      const order = shuffle([...QUESTIONS.keys()]).slice(0, TOTAL_ROUNDS);
+      const state: GameState = { order, round: 0, votes: {}, reveals: [] };
+      const row = await tx.gameSession.create({
+        data: { partyId, gameType: "balance", status: "active", state: state as unknown as object },
+      });
+      return this.toSnapshot(row.id, "active", state);
     });
-    return this.toSnapshot(row.id, "active", state);
   }
 
   async vote(
@@ -53,58 +57,74 @@ export class GameService {
     presentMembers: string[],
   ): Promise<GameSnapshot> {
     if (choice !== "a" && choice !== "b") throw new BadRequestException("invalid");
-    const row = await this.findActive(partyId);
-    if (!row) throw new NotFoundException("no-active-game");
-    const state = row.state as unknown as GameState;
-    const key = String(state.round);
-    state.votes[key] = { ...(state.votes[key] ?? {}), [profileId]: choice };
-    const votes = state.votes[key];
-    const everyoneVoted =
-      presentMembers.length > 0 && presentMembers.every((pid) => votes[pid] !== undefined);
-    let status: "active" | "ended" = "active";
-    if (everyoneVoted) {
-      const q = QUESTIONS[state.order[state.round]!]!;
-      state.reveals.push({
-        round: state.round,
-        question: q,
-        aVoters: Object.keys(votes).filter((p) => votes[p] === "a"),
-        bVoters: Object.keys(votes).filter((p) => votes[p] === "b"),
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+      const row = await this.findActive(tx, partyId);
+      if (!row) throw new NotFoundException("no-active-game");
+      const state = row.state as unknown as GameState;
+      const key = String(state.round);
+      state.votes[key] = { ...(state.votes[key] ?? {}), [profileId]: choice };
+      const votes = state.votes[key];
+      const everyoneVoted =
+        presentMembers.length > 0 && presentMembers.every((pid) => votes[pid] !== undefined);
+      let status: "active" | "ended" = "active";
+      if (everyoneVoted) {
+        const q = QUESTIONS[state.order[state.round]!]!;
+        state.reveals.push({
+          round: state.round,
+          question: q,
+          aVoters: Object.keys(votes).filter((p) => votes[p] === "a"),
+          bVoters: Object.keys(votes).filter((p) => votes[p] === "b"),
+        });
+        state.round += 1;
+        if (state.round >= TOTAL_ROUNDS) status = "ended";
+      }
+      await tx.gameSession.update({
+        where: { id: row.id },
+        data: {
+          state: state as unknown as object,
+          status,
+          ...(status === "ended"
+            ? { endedAt: new Date(), result: state.reveals as unknown as object }
+            : {}),
+        },
       });
-      state.round += 1;
-      if (state.round >= TOTAL_ROUNDS) status = "ended";
-    }
-    await this.prisma.gameSession.update({
-      where: { id: row.id },
-      data: {
-        state: state as unknown as object,
-        status,
-        ...(status === "ended"
-          ? { endedAt: new Date(), result: state.reveals as unknown as object }
-          : {}),
-      },
+      return this.toSnapshot(row.id, status, state);
     });
-    return this.toSnapshot(row.id, status, state);
   }
 
   async end(partyId: string): Promise<GameSnapshot> {
-    const row = await this.findActive(partyId);
-    if (!row) throw new NotFoundException("no-active-game");
-    const state = row.state as unknown as GameState;
-    await this.prisma.gameSession.update({
-      where: { id: row.id },
-      data: { status: "ended", endedAt: new Date(), result: state.reveals as unknown as object },
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+      const row = await this.findActive(tx, partyId);
+      if (!row) throw new NotFoundException("no-active-game");
+      const state = row.state as unknown as GameState;
+      await tx.gameSession.update({
+        where: { id: row.id },
+        data: { status: "ended", endedAt: new Date(), result: state.reveals as unknown as object },
+      });
+      return this.toSnapshot(row.id, "ended", state);
     });
-    return this.toSnapshot(row.id, "ended", state);
   }
 
   async current(partyId: string): Promise<GameSnapshot | null> {
-    const row = await this.findActive(partyId);
+    const row = await this.findActive(this.prisma, partyId);
     if (!row) return null;
     return this.toSnapshot(row.id, "active", row.state as unknown as GameState);
   }
 
-  private findActive(partyId: string) {
-    return this.prisma.gameSession.findFirst({ where: { partyId, status: "active" } });
+  /**
+   * Transaction-scoped Postgres advisory lock keyed by partyId. Serializes ALL game-state
+   * transitions (start/vote/end) for a party so concurrent votes can't lost-update or
+   * double-advance the GameSession.state blob, and two concurrent starts can't create two
+   * active sessions. The lock auto-releases at commit/rollback. Migration-free.
+   */
+  private lockParty(tx: Prisma.TransactionClient, partyId: string) {
+    return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${partyId})::bigint)`;
+  }
+
+  private findActive(client: Prisma.TransactionClient, partyId: string) {
+    return client.gameSession.findFirst({ where: { partyId, status: "active" } });
   }
 
   private toSnapshot(
