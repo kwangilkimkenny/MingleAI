@@ -1,8 +1,9 @@
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+import { socketCorsOrigin } from "./common/socket-cors";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,7 +17,14 @@ async function bootstrap() {
   );
 
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.enableCors();
+  // REST CORS shares the WebSocket allowlist (SOCKET_CORS_ORIGINS). Unset → reflect any origin
+  // (dev default, unchanged). Warn if left open in production.
+  if (process.env.NODE_ENV === "production" && !process.env.SOCKET_CORS_ORIGINS?.trim()) {
+    new Logger("Bootstrap").warn(
+      "SOCKET_CORS_ORIGINS is unset in production — HTTP/WebSocket CORS reflects ANY origin. Set an allowlist.",
+    );
+  }
+  app.enableCors({ origin: socketCorsOrigin() });
 
   const config = new DocumentBuilder()
     .setTitle("MingleAI API")
