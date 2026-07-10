@@ -14,7 +14,7 @@ it("acceptProposal → status-guards the proposal, creates a normalized Match + 
   const proposal = { id: "prop1", partyId: "party1", fromProfileId: "pb", toProfileId: "pa" };
   const tx = {
     proposal: { updateMany: jest.fn().mockResolvedValue({ count: 1 }), findUnique: jest.fn().mockResolvedValue(proposal) },
-    match: { upsert: jest.fn().mockResolvedValue({ id: "m1", profileId1: "pa", profileId2: "pb" }) },
+    match: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn().mockResolvedValue({ id: "m1", profileId1: "pa", profileId2: "pb" }) },
     directMessageRoom: { upsert: jest.fn().mockResolvedValue({ id: "r1", matchId: "m1" }) },
   };
   // Two profiles resolve to distinct userIds so we can assert both are notified.
@@ -40,6 +40,26 @@ it("acceptProposal → status-guards the proposal, creates a normalized Match + 
   expect(notify.create).toHaveBeenCalledTimes(2);
   const notifiedUserIds = (notify.create as jest.Mock).mock.calls.map((c: any) => c[0].userId);
   expect(new Set(notifiedUserIds).size).toBe(2); // two distinct userIds
+});
+
+it("acceptProposal → does NOT re-fire match_made when the Match already exists (mutual cross-accept dedupe)", async () => {
+  const proposal = { id: "prop2", partyId: "party1", fromProfileId: "pb", toProfileId: "pa" };
+  const tx = {
+    proposal: { updateMany: jest.fn().mockResolvedValue({ count: 1 }), findUnique: jest.fn().mockResolvedValue(proposal) },
+    // Match already exists (the reverse proposal was accepted first) → upsert is a no-op hit.
+    match: {
+      findUnique: jest.fn().mockResolvedValue({ id: "m1", profileId1: "pa", profileId2: "pb" }),
+      upsert: jest.fn().mockResolvedValue({ id: "m1", profileId1: "pa", profileId2: "pb" }),
+    },
+    directMessageRoom: { upsert: jest.fn().mockResolvedValue({ id: "r1", matchId: "m1" }) },
+  };
+  const prisma = {
+    profile: { findUnique: jest.fn().mockResolvedValue({ id: "pa", userId: "ua" }) },
+    $transaction: jest.fn(async (fn: any) => fn(tx)),
+  } as any;
+  const res = await new MatchService(prisma, notify, safety).acceptProposal("ua", "prop2");
+  expect(res).toEqual({ matchId: "m1", roomId: "r1" });
+  expect(notify.create).not.toHaveBeenCalled(); // pre-existing Match → no duplicate match_made
 });
 
 it("acceptProposal → 404 when the caller is not the pending recipient", async () => {

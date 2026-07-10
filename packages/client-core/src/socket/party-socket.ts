@@ -42,7 +42,7 @@ export function connectPartySocket(opts: {
   if (onMessage) socket.on("party:message", onMessage);
   if (onPresence) socket.on("party:presence", onPresence);
   if (onMoved) socket.on("party:moved", onMoved);
-  if (onError) socket.on("error", onError);
+  if (onError) socket.on("party:error", onError);
   if (onGameState) socket.on("game:state", onGameState);
 
   // socket.io fires "connect" on every (re)connection; skip the very first so we

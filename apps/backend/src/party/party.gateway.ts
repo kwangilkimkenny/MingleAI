@@ -13,8 +13,9 @@ import { BadRequestException, ConflictException, NotFoundException } from "@nest
 import type { GameChoice } from "@mingle/shared";
 import { PartyService } from "./party.service";
 import { GameService } from "./game.service";
+import { socketCorsOrigin } from "../common/socket-cors";
 
-@WebSocketGateway({ cors: { origin: true } })
+@WebSocketGateway({ cors: { origin: socketCorsOrigin() } })
 export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server!: Server;
 
@@ -63,7 +64,9 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage("party:leave")
   handleLeave(@ConnectedSocket() client: Socket, @MessageBody() body: { partyId: string }) {
-    if (!body?.partyId) return;
+    // Authenticated sockets only (handshake already enforces this); leave is self-service —
+    // it only removes THIS socket's presence entry, so no participation check is needed.
+    if (!client.data.userId || !body?.partyId) return;
     void client.leave(body.partyId);
     const members = this.presence.get(body.partyId);
     if (members?.delete(client.id)) {
@@ -83,7 +86,7 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const message = await this.party.addPartyMessage(me, body.partyId, body.content);
       this.server.to(body.partyId).emit("party:message", message);
     } catch {
-      client.emit("error", { message: "invalid" });
+      client.emit("party:error", { message: "invalid" });
     }
   }
 
@@ -106,7 +109,7 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const snapshot = await this.game.start(body.partyId);
       this.server.to(body.partyId).emit("game:state", { partyId: body.partyId, snapshot });
     } catch (e) {
-      client.emit("error", { message: this.gameErrorMessage(e) });
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
     }
   }
 
@@ -122,7 +125,7 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const snapshot = await this.game.vote(body.partyId, me, body.choice, roster);
       this.server.to(body.partyId).emit("game:state", { partyId: body.partyId, snapshot });
     } catch (e) {
-      client.emit("error", { message: this.gameErrorMessage(e) });
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
     }
   }
 
@@ -142,7 +145,7 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const snapshot = await this.game.end(body.partyId);
       this.server.to(body.partyId).emit("game:state", { partyId: body.partyId, snapshot });
     } catch (e) {
-      client.emit("error", { message: this.gameErrorMessage(e) });
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
     }
   }
 
@@ -155,12 +158,12 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private async authorize(client: Socket, partyId?: string): Promise<string | null> {
     if (!client.data.userId || !partyId) {
-      client.emit("error", { message: "forbidden" });
+      client.emit("party:error", { message: "forbidden" });
       return null;
     }
     const me = await this.party.assertParticipant(client.data.userId, partyId);
     if (!me) {
-      client.emit("error", { message: "forbidden" });
+      client.emit("party:error", { message: "forbidden" });
       return null;
     }
     return me;

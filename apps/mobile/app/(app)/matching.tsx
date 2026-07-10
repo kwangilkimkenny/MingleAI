@@ -1,3 +1,4 @@
+import { colors } from "../../src/lib/theme";
 import { useEffect, useRef, useState } from "react";
 import { View, Text, Button, ActivityIndicator, StyleSheet } from "react-native";
 import { router } from "expo-router";
@@ -120,7 +121,7 @@ export default function Matching() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16, padding: 24 },
-  msg: { fontSize: 16, color: "#333" },
-  sub: { fontSize: 13, color: "#888" },
-  error: { color: "red", textAlign: "center" },
+  msg: { fontSize: 16, color: colors.ink },
+  sub: { fontSize: 13, color: colors.grayMid },
+  error: { color: colors.ink, textAlign: "center" },
 });

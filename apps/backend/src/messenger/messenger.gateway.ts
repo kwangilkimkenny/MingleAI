@@ -12,8 +12,9 @@ import { Server, Socket } from "socket.io";
 import { MessengerService } from "./messenger.service";
 import type { MessengerEmitter } from "./messenger.emitter";
 import type { NewMessageEvent, ReadEvent } from "@mingle/shared";
+import { socketCorsOrigin } from "../common/socket-cors";
 
-@WebSocketGateway({ cors: { origin: true } })
+@WebSocketGateway({ cors: { origin: socketCorsOrigin() } })
 export class MessengerGateway implements MessengerEmitter, OnGatewayConnection {
   @WebSocketServer() server!: Server;
 
@@ -35,10 +36,10 @@ export class MessengerGateway implements MessengerEmitter, OnGatewayConnection {
 
   @SubscribeMessage("room:join")
   async handleJoin(@ConnectedSocket() client: Socket, @MessageBody() body: { roomId: string }) {
-    if (!client.data.userId) return client.emit("error", { message: "forbidden" });
+    if (!client.data.userId) return client.emit("messenger:error", { message: "forbidden" });
     const me = await this.messenger.assertMember(client.data.userId, body.roomId);
     if (me) client.join(body.roomId);
-    else client.emit("error", { message: "forbidden" });
+    else client.emit("messenger:error", { message: "forbidden" });
   }
 
   @SubscribeMessage("room:leave")

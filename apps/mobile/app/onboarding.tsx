@@ -1,3 +1,4 @@
+import { colors } from "../src/lib/theme";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -179,24 +180,24 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
-  loadingText: { fontSize: 16, color: "#444" },
+  loadingText: { fontSize: 16, color: colors.grayDark },
   container: { padding: 24, gap: 8 },
   title: { fontSize: 22, fontWeight: "600", marginBottom: 8 },
-  label: { fontSize: 14, fontWeight: "500", color: "#333", marginTop: 8 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12 },
+  label: { fontSize: 14, fontWeight: "500", color: colors.ink, marginTop: 8 },
+  input: { borderWidth: 1, borderColor: colors.grayLight, borderRadius: 8, padding: 12 },
   multiline: { height: 96, textAlignVertical: "top" },
   segmentRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   segment: {
     flexBasis: "47%",
     flexGrow: 1,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.grayLight,
     borderRadius: 8,
     padding: 10,
     alignItems: "center",
   },
-  segmentActive: { borderColor: "#6200ee", backgroundColor: "#6200ee" },
-  segmentText: { color: "#333" },
-  segmentTextActive: { color: "#fff" },
-  error: { color: "red", marginTop: 4 },
+  segmentActive: { borderColor: colors.ink, backgroundColor: colors.ink },
+  segmentText: { color: colors.ink },
+  segmentTextActive: { color: colors.paper },
+  error: { color: colors.ink, marginTop: 4 },
 });

@@ -69,7 +69,7 @@ it("party:join refuses a non-participant with an error emit", async () => {
   const client = clientWith("u1");
   await gw.handleJoin(client, { partyId: "pt1" });
   expect(client.join).not.toHaveBeenCalled();
-  expect(client.emit).toHaveBeenCalledWith("error", { message: "forbidden" });
+  expect(client.emit).toHaveBeenCalledWith("party:error", { message: "forbidden" });
 });
 
 it("party:chat persists then broadcasts party:message to the room", async () => {
@@ -91,7 +91,7 @@ it("party:chat surfaces a validation failure as an error emit (no throw)", async
   const gw = gatewayWith();
   const client = clientWith("u1");
   await expect(gw.handleChat(client, { partyId: "pt1", content: "" })).resolves.toBeUndefined();
-  expect(client.emit).toHaveBeenCalledWith("error", { message: "invalid" });
+  expect(client.emit).toHaveBeenCalledWith("party:error", { message: "invalid" });
 });
 
 it("party:move broadcasts party:moved to others using join-time membership", async () => {
@@ -162,7 +162,7 @@ it("game:start maps a Conflict to an already-active error emit", async () => {
   const gw = gatewayWith();
   const client = clientWith("u1");
   await gw.handleGameStart(client, { partyId: "pt1" });
-  expect(client.emit).toHaveBeenCalledWith("error", { message: "already-active" });
+  expect(client.emit).toHaveBeenCalledWith("party:error", { message: "already-active" });
 });
 
 it("game:vote passes the present roster and broadcasts", async () => {
@@ -208,6 +208,6 @@ it("game handlers refuse non-participants", async () => {
   const gw = gatewayWith();
   const client = clientWith("u1");
   await gw.handleGameStart(client, { partyId: "pt1" });
-  expect(client.emit).toHaveBeenCalledWith("error", { message: "forbidden" });
+  expect(client.emit).toHaveBeenCalledWith("party:error", { message: "forbidden" });
   expect(game.start).not.toHaveBeenCalled();
 });

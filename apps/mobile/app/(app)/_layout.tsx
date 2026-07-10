@@ -1,3 +1,4 @@
+import { colors } from "../../src/lib/theme";
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Redirect, Stack } from "expo-router";
@@ -57,13 +58,13 @@ export default function AppLayout() {
 
 const styles = StyleSheet.create({
   errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
-  errorText: { fontSize: 16, color: "#444" },
+  errorText: { fontSize: 16, color: colors.grayDark },
   retryButton: {
     borderWidth: 1,
-    borderColor: "#6200ee",
+    borderColor: colors.ink,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 24,
   },
-  retryText: { color: "#6200ee", fontSize: 15 },
+  retryText: { color: colors.ink, fontSize: 15 },
 });

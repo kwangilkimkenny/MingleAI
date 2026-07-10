@@ -38,6 +38,12 @@ export class MatchService {
               throw new ForbiddenException("차단된 상대입니다");
 
             const [profileId1, profileId2] = normalizeMatchPair(proposal.fromProfileId, proposal.toProfileId);
+            // Dedupe match_made: on a mutual cross-accept (A→B and B→A both accepted) the second
+            // accept hits the SAME Match via upsert — detect the pre-existing row so we only notify
+            // on first creation, never a duplicate match_made.
+            const priorMatch = await tx.match.findUnique({
+              where: { profileId1_profileId2: { profileId1, profileId2 } },
+            });
             // FIX 1: upsert avoids the tx-abort bug — a failed INSERT (unique violation) in Postgres
             // aborts the whole transaction, making the catch+refetch approach throw 25P02 instead.
             const match = await tx.match.upsert({
@@ -51,27 +57,30 @@ export class MatchService {
               create: { matchId: match.id },
               update: {},
             });
-            return { matchId: match.id, roomId: room.id, profileId1, profileId2 };
+            return { matchId: match.id, roomId: room.id, profileId1, profileId2, isNewMatch: !priorMatch };
           },
           { isolationLevel: "Serializable" },
         );
 
         // FIX 3: notifications OUTSIDE the transaction — non-fatal; a notification failure must not
         // fail accept (the match is already committed; a retry would 404 on the accepted proposal).
-        try {
-          for (const pid of [out.profileId1, out.profileId2]) {
-            const prof = await this.prisma.profile.findUnique({ where: { id: pid } });
-            if (prof)
-              await this.notifications.create({
-                userId: prof.userId,
-                type: "match_made",
-                title: "매칭 성사",
-                message: "새로운 매칭이 성사되었습니다.",
-                data: { matchId: out.matchId, roomId: out.roomId },
-              });
+        // Skip entirely when the Match already existed (mutual cross-accept) — no duplicate match_made.
+        if (out.isNewMatch) {
+          try {
+            for (const pid of [out.profileId1, out.profileId2]) {
+              const prof = await this.prisma.profile.findUnique({ where: { id: pid } });
+              if (prof)
+                await this.notifications.create({
+                  userId: prof.userId,
+                  type: "match_made",
+                  title: "매칭 성사",
+                  message: "새로운 매칭이 성사되었습니다.",
+                  data: { matchId: out.matchId, roomId: out.roomId },
+                });
+            }
+          } catch (notifyErr) {
+            this.log.warn(`match_made notification failed for match ${out.matchId}: ${notifyErr}`);
           }
-        } catch (notifyErr) {
-          this.log.warn(`match_made notification failed for match ${out.matchId}: ${notifyErr}`);
         }
         return { matchId: out.matchId, roomId: out.roomId };
       } catch (e) {

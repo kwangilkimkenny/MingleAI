@@ -1,3 +1,4 @@
+import { colors } from "../src/lib/theme";
 import { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet } from "react-native";
 import { Link, router } from "expo-router";
@@ -56,7 +57,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12 },
-  error: { color: "red" },
-  link: { marginTop: 16, color: "#3366ff", textAlign: "center" },
+  input: { borderWidth: 1, borderColor: colors.grayLight, borderRadius: 8, padding: 12 },
+  error: { color: colors.ink },
+  link: { marginTop: 16, color: colors.ink, textAlign: "center" },
 });

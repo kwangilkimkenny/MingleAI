@@ -1,3 +1,4 @@
+import { colors } from "../../src/lib/theme";
 import { useCallback, useRef, useState } from "react";
 import { View, Text, Button, StyleSheet } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -45,18 +46,18 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 24 },
   title: { fontSize: 22, fontWeight: "600" },
-  subtitle: { color: "#666" },
+  subtitle: { color: colors.grayMid },
   notice: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#d0d0d0",
+    borderColor: colors.grayLight,
     borderRadius: 8,
-    backgroundColor: "#f8f8f8",
+    backgroundColor: colors.fill,
     paddingVertical: 8,
     paddingHorizontal: 12,
     gap: 8,
   },
-  noticeText: { flex: 1, fontSize: 13, color: "#555" },
-  noticeDismiss: { fontSize: 14, color: "#999", paddingHorizontal: 4 },
+  noticeText: { flex: 1, fontSize: 13, color: colors.grayDark },
+  noticeDismiss: { fontSize: 14, color: colors.grayMid, paddingHorizontal: 4 },
 });

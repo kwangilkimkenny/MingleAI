@@ -33,7 +33,7 @@ export function connectMessengerSocket(opts: {
   if (onMessage) socket.on("message:new", onMessage);
   if (onRead) socket.on("message:read", onRead);
   if (onTyping) socket.on("typing", onTyping);
-  if (onError) socket.on("error", onError);
+  if (onError) socket.on("messenger:error", onError);
 
   // socket.io fires "connect" on every (re)connection; skip the very first so we
   // don't double-join on initial connect (joinRoom already emits room:join).
