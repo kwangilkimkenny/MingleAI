@@ -70,3 +70,16 @@ export type {
   PreferencePace,
   PreferenceSignals,
 } from "./types/preference.js";
+
+export type {
+  AmongRole,
+  AmongPhase,
+  AmongTaskKind,
+  AmongTaskView,
+  AmongPlayerView,
+  AmongBodyView,
+  AmongMeetingView,
+  AmongResultView,
+  AmongSnapshot,
+  AmongStateEvent,
+} from "./types/among.js";
