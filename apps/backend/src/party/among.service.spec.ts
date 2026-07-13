@@ -1,0 +1,387 @@
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
+import { AmongService } from "./among.service";
+import type { AmongConfig } from "./among.config";
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+const gameSession = { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() };
+const profile = { findMany: jest.fn() };
+const txExecuteRaw = jest.fn();
+const prisma = {
+  gameSession,
+  profile,
+  $executeRaw: jest.fn(),
+  $transaction: jest.fn((fn: any) =>
+    fn({ gameSession, profile, $executeRaw: txExecuteRaw }),
+  ),
+} as any;
+
+const DEFAULT_CONFIG: AmongConfig = {
+  minPlayers: 4,
+  impostors: 1,
+  tasksPerCrew: 3,
+  killRange: 0.12,
+  taskRange: 0.1,
+  killCooldownMs: 20000,
+  discussionMs: 30000,
+  voteMs: 30000,
+  emergencyPerPlayer: 1,
+  sweepMs: 1000,
+};
+
+function makeConfig(partial: Partial<AmongConfig> = {}) {
+  return { value: { ...DEFAULT_CONFIG, ...partial } };
+}
+
+function makeService(configPartial: Partial<AmongConfig> = {}) {
+  return new AmongService(prisma, makeConfig(configPartial) as any);
+}
+
+const service = makeService();
+
+beforeEach(() => jest.clearAllMocks());
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function roster(n: number) {
+  return Array.from({ length: n }, (_, i) => ({ profileId: `p${i + 1}` }));
+}
+
+function profileNames(n: number) {
+  return Array.from({ length: n }, (_, i) => ({ id: `p${i + 1}`, name: `Player${i + 1}` }));
+}
+
+function activeRow(state: any) {
+  return { id: "g1", partyId: "pt1", gameType: "among", status: "active", state };
+}
+
+// ---------------------------------------------------------------------------
+// start
+// ---------------------------------------------------------------------------
+
+describe("start", () => {
+  it("4-player game: 1 impostor, 3 crew, 9 tasks total, phase playing", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    profile.findMany.mockResolvedValue(profileNames(4));
+    gameSession.create.mockImplementation(async ({ data }: any) => ({ id: "g1", ...data }));
+
+    const state = await service.start("pt1", roster(4));
+
+    expect(state.phase).toBe("playing");
+    expect(state.result).toBeNull();
+    expect(state.meeting).toBeNull();
+    expect(state.bodies).toHaveLength(0);
+    expect(state.players).toHaveLength(4);
+
+    const impostors = state.players.filter((p) => p.role === "impostor");
+    const crew = state.players.filter((p) => p.role === "crew");
+    expect(impostors).toHaveLength(1);
+    expect(crew).toHaveLength(3);
+
+    // 3 crew × 3 tasks = 9
+    expect(state.tasks).toHaveLength(9);
+    // all belong to crew players
+    const crewIds = new Set(crew.map((p) => p.profileId));
+    state.tasks.forEach((t) => expect(crewIds.has(t.profileId)).toBe(true));
+    expect(state.tasks.every((t) => !t.done)).toBe(true);
+
+    // sessionId set
+    expect(state.sessionId).toBe("g1");
+  });
+
+  it("throws not-enough-players when roster < minPlayers", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    await expect(service.start("pt1", roster(3))).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("throws already-active when a session exists", async () => {
+    gameSession.findFirst.mockResolvedValue(activeRow({ phase: "playing" }));
+    profile.findMany.mockResolvedValue(profileNames(4));
+    await expect(service.start("pt1", roster(4))).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("maps P2002 to already-active (DB backstop)", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    profile.findMany.mockResolvedValue(profileNames(4));
+    gameSession.create.mockRejectedValue(Object.assign(new Error("unique"), { code: "P2002" }));
+    await expect(service.start("pt1", roster(4))).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("clamps impostor count: config impostors=3, roster=4 → 1 impostor", async () => {
+    const svc = makeService({ impostors: 3 });
+    gameSession.findFirst.mockResolvedValue(null);
+    profile.findMany.mockResolvedValue(profileNames(4));
+    gameSession.create.mockImplementation(async ({ data }: any) => ({ id: "g1", ...data }));
+
+    const state = await svc.start("pt1", roster(4));
+    const impostors = state.players.filter((p) => p.role === "impostor");
+    // floor((4-1)/2)=1, Math.min(3,1)=1, Math.max(1,1)=1
+    expect(impostors).toHaveLength(1);
+  });
+
+  it("runs in a transaction and acquires the party advisory lock", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    profile.findMany.mockResolvedValue(profileNames(4));
+    gameSession.create.mockImplementation(async ({ data }: any) => ({ id: "g1", ...data }));
+
+    await service.start("pt1", roster(4));
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(txExecuteRaw).toHaveBeenCalledTimes(1);
+    const sql = (txExecuteRaw.mock.calls[0][0] as string[]).join("?");
+    expect(sql).toContain("pg_advisory_xact_lock");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// doTask
+// ---------------------------------------------------------------------------
+
+describe("doTask", () => {
+  function buildState(
+    overrides: Partial<{ phase: string; taskDone: boolean }> = {},
+  ) {
+    const crew = ["p1", "p2", "p3"];
+    const tasks = crew.flatMap((pid) =>
+      Array.from({ length: 3 }, (_, i) => ({
+        taskId: `${pid}:${i}`,
+        profileId: pid,
+        kind: "wires" as const,
+        x: 0.5,
+        y: 0.5,
+        done: overrides.taskDone ?? false,
+      })),
+    );
+    return {
+      sessionId: "g1",
+      phase: (overrides.phase ?? "playing") as any,
+      players: [
+        { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p2", name: "P2", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p3", name: "P3", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p4", name: "P4", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+      ],
+      tasks,
+      bodies: [],
+      meeting: null,
+      lastEjected: null,
+      result: null,
+    };
+  }
+
+  it("marks the task done", async () => {
+    const state = buildState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.doTask("pt1", "p1", "p1:0");
+
+    const task = result.tasks.find((t) => t.taskId === "p1:0");
+    expect(task?.done).toBe(true);
+    // others untouched
+    expect(result.tasks.filter((t) => t.done)).toHaveLength(1);
+    expect(result.phase).toBe("playing");
+    expect(result.result).toBeNull();
+  });
+
+  it("completes all tasks → phase ended, winner crew, reason tasks", async () => {
+    // All tasks done except the last one (p3:2)
+    const state = buildState({ taskDone: true });
+    // mark p3:2 as not done (the one we will complete)
+    const target = state.tasks.find((t) => t.taskId === "p3:2")!;
+    target.done = false;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.doTask("pt1", "p3", "p3:2");
+
+    expect(result.phase).toBe("ended");
+    expect(result.result?.winner).toBe("crew");
+    expect(result.result?.reason).toBe("tasks");
+
+    // check update was called with status:"ended"
+    const updateData = gameSession.update.mock.calls[0][0].data;
+    expect(updateData.status).toBe("ended");
+    expect(updateData.endedAt).toBeInstanceOf(Date);
+  });
+
+  it("rejects doTask when phase is not playing", async () => {
+    const state = buildState({ phase: "meeting" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.doTask("pt1", "p1", "p1:0")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("rejects doTask with foreign task (wrong owner)", async () => {
+    const state = buildState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.doTask("pt1", "p2", "p1:0")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("rejects doTask on already-done task", async () => {
+    const state = buildState({ taskDone: true });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.doTask("pt1", "p1", "p1:0")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("throws no-active-game when none exists", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    await expect(service.doTask("pt1", "p1", "p1:0")).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// current
+// ---------------------------------------------------------------------------
+
+describe("current", () => {
+  it("returns state when active", async () => {
+    const state = { sessionId: "g1", phase: "playing", players: [], tasks: [], bodies: [], meeting: null, lastEjected: null, result: null };
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    const result = await service.current("pt1");
+    expect(result).not.toBeNull();
+    expect(result?.phase).toBe("playing");
+  });
+
+  it("returns null when no active game", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    const result = await service.current("pt1");
+    expect(result).toBeNull();
+  });
+
+  it("does NOT use a transaction (lock-free read)", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    await service.current("pt1");
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// end
+// ---------------------------------------------------------------------------
+
+describe("end", () => {
+  it("force-ends the active game", async () => {
+    const state = {
+      sessionId: "g1",
+      phase: "playing" as const,
+      players: [],
+      tasks: [],
+      bodies: [],
+      meeting: null,
+      lastEjected: null,
+      result: null,
+    };
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.end("pt1");
+
+    expect(result.phase).toBe("ended");
+    const updateData = gameSession.update.mock.calls[0][0].data;
+    expect(updateData.status).toBe("ended");
+    expect(updateData.endedAt).toBeInstanceOf(Date);
+  });
+
+  it("throws no-active-game when none active", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    await expect(service.end("pt1")).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// project
+// ---------------------------------------------------------------------------
+
+describe("project", () => {
+  function buildFullState(): any {
+    return {
+      sessionId: "g1",
+      phase: "playing",
+      players: [
+        { profileId: "crew1", name: "C1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "imp1", name: "I1", role: "impostor", alive: true, isBot: false, killCooldownUntil: 9999, emergencyUsed: 0 },
+      ],
+      tasks: [
+        { taskId: "crew1:0", profileId: "crew1", kind: "wires", x: 0.3, y: 0.4, done: false },
+        { taskId: "crew1:1", profileId: "crew1", kind: "hold", x: 0.6, y: 0.7, done: true },
+      ],
+      bodies: [],
+      meeting: null,
+      lastEjected: null,
+      result: null,
+    };
+  }
+
+  it("returns null for null state", () => {
+    expect(service.project(null, "anyone")).toBeNull();
+  });
+
+  it("crew viewer sees own role, impostor role is null while playing", () => {
+    const snap = service.project(buildFullState(), "crew1");
+    expect(snap).not.toBeNull();
+    expect(snap!.myRole).toBe("crew");
+    const impView = snap!.players.find((p) => p.profileId === "imp1");
+    expect(impView!.role).toBeNull();
+    const crewView = snap!.players.find((p) => p.profileId === "crew1");
+    expect(crewView!.role).toBe("crew");
+  });
+
+  it("impostor viewer sees own role while playing", () => {
+    const snap = service.project(buildFullState(), "imp1");
+    expect(snap!.myRole).toBe("impostor");
+    // imp sees their own role
+    const impView = snap!.players.find((p) => p.profileId === "imp1");
+    expect(impView!.role).toBe("impostor");
+    // crew role hidden from impostor perspective (other players)
+    const crewView = snap!.players.find((p) => p.profileId === "crew1");
+    expect(crewView!.role).toBeNull();
+  });
+
+  it("after ended, all roles revealed", () => {
+    const state = { ...buildFullState(), phase: "ended", result: { winner: "crew", reason: "tasks" } };
+    const snap = service.project(state, "crew1");
+    snap!.players.forEach((p) => expect(p.role).not.toBeNull());
+  });
+
+  it("myTasks only contains viewer's tasks", () => {
+    const snap = service.project(buildFullState(), "crew1");
+    expect(snap!.myTasks).toHaveLength(2);
+    snap!.myTasks.forEach((t) => expect(t.taskId.startsWith("crew1")).toBe(true));
+  });
+
+  it("impostor has empty myTasks", () => {
+    const snap = service.project(buildFullState(), "imp1");
+    expect(snap!.myTasks).toHaveLength(0);
+  });
+
+  it("progress reflects done/total tasks", () => {
+    const snap = service.project(buildFullState(), "crew1");
+    // 1 done out of 2 total
+    expect(snap!.progress).toEqual({ done: 1, total: 2 });
+  });
+
+  it("killCooldownUntil passed through for impostor", () => {
+    const snap = service.project(buildFullState(), "imp1");
+    expect(snap!.killCooldownUntil).toBe(9999);
+  });
+
+  it("killCooldownUntil null for crew", () => {
+    const snap = service.project(buildFullState(), "crew1");
+    expect(snap!.killCooldownUntil).toBeNull();
+  });
+
+  it("non-player viewer gets myRole null", () => {
+    const snap = service.project(buildFullState(), "unknown");
+    expect(snap!.myRole).toBeNull();
+    expect(snap!.myTasks).toHaveLength(0);
+  });
+
+  it("sessionId is propagated to snapshot", () => {
+    const snap = service.project(buildFullState(), "crew1");
+    expect(snap!.sessionId).toBe("g1");
+  });
+});
