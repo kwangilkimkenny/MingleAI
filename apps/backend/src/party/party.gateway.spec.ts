@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { PartyGateway } from "./party.gateway";
 
 const jwt = { verify: jest.fn() } as any;
@@ -12,9 +13,39 @@ const game = {
   current: jest.fn(),
 } as any;
 
+const fakeAmongState = {
+  sessionId: "ag1",
+  phase: "playing",
+  players: [],
+  tasks: [],
+  bodies: [],
+  meeting: null,
+  lastEjected: null,
+  result: null,
+};
+const fakeSnapshot = { sessionId: "ag1", phase: "playing", myRole: "crew" };
+
+const among = {
+  start: jest.fn(),
+  doTask: jest.fn(),
+  kill: jest.fn(),
+  report: jest.fn(),
+  emergency: jest.fn(),
+  vote: jest.fn(),
+  current: jest.fn(),
+  latestAmong: jest.fn(),
+  end: jest.fn(),
+  sweepMeetings: jest.fn(),
+  project: jest.fn(),
+} as any;
+
+const amongConfig = { value: { sweepMs: 99999 } } as any;
+
 function gatewayWith() {
-  const gw = new PartyGateway(jwt, party, game);
-  (gw as any).server = { to: jest.fn().mockReturnValue({ emit: jest.fn() }) };
+  const gw = new PartyGateway(jwt, party, game, among, amongConfig);
+  (gw as any).server = {
+    to: jest.fn().mockReturnValue({ emit: jest.fn() }),
+  };
   return gw;
 }
 
@@ -210,4 +241,116 @@ it("game handlers refuse non-participants", async () => {
   await gw.handleGameStart(client, { partyId: "pt1" });
   expect(client.emit).toHaveBeenCalledWith("party:error", { message: "forbidden" });
   expect(game.start).not.toHaveBeenCalled();
+});
+
+// ---------------------------------------------------------------------------
+// among:* handler tests
+// ---------------------------------------------------------------------------
+
+it("among:start refuses a non-participant and does not call among.start", async () => {
+  party.assertParticipant.mockResolvedValueOnce(null);
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleAmongStart(client, { partyId: "pt1" });
+  expect(client.emit).toHaveBeenCalledWith("party:error", { message: "forbidden" });
+  expect(among.start).not.toHaveBeenCalled();
+});
+
+it("among:start calls among.start with presence roster and broadcasts personalized snapshots", async () => {
+  // Two participants in the room
+  party.assertParticipant.mockResolvedValue("pf1");
+  const gw = gatewayWith();
+  const to = (gw as any).server.to;
+
+  // Socket 1 joins
+  const client1 = clientWith("u1");
+  client1.id = "sock-1";
+  await gw.handleJoin(client1, { partyId: "pt1" });
+
+  // Socket 2 joins (different user)
+  party.assertParticipant.mockResolvedValueOnce("pf2");
+  const client2 = clientWith("u2");
+  client2.id = "sock-2";
+  await gw.handleJoin(client2, { partyId: "pt1" });
+
+  jest.clearAllMocks();
+  // Reset to mock returns fresh server.to
+  (gw as any).server = {
+    to: jest.fn().mockReturnValue({ emit: jest.fn() }),
+  };
+  const toFresh = (gw as any).server.to;
+
+  among.start.mockResolvedValueOnce(fakeAmongState);
+  among.project.mockReturnValue(fakeSnapshot);
+
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  await gw.handleAmongStart(client1, { partyId: "pt1" });
+
+  // among.start called with the 2-player roster (both pf1 and pf2)
+  expect(among.start).toHaveBeenCalledWith(
+    "pt1",
+    expect.arrayContaining([
+      { profileId: "pf1", isBot: false },
+      { profileId: "pf2", isBot: false },
+    ]),
+  );
+  expect(among.start.mock.calls[0][1]).toHaveLength(2);
+
+  // project called once per socket (personalized)
+  expect(among.project).toHaveBeenCalledWith(fakeAmongState, "pf1");
+  expect(among.project).toHaveBeenCalledWith(fakeAmongState, "pf2");
+
+  // server.to(socketId).emit called for each socket
+  expect(toFresh).toHaveBeenCalledWith("sock-1");
+  expect(toFresh).toHaveBeenCalledWith("sock-2");
+  const allEmitCalls = toFresh.mock.results.map((r: any) => r.value.emit);
+  for (const emitFn of allEmitCalls) {
+    expect(emitFn).toHaveBeenCalledWith("among:state", {
+      partyId: "pt1",
+      snapshot: fakeSnapshot,
+    });
+  }
+});
+
+it("among:sync emits among:state only to the requesting socket using current-or-latest", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  among.current.mockResolvedValueOnce(null);
+  among.latestAmong.mockResolvedValueOnce(fakeAmongState);
+  among.project.mockReturnValueOnce(fakeSnapshot);
+
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleAmongSync(client, { partyId: "pt1" });
+
+  expect(among.current).toHaveBeenCalledWith("pt1");
+  expect(among.latestAmong).toHaveBeenCalledWith("pt1");
+  expect(among.project).toHaveBeenCalledWith(fakeAmongState, "pf1");
+  expect(client.emit).toHaveBeenCalledWith("among:state", {
+    partyId: "pt1",
+    snapshot: fakeSnapshot,
+  });
+  // must NOT broadcast to the room
+  expect((gw as any).server.to).not.toHaveBeenCalled();
+});
+
+it("among:start maps BadRequestException('not-enough-players') to that exact message", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  among.start.mockRejectedValueOnce(new BadRequestException("not-enough-players"));
+
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleAmongStart(client, { partyId: "pt1" });
+
+  expect(client.emit).toHaveBeenCalledWith("party:error", { message: "not-enough-players" });
+});
+
+it("among:start maps a generic BadRequestException to 'invalid'", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  among.start.mockRejectedValueOnce(new BadRequestException("something-else"));
+
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleAmongStart(client, { partyId: "pt1" });
+
+  expect(client.emit).toHaveBeenCalledWith("party:error", { message: "invalid" });
 });

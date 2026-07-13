@@ -9,24 +9,50 @@ import {
 } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
 import { JwtService } from "@nestjs/jwt";
-import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
+} from "@nestjs/common";
 import type { GameChoice } from "@mingle/shared";
 import { PartyService } from "./party.service";
 import { GameService } from "./game.service";
+import { AmongService, AmongState } from "./among.service";
+import { AmongConfigProvider } from "./among.config";
 import { socketCorsOrigin } from "../common/socket-cors";
 
 @WebSocketGateway({ cors: { origin: socketCorsOrigin() } })
-export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class PartyGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
+{
   @WebSocketServer() server!: Server;
 
   /** partyId → (socketId → profileId). Presence is ephemeral by design. */
   private readonly presence = new Map<string, Map<string, string>>();
 
+  private sweepTimer?: ReturnType<typeof setInterval>;
+
   constructor(
     private readonly jwt: JwtService,
     private readonly party: PartyService,
     private readonly game: GameService,
+    private readonly among: AmongService,
+    private readonly amongConfig: AmongConfigProvider,
   ) {}
+
+  onModuleInit() {
+    this.sweepTimer = setInterval(() => {
+      void this.runAmongSweep();
+    }, this.amongConfig.value.sweepMs);
+  }
+
+  onModuleDestroy() {
+    if (this.sweepTimer !== undefined) {
+      clearInterval(this.sweepTimer);
+    }
+  }
 
   handleConnection(client: Socket) {
     try {
@@ -152,8 +178,159 @@ export class PartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private gameErrorMessage(e: unknown): string {
     if (e instanceof ConflictException) return "already-active";
     if (e instanceof NotFoundException) return "no-active-game";
-    if (e instanceof BadRequestException) return "invalid";
+    if (e instanceof BadRequestException) {
+      // Preserve the specific "not-enough-players" message; all others → "invalid".
+      const msg =
+        typeof (e as { message?: unknown }).message === "string"
+          ? (e as { message: string }).message
+          : "";
+      if (msg === "not-enough-players") return "not-enough-players";
+      return "invalid";
+    }
     return "invalid";
+  }
+
+  private broadcastAmong(partyId: string, state: AmongState): void {
+    for (const [socketId, viewerId] of this.presence.get(partyId) ?? []) {
+      this.server.to(socketId).emit("among:state", {
+        partyId,
+        snapshot: this.among.project(state, viewerId),
+      });
+    }
+  }
+
+  private async runAmongSweep(): Promise<void> {
+    try {
+      for (const pid of await this.among.sweepMeetings()) {
+        const st = (await this.among.current(pid)) ?? (await this.among.latestAmong(pid));
+        if (st) this.broadcastAmong(pid, st);
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+
+  @SubscribeMessage("among:start")
+  async handleAmongStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    const roster = [...new Set(this.presence.get(body.partyId)?.values() ?? [])].map(
+      (profileId) => ({ profileId, isBot: false }),
+    );
+    try {
+      const s = await this.among.start(body.partyId, roster);
+      this.broadcastAmong(body.partyId, s);
+    } catch (e) {
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  @SubscribeMessage("among:task")
+  async handleAmongTask(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string; taskId: string; x: number; y: number },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const s = await this.among.doTask(body.partyId, me, body.taskId);
+      this.broadcastAmong(body.partyId, s);
+    } catch (e) {
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  @SubscribeMessage("among:kill")
+  async handleAmongKill(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string; targetProfileId: string; x: number; y: number },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const s = await this.among.kill(body.partyId, me, body.targetProfileId, body.x, body.y);
+      this.broadcastAmong(body.partyId, s);
+    } catch (e) {
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  @SubscribeMessage("among:report")
+  async handleAmongReport(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string; bodyProfileId: string },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const s = await this.among.report(body.partyId, me, body.bodyProfileId);
+      this.broadcastAmong(body.partyId, s);
+    } catch (e) {
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  @SubscribeMessage("among:emergency")
+  async handleAmongEmergency(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const s = await this.among.emergency(body.partyId, me);
+      this.broadcastAmong(body.partyId, s);
+    } catch (e) {
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  @SubscribeMessage("among:vote")
+  async handleAmongVote(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string; targetProfileId: string },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const s = await this.among.vote(body.partyId, me, body.targetProfileId);
+      this.broadcastAmong(body.partyId, s);
+    } catch (e) {
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
+    }
+  }
+
+  @SubscribeMessage("among:sync")
+  async handleAmongSync(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    const state =
+      (await this.among.current(body.partyId)) ?? (await this.among.latestAmong(body.partyId));
+    client.emit("among:state", {
+      partyId: body.partyId,
+      snapshot: this.among.project(state, me),
+    });
+  }
+
+  @SubscribeMessage("among:end")
+  async handleAmongEnd(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string },
+  ) {
+    const me = await this.authorize(client, body?.partyId);
+    if (!me) return;
+    try {
+      const s = await this.among.end(body.partyId);
+      this.broadcastAmong(body.partyId, s);
+    } catch (e) {
+      client.emit("party:error", { message: this.gameErrorMessage(e) });
+    }
   }
 
   private async authorize(client: Socket, partyId?: string): Promise<string | null> {
