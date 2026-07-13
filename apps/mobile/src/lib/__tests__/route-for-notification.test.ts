@@ -7,17 +7,17 @@ it("routes message_received to the chat room with roomId", () => {
   });
 });
 it("routes proposal_received to proposals", () => {
-  expect(routeForNotification({ type: "proposal_received" })).toBe("/(app)/proposals");
+  expect(routeForNotification({ type: "proposal_received" })).toBe("/proposals");
 });
 it("routes match_made to chats", () => {
-  expect(routeForNotification({ type: "match_made" })).toBe("/(app)/chats");
+  expect(routeForNotification({ type: "match_made" })).toBe("/chats");
 });
 it("falls back to the notification center for system/unknown", () => {
-  expect(routeForNotification({ type: "system" })).toBe("/(app)/notifications");
-  expect(routeForNotification({ type: "whatever" as any })).toBe("/(app)/notifications");
+  expect(routeForNotification({ type: "system" })).toBe("/notifications");
+  expect(routeForNotification({ type: "whatever" as any })).toBe("/notifications");
 });
 it("message_received without roomId falls back to chats", () => {
-  expect(routeForNotification({ type: "message_received" })).toBe("/(app)/chats");
+  expect(routeForNotification({ type: "message_received" })).toBe("/chats");
 });
 it("routes reservation with matchId to the date-plan screen", () => {
   expect(routeForNotification({ type: "reservation", matchId: "m1" })).toEqual({
@@ -26,5 +26,5 @@ it("routes reservation with matchId to the date-plan screen", () => {
   });
 });
 it("routes reservation without matchId to home", () => {
-  expect(routeForNotification({ type: "reservation" })).toBe("/(app)/home");
+  expect(routeForNotification({ type: "reservation" })).toBe("/home");
 });

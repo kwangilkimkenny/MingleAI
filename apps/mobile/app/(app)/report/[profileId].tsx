@@ -18,6 +18,7 @@ import {
   type ReportReason,
 } from "@mingle/client-core";
 import { REASON_LABELS } from "../../../src/lib/moderation";
+import { BackButton } from "../../../src/components/BackButton";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -67,6 +68,7 @@ export default function ReportScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <BackButton />
       <Text style={styles.title}>신고하기</Text>
 
       <Text style={styles.section}>신고 사유</Text>

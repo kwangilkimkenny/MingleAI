@@ -22,7 +22,7 @@ export default function Register() {
         throw new Error("서버에서 토큰을 받지 못했습니다.");
       }
       setAuth({ token: accessToken });
-      router.replace("/(app)/home");
+      router.replace("/home");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "회원가입에 실패했습니다.");
     } finally {

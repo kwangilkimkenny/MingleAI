@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { getBlocks, removeBlock, ApiError, type PeerProfile } from "@mingle/client-core";
+import { BackButton } from "../../src/components/BackButton";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -78,8 +79,11 @@ export default function BlocksScreen() {
   }
   if (blocks.length === 0) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.msg}>차단한 사용자가 없어요.</Text>
+      <View style={styles.container}>
+        <BackButton />
+        <View style={styles.center}>
+          <Text style={styles.msg}>차단한 사용자가 없어요.</Text>
+        </View>
       </View>
     );
   }
@@ -89,6 +93,7 @@ export default function BlocksScreen() {
       data={blocks}
       keyExtractor={(item) => item.profileId}
       contentContainerStyle={styles.list}
+      ListHeaderComponent={<BackButton />}
       renderItem={({ item }) => (
         <View style={styles.row}>
           <View style={styles.info}>

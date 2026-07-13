@@ -13,23 +13,23 @@ export function routeForNotification(data: NotificationData): Href {
     case "message_received":
       return data.roomId
         ? { pathname: "/(app)/chat/[roomId]", params: { roomId: data.roomId } }
-        : "/(app)/chats";
+        : "/chats";
     case "match_made":
-      return "/(app)/chats";
+      return "/chats";
     case "proposal_received":
-      return "/(app)/proposals";
+      return "/proposals";
     case "party_reminder":
     case "match_result":
-      return "/(app)/home";
+      return "/home";
     case "reservation":
       // `as any` on pathname: Expo Router typegen (.expo/types/router.d.ts) is stale and
       // does not yet include the date-plan route added in Task 6; mirrors the cast in
       // apps/mobile/app/(app)/chat/[roomId].tsx for the same reason.
       return data.matchId
         ? { pathname: "/(app)/date-plan/[matchId]" as any, params: { matchId: data.matchId } }
-        : "/(app)/home";
+        : "/home";
     case "system":
     default:
-      return "/(app)/notifications";
+      return "/notifications";
   }
 }

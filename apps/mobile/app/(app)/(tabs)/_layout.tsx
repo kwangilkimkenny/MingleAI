@@ -12,7 +12,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         ...doodleHeaderOptions,
-        headerTitle: "MingleAI",
+        // 상단 헤더 영역 제거 — 탭 화면은 하단 탭 바가 이미 각 화면을 라벨링한다.
+        headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.grayMid,
         tabBarStyle: {

@@ -77,7 +77,7 @@ export default function Onboarding() {
   if (!hydrated) return null;
   if (!token) return <Redirect href="/login" />;
   if (profileChecked === "loading") return null;
-  if (profileChecked === "has") return <Redirect href="/(app)/home" />;
+  if (profileChecked === "has") return <Redirect href="/home" />;
 
   async function onPickPhoto() {
     if (photoBusy) return;
@@ -110,9 +110,9 @@ export default function Onboarding() {
         ...(photoUrl ? { photoUrl } : {}),
       });
       if (!profile.preferenceSignals) {
-        router.replace({ pathname: "/(app)/home", params: { notice: "선호 분석은 곧 반영됩니다." } });
+        router.replace({ pathname: "/home", params: { notice: "선호 분석은 곧 반영됩니다." } });
       } else {
-        router.replace("/(app)/home");
+        router.replace("/home");
       }
     } catch (e) {
       setSubmitError(

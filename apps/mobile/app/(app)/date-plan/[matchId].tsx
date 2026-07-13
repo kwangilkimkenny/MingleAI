@@ -18,6 +18,7 @@ import {
   cancelDatePlan,
 } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
+import { BackButton } from "../../../src/components/BackButton";
 
 // Derive types from function return signatures — avoids importing @mingle/shared directly
 // (shared is not a direct dep of the mobile app; types flow through client-core).
@@ -102,6 +103,7 @@ export default function DatePlanScreen() {
   if (phase === "form") {
     return (
       <ScrollView contentContainerStyle={s.container}>
+        <BackButton />
         <Text style={s.title}>데이트 플랜 만들기</Text>
         <Text style={s.label}>예산(원)</Text>
         <TextInput

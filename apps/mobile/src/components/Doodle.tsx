@@ -80,7 +80,7 @@ export function DoodleButton({
   style?: StyleProp<ViewStyle>;
 }) {
   const primary = variant === "primary";
-  // Primary = the accent (dark pink) block; the ink border + ink offset shadow keep the doodle look.
+  // Flat button — ink outline only, NO offset shadow. Primary = the accent (dark pink) block.
   const bg = disabled ? colors.fillDeep : primary ? colors.accent : colors.paper;
   const fg = disabled ? colors.grayMid : primary ? colors.onAccent : colors.ink;
   return (
@@ -90,19 +90,23 @@ export function DoodleButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.pressable,
-        // Press "into" the shadow: nudge toward the offset so it reads as pressed.
-        pressed && !disabled
-          ? { transform: [{ translateX: doodle.shadow.x / 2 }, { translateY: doodle.shadow.y / 2 }] }
-          : null,
+        pressed && !disabled ? { opacity: 0.85 } : null,
         style,
       ]}
     >
-      <ShadowBox radius={doodle.radius.button} bg={bg} rotate={rotate}>
+      <View
+        style={[
+          styles.flatButton,
+          doodle.radius.button,
+          { backgroundColor: bg },
+          rotate ? { transform: [{ rotate }] } : null,
+        ]}
+      >
         <View style={styles.btnInner}>
           {icon ? icon(fg, 20) : null}
           <Text style={[styles.btnText, { color: fg }]}>{title}</Text>
         </View>
-      </ShadowBox>
+      </View>
     </Pressable>
   );
 }
@@ -144,6 +148,7 @@ const styles = StyleSheet.create({
   shadowOuter: { position: "relative", alignSelf: "stretch" },
   surface: { borderWidth: doodle.border, borderColor: colors.ink },
   pressable: { alignSelf: "stretch" },
+  flatButton: { alignSelf: "stretch", borderWidth: doodle.border, borderColor: colors.ink },
   btnInner: {
     flexDirection: "row",
     gap: 8,

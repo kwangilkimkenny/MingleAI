@@ -86,7 +86,7 @@ export default function Matching() {
     } catch {
       // ignore — leaving the screen is the intent
     }
-    router.replace("/(app)/home");
+    router.replace("/home");
   }
 
   if (phase === "failed") {
@@ -94,7 +94,7 @@ export default function Matching() {
       <View style={styles.center}>
         <Text style={styles.msg}>지금은 매칭이 어려워요. 잠시 후 다시 시도해 주세요.</Text>
         <DoodleButton title="다시 시도" onPress={onRetry} variant="primary" />
-        <DoodleButton title="홈으로" onPress={() => router.replace("/(app)/home")} />
+        <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
       </View>
     );
   }
@@ -102,7 +102,7 @@ export default function Matching() {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error}</Text>
-        <DoodleButton title="홈으로" onPress={() => router.replace("/(app)/home")} />
+        <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
       </View>
     );
   }

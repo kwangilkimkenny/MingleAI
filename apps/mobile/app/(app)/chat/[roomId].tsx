@@ -27,6 +27,7 @@ import { useAuthStore } from "../../../src/lib/client";
 import { openMessengerSocket } from "../../../src/lib/messenger-socket";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
+import { BackButton } from "../../../src/components/BackButton";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -183,6 +184,7 @@ export default function ChatRoom() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={90}
     >
+      <BackButton onPress={() => router.replace("/chats")} />
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerPeer}>
@@ -210,7 +212,7 @@ export default function ChatRoom() {
           {match != null && (
             <PeerModerationMenu
               peer={{ profileId: match.peer.profileId, name: match.peer.name }}
-              onBlocked={() => router.replace("/(app)/chats")}
+              onBlocked={() => router.replace("/chats")}
             />
           )}
         </View>

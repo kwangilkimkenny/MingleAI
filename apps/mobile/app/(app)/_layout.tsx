@@ -54,7 +54,7 @@ export default function AppLayout() {
     );
   }
   return (
-    <Stack screenOptions={{ headerTitle: "MingleAI", ...doodleHeaderOptions }}>
+    <Stack screenOptions={{ ...doodleHeaderOptions, headerShown: false }}>
       {/* The fixed bottom-tab surface owns its own headers */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       {/* Detail screens push OVER the tabs with a back button */}

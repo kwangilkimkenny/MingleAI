@@ -42,3 +42,9 @@ tmp/
 # User-uploaded assets (profile photos) — served at /uploads/, never committed
 apps/backend/uploads/
 uploads/
+
+# E2E / dev scratch artifacts (Phase 6d testing)
+/.playwright-mcp/
+/among-*.png
+/match-*.png
+apps/mobile/dist-run/
