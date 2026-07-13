@@ -1,4 +1,4 @@
-import { colors } from "../../../src/lib/theme";
+import { colors, fonts } from "../../../src/lib/theme";
 import { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.fill,
   },
-  title: { fontSize: 38, fontWeight: "800", color: colors.ink, letterSpacing: 0.5 },
+  title: { fontFamily: fonts.display, fontSize: 46, color: colors.ink },
   subtitle: { fontSize: 15, color: colors.grayMid },
   actions: { gap: 16 },
   hint: { fontSize: 13, color: colors.grayMid, textAlign: "center", lineHeight: 20 },

@@ -1,4 +1,4 @@
-import { colors } from "../src/lib/theme";
+import { colors, fonts } from "../src/lib/theme";
 import { useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { Link, router } from "expo-router";
@@ -74,11 +74,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   brand: {
-    fontSize: 36,
-    fontWeight: "800",
+    fontFamily: fonts.display,
+    fontSize: 44,
     color: colors.ink,
     textAlign: "center",
-    letterSpacing: 0.5,
   },
   tagline: { fontSize: 14, color: colors.grayMid, textAlign: "center", marginBottom: 8 },
   input: doodleInputStyle,

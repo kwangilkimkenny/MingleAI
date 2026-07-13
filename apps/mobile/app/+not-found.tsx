@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { router, Stack } from "expo-router";
-import { colors } from "../src/lib/theme";
+import { colors, fonts } from "../src/lib/theme";
 import { DoodleButton, DoodleCard } from "../src/components/Doodle";
 
 /**
@@ -33,6 +33,6 @@ const styles = StyleSheet.create({
   card: { alignSelf: "center", marginBottom: 8 },
   cardInner: { paddingVertical: 28, paddingHorizontal: 36 },
   face: { fontSize: 34, color: colors.ink, fontWeight: "700" },
-  title: { fontSize: 22, fontWeight: "800", color: colors.ink, textAlign: "center" },
+  title: { fontFamily: fonts.display, fontSize: 28, color: colors.ink, textAlign: "center" },
   subtitle: { fontSize: 14, color: colors.grayMid, textAlign: "center", marginBottom: 8 },
 });

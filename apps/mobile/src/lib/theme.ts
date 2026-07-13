@@ -19,6 +19,16 @@ export const colors = {
 } as const;
 
 /**
+ * Type roles. Display = Gaegu (Korean handwriting) for the brand wordmark, headings, and short
+ * CTA copy — the hand-drawn character the doodle system is built around. Body stays the system
+ * sans (legible for long/small Korean text; never set Gaegu below ~14px). Loaded in app/_layout.
+ */
+export const fonts = {
+  display: "Gaegu_700Bold",
+  displayRegular: "Gaegu_400Regular",
+} as const;
+
+/**
  * Doodle surface tokens — the hand-drawn "sketchbook" look in pure B&W, re-expressed
  * for React Native (no SVG/feTurbulence, no new deps). The doodle character comes from:
  *  1. wonky per-corner border-radius (asymmetric),
@@ -69,7 +79,7 @@ export const doodleHeaderOptions = {
     borderBottomWidth: doodle.border,
     borderBottomColor: colors.ink,
   },
-  headerTitleStyle: { color: colors.ink, fontWeight: "800" as const, fontSize: 20 },
+  headerTitleStyle: { color: colors.ink, fontFamily: fonts.display, fontSize: 22 },
   headerTintColor: colors.ink,
   headerShadowVisible: false,
 };

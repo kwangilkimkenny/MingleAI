@@ -16,7 +16,7 @@ import {
   type TextStyle,
   type StyleProp,
 } from "react-native";
-import { colors, doodle } from "../lib/theme";
+import { colors, doodle, fonts } from "../lib/theme";
 
 type WonkyRadius = {
   borderTopLeftRadius: number;
@@ -152,6 +152,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  btnText: { fontSize: 16, fontWeight: "700", letterSpacing: 0.2 },
+  btnText: { fontFamily: fonts.display, fontSize: 18, letterSpacing: 0.3 },
   cardInner: { padding: 16 },
 });

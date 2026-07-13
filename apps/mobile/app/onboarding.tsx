@@ -1,4 +1,4 @@
-import { colors, doodle } from "../src/lib/theme";
+import { colors, doodle, fonts } from "../src/lib/theme";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   loadingText: { fontSize: 16, color: colors.grayDark },
   container: { padding: 24, gap: 8, backgroundColor: colors.paper },
-  title: { fontSize: 28, fontWeight: "800", color: colors.ink, marginBottom: 8 },
+  title: { fontFamily: fonts.display, fontSize: 34, color: colors.ink, marginBottom: 8 },
   label: { fontSize: 14, fontWeight: "700", color: colors.ink, marginTop: 12 },
   input: { ...doodleInputStyle, marginTop: 4 },
   multiline: { height: 96, textAlignVertical: "top" },

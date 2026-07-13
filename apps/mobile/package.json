@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/gaegu": "^0.4.1",
     "@expo/metro-runtime": "~56.0.15",
     "@mingle/client-core": "workspace:*",
     "@shopify/react-native-skia": "2.6.2",
