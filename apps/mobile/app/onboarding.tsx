@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from "react-native";
 import { Redirect, router } from "expo-router";
@@ -14,6 +15,8 @@ import { createProfile, getMyProfile, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
 import { DoodleButton, doodleInputStyle } from "../src/components/Doodle";
+import { DoodleAvatar } from "../src/components/DoodleAvatar";
+import { pickAndUploadPhoto } from "../src/lib/photo";
 
 const GENDER_OPTIONS = [
   { label: "남성", value: "male" },
@@ -53,6 +56,8 @@ export default function Onboarding() {
   const [ageText, setAgeText] = useState("");
   const [occupation, setOccupation] = useState("");
   const [partyPreferenceText, setPartyPreferenceText] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const [profileChecked, setProfileChecked] = useState<"loading" | "none" | "has">("loading");
 
@@ -74,6 +79,17 @@ export default function Onboarding() {
   if (profileChecked === "loading") return null;
   if (profileChecked === "has") return <Redirect href="/(app)/home" />;
 
+  async function onPickPhoto() {
+    if (photoBusy) return;
+    setPhotoBusy(true);
+    const res = await pickAndUploadPhoto();
+    setPhotoBusy(false);
+    if (res.status === "ok") setPhotoUrl(res.url);
+    else if (res.status === "denied")
+      Alert.alert("사진 접근 권한 필요", "설정에서 사진 접근을 허용해 주세요.");
+    else if (res.status === "error") Alert.alert("사진 업로드 실패", res.message);
+  }
+
   async function onSubmit() {
     if (busy) return;
     const err = validate({ name, gender, ageText, occupation, partyPreferenceText });
@@ -91,6 +107,7 @@ export default function Onboarding() {
         gender: gender!,
         occupation: occupation.trim(),
         partyPreferenceText: partyPreferenceText.trim(),
+        ...(photoUrl ? { photoUrl } : {}),
       });
       if (!profile.preferenceSignals) {
         router.replace({ pathname: "/(app)/home", params: { notice: "선호 분석은 곧 반영됩니다." } });
@@ -117,6 +134,29 @@ export default function Onboarding() {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>프로필 설정</Text>
+
+      <View style={styles.photoSection}>
+        <TouchableOpacity
+          onPress={onPickPhoto}
+          disabled={photoBusy}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="프로필 사진 선택"
+        >
+          <DoodleAvatar uri={photoUrl} name={name} size={104} />
+          {photoBusy ? (
+            <View style={styles.photoBusy}>
+              <ActivityIndicator color={colors.ink} />
+            </View>
+          ) : null}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onPickPhoto} disabled={photoBusy}>
+          <Text style={styles.photoLink}>
+            {photoUrl ? "사진 변경" : "사진 추가 (선택)"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.label}>닉네임 / 이름</Text>
       <TextInput
         style={styles.input}
@@ -191,6 +231,24 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: 16, color: colors.grayDark },
   container: { padding: 24, gap: 8, backgroundColor: colors.paper },
   title: { fontFamily: fonts.display, fontSize: 34, color: colors.ink, marginBottom: 8 },
+  photoSection: { alignItems: "center", gap: 8, marginBottom: 8 },
+  photoBusy: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.55)",
+    borderRadius: 52,
+  },
+  photoLink: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+    textDecorationLine: "underline",
+  },
   label: { fontSize: 14, fontWeight: "700", color: colors.ink, marginTop: 12 },
   input: { ...doodleInputStyle, marginTop: 4 },
   multiline: { height: 96, textAlignVertical: "top" },

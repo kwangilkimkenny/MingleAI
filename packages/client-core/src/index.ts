@@ -17,8 +17,8 @@ export { apiFetch, ApiError } from "./api/client.js";
 export { register, login } from "./api/auth.js";
 export type { AuthResponse } from "./api/auth.js";
 
-export { getMyProfile, createProfile } from "./api/profiles.js";
-export type { CreateProfileInput } from "./api/profiles.js";
+export { getMyProfile, createProfile, updateProfile, uploadPhoto } from "./api/profiles.js";
+export type { CreateProfileInput, UpdateProfileInput, UploadPhotoFile } from "./api/profiles.js";
 
 export { enqueueMatchmaking, cancelMatchmaking, getMatchmakingStatus } from "./api/matchmaking.js";
 export type {

@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
+import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -71,6 +72,7 @@ export default function Chats() {
                 router.push({ pathname: "/(app)/chat/[roomId]", params: { roomId: item.roomId } })
               }
             >
+              <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={46} />
               <View style={styles.rowLeft}>
                 <Text style={styles.peerName}>{item.peer.name}</Text>
                 <Text style={styles.lastMsg} numberOfLines={1}>
@@ -97,6 +99,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,

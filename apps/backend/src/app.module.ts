@@ -15,6 +15,7 @@ import { MatchmakingModule } from "./matchmaking/matchmaking.module";
 import { ProposalModule } from "./proposal/proposal.module";
 import { MatchModule } from "./match/match.module";
 import { MessengerModule } from "./messenger/messenger.module";
+import { UploadModule } from "./upload/upload.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { MessengerModule } from "./messenger/messenger.module";
     ProposalModule,
     MatchModule,
     MessengerModule,
+    UploadModule,
   ],
 })
 export class AppModule {}

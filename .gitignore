@@ -38,3 +38,7 @@ coverage/
 # Temp
 tmp/
 .tmp/
+
+# User-uploaded assets (profile photos) — served at /uploads/, never committed
+apps/backend/uploads/
+uploads/

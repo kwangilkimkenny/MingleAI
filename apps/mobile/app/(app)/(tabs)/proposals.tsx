@@ -16,6 +16,7 @@ import {
   type ProposalView,
 } from "@mingle/client-core";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
+import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -96,13 +97,16 @@ export default function Proposals() {
                 />
               </View>
               <View style={styles.peerInfo}>
-                <Text style={styles.name}>
-                  {item.peer.name} · {item.peer.age}
-                </Text>
-                <Text style={styles.meta}>{item.peer.occupation}</Text>
-                {item.peer.preferenceSummary ? (
-                  <Text style={styles.summary}>{item.peer.preferenceSummary}</Text>
-                ) : null}
+                <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={54} />
+                <View style={styles.peerText}>
+                  <Text style={styles.name}>
+                    {item.peer.name} · {item.peer.age}
+                  </Text>
+                  <Text style={styles.meta}>{item.peer.occupation}</Text>
+                  {item.peer.preferenceSummary ? (
+                    <Text style={styles.summary}>{item.peer.preferenceSummary}</Text>
+                  ) : null}
+                </View>
               </View>
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.acceptBtn} onPress={() => onAccept(item.id)}>
@@ -137,7 +141,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   cardHeader: { alignItems: "flex-end" },
-  peerInfo: { marginBottom: 12 },
+  peerInfo: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 12 },
+  peerText: { flex: 1 },
   name: { fontSize: 16, fontWeight: "700", color: INK },
   meta: { fontSize: 13, color: GRAY_DARK, marginTop: 2 },
   summary: { fontSize: 13, color: GRAY_MED, marginTop: 4 },

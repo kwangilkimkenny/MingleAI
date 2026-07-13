@@ -26,6 +26,7 @@ import {
 import { useAuthStore } from "../../../src/lib/client";
 import { openMessengerSocket } from "../../../src/lib/messenger-socket";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
+import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -184,7 +185,12 @@ export default function ChatRoom() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerName}>{match?.peer.name ?? "채팅"}</Text>
+        <View style={styles.headerPeer}>
+          <DoodleAvatar uri={match?.peer.photoUrl} name={match?.peer.name} size={36} />
+          <Text style={styles.headerName} numberOfLines={1}>
+            {match?.peer.name ?? "채팅"}
+          </Text>
+        </View>
         <View style={styles.headerActions}>
           {match != null && (
             <Pressable
@@ -269,7 +275,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: INK,
   },
-  headerName: { fontSize: 17, fontWeight: "700", color: INK },
+  headerPeer: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1, marginRight: 8 },
+  headerName: { fontSize: 17, fontWeight: "700", color: INK, flexShrink: 1 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
   datePlanBtn: {
     borderWidth: 1.5,

@@ -1,12 +1,18 @@
 import { NestFactory } from "@nestjs/core";
 import { Logger, ValidationPipe } from "@nestjs/common";
+import { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { join } from "path";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { socketCorsOrigin } from "./common/socket-cors";
+import { UPLOADS_DIR } from "./upload/upload.controller";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Serve uploaded profile photos as static files at /uploads/<name>.
+  app.useStaticAssets(UPLOADS_DIR, { prefix: "/uploads/" });
 
   app.useGlobalPipes(
     new ValidationPipe({
