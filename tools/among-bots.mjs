@@ -32,9 +32,11 @@ if (isNaN(count) || count < 1) { console.error("Usage: node among-bots.mjs <coun
 let flagStart = false;
 let flagPartyId = null;
 let flagTokenFile = null;
+let flagPassive = false;
 
 for (let i = 1; i < argv.length; i++) {
   if (argv[i] === "--start") flagStart = true;
+  else if (argv[i] === "--passive") flagPassive = true;
   else if (argv[i] === "--party" && argv[i + 1]) { flagPartyId = argv[++i]; }
   else if (argv[i] === "--token-file" && argv[i + 1]) { flagTokenFile = argv[++i]; }
 }
@@ -200,6 +202,10 @@ function createBotPlayer({ bot, botIndex, partyId, isFirstBot }) {
 
     const mePlayer = players.find((p) => p.profileId === myProfileId);
     const amAlive = mePlayer?.alive ?? false;
+
+    // Passive mode: bots idle (never task/kill/vote) so the game stays in "playing" —
+    // used to hold a game open for manual/browser inspection of the in-game UI.
+    if (flagPassive) return;
 
     if (phase === "playing" && amAlive) {
       if (myRole === "crew") {
