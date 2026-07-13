@@ -20,11 +20,14 @@ import type {
   GameChoice,
 } from "@mingle/client-core";
 import { getPartyMessages } from "@mingle/client-core";
+import type { AmongSnapshot } from "@mingle/shared";
 import { useAuthStore } from "../../../src/lib/client";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { openPartySocket } from "../../../src/lib/party-socket";
 import { PartyRoomCanvas } from "../../../src/components/PartyRoomCanvas";
+import { BackButton } from "../../../src/components/BackButton";
 import { clampToRoom, spawnFor, stepToward, shouldEmit, type Vec2 } from "../../../src/lib/party-space";
+import { AmongGame } from "../../../src/components/among/AmongGame";
 
 export default function PartyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -45,6 +48,7 @@ export default function PartyScreen() {
 
   const [game, setGame] = useState<GameSnapshot | null>(null);
   const [myVote, setMyVote] = useState<GameChoice | null>(null);
+  const [among, setAmong] = useState<AmongSnapshot | null>(null);
 
   // 2D room positions — ref-driven; a tick state re-renders only when something moved.
   const posRef = useRef<Record<string, { pos: Vec2; target: Vec2 }>>({});
@@ -112,6 +116,10 @@ export default function PartyScreen() {
           setMyVote((prev) => (e.snapshot!.votedProfileIds.includes(myProfileId ?? "") ? prev : null));
         }
       },
+      onAmongState: (e) => {
+        if (!alive) return;
+        if (e.partyId === id) setAmong(e.snapshot);
+      },
       onError: () => alive && setSocketDown(true),
       onReconnect: () => {
         if (!alive) return;
@@ -124,6 +132,7 @@ export default function PartyScreen() {
     socketRef.current = handle;
     handle.joinParty(id);
     handle.syncGame(id);
+    handle.syncAmong(id);
     if (myProfileId && !posRef.current[myProfileId]) {
       const spawn = spawnFor(myProfileId);
       posRef.current[myProfileId] = { pos: spawn, target: spawn };
@@ -171,7 +180,7 @@ export default function PartyScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error}</Text>
-        <DoodleButton title="홈으로" onPress={() => router.replace("/(app)/home")} />
+        <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
       </View>
     );
   }
@@ -227,8 +236,27 @@ export default function PartyScreen() {
     pos: entry.pos,
   }));
 
+  const positions: Record<string, Vec2> = {};
+  for (const [pid, entry] of Object.entries(posRef.current)) {
+    positions[pid] = entry.pos;
+  }
+
+  const partyId = Array.isArray(id) ? id[0] : id;
+
+  const amongHandlers = {
+    start: () => socketRef.current?.startAmong(partyId),
+    doTask: (taskId: string, x: number, y: number) =>
+      socketRef.current?.doAmongTask(partyId, taskId, x, y),
+    kill: (t: string, x: number, y: number) => socketRef.current?.killAmong(partyId, t, x, y),
+    report: (b: string) => socketRef.current?.reportAmong(partyId, b),
+    emergency: () => socketRef.current?.emergencyAmong(partyId),
+    vote: (t: string) => socketRef.current?.voteAmong(partyId, t),
+    restart: () => socketRef.current?.startAmong(partyId),
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <BackButton label="나가기" onPress={() => router.replace("/home")} />
       <Text style={styles.title}>{party.name}</Text>
       <Text style={styles.sub}>곧 파티가 시작됩니다 · {party.participants.length}명</Text>
       {party.participants
@@ -276,6 +304,14 @@ export default function PartyScreen() {
         <Text style={styles.roomTitle}>파티 공간 — 탭해서 이동</Text>
         <PartyRoomCanvas members={roomMembers} myProfileId={myProfileId} onTapMove={onTapMove} />
       </View>
+      <AmongGame
+        among={among}
+        myProfileId={myProfileId ?? ""}
+        partyId={partyId}
+        positions={positions}
+        onTapMove={onTapMove}
+        handlers={amongHandlers}
+      />
       <View style={styles.gameSection}>
         <View style={styles.gameHeader}>
           <Text style={styles.gameTitle}>밸런스 게임</Text>
@@ -369,7 +405,7 @@ export default function PartyScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      <DoodleButton title="홈으로" onPress={() => router.replace("/(app)/home")} />
+      <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
     </ScrollView>
   );
 }
