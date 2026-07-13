@@ -221,6 +221,21 @@ export class AmongService {
     return row.state as unknown as AmongState;
   }
 
+  /**
+   * The most recent among session for a party REGARDLESS of status (active or ended).
+   * Lock-free read. Used so the gateway can broadcast the final result after a
+   * sweep- or vote-driven game-over (when `current()` returns null because the row
+   * is no longer "active"), and so a late `among:sync` still shows the result screen.
+   */
+  async latestAmong(partyId: string): Promise<AmongState | null> {
+    const row = await this.prisma.gameSession.findFirst({
+      where: { partyId, gameType: "among" },
+      orderBy: { startedAt: "desc" },
+    });
+    if (!row) return null;
+    return row.state as unknown as AmongState;
+  }
+
   // -------------------------------------------------------------------------
   // end
   // -------------------------------------------------------------------------
