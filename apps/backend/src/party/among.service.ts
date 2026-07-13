@@ -252,6 +252,282 @@ export class AmongService {
   }
 
   // -------------------------------------------------------------------------
+  // kill
+  // -------------------------------------------------------------------------
+
+  async kill(
+    partyId: string,
+    profileId: string,
+    targetProfileId: string,
+    x: number,
+    y: number,
+  ): Promise<AmongState> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+
+      const row = await this.findActiveAmong(tx, partyId);
+      if (!row) throw new NotFoundException("no-active-game");
+
+      const state = row.state as unknown as AmongState;
+
+      if (state.phase !== "playing") throw new BadRequestException("invalid");
+
+      const caller = state.players.find((p) => p.profileId === profileId);
+      if (!caller || !caller.alive || caller.role !== "impostor") {
+        throw new BadRequestException("invalid");
+      }
+
+      const now = Date.now();
+      if (caller.killCooldownUntil !== null && caller.killCooldownUntil > now) {
+        throw new BadRequestException("invalid");
+      }
+
+      const target = state.players.find((p) => p.profileId === targetProfileId);
+      if (!target || !target.alive || target.role === "impostor") {
+        throw new BadRequestException("invalid");
+      }
+
+      // Apply kill
+      target.alive = false;
+      state.bodies.push({ profileId: targetProfileId, x, y, reported: false });
+      caller.killCooldownUntil = now + this.config.value.killCooldownMs;
+
+      // Win check: impostor parity
+      let status: "active" | "ended" = "active";
+      if (this.impostorParity(state)) {
+        state.result = { winner: "impostor", reason: "kills" };
+        state.phase = "ended";
+        status = "ended";
+      }
+
+      await tx.gameSession.update({
+        where: { id: row.id },
+        data: {
+          state: state as unknown as object,
+          status,
+          ...(status === "ended"
+            ? { endedAt: new Date(), result: state.result as unknown as object }
+            : {}),
+        },
+      });
+
+      return state;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // report
+  // -------------------------------------------------------------------------
+
+  async report(partyId: string, profileId: string, bodyProfileId: string): Promise<AmongState> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+
+      const row = await this.findActiveAmong(tx, partyId);
+      if (!row) throw new NotFoundException("no-active-game");
+
+      const state = row.state as unknown as AmongState;
+
+      if (state.phase !== "playing") throw new BadRequestException("invalid");
+
+      const caller = state.players.find((p) => p.profileId === profileId);
+      if (!caller || !caller.alive) throw new BadRequestException("invalid");
+
+      const body = state.bodies.find(
+        (b) => b.profileId === bodyProfileId && b.reported === false,
+      );
+      if (!body) throw new BadRequestException("invalid");
+
+      body.reported = true;
+
+      const now = Date.now();
+      state.meeting = {
+        reason: "report",
+        calledBy: profileId,
+        bodyProfileId,
+        discussionEndsAt: now + this.config.value.discussionMs,
+        voteEndsAt: now + this.config.value.discussionMs + this.config.value.voteMs,
+        votes: {},
+      };
+      state.phase = "meeting";
+
+      await tx.gameSession.update({
+        where: { id: row.id },
+        data: { state: state as unknown as object },
+      });
+
+      return state;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // emergency
+  // -------------------------------------------------------------------------
+
+  async emergency(partyId: string, profileId: string): Promise<AmongState> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+
+      const row = await this.findActiveAmong(tx, partyId);
+      if (!row) throw new NotFoundException("no-active-game");
+
+      const state = row.state as unknown as AmongState;
+
+      if (state.phase !== "playing") throw new BadRequestException("invalid");
+
+      const caller = state.players.find((p) => p.profileId === profileId);
+      if (!caller || !caller.alive) throw new BadRequestException("invalid");
+      if (caller.emergencyUsed >= this.config.value.emergencyPerPlayer) {
+        throw new BadRequestException("invalid");
+      }
+
+      caller.emergencyUsed += 1;
+
+      const now = Date.now();
+      state.meeting = {
+        reason: "emergency",
+        calledBy: profileId,
+        discussionEndsAt: now + this.config.value.discussionMs,
+        voteEndsAt: now + this.config.value.discussionMs + this.config.value.voteMs,
+        votes: {},
+      };
+      state.phase = "meeting";
+
+      await tx.gameSession.update({
+        where: { id: row.id },
+        data: { state: state as unknown as object },
+      });
+
+      return state;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // vote
+  // -------------------------------------------------------------------------
+
+  async vote(partyId: string, profileId: string, target: string): Promise<AmongState> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+
+      const row = await this.findActiveAmong(tx, partyId);
+      if (!row) throw new NotFoundException("no-active-game");
+
+      const state = row.state as unknown as AmongState;
+
+      if (state.phase !== "voting") throw new BadRequestException("invalid");
+
+      const caller = state.players.find((p) => p.profileId === profileId);
+      if (!caller || !caller.alive) throw new BadRequestException("invalid");
+      if (state.meeting!.votes[profileId] !== undefined) throw new BadRequestException("invalid");
+
+      state.meeting!.votes[profileId] = target;
+
+      // If every alive player has voted, resolve the meeting
+      const alivePlayers = state.players.filter((p) => p.alive);
+      const everyoneVoted = alivePlayers.every(
+        (p) => state.meeting!.votes[p.profileId] !== undefined,
+      );
+      if (everyoneVoted) {
+        this.resolveMeeting(state);
+      }
+
+      const status: "active" | "ended" =
+        (state.phase as AmongState["phase"]) === "ended" ? "ended" : "active";
+
+      await tx.gameSession.update({
+        where: { id: row.id },
+        data: {
+          state: state as unknown as object,
+          status,
+          ...(status === "ended"
+            ? { endedAt: new Date(), result: state.result as unknown as object }
+            : {}),
+        },
+      });
+
+      return state;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // sweepMeetings
+  // -------------------------------------------------------------------------
+
+  async sweepMeetings(): Promise<string[]> {
+    const rows = await this.prisma.gameSession.findMany({
+      where: { status: "active", gameType: "among" },
+    });
+
+    const advanced: string[] = [];
+
+    for (const row of rows) {
+      const outerState = row.state as unknown as AmongState;
+      const now = Date.now();
+
+      const needsAdvance =
+        (outerState.phase === "meeting" &&
+          outerState.meeting !== null &&
+          now >= outerState.meeting.discussionEndsAt) ||
+        (outerState.phase === "voting" &&
+          outerState.meeting !== null &&
+          now >= outerState.meeting.voteEndsAt);
+
+      if (!needsAdvance) continue;
+
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          await this.lockParty(tx, row.partyId);
+
+          const fresh = await this.findActiveAmong(tx, row.partyId);
+          if (!fresh) return; // already ended by someone else
+
+          const state = fresh.state as unknown as AmongState;
+          const txNow = Date.now();
+
+          // Re-check conditions inside the tx
+          if (
+            state.phase === "meeting" &&
+            state.meeting !== null &&
+            txNow >= state.meeting.discussionEndsAt
+          ) {
+            state.phase = "voting";
+          } else if (
+            state.phase === "voting" &&
+            state.meeting !== null &&
+            txNow >= state.meeting.voteEndsAt
+          ) {
+            this.resolveMeeting(state);
+          } else {
+            // condition no longer holds (race guard)
+            return;
+          }
+
+          const status: "active" | "ended" =
+            (state.phase as AmongState["phase"]) === "ended" ? "ended" : "active";
+
+          await tx.gameSession.update({
+            where: { id: fresh.id },
+            data: {
+              state: state as unknown as object,
+              status,
+              ...(status === "ended"
+                ? { endedAt: new Date(), result: state.result as unknown as object }
+                : {}),
+            },
+          });
+
+          advanced.push(row.partyId);
+        });
+      } catch {
+        // Skip rows that errored — don't let one bad row block others
+      }
+    }
+
+    return advanced;
+  }
+
+  // -------------------------------------------------------------------------
   // project — pure, no DB, no lock
   // -------------------------------------------------------------------------
 
@@ -318,6 +594,78 @@ export class AmongService {
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------
+
+  /** Count of alive impostors. */
+  private aliveImpostors(state: AmongState): number {
+    return state.players.filter((p) => p.role === "impostor" && p.alive).length;
+  }
+
+  /** Count of alive crew (role !== "impostor" && alive). */
+  private aliveCrew(state: AmongState): number {
+    return state.players.filter((p) => p.role !== "impostor" && p.alive).length;
+  }
+
+  /** True if impostors >= crew and at least one impostor alive. */
+  private impostorParity(state: AmongState): boolean {
+    const ai = this.aliveImpostors(state);
+    return ai > 0 && ai >= this.aliveCrew(state);
+  }
+
+  /**
+   * Mutates state: tallies votes, ejects the unique plurality non-skip target (if any),
+   * then checks win conditions. If game continues, resets meeting and impostor cooldowns.
+   * Does NOT touch the DB.
+   */
+  private resolveMeeting(state: AmongState): void {
+    const votes = state.meeting!.votes;
+    const tally: Record<string, number> = {};
+    for (const v of Object.values(votes)) {
+      tally[v] = (tally[v] ?? 0) + 1;
+    }
+
+    const maxCount = Math.max(0, ...Object.values(tally));
+    const topTargets = Object.keys(tally).filter((k) => tally[k] === maxCount);
+    const nonSkipTop = topTargets.filter((t) => t !== "skip");
+
+    let ejectedId: string | null = null;
+    let ejectedRole: AmongRole = "crew";
+
+    if (nonSkipTop.length === 1 && (tally["skip"] ?? 0) < maxCount) {
+      // Unique non-skip plurality winner
+      ejectedId = nonSkipTop[0]!;
+      const ejectedPlayer = state.players.find((p) => p.profileId === ejectedId);
+      if (ejectedPlayer) {
+        ejectedPlayer.alive = false;
+        ejectedRole = ejectedPlayer.role;
+      }
+      state.lastEjected = { profileId: ejectedId, role: ejectedRole, wasSkip: false };
+    } else {
+      // Tie, skip wins, or no votes
+      state.lastEjected = { profileId: "", role: "crew", wasSkip: true };
+    }
+
+    // Win checks
+    if (this.aliveImpostors(state) === 0) {
+      state.result = { winner: "crew", reason: "ejected" };
+      state.phase = "ended";
+      return;
+    }
+    if (this.impostorParity(state)) {
+      state.result = { winner: "impostor", reason: "kills" };
+      state.phase = "ended";
+      return;
+    }
+
+    // Game continues
+    state.phase = "playing";
+    state.meeting = null;
+    const now = Date.now();
+    for (const p of state.players) {
+      if (p.role === "impostor" && p.alive) {
+        p.killCooldownUntil = now;
+      }
+    }
+  }
 
   private lockParty(tx: Prisma.TransactionClient, partyId: string) {
     return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${partyId})::bigint)`;

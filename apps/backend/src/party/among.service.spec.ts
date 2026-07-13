@@ -1,12 +1,29 @@
 import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { AmongService } from "./among.service";
 import type { AmongConfig } from "./among.config";
+import type { AmongState } from "./among.service";
 
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
 
-const gameSession = { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() };
+// In-memory store for sweepMeetings tests
+let mockStore: any[] = [];
+
+const gameSession = {
+  findFirst: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  findMany: jest.fn().mockImplementation(({ where }: any) => {
+    return Promise.resolve(
+      mockStore.filter(
+        (row) =>
+          (!where.status || row.status === where.status) &&
+          (!where.gameType || row.gameType === where.gameType),
+      ),
+    );
+  }),
+};
 const profile = { findMany: jest.fn() };
 const txExecuteRaw = jest.fn();
 const prisma = {
@@ -41,7 +58,20 @@ function makeService(configPartial: Partial<AmongConfig> = {}) {
 
 const service = makeService();
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockStore = [];
+  // Re-wire findMany to use current mockStore after clearAllMocks
+  gameSession.findMany.mockImplementation(({ where }: any) => {
+    return Promise.resolve(
+      mockStore.filter(
+        (row) =>
+          (!where.status || row.status === where.status) &&
+          (!where.gameType || row.gameType === where.gameType),
+      ),
+    );
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -57,6 +87,26 @@ function profileNames(n: number) {
 
 function activeRow(state: any) {
   return { id: "g1", partyId: "pt1", gameType: "among", status: "active", state };
+}
+
+/** Build a typical 4-player state: p4=impostor, p1/p2/p3=crew */
+function buildPlayingState(overrides: Partial<AmongState> = {}): AmongState {
+  return {
+    sessionId: "g1",
+    phase: "playing",
+    players: [
+      { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+      { profileId: "p2", name: "P2", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+      { profileId: "p3", name: "P3", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+      { profileId: "p4", name: "P4", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+    ],
+    tasks: [],
+    bodies: [],
+    meeting: null,
+    lastEjected: null,
+    result: null,
+    ...overrides,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -383,5 +433,505 @@ describe("project", () => {
   it("sessionId is propagated to snapshot", () => {
     const snap = service.project(buildFullState(), "crew1");
     expect(snap!.sessionId).toBe("g1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// kill
+// ---------------------------------------------------------------------------
+
+describe("kill", () => {
+  it("crew caller → invalid (not impostor)", async () => {
+    const state = buildPlayingState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.kill("pt1", "p1", "p2", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("dead impostor → invalid", async () => {
+    const state = buildPlayingState();
+    state.players.find((p) => p.profileId === "p4")!.alive = false;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("kill while on cooldown → invalid", async () => {
+    const state = buildPlayingState();
+    state.players.find((p) => p.profileId === "p4")!.killCooldownUntil = Date.now() + 99999;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("kill impostor target → invalid (cannot kill impostor)", async () => {
+    const state = buildPlayingState({
+      players: [
+        { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p2", name: "P2", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p3", name: "P3", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p4", name: "P4", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+      ],
+    });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    // p4 tries to kill fellow impostor p2
+    await expect(service.kill("pt1", "p4", "p2", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("kill dead target → invalid", async () => {
+    const state = buildPlayingState();
+    state.players.find((p) => p.profileId === "p1")!.alive = false;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("valid kill: target dies, body added, cooldown set", async () => {
+    const state = buildPlayingState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const now = Date.now();
+    const result = await service.kill("pt1", "p4", "p1", 0.3, 0.7);
+
+    const target = result.players.find((p) => p.profileId === "p1")!;
+    expect(target.alive).toBe(false);
+    expect(result.bodies).toHaveLength(1);
+    expect(result.bodies[0]).toMatchObject({ profileId: "p1", x: 0.3, y: 0.7, reported: false });
+    const killer = result.players.find((p) => p.profileId === "p4")!;
+    expect(killer.killCooldownUntil).toBeGreaterThanOrEqual(now + DEFAULT_CONFIG.killCooldownMs - 50);
+    expect(result.phase).toBe("playing");
+    expect(result.result).toBeNull();
+  });
+
+  it("kill phase not playing → invalid", async () => {
+    const state = buildPlayingState({ phase: "meeting" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("kill until impostor parity → result impostor/kills + phase ended", async () => {
+    // 2 crew alive, 1 impostor alive → parity after killing 1 crew
+    const state = buildPlayingState({
+      players: [
+        { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p2", name: "P2", role: "crew", alive: false, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p3", name: "P3", role: "crew", alive: false, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p4", name: "P4", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+      ],
+    });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.kill("pt1", "p4", "p1", 0.5, 0.5);
+
+    expect(result.phase).toBe("ended");
+    expect(result.result?.winner).toBe("impostor");
+    expect(result.result?.reason).toBe("kills");
+    const updateData = gameSession.update.mock.calls[0][0].data;
+    expect(updateData.status).toBe("ended");
+    expect(updateData.endedAt).toBeInstanceOf(Date);
+  });
+
+  it("no active game → NotFoundException", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// report
+// ---------------------------------------------------------------------------
+
+describe("report", () => {
+  it("report existing unreported body → phase meeting, meeting object set", async () => {
+    const state = buildPlayingState({
+      bodies: [{ profileId: "p2", x: 0.5, y: 0.5, reported: false }],
+    });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.report("pt1", "p1", "p2");
+
+    expect(result.phase).toBe("meeting");
+    expect(result.meeting).not.toBeNull();
+    expect(result.meeting!.reason).toBe("report");
+    expect(result.meeting!.calledBy).toBe("p1");
+    expect(result.meeting!.bodyProfileId).toBe("p2");
+    expect(result.meeting!.votes).toEqual({});
+    expect(typeof result.meeting!.discussionEndsAt).toBe("number");
+    expect(typeof result.meeting!.voteEndsAt).toBe("number");
+    expect(result.meeting!.voteEndsAt).toBeGreaterThan(result.meeting!.discussionEndsAt);
+    // body marked reported
+    expect(result.bodies[0]!.reported).toBe(true);
+  });
+
+  it("report nonexistent body → invalid", async () => {
+    const state = buildPlayingState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.report("pt1", "p1", "p99")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("report already-reported body → invalid", async () => {
+    const state = buildPlayingState({
+      bodies: [{ profileId: "p2", x: 0.5, y: 0.5, reported: true }],
+    });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.report("pt1", "p1", "p2")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("dead caller can still report (MVP: any alive or dead finds body)", async () => {
+    // Per spec: caller alive check → spec says "caller alive (in players)". Let's test alive caller only.
+    // Dead caller → invalid per spec
+    const state = buildPlayingState({
+      bodies: [{ profileId: "p2", x: 0.5, y: 0.5, reported: false }],
+    });
+    state.players.find((p) => p.profileId === "p1")!.alive = false;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.report("pt1", "p1", "p2")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("report when phase is not playing → invalid", async () => {
+    const state = buildPlayingState({ phase: "voting" });
+    state.bodies.push({ profileId: "p2", x: 0.5, y: 0.5, reported: false });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.report("pt1", "p1", "p2")).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// emergency
+// ---------------------------------------------------------------------------
+
+describe("emergency", () => {
+  it("within limit → enters meeting with reason emergency", async () => {
+    const state = buildPlayingState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.emergency("pt1", "p1");
+
+    expect(result.phase).toBe("meeting");
+    expect(result.meeting!.reason).toBe("emergency");
+    expect(result.meeting!.calledBy).toBe("p1");
+    expect(result.meeting!.bodyProfileId).toBeUndefined();
+    const caller = result.players.find((p) => p.profileId === "p1")!;
+    expect(caller.emergencyUsed).toBe(1);
+  });
+
+  it("over limit → invalid", async () => {
+    const state = buildPlayingState();
+    state.players.find((p) => p.profileId === "p1")!.emergencyUsed = DEFAULT_CONFIG.emergencyPerPlayer;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.emergency("pt1", "p1")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("dead caller → invalid", async () => {
+    const state = buildPlayingState();
+    state.players.find((p) => p.profileId === "p1")!.alive = false;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.emergency("pt1", "p1")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("phase not playing → invalid", async () => {
+    const state = buildPlayingState({ phase: "voting" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.emergency("pt1", "p1")).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// vote
+// ---------------------------------------------------------------------------
+
+describe("vote", () => {
+  function buildVotingState(extraVotes: Record<string, string> = {}): AmongState {
+    return {
+      ...buildPlayingState(),
+      phase: "voting",
+      meeting: {
+        reason: "emergency",
+        calledBy: "p1",
+        discussionEndsAt: Date.now() - 1000,
+        voteEndsAt: Date.now() + 30000,
+        votes: { ...extraVotes },
+      },
+    };
+  }
+
+  it("vote while phase 'playing' → invalid", async () => {
+    const state = buildPlayingState();
+    // Attach a meeting to make the only issue be phase
+    (state as any).meeting = {
+      reason: "emergency",
+      calledBy: "p1",
+      discussionEndsAt: Date.now() - 1000,
+      voteEndsAt: Date.now() + 30000,
+      votes: {},
+    };
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.vote("pt1", "p1", "p4")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("vote while phase 'meeting' → invalid", async () => {
+    const state: AmongState = {
+      ...buildPlayingState(),
+      phase: "meeting",
+      meeting: {
+        reason: "emergency",
+        calledBy: "p1",
+        discussionEndsAt: Date.now() + 30000,
+        voteEndsAt: Date.now() + 60000,
+        votes: {},
+      },
+    };
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.vote("pt1", "p1", "p4")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("dead player cannot vote → invalid", async () => {
+    const state = buildVotingState();
+    state.players.find((p) => p.profileId === "p1")!.alive = false;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.vote("pt1", "p1", "p4")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("already voted → invalid", async () => {
+    const state = buildVotingState({ p1: "p4" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    await expect(service.vote("pt1", "p1", "p4")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("records vote, game continues when not all voted", async () => {
+    const state = buildVotingState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.vote("pt1", "p1", "p4");
+
+    // Not all 4 players voted (only 1), game continues
+    expect(result.meeting!.votes["p1"]).toBe("p4");
+    expect(result.phase).toBe("voting");
+    expect(result.result).toBeNull();
+  });
+
+  it("all alive players vote → resolveMeeting: plurality target ejected, game continues", async () => {
+    // 3 crew alive + 1 impostor alive; all vote to eject impostor p4
+    const state = buildVotingState({ p1: "p4", p2: "p4", p3: "p4" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    // p4 (the last to vote) casts their own vote as "skip" — majority is still p4 for 3 votes
+    const result = await service.vote("pt1", "p4", "skip");
+
+    // p4 should be ejected
+    const ejected = result.players.find((p) => p.profileId === "p4")!;
+    expect(ejected.alive).toBe(false);
+    expect(result.lastEjected?.profileId).toBe("p4");
+    expect(result.lastEjected?.wasSkip).toBe(false);
+    // All impostors dead → crew wins
+    expect(result.phase).toBe("ended");
+    expect(result.result?.winner).toBe("crew");
+    expect(result.result?.reason).toBe("ejected");
+  });
+
+  it("all alive vote: impostor ejected but crew still outnumbered → impostor wins", async () => {
+    // 1 crew alive, 2 impostors alive — after ejecting 1 impostor: 1 crew vs 1 impostor → parity → impostor wins
+    const state: AmongState = {
+      sessionId: "g1",
+      phase: "voting",
+      players: [
+        { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p2", name: "P2", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        { profileId: "p3", name: "P3", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+      ],
+      tasks: [],
+      bodies: [],
+      meeting: {
+        reason: "emergency",
+        calledBy: "p1",
+        discussionEndsAt: Date.now() - 1000,
+        voteEndsAt: Date.now() + 30000,
+        votes: { p2: "p3", p3: "p3" },
+      },
+      lastEjected: null,
+      result: null,
+    };
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.vote("pt1", "p1", "p3");
+
+    // p3 gets 3 votes (p1+p2+p3 all voted for p3), ejected
+    expect(result.players.find((p) => p.profileId === "p3")!.alive).toBe(false);
+    // After ejection: p1(crew alive), p2(impostor alive) → parity → impostor wins
+    expect(result.phase).toBe("ended");
+    expect(result.result?.winner).toBe("impostor");
+    expect(result.result?.reason).toBe("kills");
+  });
+
+  it("tie vote → no eject, lastEjected.wasSkip true, game continues", async () => {
+    // p1, p2 vote for p3; p3, p4 vote for p1 → 2-2 tie
+    const state = buildVotingState({ p1: "p4", p2: "p4" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    // p3 votes for p1, p4 votes for p1 → tie: p4 has 2 votes, p1 has 2 votes
+    // We need all 4 to vote: p1 and p2 already voted (p4), p3 votes (skip is fine too)
+    // Let's reconstruct: p1→p4, p2→p4, p3→p1, and p4 is the last voter
+    const state2 = buildVotingState({ p1: "p4", p2: "p4", p3: "p1" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state2));
+
+    const result = await service.vote("pt1", "p4", "p1");
+
+    // Tally: p4 gets 2 votes (p1+p2), p1 gets 2 votes (p3+p4) → tie
+    expect(result.lastEjected?.wasSkip).toBe(true);
+    expect(result.phase).toBe("playing");
+    expect(result.meeting).toBeNull();
+    expect(result.result).toBeNull();
+  });
+
+  it("skip majority → no eject, wasSkip true, game continues", async () => {
+    const state = buildVotingState({ p1: "skip", p2: "skip", p3: "skip" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.vote("pt1", "p4", "p1");
+
+    // skip has 3 votes, p1 has 1 → skip wins → no eject
+    expect(result.lastEjected?.wasSkip).toBe(true);
+    expect(result.phase).toBe("playing");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sweepMeetings
+// ---------------------------------------------------------------------------
+
+describe("sweepMeetings", () => {
+  /** Seed the mock store and wire findFirst/findMany appropriately. */
+  function seedRow(id: string, partyId: string, state: AmongState) {
+    const row = { id, partyId, gameType: "among", status: "active", state };
+    mockStore.push(row);
+    // findFirst in tx will use the mock from gameSession
+    return row;
+  }
+
+  beforeEach(() => {
+    gameSession.update.mockResolvedValue({});
+    // Wire findFirst to look up by partyId from mockStore inside transaction
+    gameSession.findFirst.mockImplementation(({ where }: any) => {
+      const row = mockStore.find(
+        (r) =>
+          r.partyId === where.partyId &&
+          r.status === (where.status ?? r.status) &&
+          r.gameType === (where.gameType ?? r.gameType),
+      );
+      return Promise.resolve(row ?? null);
+    });
+  });
+
+  it("phase 'meeting' with past discussionEndsAt → flips to voting, returns partyId", async () => {
+    const state = buildPlayingState({
+      phase: "meeting",
+      meeting: {
+        reason: "emergency",
+        calledBy: "p1",
+        discussionEndsAt: Date.now() - 5000, // in the past
+        voteEndsAt: Date.now() + 30000,
+        votes: {},
+      },
+    });
+    seedRow("g1", "pt1", state);
+
+    const result = await service.sweepMeetings();
+
+    expect(result).toContain("pt1");
+    const updateData = gameSession.update.mock.calls[0][0].data;
+    const updatedState = updateData.state as AmongState;
+    expect(updatedState.phase).toBe("voting");
+  });
+
+  it("phase 'voting' with past voteEndsAt → resolves meeting, returns partyId", async () => {
+    // All 4 players alive, votes already in (but need resolve via sweep)
+    // No votes yet, so no one ejected → skip
+    const state = buildPlayingState({
+      phase: "voting",
+      meeting: {
+        reason: "emergency",
+        calledBy: "p1",
+        discussionEndsAt: Date.now() - 60000,
+        voteEndsAt: Date.now() - 1000, // in the past
+        votes: {},
+      },
+    });
+    seedRow("g1", "pt1", state);
+
+    const result = await service.sweepMeetings();
+
+    expect(result).toContain("pt1");
+    const updateData = gameSession.update.mock.calls[0][0].data;
+    const updatedState = updateData.state as AmongState;
+    // No votes = skip result, phase back to playing
+    expect(updatedState.phase).toBe("playing");
+    expect(updatedState.lastEjected?.wasSkip).toBe(true);
+    expect(updatedState.meeting).toBeNull();
+  });
+
+  it("phase 'playing' (no meeting) → not swept, not in result", async () => {
+    const state = buildPlayingState();
+    seedRow("g1", "pt1", state);
+
+    const result = await service.sweepMeetings();
+
+    expect(result).not.toContain("pt1");
+    expect(gameSession.update).not.toHaveBeenCalled();
+  });
+
+  it("phase 'meeting' with future discussionEndsAt → not swept", async () => {
+    const state = buildPlayingState({
+      phase: "meeting",
+      meeting: {
+        reason: "emergency",
+        calledBy: "p1",
+        discussionEndsAt: Date.now() + 99999,
+        voteEndsAt: Date.now() + 199999,
+        votes: {},
+      },
+    });
+    seedRow("g1", "pt1", state);
+
+    const result = await service.sweepMeetings();
+
+    expect(result).not.toContain("pt1");
+  });
+
+  it("handles multiple parties: advances eligible ones, skips others", async () => {
+    const stateA = buildPlayingState({
+      phase: "meeting",
+      meeting: {
+        reason: "emergency",
+        calledBy: "p1",
+        discussionEndsAt: Date.now() - 5000,
+        voteEndsAt: Date.now() + 30000,
+        votes: {},
+      },
+    });
+    const stateB = buildPlayingState({ phase: "playing" });
+
+    seedRow("g1", "pt1", stateA);
+    seedRow("g2", "pt2", stateB);
+
+    // Need separate findFirst for each partyId
+    gameSession.findFirst.mockImplementation(({ where }: any) => {
+      const row = mockStore.find(
+        (r) =>
+          r.partyId === where.partyId &&
+          (!where.status || r.status === where.status) &&
+          (!where.gameType || r.gameType === where.gameType),
+      );
+      return Promise.resolve(row ?? null);
+    });
+
+    const result = await service.sweepMeetings();
+
+    expect(result).toContain("pt1");
+    expect(result).not.toContain("pt2");
   });
 });
