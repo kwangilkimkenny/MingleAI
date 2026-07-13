@@ -1,0 +1,116 @@
+/**
+ * ResultScreen — shown when among.phase === "ended".
+ * Reveals winner + all players' roles. "다시하기" CTA.
+ */
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import type { AmongPlayerView, AmongResultView } from "@mingle/shared";
+import { colors, fonts } from "../../lib/theme";
+import { DoodleButton, DoodleCard } from "../Doodle";
+
+const REASON_LABELS: Record<AmongResultView["reason"], string> = {
+  tasks: "모든 미션 완료",
+  ejected: "임포스터 추방",
+  kills: "크루메이트 전멸",
+};
+
+export function ResultScreen({
+  result,
+  players,
+  onRestart,
+}: {
+  result: AmongResultView;
+  players: AmongPlayerView[];
+  onRestart: () => void;
+}) {
+  const crewWon = result.winner === "crew";
+
+  return (
+    <View style={styles.container}>
+      <DoodleCard style={styles.card}>
+        {/* Winner banner */}
+        <View style={styles.banner}>
+          <Text style={styles.bannerEmoji}>{crewWon ? "🎉" : "🔪"}</Text>
+          <Text style={[styles.bannerTitle, { color: crewWon ? colors.ink : colors.accent }]}>
+            {crewWon ? "크루메이트 승리!" : "임포스터 승리!"}
+          </Text>
+          <Text style={styles.bannerReason}>{REASON_LABELS[result.reason]}</Text>
+        </View>
+
+        {/* Player reveal list */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>플레이어 역할 공개</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.list}>
+            {players.map((p) => {
+              const isImpostor = p.role === "impostor";
+              return (
+                <View key={p.profileId} style={styles.playerRow}>
+                  <Text style={styles.roleEmoji}>{isImpostor ? "🔪" : "🛠️"}</Text>
+                  <View style={styles.playerInfo}>
+                    <Text style={styles.playerName}>{p.name}</Text>
+                    <Text
+                      style={[
+                        styles.roleLabel,
+                        { color: isImpostor ? colors.accent : colors.grayMid },
+                      ]}
+                    >
+                      {isImpostor ? "임포스터" : "크루메이트"}
+                      {!p.alive ? " · 사망" : ""}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        <DoodleButton title="다시하기" onPress={onRestart} variant="primary" />
+      </DoodleCard>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  card: { flex: 1 },
+  banner: {
+    alignItems: "center",
+    paddingVertical: 12,
+    marginBottom: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.grayLight,
+    gap: 6,
+  },
+  bannerEmoji: { fontSize: 48 },
+  bannerTitle: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  bannerReason: {
+    fontSize: 13,
+    color: colors.grayMid,
+  },
+  section: { flex: 1, marginBottom: 16 },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.grayDark,
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  list: { flex: 1 },
+  playerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.grayLight,
+  },
+  roleEmoji: { fontSize: 22 },
+  playerInfo: { flex: 1 },
+  playerName: { fontSize: 16, color: colors.ink, fontWeight: "600" },
+  roleLabel: { fontSize: 12, marginTop: 2 },
+});
