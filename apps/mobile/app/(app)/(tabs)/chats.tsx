@@ -12,6 +12,7 @@ import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
+const ACCENT = "#C2185B"; // dark-pink point color (unread badge)
 const GRAY_LIGHT = "#D9D5CC";
 const GRAY_MED = "#8A857C";
 
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
   peerName: { fontSize: 15, fontWeight: "700", color: INK },
   lastMsg: { fontSize: 13, color: GRAY_MED, marginTop: 2 },
   badge: {
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
     borderRadius: 12,
     minWidth: 22,
     height: 22,

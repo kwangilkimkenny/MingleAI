@@ -131,7 +131,12 @@ const styles = StyleSheet.create({
   toggleLabel: { color: INK, fontSize: 14 },
   markAll: { color: "#8A857C", fontSize: 13, marginBottom: 8 },
   row: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#E7E4DC" },
-  unread: { backgroundColor: "#F1EFE9" },
+  unread: {
+    backgroundColor: "#FBE4EE", // pale pink accent fill
+    borderLeftWidth: 3,
+    borderLeftColor: "#C2185B", // dark-pink point color
+    paddingLeft: 10,
+  },
   rowTitle: { fontSize: 15, fontWeight: "600", color: INK },
   rowMsg: { fontSize: 13, color: "#45413A", marginTop: 2 },
   empty: { textAlign: "center", color: "#8A857C", marginTop: 40 },

@@ -10,6 +10,12 @@ export const colors = {
   grayLight: "#D9D5CC", // borders / dividers
   fill: "#F1EFE9", // subtle surface fill
   fillDeep: "#E7E4DC", // deeper surface fill
+  // Accent — the single POINT COLOR (dark pink). Used sparingly for emphasis only:
+  // the one primary CTA per screen, the active tab, unread badges. Everything else stays B&W.
+  accent: "#C2185B", // dark pink — primary emphasis / active state
+  accentDeep: "#9E1350", // pressed / stronger accent
+  accentFill: "#FBE4EE", // pale pink surface tint
+  onAccent: "#FFFFFF", // text/icons on an accent fill
 } as const;
 
 /**

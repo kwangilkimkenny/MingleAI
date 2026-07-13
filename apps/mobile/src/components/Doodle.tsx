@@ -80,8 +80,9 @@ export function DoodleButton({
   style?: StyleProp<ViewStyle>;
 }) {
   const primary = variant === "primary";
-  const bg = disabled ? colors.fillDeep : primary ? colors.ink : colors.paper;
-  const fg = disabled ? colors.grayMid : primary ? colors.paper : colors.ink;
+  // Primary = the accent (dark pink) block; the ink border + ink offset shadow keep the doodle look.
+  const bg = disabled ? colors.fillDeep : primary ? colors.accent : colors.paper;
+  const fg = disabled ? colors.grayMid : primary ? colors.onAccent : colors.ink;
   return (
     <Pressable
       accessibilityRole="button"

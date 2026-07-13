@@ -6,5 +6,6 @@ export default function Index() {
   const hydrated = useAuthHydrated();
   const token = useAuthStore((s) => s.token);
   if (!hydrated) return null;
-  return <Redirect href={token ? "/(app)/home" : "/login"} />;
+  // First entry (no session) → sign-up. Existing users reach login via the register screen's link.
+  return <Redirect href={token ? "/(app)/home" : "/register"} />;
 }

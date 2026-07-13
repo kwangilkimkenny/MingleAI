@@ -13,7 +13,7 @@ export default function TabsLayout() {
       screenOptions={{
         ...doodleHeaderOptions,
         headerTitle: "MingleAI",
-        tabBarActiveTintColor: colors.ink,
+        tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.grayMid,
         tabBarStyle: {
           backgroundColor: colors.paper,
