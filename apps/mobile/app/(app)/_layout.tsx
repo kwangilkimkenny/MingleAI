@@ -53,7 +53,19 @@ export default function AppLayout() {
       </View>
     );
   }
-  return <Stack screenOptions={{ headerTitle: "MingleAI", ...doodleHeaderOptions }} />;
+  return (
+    <Stack screenOptions={{ headerTitle: "MingleAI", ...doodleHeaderOptions }}>
+      {/* The fixed bottom-tab surface owns its own headers */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {/* Detail screens push OVER the tabs with a back button */}
+      <Stack.Screen name="matching" options={{ title: "매칭" }} />
+      <Stack.Screen name="blocks" options={{ title: "차단 목록" }} />
+      <Stack.Screen name="chat/[roomId]" options={{ title: "채팅" }} />
+      <Stack.Screen name="party/[id]" options={{ title: "파티" }} />
+      <Stack.Screen name="date-plan/[matchId]" options={{ title: "데이트 플랜" }} />
+      <Stack.Screen name="report/[profileId]" options={{ title: "신고" }} />
+    </Stack>
+  );
 }
 
 const styles = StyleSheet.create({

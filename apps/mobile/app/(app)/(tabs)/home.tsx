@@ -1,8 +1,9 @@
-import { colors } from "../../src/lib/theme";
+import { colors } from "../../../src/lib/theme";
 import { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { DoodleButton, DoodleCard } from "../../src/components/Doodle";
+import { Sparkles, Heart } from "lucide-react-native";
+import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 
 export default function Home() {
   const { notice } = useLocalSearchParams<{ notice?: string }>();
@@ -30,23 +31,22 @@ export default function Home() {
       ) : null}
 
       <View style={styles.hero}>
+        <View style={styles.mark}>
+          <Sparkles color={colors.ink} size={40} strokeWidth={1.75} />
+        </View>
         <Text style={styles.title}>MingleAI</Text>
         <Text style={styles.subtitle}>가벼운 만남, 편안한 연결</Text>
       </View>
 
       <View style={styles.actions}>
-        <DoodleButton title="매칭 시작" onPress={onStartMatching} variant="primary" rotate="-0.8deg" />
-        <DoodleButton title="프로포즈" onPress={() => router.push("/(app)/proposals")} />
-        <DoodleButton title="채팅" onPress={() => router.push("/(app)/chats")} />
-        <DoodleButton title="알림" onPress={() => router.push("/(app)/notifications")} />
         <DoodleButton
-          title="설정"
-          onPress={() =>
-            // new route — Expo Router typegen updates on next `expo start`
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            router.push("/(app)/settings" as any)
-          }
+          title="매칭 시작"
+          onPress={onStartMatching}
+          variant="primary"
+          rotate="-0.8deg"
+          icon={(color, size) => <Heart color={color} size={size} strokeWidth={2} />}
         />
+        <Text style={styles.hint}>새로운 사람들과 가볍게 만나보세요.{"\n"}채팅·프로포즈·알림은 아래 탭에서 확인해요.</Text>
       </View>
     </View>
   );
@@ -56,14 +56,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    gap: 28,
+    gap: 32,
     padding: 24,
     backgroundColor: colors.paper,
   },
-  hero: { alignItems: "center", gap: 6 },
-  title: { fontSize: 40, fontWeight: "800", color: colors.ink, letterSpacing: 0.5 },
+  hero: { alignItems: "center", gap: 10 },
+  mark: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.fill,
+  },
+  title: { fontSize: 38, fontWeight: "800", color: colors.ink, letterSpacing: 0.5 },
   subtitle: { fontSize: 15, color: colors.grayMid },
-  actions: { gap: 14 },
+  actions: { gap: 16 },
+  hint: { fontSize: 13, color: colors.grayMid, textAlign: "center", lineHeight: 20 },
   noticeCard: { marginBottom: 4 },
   noticeInner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12 },
   noticeText: { flex: 1, fontSize: 13, color: colors.grayDark },

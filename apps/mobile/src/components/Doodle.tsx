@@ -67,6 +67,7 @@ export function DoodleButton({
   variant = "secondary",
   disabled = false,
   rotate,
+  icon,
   style,
 }: {
   title: string;
@@ -74,6 +75,8 @@ export function DoodleButton({
   variant?: "primary" | "secondary";
   disabled?: boolean;
   rotate?: string;
+  /** Optional leading icon (e.g. a Lucide line icon), tinted to match the label. */
+  icon?: (color: string, size: number) => ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const primary = variant === "primary";
@@ -95,6 +98,7 @@ export function DoodleButton({
     >
       <ShadowBox radius={doodle.radius.button} bg={bg} rotate={rotate}>
         <View style={styles.btnInner}>
+          {icon ? icon(fg, 20) : null}
           <Text style={[styles.btnText, { color: fg }]}>{title}</Text>
         </View>
       </ShadowBox>
@@ -139,7 +143,14 @@ const styles = StyleSheet.create({
   shadowOuter: { position: "relative", alignSelf: "stretch" },
   surface: { borderWidth: doodle.border, borderColor: colors.ink },
   pressable: { alignSelf: "stretch" },
-  btnInner: { paddingVertical: 12, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
+  btnInner: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   btnText: { fontSize: 16, fontWeight: "700", letterSpacing: 0.2 },
   cardInner: { padding: 16 },
 });

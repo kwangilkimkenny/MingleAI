@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getMyProfile } from "@mingle/client-core";
-import { useAuthStore } from "../../src/lib/client";
+import { useAuthStore } from "../../../src/lib/client";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";

@@ -16,7 +16,7 @@ import {
   setPushEnabled,
   type AppNotification,
 } from "@mingle/client-core";
-import { routeForNotification, type NotificationData } from "../../src/lib/route-for-notification";
+import { routeForNotification, type NotificationData } from "../../../src/lib/route-for-notification";
 
 const INK = "#17150F";
 

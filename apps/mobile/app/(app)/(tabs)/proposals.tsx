@@ -15,7 +15,7 @@ import {
   ApiError,
   type ProposalView,
 } from "@mingle/client-core";
-import { PeerModerationMenu } from "../../src/components/PeerModerationMenu";
+import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
