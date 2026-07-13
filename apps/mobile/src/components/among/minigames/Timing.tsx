@@ -22,6 +22,8 @@ export function Timing({ onComplete }: { onComplete: () => void }) {
   const dirRef = useRef(1); // 1 = moving right, -1 = moving left
   const animX = useRef(new Animated.Value(0)).current;
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doneRef = useRef(false); // synchronous guard against double-onComplete on rapid taps
 
   const clearSweep = () => {
     if (intervalRef.current !== null) {
@@ -52,22 +54,33 @@ export function Timing({ onComplete }: { onComplete: () => void }) {
   }, [done, animX]);
 
   const handleStop = useCallback(() => {
-    if (done) return;
+    if (doneRef.current) return;
     const pos = posRef.current;
     if (inTargetZone(pos, TARGET_LO, TARGET_HI)) {
-      const nextHits = hits + 1;
-      setHits(nextHits);
+      setHits((h) => {
+        const nextHits = h + 1;
+        if (nextHits >= HITS_NEEDED && !doneRef.current) {
+          doneRef.current = true; // set synchronously so a same-tick double-tap can't re-fire
+          setDone(true);
+          onComplete();
+        }
+        return nextHits;
+      });
       setLastResult("hit");
-      if (nextHits >= HITS_NEEDED) {
-        setDone(true);
-        onComplete();
-      }
     } else {
       setLastResult("miss");
     }
-    // Clear result flash after 600ms
-    setTimeout(() => setLastResult(null), 600);
-  }, [done, hits, onComplete]);
+    // Clear result flash after 600ms (tracked so it can't fire after unmount)
+    if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setLastResult(null), 600);
+  }, [onComplete]);
+
+  // Clear the flash timer on unmount (the sweep interval is cleared by its own effect).
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
+    };
+  }, []);
 
   const resultColor =
     lastResult === "hit" ? colors.accent : lastResult === "miss" ? colors.grayMid : "transparent";

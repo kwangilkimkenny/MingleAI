@@ -18,22 +18,23 @@ export function ResultScreen({
   players,
   onRestart,
 }: {
-  result: AmongResultView;
+  // null when the game was force-ended (among:end) with no winner decided.
+  result: AmongResultView | null;
   players: AmongPlayerView[];
   onRestart: () => void;
 }) {
-  const crewWon = result.winner === "crew";
+  const crewWon = result?.winner === "crew";
 
   return (
     <View style={styles.container}>
       <DoodleCard style={styles.card}>
         {/* Winner banner */}
         <View style={styles.banner}>
-          <Text style={styles.bannerEmoji}>{crewWon ? "🎉" : "🔪"}</Text>
+          <Text style={styles.bannerEmoji}>{!result ? "🏁" : crewWon ? "🎉" : "🔪"}</Text>
           <Text style={[styles.bannerTitle, { color: crewWon ? colors.ink : colors.accent }]}>
-            {crewWon ? "크루메이트 승리!" : "임포스터 승리!"}
+            {!result ? "게임 종료" : crewWon ? "크루메이트 승리!" : "임포스터 승리!"}
           </Text>
-          <Text style={styles.bannerReason}>{REASON_LABELS[result.reason]}</Text>
+          {result ? <Text style={styles.bannerReason}>{REASON_LABELS[result.reason]}</Text> : null}
         </View>
 
         {/* Player reveal list */}

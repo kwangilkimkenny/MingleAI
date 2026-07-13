@@ -87,7 +87,7 @@ export function AmongGame({
   if (among.phase === "ended") {
     return (
       <ResultScreen
-        result={among.result!}
+        result={among.result}
         players={among.players}
         onRestart={handlers.restart}
       />
