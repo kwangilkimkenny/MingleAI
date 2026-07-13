@@ -659,15 +659,19 @@ export class AmongService {
       state.lastEjected = { profileId: "", role: "crew", wasSkip: true };
     }
 
-    // Win checks
+    // Win checks. On game-end, clear the meeting so the `ended` snapshot never carries a
+    // stale meeting object (a non-null meeting after end would make clients keying off
+    // `meeting !== null` render a discussion/vote screen post-game).
     if (this.aliveImpostors(state) === 0) {
       state.result = { winner: "crew", reason: "ejected" };
       state.phase = "ended";
+      state.meeting = null;
       return;
     }
     if (this.impostorParity(state)) {
       state.result = { winner: "impostor", reason: "kills" };
       state.phase = "ended";
+      state.meeting = null;
       return;
     }
 

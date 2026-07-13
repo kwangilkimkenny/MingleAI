@@ -764,6 +764,8 @@ describe("vote", () => {
     expect(result.phase).toBe("ended");
     expect(result.result?.winner).toBe("impostor");
     expect(result.result?.reason).toBe("kills");
+    // Regression: the ended snapshot must NOT carry a stale meeting object.
+    expect(result.meeting).toBeNull();
   });
 
   it("tie vote → no eject, lastEjected.wasSkip true, game continues", async () => {
