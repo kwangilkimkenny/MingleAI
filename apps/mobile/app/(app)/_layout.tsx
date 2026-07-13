@@ -1,4 +1,4 @@
-import { colors } from "../../src/lib/theme";
+import { colors, doodleHeaderOptions } from "../../src/lib/theme";
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Redirect, Stack } from "expo-router";
@@ -53,7 +53,7 @@ export default function AppLayout() {
       </View>
     );
   }
-  return <Stack screenOptions={{ headerTitle: "MingleAI" }} />;
+  return <Stack screenOptions={{ headerTitle: "MingleAI", ...doodleHeaderOptions }} />;
 }
 
 const styles = StyleSheet.create({

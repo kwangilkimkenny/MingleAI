@@ -1,7 +1,8 @@
 import { colors } from "../../src/lib/theme";
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Button, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { router } from "expo-router";
+import { DoodleButton } from "../../src/components/Doodle";
 import {
   enqueueMatchmaking,
   cancelMatchmaking,
@@ -92,8 +93,8 @@ export default function Matching() {
     return (
       <View style={styles.center}>
         <Text style={styles.msg}>지금은 매칭이 어려워요. 잠시 후 다시 시도해 주세요.</Text>
-        <Button title="다시 시도" onPress={onRetry} />
-        <Button title="홈으로" onPress={() => router.replace("/(app)/home")} />
+        <DoodleButton title="다시 시도" onPress={onRetry} variant="primary" />
+        <DoodleButton title="홈으로" onPress={() => router.replace("/(app)/home")} />
       </View>
     );
   }
@@ -101,27 +102,34 @@ export default function Matching() {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error}</Text>
-        <Button title="홈으로" onPress={() => router.replace("/(app)/home")} />
+        <DoodleButton title="홈으로" onPress={() => router.replace("/(app)/home")} />
       </View>
     );
   }
   return (
     <View style={styles.center}>
-      <ActivityIndicator size="large" />
+      <ActivityIndicator size="large" color={colors.ink} />
       <Text style={styles.msg}>매칭 중...</Text>
       {phase === "waiting" ? (
         <Text style={styles.sub}>{Math.floor(elapsed / 1000)}초 경과</Text>
       ) : (
         <Text style={styles.sub}>매칭 준비 중...</Text>
       )}
-      <Button title="취소" onPress={onCancel} />
+      <DoodleButton title="취소" onPress={onCancel} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16, padding: 24 },
-  msg: { fontSize: 16, color: colors.ink },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    padding: 24,
+    backgroundColor: colors.paper,
+  },
+  msg: { fontSize: 16, color: colors.ink, fontWeight: "600" },
   sub: { fontSize: 13, color: colors.grayMid },
   error: { color: colors.ink, textAlign: "center" },
 });

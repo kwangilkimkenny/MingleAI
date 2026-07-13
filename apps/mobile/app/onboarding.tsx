@@ -1,10 +1,9 @@
-import { colors } from "../src/lib/theme";
+import { colors, doodle } from "../src/lib/theme";
 import { useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
-  Button,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -14,6 +13,7 @@ import { Redirect, router } from "expo-router";
 import { createProfile, getMyProfile, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
+import { DoodleButton, doodleInputStyle } from "../src/components/Doodle";
 
 const GENDER_OPTIONS = [
   { label: "남성", value: "male" },
@@ -108,7 +108,7 @@ export default function Onboarding() {
   if (busy) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.ink} />
         <Text style={styles.loadingText}>선호 분석 중...</Text>
       </View>
     );
@@ -173,31 +173,40 @@ export default function Onboarding() {
       {validationError ? <Text style={styles.error}>{validationError}</Text> : null}
       {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
 
-      <Button title="저장하기" onPress={onSubmit} />
+      <View style={styles.saveWrap}>
+        <DoodleButton title="저장하기" onPress={onSubmit} variant="primary" />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    backgroundColor: colors.paper,
+  },
   loadingText: { fontSize: 16, color: colors.grayDark },
-  container: { padding: 24, gap: 8 },
-  title: { fontSize: 22, fontWeight: "600", marginBottom: 8 },
-  label: { fontSize: 14, fontWeight: "500", color: colors.ink, marginTop: 8 },
-  input: { borderWidth: 1, borderColor: colors.grayLight, borderRadius: 8, padding: 12 },
+  container: { padding: 24, gap: 8, backgroundColor: colors.paper },
+  title: { fontSize: 28, fontWeight: "800", color: colors.ink, marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: "700", color: colors.ink, marginTop: 12 },
+  input: { ...doodleInputStyle, marginTop: 4 },
   multiline: { height: 96, textAlignVertical: "top" },
-  segmentRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  segmentRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   segment: {
     flexBasis: "47%",
     flexGrow: 1,
-    borderWidth: 1,
-    borderColor: colors.grayLight,
-    borderRadius: 8,
-    padding: 10,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    padding: 12,
     alignItems: "center",
+    ...doodle.radius.chip,
   },
   segmentActive: { borderColor: colors.ink, backgroundColor: colors.ink },
-  segmentText: { color: colors.ink },
-  segmentTextActive: { color: colors.paper },
-  error: { color: colors.ink, marginTop: 4 },
+  segmentText: { color: colors.ink, fontWeight: "600" },
+  segmentTextActive: { color: colors.paper, fontWeight: "700" },
+  error: { color: colors.ink, fontWeight: "600", marginTop: 4 },
+  saveWrap: { marginTop: 20 },
 });

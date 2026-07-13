@@ -4,13 +4,13 @@ import {
   Text,
   ScrollView,
   ActivityIndicator,
-  Button,
   TouchableOpacity,
   StyleSheet,
   TextInput,
   Pressable,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { DoodleButton } from "../../../src/components/Doodle";
 import { getMatchmakingStatus, sendProposal, ApiError } from "@mingle/client-core";
 import type {
   PublicParty,
@@ -171,14 +171,14 @@ export default function PartyScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error}</Text>
-        <Button title="홈으로" onPress={() => router.replace("/(app)/home")} />
+        <DoodleButton title="홈으로" onPress={() => router.replace("/(app)/home")} />
       </View>
     );
   }
   if (!party) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#17150F" />
       </View>
     );
   }
@@ -369,7 +369,7 @@ export default function PartyScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      <Button title="홈으로" onPress={() => router.replace("/(app)/home")} />
+      <DoodleButton title="홈으로" onPress={() => router.replace("/(app)/home")} />
     </ScrollView>
   );
 }

@@ -1,7 +1,8 @@
 import { colors } from "../../src/lib/theme";
 import { useCallback, useRef, useState } from "react";
-import { View, Text, Button, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { DoodleButton, DoodleCard } from "../../src/components/Doodle";
 
 export default function Home() {
   const { notice } = useLocalSearchParams<{ notice?: string }>();
@@ -20,44 +21,51 @@ export default function Home() {
   return (
     <View style={styles.container}>
       {notice && showNotice ? (
-        <View style={styles.notice}>
+        <DoodleCard tone="fill" rotate="-1deg" style={styles.noticeCard} contentStyle={styles.noticeInner}>
           <Text style={styles.noticeText}>{notice}</Text>
-          <Text style={styles.noticeDismiss} onPress={() => setShowNotice(false)}>✕</Text>
-        </View>
+          <Text style={styles.noticeDismiss} onPress={() => setShowNotice(false)}>
+            ✕
+          </Text>
+        </DoodleCard>
       ) : null}
-      <Text style={styles.title}>MingleAI</Text>
-      <Text style={styles.subtitle}>가벼운 만남, 편안한 연결</Text>
-      <Button title="매칭 시작" onPress={onStartMatching} />
-      <Button title="프로포즈" onPress={() => router.push("/(app)/proposals")} />
-      <Button title="채팅" onPress={() => router.push("/(app)/chats")} />
-      <Button title="알림" onPress={() => router.push("/(app)/notifications")} />
-      <Button
-        title="설정"
-        onPress={() =>
-          // new route — Expo Router typegen updates on next `expo start`
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          router.push("/(app)/settings" as any)
-        }
-      />
+
+      <View style={styles.hero}>
+        <Text style={styles.title}>MingleAI</Text>
+        <Text style={styles.subtitle}>가벼운 만남, 편안한 연결</Text>
+      </View>
+
+      <View style={styles.actions}>
+        <DoodleButton title="매칭 시작" onPress={onStartMatching} variant="primary" rotate="-0.8deg" />
+        <DoodleButton title="프로포즈" onPress={() => router.push("/(app)/proposals")} />
+        <DoodleButton title="채팅" onPress={() => router.push("/(app)/chats")} />
+        <DoodleButton title="알림" onPress={() => router.push("/(app)/notifications")} />
+        <DoodleButton
+          title="설정"
+          onPress={() =>
+            // new route — Expo Router typegen updates on next `expo start`
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            router.push("/(app)/settings" as any)
+          }
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 24 },
-  title: { fontSize: 22, fontWeight: "600" },
-  subtitle: { color: colors.grayMid },
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.grayLight,
-    borderRadius: 8,
-    backgroundColor: colors.fill,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    gap: 8,
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 28,
+    padding: 24,
+    backgroundColor: colors.paper,
   },
+  hero: { alignItems: "center", gap: 6 },
+  title: { fontSize: 40, fontWeight: "800", color: colors.ink, letterSpacing: 0.5 },
+  subtitle: { fontSize: 15, color: colors.grayMid },
+  actions: { gap: 14 },
+  noticeCard: { marginBottom: 4 },
+  noticeInner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12 },
   noticeText: { flex: 1, fontSize: 13, color: colors.grayDark },
-  noticeDismiss: { fontSize: 14, color: colors.grayMid, paddingHorizontal: 4 },
+  noticeDismiss: { fontSize: 15, color: colors.ink, paddingHorizontal: 4, fontWeight: "700" },
 });

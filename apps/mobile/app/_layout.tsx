@@ -1,11 +1,12 @@
 import { Stack } from "expo-router";
 import "../src/lib/client";
+import { doodleHeaderOptions } from "../src/lib/theme";
 
 export { ErrorBoundary } from "expo-router";
 
 export default function RootLayout() {
   return (
-    <Stack screenOptions={{ headerTitle: "MingleAI" }}>
+    <Stack screenOptions={{ headerTitle: "MingleAI", ...doodleHeaderOptions }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ title: "로그인" }} />
       <Stack.Screen name="register" options={{ title: "회원가입" }} />
