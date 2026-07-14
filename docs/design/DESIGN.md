@@ -70,7 +70,7 @@
 **두 갈래 구현:**
 - **웹앱(현행)** — `doodleSurface()` 헬퍼(`lib/doodle.ts`)가 위를 한 번에 반환, MUI `MuiCard`/`MuiButton`/`MuiChip`에 전역 적용 → **변환 안 한 페이지도 자동 두들화**.
 - **모바일 와이어프레임(신규 기준)** — `design/mobile-wireframes.html`이 레퍼런스 구현. 순수 HTML/CSS + 인라인 SVG(`<symbol>` 아이콘 스프라이트)로 동일 원리를 재현.
-- **RN+Expo(구현 완료)** — `feTurbulence`/`feDisplacementMap`은 `react-native-svg` 네이티브에서 미지원이라 이식 불가. 대신 `apps/mobile/src/lib/doodle-path.ts`(`wobbleRect`/`hatchSegments`/시드 난수 `mulberry32`)로 **사전 계산한 지터 패스**를 `apps/mobile/src/components/DoodleSvg.tsx`(`WobbleBox`/`MatchGauge`/`DoodleFace`/`DoodleChip`/`DashedLine`) SVG 컴포넌트로 렌더.
+- **RN+Expo(구현 완료)** — `feTurbulence`/`feDisplacementMap`은 `react-native-svg` 네이티브에서 미지원이라 이식 불가. 대신 `apps/mobile/src/lib/doodle-path.ts`(`wobbleRect`/`hatchSegments`/시드 난수 `mulberry`)로 **사전 계산한 지터 패스**를 `apps/mobile/src/components/DoodleSvg.tsx`(`WobbleBox`/`MatchGauge`/`DoodleFace`/`DoodleChip`/`DashedLine`) SVG 컴포넌트로 렌더.
 
 ## 4. 두들 모티프 사전
 
