@@ -31,9 +31,9 @@ pnpm dev:mobile        # expo start → i (iOS sim) / a (Android)
 ## 3. EAS projectId (프로드 푸시 빌드 전 1회, 사용자 Expo 계정 필요)
 
 ```bash
-cd apps/mobile
-npx eas login          # Expo 계정
-npx eas init           # app.json extra.eas.projectId 자동 기입
+cd .claude/worktrees/mobile-pivot-plan/apps/mobile   # ⚠️ megahuni worktree 기준 (main의 apps/mobile은 v1 빈 껍데기)
+npx eas-cli@latest login    # 패키지명은 eas-cli (npx eas는 실행 파일 없음 → 실패)
+npx eas-cli@latest init     # app.json extra.eas.projectId 자동 기입
 ```
 
 기입 후 `app.json` 변경 커밋. dev/Expo-Go는 projectId 없이도 동작 — 프로드(EAS build) 푸시에만 필수.
