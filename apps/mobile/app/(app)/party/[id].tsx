@@ -26,8 +26,15 @@ import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { openPartySocket } from "../../../src/lib/party-socket";
 import { PartyRoomCanvas } from "../../../src/components/PartyRoomCanvas";
 import { BackButton } from "../../../src/components/BackButton";
-import { clampToRoom, spawnFor, stepToward, shouldEmit, type Vec2 } from "../../../src/lib/party-space";
+import {
+  clampToRoom,
+  spawnFor,
+  stepToward,
+  shouldEmit,
+  type Vec2,
+} from "../../../src/lib/party-space";
 import { AmongGame } from "../../../src/components/among/AmongGame";
+import { fonts } from "../../../src/lib/theme";
 
 export default function PartyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -111,9 +118,13 @@ export default function PartyScreen() {
       },
       onGameState: (e) => {
         if (!alive) return;
-        setGame((prev) => (e.snapshot ? e.snapshot : prev && prev.status === "ended" ? prev : null));
+        setGame((prev) =>
+          e.snapshot ? e.snapshot : prev && prev.status === "ended" ? prev : null,
+        );
         if (e.snapshot && e.snapshot.status === "active") {
-          setMyVote((prev) => (e.snapshot!.votedProfileIds.includes(myProfileId ?? "") ? prev : null));
+          setMyVote((prev) =>
+            e.snapshot!.votedProfileIds.includes(myProfileId ?? "") ? prev : null,
+          );
         }
       },
       onAmongState: (e) => {
@@ -413,7 +424,7 @@ export default function PartyScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16, padding: 24 },
   container: { padding: 24, gap: 12 },
-  title: { fontSize: 22, fontWeight: "600" },
+  title: { fontFamily: fonts.display, fontSize: 24, color: "#17150F" },
   sub: { fontSize: 13, color: "#8A857C", marginBottom: 8 },
   card: { borderWidth: 1, borderColor: "#D9D5CC", borderRadius: 10, padding: 12, gap: 4 },
   name: { fontSize: 16, fontWeight: "500" },
@@ -434,10 +445,10 @@ const styles = StyleSheet.create({
   proposeError: { color: "#17150F", fontSize: 12 },
   menuRow: { alignItems: "flex-end", marginTop: 4 },
   roomSection: { gap: 6 },
-  roomTitle: { fontSize: 13, fontWeight: "700", color: "#45413A" },
+  roomTitle: { fontFamily: fonts.display, fontSize: 15, color: "#45413A" },
   chatSection: { borderWidth: 2, borderColor: "#17150F", borderRadius: 10, padding: 12, gap: 8 },
   chatHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  chatTitle: { fontSize: 15, fontWeight: "700", color: "#17150F" },
+  chatTitle: { fontFamily: fonts.display, fontSize: 16, color: "#17150F" },
   presence: { fontSize: 12, color: "#45413A" },
   chatNotice: { fontSize: 12, color: "#8A857C" },
   chatEmpty: { fontSize: 13, color: "#8A857C", textAlign: "center", paddingVertical: 8 },

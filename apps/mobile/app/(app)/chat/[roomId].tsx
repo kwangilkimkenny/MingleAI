@@ -28,10 +28,10 @@ import { openMessengerSocket } from "../../../src/lib/messenger-socket";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { BackButton } from "../../../src/components/BackButton";
+import { colors, doodle } from "../../../src/lib/theme";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
-const GRAY_LIGHT = "#D9D5CC";
 const GRAY_MED = "#8A857C";
 
 export default function ChatRoom() {
@@ -164,7 +164,8 @@ export default function ChatRoom() {
       const msg = await sendMessage(roomId, content);
       // dedup: the socket echo (message:new) may arrive before the REST response;
       // guard absorbs the duplicate regardless of which arrives first.
-      if (alive.current) setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [msg, ...prev]);
+      if (alive.current)
+        setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [msg, ...prev]));
     } catch (e) {
       Alert.alert("전송 실패", e instanceof ApiError ? e.message : "메시지를 보내지 못했어요");
     }
@@ -291,7 +292,7 @@ const styles = StyleSheet.create({
   messages: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   bubble: {
     maxWidth: "75%",
-    borderRadius: 12,
+    ...doodle.radius.card,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginVertical: 2,
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
   },
   bubbleMe: {
     alignSelf: "flex-end",
-    backgroundColor: INK,
+    backgroundColor: colors.fillDeep,
     shadowColor: INK,
     shadowOffset: { width: 3, height: 3 },
     shadowOpacity: 1,
@@ -312,9 +313,9 @@ const styles = StyleSheet.create({
     backgroundColor: PAPER,
   },
   bubbleText: { fontSize: 14 },
-  bubbleTextMe: { color: PAPER },
+  bubbleTextMe: { color: INK },
   bubbleTextPeer: { color: INK },
-  readLabel: { fontSize: 10, color: GRAY_LIGHT, marginTop: 2, textAlign: "right" },
+  readLabel: { fontSize: 10, color: GRAY_MED, marginTop: 2, textAlign: "right" },
   compose: {
     flexDirection: "row",
     alignItems: "flex-end",

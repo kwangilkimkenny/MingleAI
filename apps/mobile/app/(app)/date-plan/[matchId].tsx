@@ -19,15 +19,14 @@ import {
 } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { BackButton } from "../../../src/components/BackButton";
+import { doodleInputStyle } from "../../../src/components/Doodle";
+import { DoodleChip } from "../../../src/components/DoodleSvg";
+import { colors, doodle, fonts } from "../../../src/lib/theme";
 
 // Derive types from function return signatures — avoids importing @mingle/shared directly
 // (shared is not a direct dep of the mobile app; types flow through client-core).
 type DatePlanView = Awaited<ReturnType<typeof getDatePlansForMatch>>[number];
 type DateCourse = DatePlanView["courses"][number];
-
-const INK = "#17150F";
-const GRAY = "#8A857C";
-const FILL = "#F1EFE9";
 
 export default function DatePlanScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
@@ -90,7 +89,7 @@ export default function DatePlanScreen() {
   if (phase === "loading")
     return (
       <View style={s.center}>
-        <ActivityIndicator size="large" color={INK} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   if (phase === "error")
@@ -120,7 +119,7 @@ export default function DatePlanScreen() {
           value={date}
           onChangeText={setDate}
           placeholder="2026-08-01"
-          placeholderTextColor={GRAY}
+          placeholderTextColor={colors.grayMid}
         />
         <Pressable style={[s.btn, busy && s.btnDisabled]} disabled={busy} onPress={onCreate}>
           <Text style={s.btnText}>{busy ? "생성 중..." : "코스 추천 받기"}</Text>
@@ -137,7 +136,9 @@ export default function DatePlanScreen() {
   return (
     <ScrollView contentContainerStyle={s.container}>
       <Text style={s.title}>데이트 플랜</Text>
-      <Text style={s.status}>상태: {statusLabel(p.status)}</Text>
+      <View style={s.statusRow}>
+        <DoodleChip label={statusLabel(p.status)} on={p.status === "confirmed"} />
+      </View>
 
       {p.status === "draft" && !p.selectedCourseId && isCreator && (
         <>
@@ -246,37 +247,47 @@ function CourseCard({ course, action }: { course: DateCourse; action?: React.Rea
 }
 
 const s = StyleSheet.create({
-  container: { padding: 16, backgroundColor: "#FFFFFF" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFFFFF" },
-  ink: { color: INK },
-  title: { fontSize: 22, fontWeight: "700", color: INK, marginBottom: 4 },
-  status: { color: GRAY, marginBottom: 12 },
-  hint: { color: INK, marginBottom: 12 },
-  label: { color: INK, fontSize: 13, marginTop: 10, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: "#D9D5CC", borderRadius: 8, padding: 10, color: INK },
+  container: { padding: 16, backgroundColor: colors.paper },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.paper,
+  },
+  ink: { color: colors.ink },
+  title: { fontFamily: fonts.display, fontSize: 22, color: colors.ink, marginBottom: 4 },
+  statusRow: { flexDirection: "row", marginBottom: 12 },
+  hint: { color: colors.ink, marginBottom: 12 },
+  label: { color: colors.ink, fontSize: 13, marginTop: 10, marginBottom: 4 },
+  input: doodleInputStyle,
   btn: {
-    backgroundColor: INK,
-    borderRadius: 8,
+    backgroundColor: colors.ink,
+    ...doodle.radius.button,
     padding: 12,
     alignItems: "center",
     marginTop: 12,
   },
   btnDisabled: { opacity: 0.5 },
-  btnText: { color: "#FFFFFF", fontWeight: "700" },
+  btnText: { color: colors.paper, fontWeight: "700" },
   cancel: { padding: 12, alignItems: "center", marginTop: 16 },
-  cancelText: { color: GRAY },
+  cancelText: { color: colors.grayMid },
   card: {
-    borderWidth: 1,
-    borderColor: "#E7E4DC",
-    borderRadius: 10,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    ...doodle.radius.card,
     padding: 12,
     marginTop: 12,
-    backgroundColor: FILL,
+    backgroundColor: colors.fill,
+    shadowColor: colors.ink,
+    shadowOffset: { width: doodle.shadow.x, height: doodle.shadow.y },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 4,
   },
-  cardTitle: { fontSize: 16, fontWeight: "700", color: INK },
-  cardMeta: { color: GRAY, marginBottom: 8 },
+  cardTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
+  cardMeta: { color: colors.grayMid, marginBottom: 8 },
   stop: { marginTop: 8 },
-  stopName: { color: INK, fontWeight: "600" },
-  stopMeta: { color: GRAY, fontSize: 12 },
-  stopWhy: { color: "#45413A", fontSize: 12 },
+  stopName: { color: colors.ink, fontWeight: "600" },
+  stopMeta: { color: colors.grayMid, fontSize: 12 },
+  stopWhy: { color: colors.grayDark, fontSize: 12 },
 });

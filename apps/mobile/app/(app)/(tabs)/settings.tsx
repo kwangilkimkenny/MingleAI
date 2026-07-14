@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, type ReactNode, useState } from "react";
 import {
   View,
   Text,
@@ -9,17 +9,14 @@ import {
   StyleSheet,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
+import { Ban, LogOut, ChevronRight } from "lucide-react-native";
 import { getMyProfile, updateProfile } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
+import { DashedLine } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { pickAndUploadPhoto } from "../../../src/lib/photo";
-
-const INK = "#17150F";
-const PAPER = "#FFFFFF";
-const GRAY_MED = "#8A857C";
-const GRAY_DARK = "#45413A";
-const GRAY_LIGHT = "#D9D5CC";
+import { colors, fonts } from "../../../src/lib/theme";
 
 type MyProfile = NonNullable<Awaited<ReturnType<typeof getMyProfile>>>;
 
@@ -74,9 +71,9 @@ export default function SettingsScreen() {
     <View style={[styles.container, { paddingBottom: clearance }]}>
       <View style={styles.summary}>
         {loading ? (
-          <ActivityIndicator color={INK} />
+          <ActivityIndicator color={colors.ink} />
         ) : profile ? (
-          <View style={styles.summaryRow}>
+          <>
             <TouchableOpacity
               onPress={onChangePhoto}
               disabled={photoBusy}
@@ -84,59 +81,89 @@ export default function SettingsScreen() {
               accessibilityRole="button"
               accessibilityLabel="프로필 사진 변경"
             >
-              <DoodleAvatar uri={profile.photoUrl} name={profile.name} size={64} />
+              <DoodleAvatar uri={profile.photoUrl} name={profile.name} size={92} />
               {photoBusy ? (
                 <View style={styles.photoBusy}>
-                  <ActivityIndicator color={INK} />
+                  <ActivityIndicator color={colors.ink} />
                 </View>
               ) : null}
             </TouchableOpacity>
-            <View style={styles.summaryText}>
-              <Text style={styles.name}>
-                {profile.name} · {profile.age}
-              </Text>
-              <Text style={styles.meta}>{profile.occupation}</Text>
-              <Text style={styles.photoLink} onPress={onChangePhoto}>
-                {profile.photoUrl ? "사진 변경" : "사진 추가"}
-              </Text>
-            </View>
-          </View>
+            <Text style={styles.name}>
+              {profile.name} · {profile.age}
+            </Text>
+            <Text style={styles.meta}>
+              {[profile.occupation, profile.location].filter(Boolean).join(" · ")}
+            </Text>
+            <Text style={styles.photoLink} onPress={onChangePhoto}>
+              {profile.photoUrl ? "사진 변경" : "사진 추가"}
+            </Text>
+          </>
         ) : (
           <Text style={styles.meta}>프로필을 불러오지 못했어요.</Text>
         )}
       </View>
 
-      <Pressable
-        style={styles.rowItem}
-        onPress={() =>
-          // new route — Expo Router typegen updates on next `expo start`
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          router.push("/(app)/blocks" as any)
-        }
-      >
-        <Text style={styles.rowText}>차단 목록 관리</Text>
-        <Text style={styles.chevron}>›</Text>
-      </Pressable>
-
-      <Pressable style={styles.rowItem} onPress={logout}>
-        <Text style={[styles.rowText, styles.danger]}>로그아웃</Text>
-      </Pressable>
+      <View style={styles.rows}>
+        <View style={styles.separatorWrap}>
+          <DashedLine />
+        </View>
+        <Row
+          icon={<Ban color={colors.ink} size={20} strokeWidth={2} />}
+          label="차단 목록 관리"
+          chevron
+          onPress={() =>
+            // new route — Expo Router typegen updates on next `expo start`
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            router.push("/(app)/blocks" as any)
+          }
+        />
+        <View style={styles.separatorWrap}>
+          <DashedLine />
+        </View>
+        <Row
+          icon={<LogOut color={colors.ink} size={20} strokeWidth={2} />}
+          label="로그아웃"
+          onPress={logout}
+        />
+        <View style={styles.separatorWrap}>
+          <DashedLine />
+        </View>
+      </View>
     </View>
   );
 }
 
+function Row({
+  icon,
+  label,
+  onPress,
+  chevron = false,
+}: {
+  icon: ReactNode;
+  label: string;
+  onPress: () => void;
+  chevron?: boolean;
+}) {
+  return (
+    <Pressable style={styles.row} onPress={onPress} accessibilityRole="button">
+      <View style={styles.rowLeft}>
+        {icon}
+        <Text style={styles.rowLabel}>{label}</Text>
+      </View>
+      {chevron ? <ChevronRight color={colors.grayMid} size={20} strokeWidth={2} /> : null}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAPER, padding: 20, gap: 12 },
+  container: { flex: 1, backgroundColor: colors.paper, padding: 20, gap: 28 },
   summary: {
-    borderWidth: 2,
-    borderColor: INK,
-    borderRadius: 12,
-    padding: 16,
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 8,
     minHeight: 96,
     justifyContent: "center",
   },
-  summaryRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  summaryText: { flex: 1, gap: 3 },
   photoBusy: {
     position: "absolute",
     top: 0,
@@ -146,26 +173,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.55)",
-    borderRadius: 32,
+    borderRadius: 46,
   },
+  name: { fontFamily: fonts.display, fontSize: 26, color: colors.ink, marginTop: 10 },
+  meta: { fontSize: 14, color: colors.grayMid },
   photoLink: {
     fontSize: 13,
     fontWeight: "700",
-    color: INK,
+    color: colors.ink,
     textDecorationLine: "underline",
     marginTop: 2,
   },
-  name: { fontSize: 18, fontWeight: "700", color: INK },
-  meta: { fontSize: 14, color: GRAY_DARK },
-  rowItem: {
+  rows: {},
+  separatorWrap: { width: "100%" },
+  row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: GRAY_LIGHT,
     paddingVertical: 16,
   },
-  rowText: { fontSize: 16, color: INK },
-  danger: { fontWeight: "700" },
-  chevron: { fontSize: 20, color: GRAY_MED },
+  rowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  rowLabel: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
 });

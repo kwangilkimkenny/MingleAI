@@ -11,11 +11,7 @@ import {
 import { useFocusEffect } from "expo-router";
 import { getBlocks, removeBlock, ApiError, type PeerProfile } from "@mingle/client-core";
 import { BackButton } from "../../src/components/BackButton";
-
-const INK = "#17150F";
-const PAPER = "#FFFFFF";
-const GRAY_MED = "#8A857C";
-const GRAY_DARK = "#45413A";
+import { colors, doodle, fonts } from "../../src/lib/theme";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -63,7 +59,7 @@ export default function BlocksScreen() {
   if (state === "loading") {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={INK} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   }
@@ -81,6 +77,7 @@ export default function BlocksScreen() {
     return (
       <View style={styles.container}>
         <BackButton />
+        <Text style={styles.title}>차단 목록</Text>
         <View style={styles.center}>
           <Text style={styles.msg}>차단한 사용자가 없어요.</Text>
         </View>
@@ -93,7 +90,12 @@ export default function BlocksScreen() {
       data={blocks}
       keyExtractor={(item) => item.profileId}
       contentContainerStyle={styles.list}
-      ListHeaderComponent={<BackButton />}
+      ListHeaderComponent={
+        <>
+          <BackButton />
+          <Text style={styles.title}>차단 목록</Text>
+        </>
+      }
       renderItem={({ item }) => (
         <View style={styles.row}>
           <View style={styles.info}>
@@ -112,43 +114,52 @@ export default function BlocksScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAPER },
+  container: { flex: 1, backgroundColor: colors.paper },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     gap: 12,
     padding: 24,
-    backgroundColor: PAPER,
+    backgroundColor: colors.paper,
   },
-  list: { padding: 16, gap: 10 },
+  title: {
+    fontFamily: fonts.display,
+    fontSize: 24,
+    color: colors.ink,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  list: { paddingVertical: 16, gap: 10 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderWidth: 2,
-    borderColor: INK,
-    borderRadius: 10,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    backgroundColor: colors.paper,
     padding: 12,
+    marginHorizontal: 16,
+    ...doodle.radius.card,
   },
   info: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: "700", color: INK },
-  meta: { fontSize: 13, color: GRAY_DARK },
+  name: { fontSize: 15, fontWeight: "700", color: colors.ink },
+  meta: { fontSize: 13, color: colors.grayDark },
   unblock: {
-    borderWidth: 2,
-    borderColor: INK,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  unblockText: { color: INK, fontWeight: "700", fontSize: 13 },
-  msg: { fontSize: 15, color: GRAY_MED },
+  unblockText: { color: colors.ink, fontWeight: "700", fontSize: 13 },
+  msg: { fontSize: 15, color: colors.grayMid },
   retry: {
-    borderWidth: 2,
-    borderColor: INK,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 20,
   },
-  retryText: { color: INK, fontWeight: "700" },
+  retryText: { color: colors.ink, fontWeight: "700" },
 });

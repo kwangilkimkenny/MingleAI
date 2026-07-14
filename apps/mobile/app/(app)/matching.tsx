@@ -1,8 +1,9 @@
-import { colors } from "../../src/lib/theme";
+import { colors, fonts } from "../../src/lib/theme";
 import { useEffect, useRef, useState } from "react";
-import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { DoodleButton } from "../../src/components/Doodle";
+import { DoodleFace } from "../../src/components/DoodleSvg";
 import {
   enqueueMatchmaking,
   cancelMatchmaking,
@@ -108,8 +109,8 @@ export default function Matching() {
   }
   return (
     <View style={styles.center}>
-      <ActivityIndicator size="large" color={colors.ink} />
-      <Text style={styles.msg}>매칭 중...</Text>
+      <DoodleFace variant="open" size={72} />
+      <Text style={styles.title}>매칭 중...</Text>
       {phase === "waiting" ? (
         <Text style={styles.sub}>{Math.floor(elapsed / 1000)}초 경과</Text>
       ) : (
@@ -129,6 +130,7 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: colors.paper,
   },
+  title: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },
   msg: { fontSize: 16, color: colors.ink, fontWeight: "600" },
   sub: { fontSize: 13, color: colors.grayMid },
   error: { color: colors.ink, textAlign: "center" },
