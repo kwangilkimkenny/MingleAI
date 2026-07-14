@@ -10,12 +10,14 @@ import {
   ScrollView,
 } from "react-native";
 import { Link, router } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { login, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { DoodleButton, doodleInputStyle } from "../src/components/Doodle";
 import { DoodleHero } from "../src/components/DoodleHero";
 
 export default function Login() {
+  const headerHeight = useHeaderHeight();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,8 +43,9 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.paper }}
+      style={styles.kav}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={headerHeight}
     >
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -85,6 +88,7 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
+  kav: { flex: 1, backgroundColor: colors.paper },
   scroll: { flexGrow: 1, justifyContent: "center", padding: 24 },
   container: { gap: 14 },
   input: doodleInputStyle,
