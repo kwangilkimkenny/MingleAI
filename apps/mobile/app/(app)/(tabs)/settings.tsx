@@ -1,5 +1,13 @@
 import { useCallback, useState } from "react";
-import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, Alert, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+} from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getMyProfile, updateProfile } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
@@ -116,7 +124,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAPER, padding: 20, gap: 12 },
+  container: { flex: 1, backgroundColor: PAPER, padding: 20, paddingBottom: 84, gap: 12 }, // clears the floating doodle tab bar
   summary: {
     borderWidth: 2,
     borderColor: INK,

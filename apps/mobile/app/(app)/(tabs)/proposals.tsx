@@ -127,7 +127,7 @@ export default function Proposals() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PAPER },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  list: { padding: 16, gap: 12 },
+  list: { padding: 16, gap: 12, paddingBottom: 84 }, // clears the floating doodle tab bar
   card: {
     borderWidth: 2,
     borderColor: INK,

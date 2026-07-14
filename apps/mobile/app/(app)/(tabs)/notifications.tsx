@@ -16,7 +16,10 @@ import {
   setPushEnabled,
   type AppNotification,
 } from "@mingle/client-core";
-import { routeForNotification, type NotificationData } from "../../../src/lib/route-for-notification";
+import {
+  routeForNotification,
+  type NotificationData,
+} from "../../../src/lib/route-for-notification";
 
 const INK = "#17150F";
 
@@ -102,6 +105,7 @@ export default function Notifications() {
       <FlatList
         data={items}
         keyExtractor={(n) => n.id}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={<Text style={styles.empty}>아직 알림이 없어요.</Text>}
         renderItem={({ item }) => (
           <Pressable
@@ -130,6 +134,7 @@ const styles = StyleSheet.create({
   toggle: { flexDirection: "row", alignItems: "center", gap: 8 },
   toggleLabel: { color: INK, fontSize: 14 },
   markAll: { color: "#8A857C", fontSize: 13, marginBottom: 8 },
+  listContent: { paddingBottom: 84 }, // clears the floating doodle tab bar
   row: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#E7E4DC" },
   unread: {
     backgroundColor: "#FBE4EE", // pale pink accent fill

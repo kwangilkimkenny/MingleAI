@@ -95,7 +95,7 @@ export default function Chats() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PAPER },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  list: { paddingVertical: 8 },
+  list: { paddingVertical: 8, paddingBottom: 84 }, // clears the floating doodle tab bar
   row: {
     flexDirection: "row",
     alignItems: "center",

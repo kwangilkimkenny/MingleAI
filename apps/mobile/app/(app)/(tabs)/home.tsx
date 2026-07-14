@@ -11,7 +11,11 @@ export default function Home() {
   const navigatingRef = useRef(false);
 
   // Reset guard when home regains focus, so a normal second visit still works.
-  useFocusEffect(useCallback(() => { navigatingRef.current = false; }, []));
+  useFocusEffect(
+    useCallback(() => {
+      navigatingRef.current = false;
+    }, []),
+  );
 
   function onStartMatching() {
     if (navigatingRef.current) return;
@@ -22,7 +26,12 @@ export default function Home() {
   return (
     <View style={styles.container}>
       {notice && showNotice ? (
-        <DoodleCard tone="fill" rotate="-1deg" style={styles.noticeCard} contentStyle={styles.noticeInner}>
+        <DoodleCard
+          tone="fill"
+          rotate="-1deg"
+          style={styles.noticeCard}
+          contentStyle={styles.noticeInner}
+        >
           <Text style={styles.noticeText}>{notice}</Text>
           <Text style={styles.noticeDismiss} onPress={() => setShowNotice(false)}>
             ✕
@@ -46,7 +55,9 @@ export default function Home() {
           rotate="-0.8deg"
           icon={(color, size) => <Heart color={color} size={size} strokeWidth={2} />}
         />
-        <Text style={styles.hint}>새로운 사람들과 가볍게 만나보세요.{"\n"}채팅·프로포즈·알림은 아래 탭에서 확인해요.</Text>
+        <Text style={styles.hint}>
+          새로운 사람들과 가볍게 만나보세요.{"\n"}채팅·프로포즈·알림은 아래 탭에서 확인해요.
+        </Text>
       </View>
     </View>
   );
@@ -58,6 +69,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 32,
     padding: 24,
+    paddingBottom: 84, // clears the floating doodle tab bar
     backgroundColor: colors.paper,
   },
   hero: { alignItems: "center", gap: 10 },
