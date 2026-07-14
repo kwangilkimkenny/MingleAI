@@ -1,6 +1,14 @@
 import { colors } from "../src/lib/theme";
 import { useState } from "react";
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
 import { Link, router } from "expo-router";
 import { login, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
@@ -32,47 +40,53 @@ export default function Login() {
   }
 
   return (
-    <View style={styles.container}>
-      <DoodleHero tagline="다시 만나서 반가워요" />
-      <TextInput
-        style={styles.input}
-        placeholder="이메일"
-        placeholderTextColor={colors.grayMid}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="비밀번호"
-        placeholderTextColor={colors.grayMid}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <DoodleButton
-        title={busy ? "로그인 중..." : "로그인"}
-        onPress={onSubmit}
-        disabled={busy}
-        variant="primary"
-      />
-      <Link href="/register" style={styles.link}>
-        계정이 없으신가요? 회원가입
-      </Link>
-    </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.paper }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
+          <DoodleHero tagline="다시 만나서 반가워요" />
+          <TextInput
+            style={styles.input}
+            placeholder="이메일"
+            placeholderTextColor={colors.grayMid}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="비밀번호"
+            placeholderTextColor={colors.grayMid}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <DoodleButton
+            title={busy ? "로그인 중..." : "로그인"}
+            onPress={onSubmit}
+            disabled={busy}
+            variant="primary"
+          />
+          <Link href="/register" style={styles.link}>
+            계정이 없으신가요? 회원가입
+          </Link>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    gap: 14,
-    backgroundColor: colors.paper,
-  },
+  scroll: { flexGrow: 1, justifyContent: "center", padding: 24 },
+  container: { gap: 14 },
   input: doodleInputStyle,
   error: { color: colors.ink, fontWeight: "600" },
   link: { marginTop: 16, color: colors.ink, textAlign: "center", textDecorationLine: "underline" },
