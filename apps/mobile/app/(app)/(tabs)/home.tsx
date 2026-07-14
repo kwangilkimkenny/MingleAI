@@ -1,16 +1,32 @@
-import { colors, fonts } from "../../../src/lib/theme";
-import { useCallback, useRef, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { colors, doodle, fonts } from "../../../src/lib/theme";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Sparkles, Heart } from "lucide-react-native";
-import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
+import { Heart, ChevronRight } from "lucide-react-native";
+import { getMyProfile } from "@mingle/client-core";
+import { DoodleButton, DoodleCard, ShadowBox } from "../../../src/components/Doodle";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 
 export default function Home() {
   const clearance = useTabBarClearance();
   const { notice } = useLocalSearchParams<{ notice?: string }>();
   const [showNotice, setShowNotice] = useState(true);
+  const [name, setName] = useState<string | null>(null);
   const navigatingRef = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    getMyProfile()
+      .then((profile) => {
+        if (alive && profile) setName(profile.name);
+      })
+      .catch(() => {
+        // Ignore — the greeting simply falls back to the nameless form.
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Reset guard when home regains focus, so a normal second visit still works.
   useFocusEffect(
@@ -26,7 +42,10 @@ export default function Home() {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: clearance }]}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingBottom: clearance }]}
+    >
       {notice && showNotice ? (
         <DoodleCard
           tone="fill"
@@ -41,55 +60,92 @@ export default function Home() {
         </DoodleCard>
       ) : null}
 
-      <View style={styles.hero}>
-        <View style={styles.mark}>
-          <Sparkles color={colors.ink} size={40} strokeWidth={1.75} />
-        </View>
-        <Text style={styles.title}>MingleAI</Text>
-        <Text style={styles.subtitle}>가벼운 만남, 편안한 연결</Text>
-      </View>
-
-      <View style={styles.actions}>
-        <DoodleButton
-          title="매칭 시작"
-          onPress={onStartMatching}
-          variant="primary"
-          rotate="-0.8deg"
-          icon={(color, size) => <Heart color={color} size={size} strokeWidth={2} />}
-        />
-        <Text style={styles.hint}>
-          새로운 사람들과 가볍게 만나보세요.{"\n"}채팅·프로포즈·알림은 아래 탭에서 확인해요.
+      <View style={styles.appbar}>
+        <Text style={styles.greetingTiny}>안녕하세요 👋</Text>
+        <Text style={styles.greetingTitle}>
+          {name ? `${name}님, 오늘 나가볼까요?` : "오늘 나가볼까요?"}
         </Text>
       </View>
-    </View>
+
+      <ShadowBox
+        radius={doodle.radius.card}
+        bg={colors.ink}
+        rotate="-0.6deg"
+        style={styles.heroOuter}
+      >
+        <View style={styles.heroInner}>
+          <Text style={styles.heroTitle}>⚡ AI 매칭</Text>
+          <Text style={styles.heroDesc}>취향을 분석해 잘 맞는 사람들과 파티를 만들어줘요.</Text>
+          <DoodleButton
+            title="매칭 시작"
+            onPress={onStartMatching}
+            variant="primary"
+            rotate="-0.8deg"
+            icon={(color, size) => <Heart color={color} size={size} strokeWidth={2} />}
+          />
+        </View>
+      </ShadowBox>
+
+      <View style={styles.shortcuts}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/chats")}
+          style={({ pressed }) => (pressed ? styles.shortcutPressed : null)}
+        >
+          <DoodleCard rotate="0.5deg">
+            <View style={styles.shortcutRow}>
+              <View style={styles.shortcutText}>
+                <Text style={styles.shortcutTitle}>💬 채팅</Text>
+                <Text style={styles.shortcutDesc}>매칭된 사람들과의 대화를 이어가요.</Text>
+              </View>
+              <ChevronRight color={colors.grayMid} size={22} strokeWidth={2} />
+            </View>
+          </DoodleCard>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/proposals")}
+          style={({ pressed }) => (pressed ? styles.shortcutPressed : null)}
+        >
+          <DoodleCard rotate="-0.4deg">
+            <View style={styles.shortcutRow}>
+              <View style={styles.shortcutText}>
+                <Text style={styles.shortcutTitle}>🤝 프로포즈</Text>
+                <Text style={styles.shortcutDesc}>마음에 든 사람에게 프로포즈를 보내요.</Text>
+              </View>
+              <ChevronRight color={colors.grayMid} size={22} strokeWidth={2} />
+            </View>
+          </DoodleCard>
+        </Pressable>
+      </View>
+
+      <Text style={styles.hint}>
+        새로운 사람들과 가볍게 만나보세요.{"\n"}채팅·프로포즈·알림은 아래 탭에서 확인해요.
+      </Text>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    gap: 32,
-    padding: 24,
-    backgroundColor: colors.paper,
-  },
-  hero: { alignItems: "center", gap: 10 },
-  mark: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.fill,
-  },
-  title: { fontFamily: fonts.display, fontSize: 46, color: colors.ink },
-  subtitle: { fontSize: 15, color: colors.grayMid },
-  actions: { gap: 16 },
-  hint: { fontSize: 13, color: colors.grayMid, textAlign: "center", lineHeight: 20 },
+  container: { flex: 1, backgroundColor: colors.paper },
+  content: { gap: 20, padding: 20 },
   noticeCard: { marginBottom: 4 },
   noticeInner: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12 },
   noticeText: { flex: 1, fontSize: 13, color: colors.grayDark },
   noticeDismiss: { fontSize: 15, color: colors.ink, paddingHorizontal: 4, fontWeight: "700" },
+  appbar: { gap: 2 },
+  greetingTiny: { fontSize: 13, color: colors.grayMid },
+  greetingTitle: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },
+  heroOuter: { alignSelf: "stretch" },
+  heroInner: { padding: 18, gap: 12 },
+  heroTitle: { fontFamily: fonts.display, fontSize: 19, color: colors.paper },
+  heroDesc: { fontSize: 13.5, color: colors.paper, opacity: 0.85, lineHeight: 19 },
+  shortcuts: { gap: 12 },
+  shortcutPressed: { opacity: 0.85 },
+  shortcutRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  shortcutText: { flex: 1, gap: 3 },
+  shortcutTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
+  shortcutDesc: { fontSize: 12.5, color: colors.grayMid },
+  hint: { fontSize: 13, color: colors.grayMid, textAlign: "center", lineHeight: 20 },
 });
