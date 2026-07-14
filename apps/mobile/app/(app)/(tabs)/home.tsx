@@ -1,5 +1,5 @@
 import { colors, doodle, fonts } from "../../../src/lib/theme";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Heart, ChevronRight } from "lucide-react-native";
@@ -14,24 +14,22 @@ export default function Home() {
   const [name, setName] = useState<string | null>(null);
   const navigatingRef = useRef(false);
 
-  useEffect(() => {
-    let alive = true;
-    getMyProfile()
-      .then((profile) => {
-        if (alive && profile) setName(profile.name);
-      })
-      .catch(() => {
-        // Ignore — the greeting simply falls back to the nameless form.
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // Reset guard when home regains focus, so a normal second visit still works.
+  // Reset the nav guard AND refetch the profile whenever home regains focus, so the
+  // greeting name is fresh after e.g. returning from settings.
   useFocusEffect(
     useCallback(() => {
       navigatingRef.current = false;
+      let alive = true;
+      getMyProfile()
+        .then((profile) => {
+          if (alive && profile) setName(profile.name);
+        })
+        .catch(() => {
+          // Ignore — the greeting simply falls back to the nameless form.
+        });
+      return () => {
+        alive = false;
+      };
     }, []),
   );
 

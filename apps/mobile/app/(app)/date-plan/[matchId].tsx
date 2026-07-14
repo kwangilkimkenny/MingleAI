@@ -19,7 +19,7 @@ import {
 } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { BackButton } from "../../../src/components/BackButton";
-import { doodleInputStyle } from "../../../src/components/Doodle";
+import { DoodleCard, doodleInputStyle } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { colors, doodle, fonts } from "../../../src/lib/theme";
 
@@ -225,7 +225,7 @@ function statusLabel(status: string) {
 
 function CourseCard({ course, action }: { course: DateCourse; action?: React.ReactNode }) {
   return (
-    <View style={s.card}>
+    <DoodleCard tone="fill" style={s.card} contentStyle={s.cardInner}>
       <Text style={s.cardTitle}>{course.label}</Text>
       <Text style={s.cardMeta}>
         {course.totalEstimatedCost.toLocaleString()}원 · {course.totalEstimatedMinutes}분
@@ -242,7 +242,7 @@ function CourseCard({ course, action }: { course: DateCourse; action?: React.Rea
         </View>
       ))}
       {action}
-    </View>
+    </DoodleCard>
   );
 }
 
@@ -271,19 +271,8 @@ const s = StyleSheet.create({
   btnText: { color: colors.paper, fontWeight: "700" },
   cancel: { padding: 12, alignItems: "center", marginTop: 16 },
   cancelText: { color: colors.grayMid },
-  card: {
-    borderWidth: doodle.border,
-    borderColor: colors.ink,
-    ...doodle.radius.card,
-    padding: 12,
-    marginTop: 12,
-    backgroundColor: colors.fill,
-    shadowColor: colors.ink,
-    shadowOffset: { width: doodle.shadow.x, height: doodle.shadow.y },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 4,
-  },
+  card: { marginTop: 12 },
+  cardInner: { padding: 12 },
   cardTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
   cardMeta: { color: colors.grayMid, marginBottom: 8 },
   stop: { marginTop: 8 },

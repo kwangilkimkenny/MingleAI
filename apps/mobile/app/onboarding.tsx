@@ -137,7 +137,7 @@ export default function Onboarding() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <DoodleHero tagline="프로필 설정" />
+      <DoodleHero tagline="가볍게 나를 소개해 볼까요" />
 
       <View style={styles.photoSection}>
         <TouchableOpacity

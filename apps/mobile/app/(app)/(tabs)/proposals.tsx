@@ -17,6 +17,7 @@ import {
 } from "@mingle/client-core";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
+import { DoodleCard } from "../../../src/components/Doodle";
 import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, doodle, fonts } from "../../../src/lib/theme";
@@ -92,7 +93,7 @@ export default function Proposals() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <DoodleCard tone="paper" contentStyle={styles.cardInner}>
               <View style={styles.cardHeader}>
                 <PeerModerationMenu
                   peer={{ profileId: item.peer.profileId, name: item.peer.name }}
@@ -122,7 +123,7 @@ export default function Proposals() {
                   <Text style={styles.declineText}>거절</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </DoodleCard>
           )}
         />
       )}
@@ -136,18 +137,7 @@ const styles = StyleSheet.create({
   appbar: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 },
   title: { fontFamily: fonts.display, fontSize: 26, color: colors.ink },
   list: { padding: 16, gap: 12 },
-  card: {
-    borderWidth: doodle.border,
-    borderColor: colors.ink,
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: colors.paper,
-    shadowColor: colors.ink,
-    shadowOffset: { width: doodle.shadow.x, height: doodle.shadow.y },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 4,
-  },
+  cardInner: { padding: 14 },
   cardHeader: { alignItems: "flex-end" },
   peerInfo: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 12 },
   peerText: { flex: 1 },
