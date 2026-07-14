@@ -193,7 +193,18 @@ export function DoodleChip({
       </Text>
     </WobbleBox>
   );
-  return onPress ? <Pressable onPress={onPress}>{chip}</Pressable> : chip;
+  return onPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: on }}
+      onPress={onPress}
+      hitSlop={tiny ? 8 : 4}
+    >
+      {chip}
+    </Pressable>
+  ) : (
+    chip
+  );
 }
 
 const styles = StyleSheet.create({
