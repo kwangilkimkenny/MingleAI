@@ -48,6 +48,28 @@ describe("wobbleRect", () => {
     const d = wobbleRect(24, 20, RADIUS, 3);
     expect(d).not.toMatch(/NaN/);
   });
+  it("clamps radii per the CSS overlap rule (no reversed edges)", () => {
+    const cases = [
+      { w: 60, h: 10, r: { borderTopLeftRadius: 1, borderTopRightRadius: 100, borderBottomRightRadius: 150, borderBottomLeftRadius: 1 } },
+      { w: 10, h: 1000, r: { borderTopLeftRadius: 1, borderTopRightRadius: 200, borderBottomRightRadius: 1, borderBottomLeftRadius: 1 } },
+    ];
+    for (const { w, h, r } of cases) {
+      const d = wobbleRect(w, h, r, 1);
+      expect(d).not.toMatch(/NaN/);
+      const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number);
+      for (let i = 0; i < nums.length; i += 2) {
+        expect(nums[i]).toBeGreaterThanOrEqual(-2.1);
+        expect(nums[i]).toBeLessThanOrEqual(w + 2.1);
+        expect(nums[i + 1]).toBeGreaterThanOrEqual(-2.1);
+        expect(nums[i + 1]).toBeLessThanOrEqual(h + 2.1);
+      }
+    }
+  });
+  it("returns empty path for zero or negative dimensions", () => {
+    expect(wobbleRect(0, 10, RADIUS, 1)).toBe("M0 0 Z");
+    expect(wobbleRect(10, 0, RADIUS, 1)).toBe("M0 0 Z");
+    expect(wobbleRect(-5, 20, RADIUS, 1)).toBe("M0 0 Z");
+  });
 });
 
 describe("hatchSegments", () => {
@@ -63,5 +85,9 @@ describe("hatchSegments", () => {
   });
   it("returns no segments for zero width", () => {
     expect(hatchSegments(0, 16)).toEqual([]);
+  });
+  it("returns no segments for zero or negative spacing", () => {
+    expect(hatchSegments(10, 10, 0)).toEqual([]);
+    expect(hatchSegments(10, 10, -1)).toEqual([]);
   });
 });

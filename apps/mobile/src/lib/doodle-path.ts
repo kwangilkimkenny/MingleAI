@@ -58,19 +58,23 @@ export function wobbleRect(
   seed: number,
   opts?: { amp?: number; step?: number },
 ): string {
+  if (w <= 0 || h <= 0) return "M0 0 Z";
   const amp = opts?.amp ?? 1.6;
   const step = opts?.step ?? 14;
   const rand = mulberry(seed);
-  // Clamp radii so tiny boxes stay valid (mirrors CSS border-radius overlap rules).
+  // Clamp radii per CSS border-radius overlap rule: each edge's two radii must fit.
+  const { borderTopLeftRadius: rtl, borderTopRightRadius: rtr, borderBottomRightRadius: rbr, borderBottomLeftRadius: rbl } = radius;
   const s = Math.min(
     1,
-    w / 2 / Math.max(radius.borderTopLeftRadius, radius.borderBottomLeftRadius, 1),
-    h / 2 / Math.max(radius.borderTopLeftRadius, radius.borderTopRightRadius, 1),
+    w / Math.max(rtl + rtr, 1),
+    h / Math.max(rtr + rbr, 1),
+    w / Math.max(rbl + rbr, 1),
+    h / Math.max(rtl + rbl, 1),
   );
-  const tl = radius.borderTopLeftRadius * s;
-  const tr = radius.borderTopRightRadius * s;
-  const br = radius.borderBottomRightRadius * s;
-  const bl = radius.borderBottomLeftRadius * s;
+  const tl = rtl * s;
+  const tr = rtr * s;
+  const br = rbr * s;
+  const bl = rbl * s;
   let d = `M${tl.toFixed(2)} 0`;
   d += edgePoints(tl, 0, w - tr, 0, step, amp, rand);
   d += ` Q${w.toFixed(2)} 0 ${w.toFixed(2)} ${tr.toFixed(2)}`;
@@ -90,6 +94,7 @@ export function hatchSegments(
   spacing = 5.5,
 ): Array<{ x1: number; y1: number; x2: number; y2: number }> {
   if (w <= 0 || h <= 0) return [];
+  if (spacing <= 0) return [];
   const segs: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
   // Lines of slope -1 (45°): x + y = c, c from 0..w+h.
   for (let c = spacing; c < w + h; c += spacing) {
