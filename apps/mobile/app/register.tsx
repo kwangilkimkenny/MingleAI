@@ -1,9 +1,10 @@
-import { colors } from "../src/lib/theme";
+import { colors, doodle } from "../src/lib/theme";
 import { useState } from "react";
 import {
   View,
   Text,
   TextInput,
+  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
+import { Check } from "lucide-react-native";
 import { register, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { DoodleButton, doodleInputStyle } from "../src/components/Doodle";
@@ -23,6 +25,7 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
 
   async function onSubmit() {
     setBusy(true);
@@ -71,11 +74,22 @@ export default function Register() {
             value={password}
             onChangeText={setPassword}
           />
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: adultConfirmed }}
+            onPress={() => setAdultConfirmed((prev) => !prev)}
+            style={styles.confirmRow}
+          >
+            <View style={[styles.checkbox, adultConfirmed && styles.checkboxChecked]}>
+              {adultConfirmed ? <Check size={16} color={colors.paper} /> : null}
+            </View>
+            <Text style={styles.confirmLabel}>만 19세 이상입니다</Text>
+          </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <DoodleButton
             title={busy ? "가입 중..." : "회원가입"}
             onPress={onSubmit}
-            disabled={busy}
+            disabled={!adultConfirmed || busy}
             variant="primary"
           />
           <Link href="/login" style={styles.link}>
@@ -92,6 +106,18 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: "center", padding: 24 },
   container: { gap: 14 },
   input: doodleInputStyle,
+  confirmRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
+    ...doodle.radius.chip,
+  },
+  checkboxChecked: { backgroundColor: colors.ink },
+  confirmLabel: { fontSize: 13.5, color: colors.grayDark },
   error: { color: colors.ink, fontWeight: "600" },
   link: { marginTop: 16, color: colors.ink, textAlign: "center", textDecorationLine: "underline" },
 });
