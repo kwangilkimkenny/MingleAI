@@ -23,7 +23,6 @@
       "@nestjs/core",
       "@prisma/client",
       "bcrypt",
-      "better-sqlite3",
       "esbuild",
       "prisma",
       "@prisma/engines"
