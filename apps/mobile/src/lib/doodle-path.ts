@@ -63,7 +63,12 @@ export function wobbleRect(
   const step = opts?.step ?? 14;
   const rand = mulberry(seed);
   // Clamp radii per CSS border-radius overlap rule: each edge's two radii must fit.
-  const { borderTopLeftRadius: rtl, borderTopRightRadius: rtr, borderBottomRightRadius: rbr, borderBottomLeftRadius: rbl } = radius;
+  const {
+    borderTopLeftRadius: rtl,
+    borderTopRightRadius: rtr,
+    borderBottomRightRadius: rbr,
+    borderBottomLeftRadius: rbl,
+  } = radius;
   const s = Math.min(
     1,
     w / Math.max(rtl + rtr, 1),

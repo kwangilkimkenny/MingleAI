@@ -50,8 +50,26 @@ describe("wobbleRect", () => {
   });
   it("clamps radii per the CSS overlap rule (no reversed edges)", () => {
     const cases = [
-      { w: 60, h: 10, r: { borderTopLeftRadius: 1, borderTopRightRadius: 100, borderBottomRightRadius: 150, borderBottomLeftRadius: 1 } },
-      { w: 10, h: 1000, r: { borderTopLeftRadius: 1, borderTopRightRadius: 200, borderBottomRightRadius: 1, borderBottomLeftRadius: 1 } },
+      {
+        w: 60,
+        h: 10,
+        r: {
+          borderTopLeftRadius: 1,
+          borderTopRightRadius: 100,
+          borderBottomRightRadius: 150,
+          borderBottomLeftRadius: 1,
+        },
+      },
+      {
+        w: 10,
+        h: 1000,
+        r: {
+          borderTopLeftRadius: 1,
+          borderTopRightRadius: 200,
+          borderBottomRightRadius: 1,
+          borderBottomLeftRadius: 1,
+        },
+      },
     ];
     for (const { w, h, r } of cases) {
       const d = wobbleRect(w, h, r, 1);
