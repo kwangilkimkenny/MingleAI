@@ -69,7 +69,8 @@
 
 **두 갈래 구현:**
 - **웹앱(현행)** — `doodleSurface()` 헬퍼(`lib/doodle.ts`)가 위를 한 번에 반환, MUI `MuiCard`/`MuiButton`/`MuiChip`에 전역 적용 → **변환 안 한 페이지도 자동 두들화**.
-- **모바일 와이어프레임(신규 기준)** — `design/mobile-wireframes.html`이 레퍼런스 구현. 순수 HTML/CSS + 인라인 SVG(`<symbol>` 아이콘 스프라이트)로 동일 원리를 재현. RN+Expo에선 `react-native-svg`의 같은 `feTurbulence`/`feDisplacementMap`, 또는 미리 렌더한 SVG 보더 애셋으로 이식.
+- **모바일 와이어프레임(신규 기준)** — `design/mobile-wireframes.html`이 레퍼런스 구현. 순수 HTML/CSS + 인라인 SVG(`<symbol>` 아이콘 스프라이트)로 동일 원리를 재현.
+- **RN+Expo(구현 완료)** — `feTurbulence`/`feDisplacementMap`은 `react-native-svg` 네이티브에서 미지원이라 이식 불가. 대신 `apps/mobile/src/lib/doodle-path.ts`(`wobbleRect`/`hatchSegments`/시드 난수 `mulberry32`)로 **사전 계산한 지터 패스**를 `apps/mobile/src/components/DoodleSvg.tsx`(`WobbleBox`/`MatchGauge`/`DoodleFace`/`DoodleChip`/`DashedLine`) SVG 컴포넌트로 렌더.
 
 ## 4. 두들 모티프 사전
 
@@ -104,8 +105,8 @@
 - [x] **흑백 재구성 + 모바일 특화 와이어프레임** — 컬러를 순수 흑백(유채색 0)으로 전환, 색 대신 반전·해칭·굵기로 위계. 모바일 6화면(온보딩·홈 피드·모임 상세·AI 궁합 리포트·채팅/매칭·프로필) + 하단 탭바 패턴을 `design/mobile-wireframes.html`에 구현·렌더 검증. → **v2(RN+Expo) 확정 시스템**
 
 ### 다음(제안, 미착수)
-- [ ] 흑백 토큰을 `lib/doodle.ts`/`theme.ts`에 반영(핑크 → 반전/해칭) 또는 RN 앱 신규 토큰으로 포팅
-- [ ] 와이어프레임 → 실제 RN 컴포넌트(두들 보더 Hook·SVG 아이콘 세트) 구현
+- [x] 흑백 토큰을 `lib/doodle.ts`/`theme.ts`에 반영(핑크 → 반전/해칭) 또는 RN 앱 신규 토큰으로 포팅 — **완료.** RN 앱 신규 토큰 경로: `apps/mobile/src/lib/theme.ts`의 `colors`/`doodle` 토큰.
+- [x] 와이어프레임 → 실제 RN 컴포넌트(두들 보더 Hook·SVG 아이콘 세트) 구현 — **완료.** `apps/mobile/src/lib/doodle-path.ts`(wobbleRect/hatchSegments/mulberry 시드 지터) + `apps/mobile/src/components/DoodleSvg.tsx`(WobbleBox/MatchGauge/DoodleFace/DoodleChip/DashedLine) + `DoodleTabBar.tsx`/`DoodleHero.tsx` + wobble 적용된 `Doodle.tsx`, 홈/인증/리스트/상세 화면 전반에 반영.
 
 > 미리보기(흑백·최신): **`mobile-wireframes.html`** → 렌더 `preview-mobile-wireframes.png`
 > 미리보기(핑크·초기): `doodle-style-tile.html`, `preview-app-landing.png`, `preview-app-login.png`, `preview-app-dashboard.png`, `preview-app-3d-live.png`
