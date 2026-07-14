@@ -164,6 +164,30 @@ export function DoodleFace({
   );
 }
 
+/** Native-safe dashed hairline — single-side dashed borders are broken in RN (facebook/react-native#24224). */
+export function DashedLine({
+  color = colors.grayLight,
+  thickness = 1.6,
+}: {
+  color?: string;
+  thickness?: number;
+}) {
+  return (
+    <Svg height={thickness + 1} width="100%">
+      <Line
+        x1="0"
+        y1={thickness / 2}
+        x2="100%"
+        y2={thickness / 2}
+        stroke={color}
+        strokeWidth={thickness}
+        strokeDasharray="2 6"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 export function DoodleChip({
   label,
   on = false,

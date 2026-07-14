@@ -20,9 +20,15 @@ import {
   routeForNotification,
   type NotificationData,
 } from "../../../src/lib/route-for-notification";
-import { DoodleFace } from "../../../src/components/DoodleSvg";
+import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, fonts } from "../../../src/lib/theme";
+
+const Separator = () => (
+  <View style={styles.separatorWrap}>
+    <DashedLine />
+  </View>
+);
 
 export default function Notifications() {
   const clearance = useTabBarClearance();
@@ -108,7 +114,7 @@ export default function Notifications() {
         data={items}
         keyExtractor={(n) => n.id}
         contentContainerStyle={{ paddingBottom: clearance }}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={Separator}
         ListEmptyComponent={
           <View style={styles.center}>
             <DoodleFace variant="flat" size={64} />
@@ -142,7 +148,9 @@ const styles = StyleSheet.create({
   toggle: { flexDirection: "row", alignItems: "center", gap: 8 },
   toggleLabel: { color: colors.ink, fontSize: 14 },
   markAll: { color: colors.grayMid, fontSize: 13, marginBottom: 8 },
-  separator: { borderTopWidth: 1.6, borderStyle: "dashed", borderTopColor: colors.grayLight },
+  // Old separator was full-bleed inside the padded container — the wrap keeps that (100% width
+  // also gives the DashedLine Svg's percentage width a definite parent).
+  separatorWrap: { width: "100%" },
   row: { paddingVertical: 12 },
   rowHead: { flexDirection: "row", alignItems: "center", gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },

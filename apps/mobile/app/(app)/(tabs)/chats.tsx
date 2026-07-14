@@ -10,9 +10,15 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { DoodleFace } from "../../../src/components/DoodleSvg";
+import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, fonts } from "../../../src/lib/theme";
+
+const Separator = () => (
+  <View style={styles.separatorWrap}>
+    <DashedLine />
+  </View>
+);
 
 export default function Chats() {
   const clearance = useTabBarClearance();
@@ -67,7 +73,7 @@ export default function Chats() {
           data={rooms}
           keyExtractor={(item) => item.roomId}
           contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={Separator}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.row}
@@ -101,7 +107,9 @@ const styles = StyleSheet.create({
   appbar: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 },
   title: { fontFamily: fonts.display, fontSize: 26, color: colors.ink },
   list: { paddingVertical: 8 },
-  separator: { borderTopWidth: 1.6, borderStyle: "dashed", borderTopColor: colors.grayLight },
+  // Old separator was full-bleed with no horizontal margin — the wrap keeps that (100% width
+  // also gives the DashedLine Svg's percentage width a definite parent).
+  separatorWrap: { width: "100%" },
   row: {
     flexDirection: "row",
     alignItems: "center",

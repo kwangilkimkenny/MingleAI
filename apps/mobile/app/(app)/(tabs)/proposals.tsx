@@ -17,7 +17,7 @@ import {
 } from "@mingle/client-core";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { DoodleFace } from "../../../src/components/DoodleSvg";
+import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, doodle, fonts } from "../../../src/lib/theme";
 
@@ -111,7 +111,9 @@ export default function Proposals() {
                   ) : null}
                 </View>
               </View>
-              <View style={styles.divider} />
+              <View style={styles.divider}>
+                <DashedLine />
+              </View>
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.acceptBtn} onPress={() => onAccept(item.id)}>
                   <Text style={styles.acceptText}>수락</Text>
@@ -152,12 +154,9 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
   meta: { fontSize: 12.5, color: colors.grayMid, marginTop: 2 },
   summary: { fontSize: 12.5, color: colors.grayMid, marginTop: 4 },
-  divider: {
-    borderTopWidth: 1.6,
-    borderStyle: "dashed",
-    borderTopColor: colors.grayLight,
-    marginBottom: 12,
-  },
+  // SVG dashed hairline wrap (RN single-side dashed borders are broken natively); keeps the
+  // 12px gap the old border-divider had before the action row.
+  divider: { width: "100%", marginBottom: 12 },
   actions: { flexDirection: "row", gap: 8 },
   acceptBtn: {
     flex: 1,
