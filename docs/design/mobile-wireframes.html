@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MingleAI · 흑백 두들 모바일 와이어프레임</title>
+
+<!-- Korean handwriting (Gaegu) + scribble (Gamja Flower) + Latin marker (Shantell Sans) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@300;400;700&family=Gamja+Flower&family=Shantell+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
+<!-- Clean rounded Korean body -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+
+<style>
+  :root{
+    /* ============ 흑백 팔레트 — 그레이스케일 ONLY (색상 0) ============ */
+    --ink:        #17150F;   /* 모든 선·텍스트 (순검정 대신 살짝 따뜻한 먹) */
+    --ink-2:      #45413A;   /* 보조 텍스트 */
+    --ink-3:      #8A857C;   /* 캡션·비활성 */
+    --line-faint: #D9D5CC;   /* 도트그리드·연한 구분선 */
+
+    --paper:      #FFFFFF;   /* 화면 종이 */
+    --paper-warm: #FCFBF7;   /* 페이지 배경 종이 */
+    --smoke:      #F1EFE9;   /* 눌린 면·트랙 */
+    --smoke-2:    #E7E4DC;   /* 조금 더 진한 면 */
+
+    /* "강조색"이 없다 → 검정 반전 블록이 유일한 강조 */
+    --ink-fill:   #17150F;
+    --on-ink:     #FFFFFF;
+
+    --font-display: "Gaegu", "Gamja Flower", cursive;
+    --font-body:    "Pretendard Variable", "Pretendard", system-ui, sans-serif;
+    --font-accent:  "Shantell Sans", "Gaegu", cursive;
+    --font-scribble:"Gamja Flower", "Gaegu", cursive;
+
+    --wobble: url(#dw);
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0;
+    font-family:var(--font-body);
+    color:var(--ink);
+    background-color:var(--paper-warm);
+    background-image: radial-gradient(var(--line-faint) 1.1px, transparent 1.4px);
+    background-size:24px 24px;
+    background-position:-12px -12px;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.55;
+  }
+  /* paper grain */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:9998;
+    opacity:.55; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+  ::selection{ background:var(--ink); color:#fff; }
+
+  /* ============ 페이지 헤더 (원리 분석) ============ */
+  .page-head{ max-width:1140px; margin:0 auto; padding:64px 28px 8px; }
+  .kicker{
+    font-family:var(--font-display); font-weight:700; font-size:14px;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--on-ink);
+    background:var(--ink); display:inline-block; padding:5px 15px 7px;
+    transform:rotate(-1.4deg);
+  }
+  h1.title{
+    font-family:var(--font-display); font-weight:700;
+    font-size:clamp(38px,6vw,68px); line-height:1.02; margin:20px 0 6px;
+    letter-spacing:-.01em;
+  }
+  h1.title em{ font-style:normal; position:relative; white-space:nowrap; }
+  h1.title em svg{ position:absolute; left:-2%; bottom:-14px; width:104%; height:16px; }
+  .lede{ font-size:17px; color:var(--ink-2); max-width:660px; }
+  .lede b{ color:var(--ink); font-weight:700; }
+
+  /* 원리 카드 3열 */
+  .principles{
+    max-width:1140px; margin:26px auto 0; padding:0 28px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:20px;
+  }
+  @media(max-width:840px){ .principles{ grid-template-columns:1fr; } }
+  .pr{
+    background:var(--paper); position:relative; isolation:isolate;
+    padding:20px 20px 22px; border-radius:16px 22px 15px 20px/20px 15px 22px 16px;
+  }
+  .pr::before{
+    content:""; position:absolute; inset:0; z-index:-1;
+    border:2.2px solid var(--ink); border-radius:inherit; filter:var(--wobble);
+    box-shadow:5px 6px 0 rgba(23,21,15,.9);
+  }
+  .pr h3{ font-family:var(--font-display); font-weight:700; font-size:23px; margin:2px 0 8px; display:flex; align-items:center; gap:9px; }
+  .pr h3 .n{
+    font-family:var(--font-accent); font-size:15px; background:var(--ink); color:#fff;
+    width:26px; height:26px; display:grid; place-items:center;
+    border-radius:50% 48% 52% 47%; flex:0 0 auto;
+  }
+  .pr p{ margin:0; font-size:14.5px; color:var(--ink-2); }
+  .pr code{ font-family:var(--font-accent); background:var(--smoke); padding:1px 6px; border-radius:6px; font-size:12.5px; color:var(--ink); }
+
+  /* ============ 폰 갤러리 ============ */
+  .gallery{
+    max-width:1400px; margin:16px auto 40px; padding:44px 28px 20px;
+    display:flex; flex-wrap:wrap; gap:56px 46px; justify-content:center;
+  }
+  .device{ width:344px; flex:0 0 auto; }
+  .device .cap{
+    font-family:var(--font-display); font-weight:700; font-size:22px;
+    text-align:center; margin:0 0 4px; transform:rotate(-.6deg);
+  }
+  .device .cap .sub{ display:block; font-family:var(--font-body); font-weight:500; font-size:12.5px; color:var(--ink-3); letter-spacing:.02em; }
+
+  /* 폰 섀시 — 손그림 직사각형 */
+  .phone{
+    position:relative; isolation:isolate; background:var(--paper);
+    width:344px; height:722px; padding:13px;
+    border-radius:46px 44px 46px 44px/48px 46px 48px 46px;
+  }
+  .phone::before{
+    content:""; position:absolute; inset:0; z-index:-1;
+    border:2.6px solid var(--ink); border-radius:inherit; filter:var(--wobble);
+    box-shadow:8px 9px 0 rgba(23,21,15,.9);
+  }
+  /* 노치 */
+  .phone::after{
+    content:""; position:absolute; top:15px; left:50%; transform:translateX(-50%);
+    width:116px; height:15px; background:var(--ink);
+    border-radius:0 0 12px 12px; z-index:2;
+  }
+  .screen{
+    position:relative; height:100%; overflow:hidden;
+    border-radius:34px; background:var(--paper);
+    display:flex; flex-direction:column;
+    /* 아주 옅은 도트그리드 */
+    background-image: radial-gradient(var(--line-faint) .8px, transparent 1px);
+    background-size:20px 20px; background-position:-10px -10px;
+  }
+
+  /* 상태바 */
+  .statusbar{
+    height:38px; flex:0 0 auto; display:flex; align-items:flex-end;
+    justify-content:space-between; padding:0 22px 4px;
+    font-family:var(--font-accent); font-weight:700; font-size:13px; color:var(--ink);
+  }
+  .statusbar .r{ display:flex; gap:5px; align-items:center; }
+  .statusbar svg{ width:16px; height:16px; }
+
+  /* 본문 스크롤 영역 */
+  .body{ flex:1 1 auto; overflow:hidden; padding:6px 18px 0; position:relative; }
+  .body.scroll{ overflow-y:auto; }
+  .body.pad-tab{ padding-bottom:78px; }
+
+  /* ============ 두들 컴포넌트 ============ */
+  .ico{ width:24px; height:24px; fill:none; stroke:var(--ink); stroke-width:1.9;
+        stroke-linecap:round; stroke-linejoin:round; }
+  .ico.sm{ width:18px; height:18px; }
+  .ico.lg{ width:30px; height:30px; }
+
+  /* 손그림 버튼 */
+  .btn{
+    position:relative; isolation:isolate; display:inline-flex; align-items:center;
+    justify-content:center; gap:8px; width:100%; cursor:pointer; border:0;
+    font-family:var(--font-display); font-weight:700; font-size:19px;
+    padding:13px 18px 14px; background:transparent; color:var(--ink);
+    border-radius:15px 20px 14px 19px/19px 14px 20px 15px;
+  }
+  .btn::before{
+    content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit;
+    border:2.2px solid var(--ink); filter:var(--wobble);
+    box-shadow:4px 4px 0 rgba(23,21,15,.9);
+  }
+  .btn.fill{ color:var(--on-ink); }
+  .btn.fill::before{ background:var(--ink); }
+  .btn.sm{ font-size:15px; padding:8px 14px 9px; width:auto; }
+  .btn.ghost::before{ box-shadow:2px 2px 0 rgba(23,21,15,.55); border-style:dashed; }
+
+  /* 손그림 카드 */
+  .card{
+    position:relative; isolation:isolate; background:var(--paper);
+    padding:14px 15px; margin-bottom:14px;
+    border-radius:15px 21px 15px 20px/20px 15px 21px 16px;
+  }
+  .card::before{
+    content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit;
+    border:2.2px solid var(--ink); filter:var(--wobble);
+    box-shadow:4px 5px 0 rgba(23,21,15,.85);
+  }
+  .card.flat::before{ box-shadow:none; }
+  .card.ink{ background:var(--ink); color:var(--on-ink); }
+  .card.ink *{ color:var(--on-ink); }
+
+  /* 칩 */
+  .chips{ display:flex; gap:8px; flex-wrap:nowrap; overflow:hidden; padding:2px 0 4px; }
+  .chip{
+    position:relative; isolation:isolate; white-space:nowrap;
+    font-family:var(--font-display); font-weight:700; font-size:14.5px;
+    padding:5px 13px 6px; border-radius:13px 16px 12px 15px/15px 12px 16px 13px;
+    color:var(--ink); flex:0 0 auto;
+  }
+  .chip::before{ content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit;
+    border:1.8px solid var(--ink); filter:var(--wobble); }
+  .chip.on{ color:var(--on-ink); }
+  .chip.on::before{ background:var(--ink); }
+  .chip.tiny{ font-size:12px; padding:2px 9px 3px; }
+
+  /* 두들 얼굴 아바타 */
+  .face{ position:relative; display:inline-grid; place-items:center; }
+  .face svg{ display:block; }
+
+  /* 얼굴 스택(참가자) */
+  .facestack{ display:flex; align-items:center; }
+  .facestack .face{ margin-left:-10px; background:var(--paper); border-radius:50%; }
+  .facestack .face:first-child{ margin-left:0; }
+  .facestack .more{
+    margin-left:-10px; width:38px; height:38px; border-radius:50%;
+    display:grid; place-items:center; font-family:var(--font-accent); font-weight:700;
+    font-size:12px; background:var(--ink); color:#fff; position:relative; z-index:1;
+    border:2px solid var(--paper);
+  }
+
+  /* 해칭 게이지 (흑백: 검정 빗금) */
+  .gauge{ margin:9px 0; }
+  .gauge .lab{ display:flex; justify-content:space-between; font-family:var(--font-display);
+    font-weight:700; font-size:14.5px; margin-bottom:3px; }
+  .gauge .lab .v{ font-family:var(--font-accent); }
+  .track{
+    position:relative; isolation:isolate; height:16px; background:var(--paper);
+    border-radius:9px 11px 8px 10px/10px 8px 11px 9px;
+  }
+  .track::before{ content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit;
+    border:1.9px solid var(--ink); filter:var(--wobble); }
+  .fill{
+    height:100%; border-radius:inherit;
+    background-image:repeating-linear-gradient(45deg, var(--ink) 0 2.2px, transparent 2.2px 5.5px);
+    border-right:2px solid var(--ink);
+  }
+
+  /* 리스트 아이템 */
+  .row{ display:flex; align-items:center; gap:12px; padding:11px 2px; }
+  .row + .row{ border-top:1.6px dashed var(--line-faint); }
+  .row .grow{ flex:1 1 auto; min-width:0; }
+  .row .t{ font-family:var(--font-display); font-weight:700; font-size:17px; line-height:1.15; }
+  .row .s{ font-size:12.5px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* 섹션 소제목 */
+  .h{ font-family:var(--font-display); font-weight:700; font-size:20px; margin:14px 2px 8px; display:flex; align-items:center; gap:7px; }
+  .muted{ color:var(--ink-3); }
+  .tiny{ font-size:12px; }
+  .accent{ font-family:var(--font-accent); font-weight:700; }
+
+  /* 하단 탭바 */
+  .tabbar{
+    position:absolute; left:12px; right:12px; bottom:12px; height:60px; z-index:5;
+    background:var(--paper); display:flex; align-items:center; justify-content:space-around;
+    border-radius:19px 22px 18px 21px/21px 18px 22px 19px;
+  }
+  .tabbar::before{ content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit;
+    border:2.4px solid var(--ink); filter:var(--wobble); box-shadow:0 4px 0 rgba(23,21,15,.85); }
+  .tab{ display:grid; place-items:center; gap:2px; font-family:var(--font-display); font-weight:700;
+        font-size:11px; color:var(--ink-3); }
+  .tab .ico{ stroke:var(--ink-3); stroke-width:1.8; width:23px; height:23px; }
+  .tab.on{ color:var(--ink); }
+  .tab.on .ico{ stroke:var(--ink); stroke-width:2.2; }
+  /* 가운데 매칭 버튼 */
+  .tab.mid{ position:relative; }
+  .tab.mid .disc{
+    width:52px; height:52px; margin-top:-26px; background:var(--ink); color:#fff;
+    display:grid; place-items:center; border-radius:50% 47% 53% 48%;
+    border:2.4px solid var(--paper); box-shadow:0 4px 0 rgba(23,21,15,.5);
+  }
+  .tab.mid .disc .ico{ stroke:#fff; stroke-width:2.4; width:26px; height:26px; }
+
+  /* 상단 앱바 */
+  .appbar{ display:flex; align-items:center; gap:10px; padding:6px 2px 10px; }
+  .appbar .iconbtn{ width:40px; height:40px; display:grid; place-items:center; position:relative; isolation:isolate; }
+  .appbar .iconbtn::before{ content:""; position:absolute; inset:0; z-index:-1; border:2px solid var(--ink);
+     border-radius:12px 14px 11px 13px/13px 11px 14px 12px; filter:var(--wobble); }
+  .appbar .grow{ flex:1 1 auto; }
+  .appbar .htitle{ font-family:var(--font-display); font-weight:700; font-size:22px; line-height:1.1; }
+
+  /* 커버 일러스트 박스 */
+  .cover{
+    position:relative; isolation:isolate; height:150px; margin:4px 0 12px;
+    background:var(--smoke); overflow:hidden;
+    border-radius:16px 22px 15px 20px/20px 15px 22px 16px;
+    display:grid; place-items:center;
+  }
+  .cover::before{ content:""; position:absolute; inset:0; z-index:-1; border:2.2px solid var(--ink);
+    border-radius:inherit; filter:var(--wobble); }
+  .cover .hatch{ position:absolute; inset:0;
+    background-image:repeating-linear-gradient(-45deg, var(--line-faint) 0 1px, transparent 1px 11px); opacity:.7; }
+
+  /* 형광펜(흑백판) = 밑줄 강조 */
+  .hi{ position:relative; font-weight:800; }
+  .hi::after{ content:""; position:absolute; left:-2px; right:-2px; bottom:1px; height:6px;
+    background:var(--smoke-2); z-index:-1; }
+
+  /* 스크롤바 */
+  .body.scroll::-webkit-scrollbar{ width:5px; }
+  .body.scroll::-webkit-scrollbar-thumb{ background:var(--smoke-2); border-radius:4px; }
+
+  footer.note{ max-width:1140px; margin:0 auto; padding:8px 28px 80px; color:var(--ink-3); font-size:13.5px; }
+  footer.note code{ font-family:var(--font-accent); background:var(--smoke); padding:1px 6px; border-radius:6px; color:var(--ink); }
+
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ============ 손그림 워블 필터 정의 (한 번) ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="dw" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.012 0.014" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.6" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+
+  <!-- ===== 두들 아이콘 심볼 ===== -->
+  <defs>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5 L8 12 L15 19 M8 12 H19"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15 L20 20"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.5 17 C6 10 8 7 12 7 C16 7 18 10 17.5 17 Z M9.8 20 a2.4 2 0 0 0 4.4 0"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.5 L12 4.5 L20 11.5 M6.2 10 V20 H17.8 V10"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M15.5 8.5 L10.8 10.9 L8.5 15.5 L13.2 13.1 Z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5 V19 M5 12 H19"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 6.5 h13.5 a1.5 1.5 0 0 1 1.5 1.5 v7 a1.5 1.5 0 0 1 -1.5 1.5 h-7.5 l-4 3.2 v-3.2 h-1.5 a1.5 1.5 0 0 1 -1.5 -1.5 v-7 a1.5 1.5 0 0 1 1.5 -1.5 Z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.9"/><path d="M5 20 C5 15.6 8 13.2 12 13.2 C16 13.2 19 15.6 19 20"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3.2"/><circle cx="16.5" cy="10" r="2.4"/><path d="M3.6 19 C3.6 15.7 6 13.9 9 13.9 C11 13.9 12.6 14.7 13.6 16"/><path d="M14.6 19 C14.8 16.6 16 15.3 18 15.3 C19.6 15.3 20.6 16.2 20.9 18"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20 C3.8 13 4 6.5 8.4 6.4 C10.8 6.3 12 8.6 12 8.6 C12 8.6 13.2 6.3 15.6 6.4 C20 6.5 20.2 13 12 20 Z"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3 C12.6 8.4 13.4 9.4 18.5 9.5 C13.4 9.6 12.6 10.6 12 16 C11.4 10.6 10.6 9.6 5.5 9.5 C10.6 9.4 11.4 8.4 12 3 Z"/><path d="M18.5 15 C18.7 17.2 19 17.6 21 17.7 C19 17.8 18.7 18.2 18.5 20.4 C18.3 18.2 18 17.8 16 17.7 C18 17.6 18.3 17.2 18.5 15 Z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.5 V12 L15.4 14"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21 C6.8 15 6 11 8.2 8.4 A5 5 0 0 1 15.8 8.4 C18 11 17.2 15 12 21 Z"/><circle cx="12" cy="10.4" r="2.1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5 L10 17.5 L19.2 6.5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.4 L14.6 9 L20.6 9.6 L16 13.8 L17.4 19.8 L12 16.6 L6.6 19.8 L8 13.8 L3.4 9.6 L9.4 9 Z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6.5" cy="12" r="2.2"/><circle cx="17.5" cy="6.5" r="2.2"/><circle cx="17.5" cy="17.5" r="2.2"/><path d="M8.4 11 L15.6 7.5 M8.4 13 L15.6 16.5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.6 V6 M12 18 V20.4 M20.4 12 H18 M6 12 H3.6 M17.9 6.1 L16.2 7.8 M7.8 16.2 L6.1 17.9 M17.9 17.9 L16.2 16.2 M7.8 7.8 L6.1 6.1"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9.5 5.5 L15.5 12 L9.5 18.5"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4.5 19.5 L4.5 15.5 L15 5 L19 9 L8.5 19.5 Z M13 7 L17 11"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 3 L6 13 H11 L10.5 21 L18 10.5 H12.5 Z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 L19 6 V11.5 C19 16.5 15.8 19.6 12 21 C8.2 19.6 5 16.5 5 11.5 V6 Z"/><path d="M9 12 L11.2 14.2 L15.4 9.8"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 24 24"><path d="M4 18 V14 M9 18 V11 M14 18 V8 M19 18 V5" stroke-width="2.1"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M3.5 9 C8.5 4.5 15.5 4.5 20.5 9 M6.5 12.5 C10 9.5 14 9.5 17.5 12.5 M9.5 16 C11 14.5 13 14.5 14.5 16" stroke-width="2.1"/><circle cx="12" cy="19" r=".7" fill="var(--ink)" stroke="none"/></symbol>
+    <symbol id="i-batt" viewBox="0 0 24 24"><rect x="3" y="8" width="16" height="9" rx="2.4"/><path d="M21 11 V14"/><rect x="5" y="10" width="9" height="5" rx="1" fill="var(--ink)" stroke="none"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============ 원리 분석 헤더 ============ -->
+<header class="page-head">
+  <span class="kicker">Doodle · Black &amp; White · Mobile</span>
+  <h1 class="title">손으로 그린 <em>흑백 스케치북<svg viewBox="0 0 300 16" preserveAspectRatio="none"><path d="M2 9 C60 3 120 13 180 7 C230 2 270 12 298 6" fill="none" stroke="#17150F" stroke-width="3.4" stroke-linecap="round" filter="url(#dw)"/></svg></em><br/>모바일 와이어프레임</h1>
+  <p class="lede">색을 지운다. <b>검정 먹선 + 흰 종이</b> 단 두 값으로 승부한다. 귀여움은 컬러가 아니라 <b>둥글고 삐뚤한 손선·두들 표정·굵은 흑백 대비</b>에서 나온다. 강조가 필요하면 <b>검정 반전 블록</b> 하나로 끝낸다 — 심플함의 핵심은 "색을 더하지 않는 것".</p>
+</header>
+
+<section class="principles">
+  <div class="pr">
+    <h3><span class="n">1</span>선을 떨게 한다</h3>
+    <p>모든 박스는 <code>::before</code> 가상요소에 테두리를 그리고 SVG <code>feTurbulence</code> + <code>feDisplacementMap</code>(<code>#dw</code>) 변위 필터를 걸어 <b>테두리만 손그림처럼 떨리게</b> 한다. 콘텐츠 텍스트는 왜곡되지 않는다. 모서리 <code>border-radius</code>도 4곳을 다르게 줘서 정원·직선을 없앤다.</p>
+  </div>
+  <div class="pr">
+    <h3><span class="n">2</span>그림자는 단색 오프셋</h3>
+    <p>블러 그림자 금지. <code>4px 5px 0 #17150F</code>처럼 <b>번지지 않는 검정 오프셋 그림자</b>만 쓴다 — 종이에 스티커를 붙인 듯한 물성. 채움은 회색 대신 <b>검정 빗금(해칭)</b> <code>repeating-linear-gradient(45deg)</code>으로 표현해 흑백만으로 밀도를 만든다.</p>
+  </div>
+  <div class="pr">
+    <h3><span class="n">3</span>색 대신 굵기·반전</h3>
+    <p>강조색이 없으므로 위계는 <b>선 굵기·크기·검정 반전 블록</b>으로만 만든다. 손글씨(Gaegu)는 제목·버튼·라벨에, 산세리프(Pretendard)는 긴 본문에. 두들 얼굴·하트·반짝이 모티프가 정보 없는 공간을 귀엽게 채운다.</p>
+  </div>
+</section>
+
+<!-- ============ 폰 갤러리 ============ -->
+<div class="gallery">
+
+  <!-- ===== 1. 온보딩 ===== -->
+  <div class="device">
+    <div class="cap">① 온보딩<span class="sub">첫인상 · 제품 약속</span></div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><svg class="ico sm"><use href="#i-signal"/></svg><svg class="ico sm"><use href="#i-wifi"/></svg><svg class="ico sm"><use href="#i-batt"/></svg></span></div>
+      <div class="body" style="padding:0;">
+        <!-- 히어로: 중앙 정렬, 하단 푸터 공간 확보 -->
+        <div style="position:absolute;top:0;left:0;right:0;bottom:132px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:0 22px;">
+          <!-- 떠다니는 두들 모티프 -->
+          <div style="position:relative;width:100%;height:20px;">
+            <svg class="ico" style="position:absolute;left:8px;top:0;width:22px;height:22px;transform:rotate(-12deg)"><use href="#i-spark"/></svg>
+            <svg class="ico" style="position:absolute;right:14px;top:-2px;width:19px;height:19px;transform:rotate(14deg)"><use href="#i-heart"/></svg>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-display);font-weight:700;font-size:46px;line-height:1;">Mingle<span class="accent" style="font-size:28px;">AI</span></div>
+            <div style="font-family:var(--font-scribble);font-size:18px;color:var(--ink-2);">낯가림도 괜찮아요</div>
+          </div>
+
+          <!-- 두 얼굴 + 연결 -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin:18px 0 12px;">
+            <span class="face">
+              <svg width="60" height="60" viewBox="0 0 74 74"><circle cx="37" cy="37" r="32" fill="#fff" stroke="#17150F" stroke-width="2.6" filter="url(#dw)"/><circle cx="28" cy="33" r="2.6" fill="#17150F"/><circle cx="46" cy="33" r="2.6" fill="#17150F"/><path d="M27 45 C32 51 42 51 47 45" fill="none" stroke="#17150F" stroke-width="2.6" stroke-linecap="round"/><path d="M20 24 C24 20 30 20 33 24" fill="none" stroke="#17150F" stroke-width="2.2" stroke-linecap="round"/></svg>
+            </span>
+            <svg width="52" height="38" viewBox="0 0 56 40"><path d="M4 20 C14 8 22 32 30 20 C36 11 44 11 50 20" fill="none" stroke="#17150F" stroke-width="2.2" stroke-dasharray="1 6" stroke-linecap="round"/><path d="M50 20 C46 14 40 15 41 21 C42 26 49 26 50 20 Z" fill="#17150F"/></svg>
+            <span class="face">
+              <svg width="60" height="60" viewBox="0 0 74 74"><circle cx="37" cy="37" r="32" fill="#17150F" stroke="#17150F" stroke-width="2.6" filter="url(#dw)"/><circle cx="28" cy="34" r="2.8" fill="#fff"/><circle cx="46" cy="34" r="2.8" fill="#fff"/><path d="M28 44 C32 49 42 49 46 44" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>
+            </span>
+          </div>
+
+          <p style="text-align:center;font-size:15px;color:var(--ink-2);margin:0;">
+            AI가 <span class="hi">먼저 대화</span>하고 잘 맞는 사람만 골라줘요.<br/>어색한 첫 메시지는 이제 그만.
+          </p>
+        </div>
+
+        <!-- 하단 푸터: 인디케이터 + 버튼 (절대 고정) -->
+        <div style="position:absolute;left:18px;right:18px;bottom:14px;">
+          <div style="display:flex;gap:7px;justify-content:center;margin-bottom:12px;">
+            <span style="width:22px;height:7px;background:var(--ink);border-radius:5px;"></span>
+            <span style="width:7px;height:7px;background:var(--smoke-2);border-radius:50%;"></span>
+            <span style="width:7px;height:7px;background:var(--smoke-2);border-radius:50%;"></span>
+          </div>
+          <button class="btn fill" style="padding:11px 18px 12px;">시작하기</button>
+          <div style="height:9px;"></div>
+          <button class="btn ghost" style="padding:11px 18px 12px;">이미 계정이 있어요</button>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ===== 2. 홈 피드 ===== -->
+  <div class="device">
+    <div class="cap">② 홈 · 오늘의 모임<span class="sub">피드 · 하단 탭바</span></div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><svg class="ico sm"><use href="#i-signal"/></svg><svg class="ico sm"><use href="#i-wifi"/></svg><svg class="ico sm"><use href="#i-batt"/></svg></span></div>
+      <div class="body scroll pad-tab">
+        <div class="appbar">
+          <div class="grow">
+            <div class="tiny muted">안녕하세요 👋</div>
+            <div class="htitle">지민님, <span class="hi">오늘</span> 나가볼까요?</div>
+          </div>
+          <div class="iconbtn"><svg class="ico"><use href="#i-search"/></svg></div>
+          <div class="iconbtn"><svg class="ico"><use href="#i-bell"/></svg></div>
+        </div>
+
+        <div class="chips">
+          <span class="chip on">전체</span>
+          <span class="chip">오늘</span>
+          <span class="chip">이번 주말</span>
+          <span class="chip">내 근처</span>
+        </div>
+
+        <!-- 추천(반전) 카드 -->
+        <div class="card ink" style="margin-top:12px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg class="ico" style="stroke:#fff"><use href="#i-bolt"/></svg>
+            <span style="font-family:var(--font-display);font-weight:700;font-size:19px;">AI 추천 모임</span>
+          </div>
+          <div style="font-size:13.5px;opacity:.85;margin:6px 0 10px;">지민님 취향 분석 결과, 이 모임이 <b style="color:#fff">92%</b> 잘 맞아요.</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-family:var(--font-display);font-weight:700;font-size:18px;">주말 브런치 소셜</div>
+              <div style="font-size:12px;opacity:.8;">토 11:00 · 성수동</div>
+            </div>
+            <button class="btn sm" style="color:#fff;"><span style="position:relative;z-index:1">보기</span><span style="position:absolute;inset:0;border:2px solid #fff;border-radius:inherit;filter:url(#dw)"></span></button>
+          </div>
+        </div>
+
+        <div class="h">가까운 모임 <span class="accent muted" style="font-size:14px;">12</span></div>
+
+        <!-- 모임 카드 -->
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <div style="min-width:0;">
+              <div style="font-family:var(--font-display);font-weight:700;font-size:19px;line-height:1.1;">금요일 저녁 다이닝</div>
+              <div class="tiny muted" style="margin-top:3px;display:flex;gap:10px;">
+                <span><svg class="ico sm" style="width:13px;height:13px;vertical-align:-2px"><use href="#i-clock"/></svg> 금 19:30</span>
+                <span><svg class="ico sm" style="width:13px;height:13px;vertical-align:-2px"><use href="#i-pin"/></svg> 이태원</span>
+              </div>
+            </div>
+            <span class="chip tiny on">2자리</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:11px;">
+            <span class="facestack">
+              <span class="face"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="#fff" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="13" cy="15" r="1.5" fill="#17150F"/><circle cx="21" cy="15" r="1.5" fill="#17150F"/><path d="M12 21 C15 24 19 24 22 21" fill="none" stroke="#17150F" stroke-width="2" stroke-linecap="round"/></svg></span>
+              <span class="face"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="#17150F" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="13" cy="15" r="1.5" fill="#fff"/><circle cx="21" cy="15" r="1.5" fill="#fff"/><path d="M13 20 C15 22 19 22 21 20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
+              <span class="face"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="#fff" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="13" cy="16" r="1.5" fill="#17150F"/><circle cx="21" cy="16" r="1.5" fill="#17150F"/><path d="M13 20 h8" stroke="#17150F" stroke-width="2" stroke-linecap="round"/></svg></span>
+              <span class="more">+4</span>
+            </span>
+            <span class="accent" style="font-size:15px;">궁합 88%</span>
+          </div>
+        </div>
+
+        <!-- 모임 카드 2 -->
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <div style="min-width:0;">
+              <div style="font-family:var(--font-display);font-weight:700;font-size:19px;line-height:1.1;">보드게임 &amp; 맥주</div>
+              <div class="tiny muted" style="margin-top:3px;display:flex;gap:10px;">
+                <span><svg class="ico sm" style="width:13px;height:13px;vertical-align:-2px"><use href="#i-clock"/></svg> 토 15:00</span>
+                <span><svg class="ico sm" style="width:13px;height:13px;vertical-align:-2px"><use href="#i-pin"/></svg> 홍대</span>
+              </div>
+            </div>
+            <span class="chip tiny">대기</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:11px;">
+            <span class="facestack">
+              <span class="face"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="#fff" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="13" cy="15" r="1.5" fill="#17150F"/><circle cx="21" cy="15" r="1.5" fill="#17150F"/><path d="M12 20 C15 23 19 23 22 20" fill="none" stroke="#17150F" stroke-width="2" stroke-linecap="round"/></svg></span>
+              <span class="face"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="#fff" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="13" cy="15" r="1.5" fill="#17150F"/><circle cx="21" cy="15" r="1.5" fill="#17150F"/><path d="M13 21 C15 19 19 19 21 21" fill="none" stroke="#17150F" stroke-width="2" stroke-linecap="round"/></svg></span>
+              <span class="more">+6</span>
+            </span>
+            <span class="accent" style="font-size:15px;">궁합 74%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 탭바 -->
+      <nav class="tabbar">
+        <span class="tab on"><svg class="ico"><use href="#i-home"/></svg>홈</span>
+        <span class="tab"><svg class="ico"><use href="#i-compass"/></svg>탐색</span>
+        <span class="tab mid"><span class="disc"><svg class="ico"><use href="#i-spark"/></svg></span>매칭</span>
+        <span class="tab"><svg class="ico"><use href="#i-chat"/></svg>채팅</span>
+        <span class="tab"><svg class="ico"><use href="#i-user"/></svg>나</span>
+      </nav>
+    </div></div>
+  </div>
+
+  <!-- ===== 3. 모임 상세 ===== -->
+  <div class="device">
+    <div class="cap">③ 모임 상세<span class="sub">정보 · 참가 신청</span></div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><svg class="ico sm"><use href="#i-signal"/></svg><svg class="ico sm"><use href="#i-wifi"/></svg><svg class="ico sm"><use href="#i-batt"/></svg></span></div>
+      <div class="body scroll" style="padding-bottom:82px;">
+        <div class="appbar">
+          <div class="iconbtn"><svg class="ico"><use href="#i-back"/></svg></div>
+          <div class="grow"></div>
+          <div class="iconbtn"><svg class="ico"><use href="#i-share"/></svg></div>
+          <div class="iconbtn"><svg class="ico"><use href="#i-heart"/></svg></div>
+        </div>
+
+        <!-- 커버 일러스트 (손그림 테이블) -->
+        <div class="cover">
+          <div class="hatch"></div>
+          <svg width="200" height="120" viewBox="0 0 200 120" style="position:relative;">
+            <ellipse cx="100" cy="78" rx="66" ry="20" fill="#fff" stroke="#17150F" stroke-width="2.4" filter="url(#dw)"/>
+            <path d="M52 82 L48 104 M148 82 L152 104 M78 88 L76 106 M122 88 L124 106" stroke="#17150F" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="66" cy="52" r="15" fill="#fff" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="62" cy="50" r="1.4" fill="#17150F"/><circle cx="70" cy="50" r="1.4" fill="#17150F"/><path d="M62 56 C64 58 68 58 70 56" fill="none" stroke="#17150F" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="134" cy="52" r="15" fill="#17150F" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="130" cy="50" r="1.4" fill="#fff"/><circle cx="138" cy="50" r="1.4" fill="#fff"/><path d="M130 55 C132 57 136 57 138 55" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M100 30 C100.5 34 101 34.5 105 35 C101 35.5 100.5 36 100 40 C99.5 36 99 35.5 95 35 C99 34.5 99.5 34 100 30 Z" fill="#17150F"/>
+          </svg>
+        </div>
+
+        <div style="font-family:var(--font-display);font-weight:700;font-size:26px;line-height:1.1;">금요일 저녁, 이태원 소셜 다이닝</div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <span class="chip tiny">🍷 다이닝</span><span class="chip tiny">20·30대</span><span class="chip tiny on">2자리 남음</span>
+        </div>
+
+        <!-- 메타 -->
+        <div class="card flat" style="margin-top:14px;">
+          <div class="row" style="padding-top:2px;"><svg class="ico"><use href="#i-clock"/></svg><div class="grow"><div class="t">금요일 · 7월 4일 19:30</div><div class="s">약 2시간 진행</div></div></div>
+          <div class="row"><svg class="ico"><use href="#i-pin"/></svg><div class="grow"><div class="t">이태원 소셜 하우스</div><div class="s">6호선 이태원역 3번 출구 · 도보 4분</div></div></div>
+          <div class="row"><svg class="ico"><use href="#i-users"/></svg><div class="grow"><div class="t">6명 참가 · 정원 8명</div><div class="s">성비 균형 자동 조절</div></div></div>
+        </div>
+
+        <!-- 호스트 -->
+        <div class="h">호스트</div>
+        <div class="card" style="display:flex;align-items:center;gap:12px;">
+          <span class="face"><svg width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" fill="#fff" stroke="#17150F" stroke-width="2.4" filter="url(#dw)"/><circle cx="18" cy="21" r="1.8" fill="#17150F"/><circle cx="28" cy="21" r="1.8" fill="#17150F"/><path d="M17 28 C20 31 26 31 29 28" fill="none" stroke="#17150F" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+          <div class="grow"><div class="t">유진 · 호스트</div><div class="s"><svg class="ico sm" style="width:13px;height:13px;vertical-align:-2px"><use href="#i-star"/></svg> 4.9 · 모임 32회 진행</div></div>
+          <svg class="ico"><use href="#i-chevron"/></svg>
+        </div>
+
+        <div class="h">이런 모임이에요</div>
+        <p style="font-size:14.5px;color:var(--ink-2);margin:0 2px;">편하게 저녁 먹으며 대화하는 소규모 다이닝. AI가 대화 스타일과 관심사를 미리 맞춰 어색함 없이 시작해요. 노쇼 방지를 위해 소정의 참가비가 있어요.</p>
+      </div>
+
+      <!-- 스티키 참가 바 -->
+      <div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:10px;align-items:center;background:var(--paper);padding:10px 12px;border-radius:18px 22px 17px 20px/20px 17px 22px 18px;z-index:5;">
+        <span style="position:absolute;inset:0;z-index:-1;border:2.4px solid var(--ink);border-radius:inherit;filter:url(#dw);box-shadow:0 5px 0 rgba(23,21,15,.85);"></span>
+        <div style="flex:0 0 auto;"><div class="tiny muted">참가비</div><div style="font-family:var(--font-accent);font-weight:700;font-size:20px;">15,000원</div></div>
+        <button class="btn fill" style="flex:1;">참가 신청 <svg class="ico sm" style="stroke:#fff"><use href="#i-check"/></svg></button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ===== 4. AI 매칭 리포트 ===== -->
+  <div class="device">
+    <div class="cap">④ AI 궁합 리포트<span class="sub">매칭 결과 · 해칭 게이지</span></div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><svg class="ico sm"><use href="#i-signal"/></svg><svg class="ico sm"><use href="#i-wifi"/></svg><svg class="ico sm"><use href="#i-batt"/></svg></span></div>
+      <div class="body scroll" style="padding-bottom:82px;">
+        <div class="appbar">
+          <div class="iconbtn"><svg class="ico"><use href="#i-back"/></svg></div>
+          <div class="grow"><div class="htitle">AI 궁합 리포트 <svg class="ico sm" style="width:16px;height:16px;vertical-align:-1px"><use href="#i-spark"/></svg></div></div>
+        </div>
+
+        <!-- 두 얼굴 + 연결 -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:2px;margin:6px 0 4px;">
+          <div style="text-align:center;">
+            <span class="face"><svg width="62" height="62" viewBox="0 0 62 62"><circle cx="31" cy="31" r="26" fill="#fff" stroke="#17150F" stroke-width="2.6" filter="url(#dw)"/><circle cx="24" cy="28" r="2.2" fill="#17150F"/><circle cx="38" cy="28" r="2.2" fill="#17150F"/><path d="M23 38 C27 43 35 43 39 38" fill="none" stroke="#17150F" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+            <div style="font-family:var(--font-display);font-weight:700;font-size:15px;">나</div>
+          </div>
+          <svg width="60" height="46" viewBox="0 0 60 46"><path d="M4 23 C14 10 22 36 30 23 C36 13 46 13 52 23" fill="none" stroke="#17150F" stroke-width="2.2" stroke-dasharray="1 6" stroke-linecap="round"/><path d="M30 6 C30.5 10 31 10.5 35 11 C31 11.5 30.5 12 30 16 C29.5 12 29 11.5 25 11 C29 10.5 29.5 10 30 6 Z" fill="#17150F"/></svg>
+          <div style="text-align:center;">
+            <span class="face"><svg width="62" height="62" viewBox="0 0 62 62"><circle cx="31" cy="31" r="26" fill="#17150F" stroke="#17150F" stroke-width="2.6" filter="url(#dw)"/><circle cx="24" cy="29" r="2.4" fill="#fff"/><circle cx="38" cy="29" r="2.4" fill="#fff"/><path d="M24 38 C27 42 35 42 38 38" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+            <div style="font-family:var(--font-display);font-weight:700;font-size:15px;">서연</div>
+          </div>
+        </div>
+
+        <!-- 큰 점수 -->
+        <div style="text-align:center;margin:8px 0 6px;">
+          <div style="font-family:var(--font-accent);font-weight:800;font-size:72px;line-height:.9;">88<span style="font-size:34px;">%</span></div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:22px;">잘 맞아요! <svg class="ico sm" style="width:18px;height:18px;vertical-align:-3px"><use href="#i-heart"/></svg></div>
+        </div>
+
+        <!-- 게이지 -->
+        <div class="card" style="margin-top:8px;">
+          <div class="gauge"><div class="lab"><span>가치관</span><span class="v">92</span></div><div class="track"><div class="fill" style="width:92%"></div></div></div>
+          <div class="gauge"><div class="lab"><span>라이프스타일</span><span class="v">84</span></div><div class="track"><div class="fill" style="width:84%"></div></div></div>
+          <div class="gauge"><div class="lab"><span>대화 스타일</span><span class="v">90</span></div><div class="track"><div class="fill" style="width:90%"></div></div></div>
+          <div class="gauge"><div class="lab"><span>관심사</span><span class="v">86</span></div><div class="track"><div class="fill" style="width:86%"></div></div></div>
+        </div>
+
+        <div class="card flat">
+          <div style="font-family:var(--font-display);font-weight:700;font-size:18px;margin-bottom:5px;">AI 한 줄 요약</div>
+          <p style="margin:0;font-size:14px;color:var(--ink-2);">둘 다 <span class="hi">차분한 대화</span>를 선호하고 주말 취향이 비슷해요. 서연님이 먼저 질문을 잘 던지는 편이라 대화가 자연스럽게 이어질 거예요.</p>
+        </div>
+      </div>
+
+      <div style="position:absolute;left:12px;right:12px;bottom:12px;z-index:5;">
+        <button class="btn fill">대화 시작하기 <svg class="ico sm" style="stroke:#fff"><use href="#i-chat"/></svg></button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ===== 5. 채팅 목록 ===== -->
+  <div class="device">
+    <div class="cap">⑤ 채팅 · 매칭<span class="sub">리스트 · 반전 배지</span></div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><svg class="ico sm"><use href="#i-signal"/></svg><svg class="ico sm"><use href="#i-wifi"/></svg><svg class="ico sm"><use href="#i-batt"/></svg></span></div>
+      <div class="body scroll pad-tab">
+        <div class="appbar">
+          <div class="grow"><div class="htitle">채팅</div></div>
+          <div class="iconbtn"><svg class="ico"><use href="#i-search"/></svg></div>
+        </div>
+
+        <!-- 새 매칭 가로 스크롤 -->
+        <div class="h" style="margin-top:4px;">새 매칭 <svg class="ico sm" style="width:15px;height:15px;vertical-align:-2px"><use href="#i-spark"/></svg></div>
+        <div style="display:flex;gap:14px;overflow:hidden;padding:2px 2px 8px;">
+          <div style="text-align:center;flex:0 0 auto;">
+            <span class="face" style="position:relative;">
+              <svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="29" r="24" fill="#fff" stroke="#17150F" stroke-width="2.4" filter="url(#dw)"/><circle cx="23" cy="27" r="2" fill="#17150F"/><circle cx="35" cy="27" r="2" fill="#17150F"/><path d="M22 35 C26 39 32 39 36 35" fill="none" stroke="#17150F" stroke-width="2.2" stroke-linecap="round"/></svg>
+              <span style="position:absolute;top:-2px;right:-2px;width:18px;height:18px;background:var(--ink);border-radius:50%;border:2px solid #fff;"></span>
+            </span>
+            <div class="tiny" style="font-family:var(--font-display);font-weight:700;">서연</div>
+          </div>
+          <div style="text-align:center;flex:0 0 auto;">
+            <span class="face"><svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="29" r="24" fill="#17150F" stroke="#17150F" stroke-width="2.4" filter="url(#dw)"/><circle cx="23" cy="28" r="2.2" fill="#fff"/><circle cx="35" cy="28" r="2.2" fill="#fff"/><path d="M23 35 C26 39 32 39 35 35" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+            <div class="tiny" style="font-family:var(--font-display);font-weight:700;">도윤</div>
+          </div>
+          <div style="text-align:center;flex:0 0 auto;">
+            <span class="face"><svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="29" r="24" fill="#fff" stroke="#17150F" stroke-width="2.4" filter="url(#dw)"/><circle cx="23" cy="27" r="2" fill="#17150F"/><circle cx="35" cy="27" r="2" fill="#17150F"/><path d="M23 34 h12" stroke="#17150F" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+            <div class="tiny" style="font-family:var(--font-display);font-weight:700;">하은</div>
+          </div>
+          <div style="text-align:center;flex:0 0 auto;">
+            <span class="face"><svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="29" r="24" fill="#fff" stroke="#17150F" stroke-width="2.4" filter="url(#dw)" stroke-dasharray="4 4"/><path d="M29 20 V38 M20 29 H38" stroke="#17150F" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+            <div class="tiny muted">더보기</div>
+          </div>
+        </div>
+
+        <div class="h">대화</div>
+        <!-- 대화 리스트 -->
+        <div class="card flat" style="padding:2px 8px;">
+          <div class="row">
+            <span class="face"><svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="#17150F" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="17" cy="20" r="1.8" fill="#fff"/><circle cx="27" cy="20" r="1.8" fill="#fff"/><path d="M17 27 C20 30 24 30 27 27" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <div class="grow"><div class="t">서연</div><div class="s">AI: 두 분 다 재즈를 좋아하시네요 🎷</div></div>
+            <div style="text-align:right;flex:0 0 auto;"><div class="tiny muted">방금</div><div style="width:20px;height:20px;background:var(--ink);color:#fff;border-radius:50%;font-family:var(--font-accent);font-size:11px;display:grid;place-items:center;margin-left:auto;margin-top:3px;">2</div></div>
+          </div>
+          <div class="row">
+            <span class="face"><svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="#fff" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="17" cy="20" r="1.8" fill="#17150F"/><circle cx="27" cy="20" r="1.8" fill="#17150F"/><path d="M17 26 C20 29 24 29 27 26" fill="none" stroke="#17150F" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <div class="grow"><div class="t">도윤</div><div class="s">주말 모임에서 봐요!</div></div>
+            <div class="tiny muted" style="flex:0 0 auto;">12분</div>
+          </div>
+          <div class="row">
+            <span class="face"><svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="#fff" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="17" cy="21" r="1.8" fill="#17150F"/><circle cx="27" cy="21" r="1.8" fill="#17150F"/><path d="M17 26 h10" stroke="#17150F" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <div class="grow"><div class="t">하은</div><div class="s">사진 고마워요 :)</div></div>
+            <div class="tiny muted" style="flex:0 0 auto;">1시간</div>
+          </div>
+          <div class="row">
+            <span class="face"><svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="#17150F" stroke="#17150F" stroke-width="2.2" filter="url(#dw)"/><circle cx="17" cy="20" r="1.8" fill="#fff"/><circle cx="27" cy="20" r="1.8" fill="#fff"/><path d="M18 25 C20 27 24 27 26 25" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <div class="grow"><div class="t">민준</div><div class="s">AI: 대화 주제를 추천해드릴까요?</div></div>
+            <div class="tiny muted" style="flex:0 0 auto;">어제</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tabbar">
+        <span class="tab"><svg class="ico"><use href="#i-home"/></svg>홈</span>
+        <span class="tab"><svg class="ico"><use href="#i-compass"/></svg>탐색</span>
+        <span class="tab mid"><span class="disc"><svg class="ico"><use href="#i-spark"/></svg></span>매칭</span>
+        <span class="tab on"><svg class="ico"><use href="#i-chat"/></svg>채팅</span>
+        <span class="tab"><svg class="ico"><use href="#i-user"/></svg>나</span>
+      </nav>
+    </div></div>
+  </div>
+
+  <!-- ===== 6. 프로필 ===== -->
+  <div class="device">
+    <div class="cap">⑥ 프로필<span class="sub">나 · 설정</span></div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="r"><svg class="ico sm"><use href="#i-signal"/></svg><svg class="ico sm"><use href="#i-wifi"/></svg><svg class="ico sm"><use href="#i-batt"/></svg></span></div>
+      <div class="body scroll pad-tab">
+        <div class="appbar">
+          <div class="grow"><div class="htitle">내 프로필</div></div>
+          <div class="iconbtn"><svg class="ico"><use href="#i-gear"/></svg></div>
+        </div>
+
+        <!-- 아바타 -->
+        <div style="text-align:center;margin:4px 0 6px;">
+          <span class="face" style="position:relative;">
+            <svg width="104" height="104" viewBox="0 0 104 104"><circle cx="52" cy="52" r="44" fill="#fff" stroke="#17150F" stroke-width="2.8" filter="url(#dw)"/><circle cx="40" cy="47" r="3" fill="#17150F"/><circle cx="64" cy="47" r="3" fill="#17150F"/><path d="M38 63 C45 71 59 71 66 63" fill="none" stroke="#17150F" stroke-width="2.8" stroke-linecap="round"/><path d="M30 34 C36 28 46 28 50 34" fill="none" stroke="#17150F" stroke-width="2.4" stroke-linecap="round"/></svg>
+            <span style="position:absolute;right:2px;bottom:6px;width:30px;height:30px;background:var(--ink);border-radius:50% 47% 53% 48%;display:grid;place-items:center;border:2.4px solid #fff;"><svg class="ico sm" style="stroke:#fff;width:15px;height:15px;"><use href="#i-edit"/></svg></span>
+          </span>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:26px;margin-top:6px;">지민 <span class="accent muted" style="font-size:18px;">28</span></div>
+          <div class="tiny muted"><svg class="ico sm" style="width:12px;height:12px;vertical-align:-2px"><use href="#i-pin"/></svg> 서울 · 마포구</div>
+        </div>
+
+        <!-- 통계 (반전 카드) -->
+        <div class="card ink" style="display:flex;justify-content:space-around;text-align:center;padding:14px 8px;">
+          <div><div class="accent" style="font-size:24px;">14</div><div class="tiny" style="opacity:.8">참가 모임</div></div>
+          <div style="width:1.6px;background:rgba(255,255,255,.3);"></div>
+          <div><div class="accent" style="font-size:24px;">31</div><div class="tiny" style="opacity:.8">매칭</div></div>
+          <div style="width:1.6px;background:rgba(255,255,255,.3);"></div>
+          <div><div class="accent" style="font-size:24px;">4.8</div><div class="tiny" style="opacity:.8">받은 별점</div></div>
+        </div>
+
+        <div class="h">관심사</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <span class="chip">☕ 카페투어</span><span class="chip on">🎷 재즈</span><span class="chip">🥾 등산</span><span class="chip">📷 사진</span><span class="chip">🍷 와인</span>
+        </div>
+
+        <div class="h">설정</div>
+        <div class="card flat" style="padding:2px 8px;">
+          <div class="row"><svg class="ico"><use href="#i-shield"/></svg><div class="grow t">본인 인증</div><span class="chip tiny on">완료</span></div>
+          <div class="row"><svg class="ico"><use href="#i-bell"/></svg><div class="grow t">알림 설정</div><svg class="ico"><use href="#i-chevron"/></svg></div>
+          <div class="row"><svg class="ico"><use href="#i-heart"/></svg><div class="grow t">매칭 선호도</div><svg class="ico"><use href="#i-chevron"/></svg></div>
+          <div class="row"><svg class="ico"><use href="#i-gear"/></svg><div class="grow t">계정 관리</div><svg class="ico"><use href="#i-chevron"/></svg></div>
+        </div>
+      </div>
+
+      <nav class="tabbar">
+        <span class="tab"><svg class="ico"><use href="#i-home"/></svg>홈</span>
+        <span class="tab"><svg class="ico"><use href="#i-compass"/></svg>탐색</span>
+        <span class="tab mid"><span class="disc"><svg class="ico"><use href="#i-spark"/></svg></span>매칭</span>
+        <span class="tab"><svg class="ico"><use href="#i-chat"/></svg>채팅</span>
+        <span class="tab on"><svg class="ico"><use href="#i-user"/></svg>나</span>
+      </nav>
+    </div></div>
+  </div>
+
+</div>
+
+<footer class="note">
+  <b>구현 노트</b> · 이 와이어프레임은 의존성 없이 순수 HTML/CSS + 인라인 SVG로 그렸다. 실제 앱(RN+Expo)에서는
+  <code>#dw</code> 워블 필터 대신 <code>react-native-svg</code>의 동일 <code>feTurbulence</code>/<code>feDisplacementMap</code>,
+  또는 미리 렌더한 SVG 보더 애셋을 쓴다. 색상 토큰은 <code>ink #17150F</code> / <code>paper #FFFFFF</code> / 회색 3단계뿐 — 유채색 0.
+  손글씨는 <code>Gaegu</code>, 본문은 <code>Pretendard</code>, 숫자 강조는 <code>Shantell Sans</code>.
+</footer>
+
+</body>
+</html>
