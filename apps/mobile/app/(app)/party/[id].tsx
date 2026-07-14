@@ -34,7 +34,7 @@ import {
   type Vec2,
 } from "../../../src/lib/party-space";
 import { AmongGame } from "../../../src/components/among/AmongGame";
-import { fonts } from "../../../src/lib/theme";
+import { colors, fonts } from "../../../src/lib/theme";
 
 export default function PartyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -424,7 +424,7 @@ export default function PartyScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16, padding: 24 },
   container: { padding: 24, gap: 12 },
-  title: { fontFamily: fonts.display, fontSize: 24, color: "#17150F" },
+  title: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },
   sub: { fontSize: 13, color: "#8A857C", marginBottom: 8 },
   card: { borderWidth: 1, borderColor: "#D9D5CC", borderRadius: 10, padding: 12, gap: 4 },
   name: { fontSize: 16, fontWeight: "500" },
