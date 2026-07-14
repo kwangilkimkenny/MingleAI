@@ -4,8 +4,10 @@ import { View, Text, StyleSheet } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Sparkles, Heart } from "lucide-react-native";
 import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
+import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 
 export default function Home() {
+  const clearance = useTabBarClearance();
   const { notice } = useLocalSearchParams<{ notice?: string }>();
   const [showNotice, setShowNotice] = useState(true);
   const navigatingRef = useRef(false);
@@ -24,7 +26,7 @@ export default function Home() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: clearance }]}>
       {notice && showNotice ? (
         <DoodleCard
           tone="fill"
@@ -69,7 +71,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 32,
     padding: 24,
-    paddingBottom: 84, // clears the floating doodle tab bar
     backgroundColor: colors.paper,
   },
   hero: { alignItems: "center", gap: 10 },

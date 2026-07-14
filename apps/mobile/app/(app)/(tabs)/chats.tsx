@@ -10,6 +10,7 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
+import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -18,6 +19,7 @@ const GRAY_LIGHT = "#D9D5CC";
 const GRAY_MED = "#8A857C";
 
 export default function Chats() {
+  const clearance = useTabBarClearance();
   const [rooms, setRooms] = useState<MatchSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +66,7 @@ export default function Chats() {
         <FlatList
           data={rooms}
           keyExtractor={(item) => item.roomId}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.row}
@@ -95,7 +97,7 @@ export default function Chats() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PAPER },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  list: { paddingVertical: 8, paddingBottom: 84 }, // clears the floating doodle tab bar
+  list: { paddingVertical: 8 },
   row: {
     flexDirection: "row",
     alignItems: "center",

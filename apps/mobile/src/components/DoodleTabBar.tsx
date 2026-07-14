@@ -18,6 +18,14 @@ const BAR_RADIUS = {
   borderBottomLeftRadius: 21,
 };
 
+export const TAB_BAR_ROW_HEIGHT = 60;
+
+/** Bottom clearance tab screens must reserve so content scrolls clear of the floating bar. */
+export function useTabBarClearance(): number {
+  const insets = useSafeAreaInsets();
+  return TAB_BAR_ROW_HEIGHT + Math.max(insets.bottom, 12) + 12;
+}
+
 export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   return (
@@ -61,7 +69,7 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
 const styles = StyleSheet.create({
   wrap: { position: "absolute", left: 12, right: 12, bottom: 0, backgroundColor: "transparent" },
-  row: { flexDirection: "row", alignItems: "center", height: 60 },
+  row: { flexDirection: "row", alignItems: "center", height: TAB_BAR_ROW_HEIGHT },
   tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
   label: { fontFamily: fonts.display, fontSize: 11 },
 });

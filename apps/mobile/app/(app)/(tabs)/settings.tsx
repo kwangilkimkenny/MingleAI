@@ -12,6 +12,7 @@ import { router, useFocusEffect } from "expo-router";
 import { getMyProfile, updateProfile } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
+import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { pickAndUploadPhoto } from "../../../src/lib/photo";
 
 const INK = "#17150F";
@@ -23,6 +24,7 @@ const GRAY_LIGHT = "#D9D5CC";
 type MyProfile = NonNullable<Awaited<ReturnType<typeof getMyProfile>>>;
 
 export default function SettingsScreen() {
+  const clearance = useTabBarClearance();
   const logout = useAuthStore((s) => s.logout);
   const profileId = useAuthStore((s) => s.profileId);
   const [profile, setProfile] = useState<MyProfile | null>(null);
@@ -69,7 +71,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: clearance }]}>
       <View style={styles.summary}>
         {loading ? (
           <ActivityIndicator color={INK} />
@@ -124,7 +126,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAPER, padding: 20, paddingBottom: 84, gap: 12 }, // clears the floating doodle tab bar
+  container: { flex: 1, backgroundColor: PAPER, padding: 20, gap: 12 },
   summary: {
     borderWidth: 2,
     borderColor: INK,

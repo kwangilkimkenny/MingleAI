@@ -17,6 +17,7 @@ import {
 } from "@mingle/client-core";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
+import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 
 const INK = "#17150F";
 const PAPER = "#FFFFFF";
@@ -24,6 +25,7 @@ const GRAY_MED = "#8A857C";
 const GRAY_DARK = "#45413A";
 
 export default function Proposals() {
+  const clearance = useTabBarClearance();
   const [proposals, setProposals] = useState<ProposalView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export default function Proposals() {
         <FlatList
           data={proposals}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
@@ -127,7 +129,7 @@ export default function Proposals() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PAPER },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  list: { padding: 16, gap: 12, paddingBottom: 84 }, // clears the floating doodle tab bar
+  list: { padding: 16, gap: 12 },
   card: {
     borderWidth: 2,
     borderColor: INK,
