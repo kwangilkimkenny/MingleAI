@@ -1,10 +1,11 @@
-import { colors, fonts } from "../src/lib/theme";
+import { colors } from "../src/lib/theme";
 import { useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { Link, router } from "expo-router";
 import { login, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { DoodleButton, doodleInputStyle } from "../src/components/Doodle";
+import { DoodleHero } from "../src/components/DoodleHero";
 
 export default function Login() {
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -32,8 +33,7 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.brand}>MingleAI</Text>
-      <Text style={styles.tagline}>가벼운 만남, 편안한 연결</Text>
+      <DoodleHero tagline="다시 만나서 반가워요" />
       <TextInput
         style={styles.input}
         placeholder="이메일"
@@ -73,13 +73,6 @@ const styles = StyleSheet.create({
     gap: 14,
     backgroundColor: colors.paper,
   },
-  brand: {
-    fontFamily: fonts.display,
-    fontSize: 44,
-    color: colors.ink,
-    textAlign: "center",
-  },
-  tagline: { fontSize: 14, color: colors.grayMid, textAlign: "center", marginBottom: 8 },
   input: doodleInputStyle,
   error: { color: colors.ink, fontWeight: "600" },
   link: { marginTop: 16, color: colors.ink, textAlign: "center", textDecorationLine: "underline" },

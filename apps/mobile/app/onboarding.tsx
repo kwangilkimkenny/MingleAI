@@ -1,4 +1,4 @@
-import { colors, doodle, fonts } from "../src/lib/theme";
+import { colors, doodle } from "../src/lib/theme";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -15,6 +15,7 @@ import { createProfile, getMyProfile, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
 import { DoodleButton, doodleInputStyle } from "../src/components/Doodle";
+import { DoodleHero } from "../src/components/DoodleHero";
 import { DoodleAvatar } from "../src/components/DoodleAvatar";
 import { pickAndUploadPhoto } from "../src/lib/photo";
 
@@ -42,8 +43,7 @@ function validate(fields: {
   const age = parseInt(fields.ageText.trim(), 10);
   if (age < 19 || age > 100) return "나이는 19~100 사이여야 합니다.";
   if (!fields.occupation.trim()) return "직업을 입력해 주세요.";
-  if (fields.partyPreferenceText.trim().length < 8)
-    return "선호 스타일을 8자 이상 입력해 주세요.";
+  if (fields.partyPreferenceText.trim().length < 8) return "선호 스타일을 8자 이상 입력해 주세요.";
   return null;
 }
 
@@ -69,9 +69,15 @@ export default function Onboarding() {
     if (!hydrated || !token) return;
     let alive = true;
     getMyProfile()
-      .then((p) => { if (alive) setProfileChecked(p ? "has" : "none"); })
-      .catch(() => { if (alive) setProfileChecked("none"); });
-    return () => { alive = false; };
+      .then((p) => {
+        if (alive) setProfileChecked(p ? "has" : "none");
+      })
+      .catch(() => {
+        if (alive) setProfileChecked("none");
+      });
+    return () => {
+      alive = false;
+    };
   }, [hydrated, token]);
 
   if (!hydrated) return null;
@@ -115,9 +121,7 @@ export default function Onboarding() {
         router.replace("/home");
       }
     } catch (e) {
-      setSubmitError(
-        e instanceof ApiError ? e.message : "프로필 저장에 실패했습니다.",
-      );
+      setSubmitError(e instanceof ApiError ? e.message : "프로필 저장에 실패했습니다.");
       setBusy(false);
     }
   }
@@ -133,7 +137,7 @@ export default function Onboarding() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>프로필 설정</Text>
+      <DoodleHero tagline="프로필 설정" />
 
       <View style={styles.photoSection}>
         <TouchableOpacity
@@ -151,9 +155,7 @@ export default function Onboarding() {
           ) : null}
         </TouchableOpacity>
         <TouchableOpacity onPress={onPickPhoto} disabled={photoBusy}>
-          <Text style={styles.photoLink}>
-            {photoUrl ? "사진 변경" : "사진 추가 (선택)"}
-          </Text>
+          <Text style={styles.photoLink}>{photoUrl ? "사진 변경" : "사진 추가 (선택)"}</Text>
         </TouchableOpacity>
       </View>
 
@@ -230,7 +232,6 @@ const styles = StyleSheet.create({
   },
   loadingText: { fontSize: 16, color: colors.grayDark },
   container: { padding: 24, gap: 8, backgroundColor: colors.paper },
-  title: { fontFamily: fonts.display, fontSize: 34, color: colors.ink, marginBottom: 8 },
   photoSection: { alignItems: "center", gap: 8, marginBottom: 8 },
   photoBusy: {
     position: "absolute",
