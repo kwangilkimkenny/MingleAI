@@ -14,14 +14,12 @@ import {
 } from "@nestjs/common";
 import { CacheInterceptor, CacheTTL } from "@nestjs/cache-manager";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { ProfileService } from "./profile.service";
 import { CreateProfileDto } from "./dto/create-profile.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
-import {
-  CurrentUser,
-  JwtPayload,
-} from "../common/decorators/current-user.decorator";
+import { CurrentUser, JwtPayload } from "../common/decorators/current-user.decorator";
 
 @ApiTags("Profiles")
 @ApiBearerAuth()
@@ -59,6 +57,8 @@ export class ProfileController {
     return p;
   }
 
+  // Deferred Phase-2 backlog item: reanalyze is LLM-backed and expensive — 5/min guard.
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post("me/reanalyze")
   @HttpCode(HttpStatus.OK)
   reanalyze(@CurrentUser() user: JwtPayload) {
@@ -73,11 +73,7 @@ export class ProfileController {
   }
 
   @Patch(":id")
-  update(
-    @Param("id") id: string,
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: UpdateProfileDto,
-  ) {
+  update(@Param("id") id: string, @CurrentUser() user: JwtPayload, @Body() dto: UpdateProfileDto) {
     return this.profileService.update(id, user.userId, dto);
   }
 }
