@@ -20,9 +20,9 @@ import {
   routeForNotification,
   type NotificationData,
 } from "../../../src/lib/route-for-notification";
+import { DoodleFace } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
-
-const INK = "#17150F";
+import { colors, fonts } from "../../../src/lib/theme";
 
 export default function Notifications() {
   const clearance = useTabBarClearance();
@@ -76,7 +76,7 @@ export default function Notifications() {
   if (phase === "loading")
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={INK} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   if (phase === "error")
@@ -95,9 +95,9 @@ export default function Notifications() {
           <Switch
             value={pushOn}
             onValueChange={onTogglePush}
-            trackColor={{ false: "#D9D5CC", true: "#17150F" }}
-            thumbColor="#FFFFFF"
-            ios_backgroundColor="#D9D5CC"
+            trackColor={{ false: colors.grayLight, true: colors.ink }}
+            thumbColor={colors.paper}
+            ios_backgroundColor={colors.grayLight}
           />
         </View>
       </View>
@@ -108,13 +108,19 @@ export default function Notifications() {
         data={items}
         keyExtractor={(n) => n.id}
         contentContainerStyle={{ paddingBottom: clearance }}
-        ListEmptyComponent={<Text style={styles.empty}>아직 알림이 없어요.</Text>}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <DoodleFace variant="flat" size={64} />
+            <Text style={styles.empty}>아직 알림이 없어요.</Text>
+          </View>
+        }
         renderItem={({ item }) => (
-          <Pressable
-            style={[styles.row, !item.read && styles.unread]}
-            onPress={() => onTapItem(item)}
-          >
-            <Text style={styles.rowTitle}>{item.title}</Text>
+          <Pressable style={styles.row} onPress={() => onTapItem(item)}>
+            <View style={styles.rowHead}>
+              <Text style={styles.rowTitle}>{item.title}</Text>
+              {!item.read ? <View style={styles.dot} /> : null}
+            </View>
             <Text style={styles.rowMsg}>{item.message}</Text>
           </Pressable>
         )}
@@ -124,27 +130,24 @@ export default function Notifications() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#FFFFFF" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, padding: 16, backgroundColor: colors.paper },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
   },
-  title: { fontSize: 22, fontWeight: "700", color: INK },
+  title: { fontFamily: fonts.display, fontSize: 26, color: colors.ink },
   toggle: { flexDirection: "row", alignItems: "center", gap: 8 },
-  toggleLabel: { color: INK, fontSize: 14 },
-  markAll: { color: "#8A857C", fontSize: 13, marginBottom: 8 },
-  row: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#E7E4DC" },
-  unread: {
-    backgroundColor: "#FBE4EE", // pale pink accent fill
-    borderLeftWidth: 3,
-    borderLeftColor: "#C2185B", // dark-pink point color
-    paddingLeft: 10,
-  },
-  rowTitle: { fontSize: 15, fontWeight: "600", color: INK },
-  rowMsg: { fontSize: 13, color: "#45413A", marginTop: 2 },
-  empty: { textAlign: "center", color: "#8A857C", marginTop: 40 },
-  err: { color: INK },
+  toggleLabel: { color: colors.ink, fontSize: 14 },
+  markAll: { color: colors.grayMid, fontSize: 13, marginBottom: 8 },
+  separator: { borderTopWidth: 1.6, borderStyle: "dashed", borderTopColor: colors.grayLight },
+  row: { paddingVertical: 12 },
+  rowHead: { flexDirection: "row", alignItems: "center", gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  rowTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
+  rowMsg: { fontSize: 12.5, color: colors.grayMid, marginTop: 2 },
+  empty: { textAlign: "center", color: colors.grayMid, marginTop: 40 },
+  err: { color: colors.ink },
 });

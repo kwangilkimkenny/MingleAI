@@ -10,13 +10,9 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
+import { DoodleFace } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
-
-const INK = "#17150F";
-const PAPER = "#FFFFFF";
-const ACCENT = "#C2185B"; // dark-pink point color (unread badge)
-const GRAY_LIGHT = "#D9D5CC";
-const GRAY_MED = "#8A857C";
+import { colors, fonts } from "../../../src/lib/theme";
 
 export default function Chats() {
   const clearance = useTabBarClearance();
@@ -50,16 +46,20 @@ export default function Chats() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={INK} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <View style={styles.appbar}>
+        <Text style={styles.title}>채팅</Text>
+      </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {rooms.length === 0 ? (
         <View style={styles.center}>
+          <DoodleFace variant="flat" size={64} />
           <Text style={styles.empty}>아직 매칭된 상대가 없어요</Text>
         </View>
       ) : (
@@ -67,6 +67,7 @@ export default function Chats() {
           data={rooms}
           keyExtractor={(item) => item.roomId}
           contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.row}
@@ -95,31 +96,32 @@ export default function Chats() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAPER },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: colors.paper },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 },
+  appbar: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 },
+  title: { fontFamily: fonts.display, fontSize: 26, color: colors.ink },
   list: { paddingVertical: 8 },
+  separator: { borderTopWidth: 1.6, borderStyle: "dashed", borderTopColor: colors.grayLight },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: GRAY_LIGHT,
   },
   rowLeft: { flex: 1 },
-  peerName: { fontSize: 15, fontWeight: "700", color: INK },
-  lastMsg: { fontSize: 13, color: GRAY_MED, marginTop: 2 },
+  peerName: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
+  lastMsg: { fontSize: 12.5, color: colors.grayMid, marginTop: 2 },
   badge: {
-    backgroundColor: ACCENT,
-    borderRadius: 12,
-    minWidth: 22,
-    height: 22,
+    backgroundColor: colors.accent,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
   },
-  badgeText: { color: PAPER, fontSize: 11, fontWeight: "700" },
-  empty: { fontSize: 15, color: GRAY_MED },
-  error: { color: INK, textAlign: "center", margin: 12 },
+  badgeText: { color: colors.onAccent, fontSize: 11, fontWeight: "700" },
+  empty: { fontSize: 15, color: colors.grayMid },
+  error: { color: colors.ink, textAlign: "center", margin: 12 },
 });
