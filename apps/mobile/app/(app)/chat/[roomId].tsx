@@ -30,10 +30,6 @@ import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { BackButton } from "../../../src/components/BackButton";
 import { colors, doodle } from "../../../src/lib/theme";
 
-const INK = "#17150F";
-const PAPER = "#FFFFFF";
-const GRAY_MED = "#8A857C";
-
 export default function ChatRoom() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
   const myProfileId = useAuthStore((s) => s.profileId);
@@ -174,7 +170,7 @@ export default function ChatRoom() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={INK} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   }
@@ -252,7 +248,7 @@ export default function ChatRoom() {
           value={text}
           onChangeText={onChangeText}
           placeholder="메시지 입력..."
-          placeholderTextColor={GRAY_MED}
+          placeholderTextColor={colors.grayMid}
           multiline
           returnKeyType="send"
           blurOnSubmit
@@ -267,7 +263,7 @@ export default function ChatRoom() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PAPER },
+  container: { flex: 1, backgroundColor: colors.paper },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
@@ -276,19 +272,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 2,
-    borderBottomColor: INK,
+    borderBottomColor: colors.ink,
   },
   headerPeer: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1, marginRight: 8 },
-  headerName: { fontSize: 17, fontWeight: "700", color: INK, flexShrink: 1 },
+  headerName: { fontSize: 17, fontWeight: "700", color: colors.ink, flexShrink: 1 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
   datePlanBtn: {
     borderWidth: 1.5,
-    borderColor: INK,
+    borderColor: colors.ink,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  datePlanText: { fontSize: 13, fontWeight: "700", color: INK },
+  datePlanText: { fontSize: 13, fontWeight: "700", color: colors.ink },
   messages: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   bubble: {
     maxWidth: "75%",
@@ -297,12 +293,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginVertical: 2,
     borderWidth: 1.5,
-    borderColor: INK,
+    borderColor: colors.ink,
   },
   bubbleMe: {
     alignSelf: "flex-end",
     backgroundColor: colors.fillDeep,
-    shadowColor: INK,
+    shadowColor: colors.ink,
     shadowOffset: { width: 3, height: 3 },
     shadowOpacity: 1,
     shadowRadius: 0,
@@ -310,38 +306,38 @@ const styles = StyleSheet.create({
   },
   bubblePeer: {
     alignSelf: "flex-start",
-    backgroundColor: PAPER,
+    backgroundColor: colors.paper,
   },
   bubbleText: { fontSize: 14 },
-  bubbleTextMe: { color: INK },
-  bubbleTextPeer: { color: INK },
-  readLabel: { fontSize: 10, color: GRAY_MED, marginTop: 2, textAlign: "right" },
+  bubbleTextMe: { color: colors.ink },
+  bubbleTextPeer: { color: colors.ink },
+  readLabel: { fontSize: 10, color: colors.grayMid, marginTop: 2, textAlign: "right" },
   compose: {
     flexDirection: "row",
     alignItems: "flex-end",
     borderTopWidth: 2,
-    borderTopColor: INK,
+    borderTopColor: colors.ink,
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 8,
-    backgroundColor: PAPER,
+    backgroundColor: colors.paper,
   },
   input: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: INK,
+    borderColor: colors.ink,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 14,
-    color: INK,
+    color: colors.ink,
     maxHeight: 120,
   },
   sendBtn: {
-    backgroundColor: INK,
+    backgroundColor: colors.ink,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  sendText: { color: PAPER, fontWeight: "700", fontSize: 14 },
+  sendText: { color: colors.paper, fontWeight: "700", fontSize: 14 },
 });

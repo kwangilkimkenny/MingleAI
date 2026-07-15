@@ -1,3 +1,4 @@
+import { colors } from "../lib/theme";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { clampToRoom, initialOf, type Vec2 } from "../lib/party-space";
@@ -8,9 +9,6 @@ import { clampToRoom, initialOf, type Vec2 } from "../lib/party-space";
  * on web (react-native-web) and native — no Skia/CanvasKit, no per-platform fallback.
  * Positions are normalized 0..1; the parent drives movement via the `members` prop.
  */
-const INK = "#17150F";
-const PAPER = "#FFFFFF";
-const FILL = "#F1EFE9";
 const AVATAR_R = 16;
 
 export interface PartyRoomMember {
@@ -59,11 +57,11 @@ export function PartyRoomCanvas({
                   {
                     left: m.pos.x * width - AVATAR_R,
                     top: m.pos.y * height - AVATAR_R,
-                    backgroundColor: mine ? INK : PAPER,
+                    backgroundColor: mine ? colors.ink : colors.paper,
                   },
                 ]}
               >
-                <Text style={[styles.initial, { color: mine ? PAPER : INK }]}>
+                <Text style={[styles.initial, { color: mine ? colors.paper : colors.ink }]}>
                   {initialOf(m.name)}
                 </Text>
               </View>
@@ -77,9 +75,9 @@ export function PartyRoomCanvas({
 const styles = StyleSheet.create({
   floor: {
     borderWidth: 2,
-    borderColor: INK,
+    borderColor: colors.ink,
     borderRadius: 12,
-    backgroundColor: FILL,
+    backgroundColor: colors.fill,
     overflow: "hidden",
   },
   avatar: {
@@ -88,7 +86,7 @@ const styles = StyleSheet.create({
     height: AVATAR_R * 2,
     borderRadius: AVATAR_R,
     borderWidth: 2,
-    borderColor: INK,
+    borderColor: colors.ink,
     alignItems: "center",
     justifyContent: "center",
   },

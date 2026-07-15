@@ -1,9 +1,7 @@
+import { colors } from "../lib/theme";
 import { Alert, Pressable, StyleSheet, Text } from "react-native";
 import { router } from "expo-router";
 import { createBlock, ApiError } from "@mingle/client-core";
-
-const INK = "#17150F";
-const FILL = "#F1EFE9";
 
 export interface PeerModerationMenuProps {
   peer: { profileId: string; name: string };
@@ -63,6 +61,6 @@ export function PeerModerationMenu({ peer, evidencePartyId, onBlocked }: PeerMod
 
 const styles = StyleSheet.create({
   button: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  buttonPressed: { backgroundColor: FILL },
-  glyph: { fontSize: 20, fontWeight: "700", color: INK },
+  buttonPressed: { backgroundColor: colors.fill },
+  glyph: { fontSize: 20, fontWeight: "700", color: colors.ink },
 });
