@@ -86,6 +86,7 @@ export class PartyGateway
     }
     members.set(client.id, me);
     this.broadcastPresence(body.partyId);
+    await this.maybeAutoStartAmong(body.partyId);
   }
 
   @SubscribeMessage("party:leave")
@@ -128,7 +129,10 @@ export class PartyGateway
   }
 
   @SubscribeMessage("game:start")
-  async handleGameStart(@ConnectedSocket() client: Socket, @MessageBody() body: { partyId: string }) {
+  async handleGameStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string },
+  ) {
     const me = await this.authorize(client, body?.partyId);
     if (!me) return;
     try {
@@ -156,7 +160,10 @@ export class PartyGateway
   }
 
   @SubscribeMessage("game:sync")
-  async handleGameSync(@ConnectedSocket() client: Socket, @MessageBody() body: { partyId: string }) {
+  async handleGameSync(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string },
+  ) {
     const me = await this.authorize(client, body?.partyId);
     if (!me) return;
     const snapshot = await this.game.current(body.partyId);
@@ -196,6 +203,38 @@ export class PartyGateway
         partyId,
         snapshot: this.among.project(state, viewerId),
       });
+    }
+  }
+
+  /**
+   * Auto-starts Among Us the moment the party fills to capacity — no manual "start" button.
+   * Fires at the end of `party:join`. Guarded so it only ever fires the party's FIRST game:
+   * a party that already has an ended session must use the existing manual 다시하기 path
+   * (`among:start`) instead of silently re-starting.
+   *
+   * Non-fatal by design: any failure here (including the expected Conflict race when two
+   * sockets join concurrently and both observe a full roster) is logged and swallowed — the
+   * per-party advisory lock + partial unique index in AmongService.start is the real defense
+   * against a double-start, this is just an optimization to avoid attempting it needlessly.
+   */
+  private async maybeAutoStartAmong(partyId: string): Promise<void> {
+    try {
+      const roster = [...new Set(this.presence.get(partyId)?.values() ?? [])];
+      if (roster.length < this.amongConfig.value.minPlayers) return;
+
+      const party = await this.party.findOne(partyId);
+      if (roster.length !== party.participantCount) return;
+
+      const everExisted = await this.among.latestAmong(partyId);
+      if (everExisted) return;
+
+      const state = await this.among.start(
+        partyId,
+        roster.map((profileId) => ({ profileId, isBot: false })),
+      );
+      this.broadcastAmong(partyId, state);
+    } catch (e) {
+      console.warn(`[party.gateway] among auto-start failed for party ${partyId}:`, e);
     }
   }
 

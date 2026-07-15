@@ -1,10 +1,11 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { PartyGateway } from "./party.gateway";
 
 const jwt = { verify: jest.fn() } as any;
 const party = {
   assertParticipant: jest.fn(),
   addPartyMessage: jest.fn(),
+  findOne: jest.fn(),
 } as any;
 const game = {
   start: jest.fn(),
@@ -39,7 +40,7 @@ const among = {
   project: jest.fn(),
 } as any;
 
-const amongConfig = { value: { sweepMs: 99999 } } as any;
+const amongConfig = { value: { sweepMs: 99999, minPlayers: 4 } } as any;
 
 function gatewayWith() {
   const gw = new PartyGateway(jwt, party, game, among, amongConfig);
@@ -353,4 +354,79 @@ it("among:start maps a generic BadRequestException to 'invalid'", async () => {
   await gw.handleAmongStart(client, { partyId: "pt1" });
 
   expect(client.emit).toHaveBeenCalledWith("party:error", { message: "invalid" });
+});
+
+// ---------------------------------------------------------------------------
+// party:join → auto-start Among Us once the party fills up
+// ---------------------------------------------------------------------------
+
+it("party:join auto-starts Among Us once the roster fills the party (no session has ever existed)", async () => {
+  party.findOne.mockResolvedValue({ participantCount: 4 });
+  among.latestAmong.mockResolvedValue(null);
+  among.start.mockResolvedValueOnce(fakeAmongState);
+  among.project.mockReturnValue(fakeSnapshot);
+
+  const gw = gatewayWith();
+  const to = (gw as any).server.to;
+
+  for (let i = 1; i <= 4; i++) {
+    party.assertParticipant.mockResolvedValueOnce(`pf${i}`);
+    const client = clientWith(`u${i}`);
+    client.id = `sock-${i}`;
+    await gw.handleJoin(client, { partyId: "pt1" });
+  }
+
+  // start called exactly once, with the full 4-member roster
+  expect(among.start).toHaveBeenCalledTimes(1);
+  expect(among.start.mock.calls[0][0]).toBe("pt1");
+  expect(among.start.mock.calls[0][1]).toHaveLength(4);
+  expect(among.start.mock.calls[0][1]).toEqual(
+    expect.arrayContaining([
+      { profileId: "pf1", isBot: false },
+      { profileId: "pf2", isBot: false },
+      { profileId: "pf3", isBot: false },
+      { profileId: "pf4", isBot: false },
+    ]),
+  );
+
+  // reuses the existing personalized among:state broadcast path
+  const emit = to.mock.results[0].value.emit;
+  expect(emit).toHaveBeenCalledWith("among:state", { partyId: "pt1", snapshot: fakeSnapshot });
+});
+
+it("party:join does not auto-start when an Among Us session already existed for the party (even ended)", async () => {
+  party.findOne.mockResolvedValue({ participantCount: 4 });
+  among.latestAmong.mockResolvedValue({ ...fakeAmongState, phase: "ended" });
+
+  const gw = gatewayWith();
+
+  for (let i = 1; i <= 4; i++) {
+    party.assertParticipant.mockResolvedValueOnce(`pf${i}`);
+    const client = clientWith(`u${i}`);
+    client.id = `sock-${i}`;
+    await gw.handleJoin(client, { partyId: "pt1" });
+  }
+
+  expect(among.start).not.toHaveBeenCalled();
+});
+
+it("party:join swallows a Conflict thrown by the auto-start race without failing the join", async () => {
+  party.findOne.mockResolvedValue({ participantCount: 4 });
+  among.latestAmong.mockResolvedValue(null);
+  among.start.mockRejectedValueOnce(new ConflictException("already-active"));
+
+  const gw = gatewayWith();
+  let lastClient: any;
+  for (let i = 1; i <= 4; i++) {
+    party.assertParticipant.mockResolvedValueOnce(`pf${i}`);
+    const client = clientWith(`u${i}`);
+    client.id = `sock-${i}`;
+    lastClient = client;
+    await expect(gw.handleJoin(client, { partyId: "pt1" })).resolves.toBeUndefined();
+  }
+
+  expect(among.start).toHaveBeenCalledTimes(1);
+  // join itself still succeeded — presence recorded, no error surfaced to the socket
+  expect((gw as any).presence.get("pt1")?.get(lastClient.id)).toBe("pf4");
+  expect(lastClient.emit).not.toHaveBeenCalledWith("party:error", expect.anything());
 });
