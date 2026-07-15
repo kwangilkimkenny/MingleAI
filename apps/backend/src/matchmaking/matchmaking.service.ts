@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import type { MatchmakingQueueEntry, MatchmakingStatus, PublicParty } from "@mingle/shared";
 
@@ -11,7 +16,7 @@ export class MatchmakingService {
     if (!profile) throw new NotFoundException("프로필이 없습니다");
     if (!profile.preferenceSignals) throw new BadRequestException("선호 분석이 필요합니다");
 
-    const MAX_ATTEMPTS = 3;
+    const MAX_ATTEMPTS = 5;
     for (let attempt = 1; ; attempt++) {
       try {
         return await this.prisma.$transaction(
@@ -38,9 +43,19 @@ export class MatchmakingService {
       } catch (e) {
         const code = (e as { code?: string }).code;
         // P2034 = serialization/write-conflict; P2002 = a concurrent enqueue won the partial-unique
-        // race (matchmaking_queue_entries_profile_waiting_key). Retry: the next attempt finds the
-        // now-committed waiting row and returns it (idempotent) — never surfaces a raw 500.
-        if ((code === "P2034" || code === "P2002") && attempt < MAX_ATTEMPTS) continue;
+        // race (matchmaking_queue_entries_profile_waiting_key). Retry with a small incremental
+        // backoff: the next attempt finds the now-committed waiting row and returns it (idempotent)
+        // — never surfaces a raw 500.
+        if (code === "P2034" || code === "P2002") {
+          if (attempt < MAX_ATTEMPTS) {
+            await new Promise((resolve) => setTimeout(resolve, 25 * attempt));
+            continue;
+          }
+          // Retry budget exhausted under sustained contention (e.g. several concurrent enqueues
+          // racing the matchmaking sweep tx) — surface a retryable 409 instead of letting the raw
+          // P2034/P2002 escape as a 500.
+          throw new ConflictException("대기열이 혼잡합니다. 잠시 후 다시 시도해주세요.");
+        }
         throw e;
       }
     }

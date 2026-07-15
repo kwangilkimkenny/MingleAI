@@ -1,7 +1,14 @@
 import { NotFoundException, BadRequestException, ConflictException } from "@nestjs/common";
 import { MatchmakingService } from "./matchmaking.service";
 
-const signals = { vibe: "calm", drinking: "light", pace: "slow", activity: ["boardgame"], tags: ["quiet"], summary: "조용" };
+const signals = {
+  vibe: "calm",
+  drinking: "light",
+  pace: "slow",
+  activity: ["boardgame"],
+  tags: ["quiet"],
+  summary: "조용",
+};
 
 function makePrisma(overrides: any = {}) {
   return {
@@ -15,7 +22,17 @@ function makePrisma(overrides: any = {}) {
 function txOf(o: any) {
   return {
     partyParticipant: { findFirst: jest.fn().mockResolvedValue(null) },
-    matchmakingQueueEntry: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "e1", status: "waiting", enqueuedAt: new Date("2026-07-01T00:00:00Z"), matchedPartyId: null }) },
+    matchmakingQueueEntry: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest
+        .fn()
+        .mockResolvedValue({
+          id: "e1",
+          status: "waiting",
+          enqueuedAt: new Date("2026-07-01T00:00:00Z"),
+          matchedPartyId: null,
+        }),
+    },
     ...(o.tx ?? {}),
   };
 }
@@ -44,12 +61,15 @@ describe("MatchmakingService", () => {
       fn({
         partyParticipant: { findFirst: jest.fn().mockResolvedValue(null) },
         matchmakingQueueEntry: { findFirst: jest.fn().mockResolvedValue(null), create: createSpy },
-      }));
+      }),
+    );
     const svc = new MatchmakingService(prisma);
     const res = await svc.enqueue("u1");
     expect(res.status).toBe("waiting");
     expect(res.id).toBe("e1");
-    expect(createSpy).toHaveBeenCalledWith({ data: expect.objectContaining({ preferenceSnapshot: signals }) });
+    expect(createSpy).toHaveBeenCalledWith({
+      data: expect.objectContaining({ preferenceSnapshot: signals }),
+    });
   });
 
   it("enqueue → idempotent: returns the existing waiting entry", async () => {
@@ -60,8 +80,12 @@ describe("MatchmakingService", () => {
     prisma.$transaction.mockImplementation(async (fn: any) =>
       fn({
         partyParticipant: { findFirst: jest.fn().mockResolvedValue(null) },
-        matchmakingQueueEntry: { findFirst: jest.fn().mockResolvedValue(existing), create: createSpy },
-      }));
+        matchmakingQueueEntry: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          create: createSpy,
+        },
+      }),
+    );
     const svc = new MatchmakingService(prisma);
     const res = await svc.enqueue("u1");
     expect(res.id).toBe("eX");
@@ -71,7 +95,12 @@ describe("MatchmakingService", () => {
   it("enqueue → retries on P2002 (lost the partial-unique race) and returns the now-existing waiting entry", async () => {
     const prisma = makePrisma();
     prisma.profile.findUnique.mockResolvedValue({ id: "p1", preferenceSignals: signals });
-    const existing = { id: "eDup", status: "waiting", enqueuedAt: new Date(), matchedPartyId: null };
+    const existing = {
+      id: "eDup",
+      status: "waiting",
+      enqueuedAt: new Date(),
+      matchedPartyId: null,
+    };
     let attempt = 0;
     prisma.$transaction.mockImplementation(async (fn: any) => {
       attempt++;
@@ -81,14 +110,19 @@ describe("MatchmakingService", () => {
           partyParticipant: { findFirst: jest.fn().mockResolvedValue(null) },
           matchmakingQueueEntry: {
             findFirst: jest.fn().mockResolvedValue(null),
-            create: jest.fn().mockRejectedValue(Object.assign(new Error("unique"), { code: "P2002" })),
+            create: jest
+              .fn()
+              .mockRejectedValue(Object.assign(new Error("unique"), { code: "P2002" })),
           },
         });
       }
       // retry: the concurrent winner's row is now visible → return it, no second create
       return fn({
         partyParticipant: { findFirst: jest.fn().mockResolvedValue(null) },
-        matchmakingQueueEntry: { findFirst: jest.fn().mockResolvedValue(existing), create: jest.fn() },
+        matchmakingQueueEntry: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          create: jest.fn(),
+        },
       });
     });
     const svc = new MatchmakingService(prisma);
@@ -97,14 +131,37 @@ describe("MatchmakingService", () => {
     expect(attempt).toBe(2);
   });
 
+  it("enqueue → ConflictException (혼잡) when the P2034 retry budget exhausts", async () => {
+    const prisma = makePrisma();
+    prisma.profile.findUnique.mockResolvedValue({ id: "p1", preferenceSignals: signals });
+    let attempts = 0;
+    prisma.$transaction.mockImplementation(async () => {
+      attempts++;
+      throw Object.assign(new Error("write conflict"), { code: "P2034" });
+    });
+    const svc = new MatchmakingService(prisma);
+    let caught: unknown;
+    try {
+      await svc.enqueue("u1");
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ConflictException);
+    expect((caught as ConflictException).message).toContain("대기열이 혼잡합니다");
+    expect(attempts).toBe(5); // MAX_ATTEMPTS, all exhausted before mapping to 409
+  });
+
   it("enqueue → ConflictException when profile has an active party membership", async () => {
     const prisma = makePrisma();
     prisma.profile.findUnique.mockResolvedValue({ id: "p1", preferenceSignals: signals });
     prisma.$transaction.mockImplementation(async (fn: any) =>
       fn({
-        partyParticipant: { findFirst: jest.fn().mockResolvedValue({ partyId: "party1", profileId: "p1" }) },
+        partyParticipant: {
+          findFirst: jest.fn().mockResolvedValue({ partyId: "party1", profileId: "p1" }),
+        },
         matchmakingQueueEntry: { findFirst: jest.fn(), create: jest.fn() },
-      }));
+      }),
+    );
     const svc = new MatchmakingService(prisma);
     await expect(svc.enqueue("u1")).rejects.toBeInstanceOf(ConflictException);
   });
@@ -116,7 +173,9 @@ describe("MatchmakingService", () => {
     prisma.$transaction.mockImplementation(async (fn: any) => {
       callCount++;
       return fn({
-        partyParticipant: { findFirst: jest.fn().mockResolvedValue({ partyId: "party1", profileId: "p1" }) },
+        partyParticipant: {
+          findFirst: jest.fn().mockResolvedValue({ partyId: "party1", profileId: "p1" }),
+        },
         matchmakingQueueEntry: { findFirst: jest.fn(), create: jest.fn() },
       });
     });
@@ -137,10 +196,27 @@ describe("MatchmakingService", () => {
   it("getStatus → matched returns a public party without riskScore or raw signals", async () => {
     const prisma = makePrisma();
     prisma.profile.findUnique.mockResolvedValue({ id: "p1" });
-    prisma.matchmakingQueueEntry.findFirst = jest.fn().mockResolvedValue({ status: "matched", matchedPartyId: "party1", enqueuedAt: new Date() });
+    prisma.matchmakingQueueEntry.findFirst = jest
+      .fn()
+      .mockResolvedValue({ status: "matched", matchedPartyId: "party1", enqueuedAt: new Date() });
     prisma.party.findUnique.mockResolvedValue({
-      id: "party1", name: "파티", status: "active",
-      participants: [{ profile: { id: "p1", name: "A", age: 27, gender: "non_binary", occupation: "dev", photoUrl: null, riskScore: 0, preferenceSignals: { summary: "조용" } } }],
+      id: "party1",
+      name: "파티",
+      status: "active",
+      participants: [
+        {
+          profile: {
+            id: "p1",
+            name: "A",
+            age: 27,
+            gender: "non_binary",
+            occupation: "dev",
+            photoUrl: null,
+            riskScore: 0,
+            preferenceSignals: { summary: "조용" },
+          },
+        },
+      ],
     });
     const svc = new MatchmakingService(prisma);
     const res = await svc.getStatus("u1");
@@ -154,15 +230,38 @@ describe("MatchmakingService", () => {
   it("getStatus → returns matched (not cancelled) when profile has both a matched and a younger cancelled entry", async () => {
     const prisma = makePrisma();
     prisma.profile.findUnique.mockResolvedValue({ id: "p1" });
-    const matchedEntry = { status: "matched", matchedPartyId: "party1", enqueuedAt: new Date("2026-06-01T00:00:00Z") };
-    const cancelledEntry = { status: "cancelled", matchedPartyId: null, enqueuedAt: new Date("2026-06-01T01:00:00Z") };
+    const matchedEntry = {
+      status: "matched",
+      matchedPartyId: "party1",
+      enqueuedAt: new Date("2026-06-01T00:00:00Z"),
+    };
+    const cancelledEntry = {
+      status: "cancelled",
+      matchedPartyId: null,
+      enqueuedAt: new Date("2026-06-01T01:00:00Z"),
+    };
     // First call: live-status filter → matched entry; second call (fallback) would return cancelled, but should never be reached
-    prisma.matchmakingQueueEntry.findFirst = jest.fn()
+    prisma.matchmakingQueueEntry.findFirst = jest
+      .fn()
       .mockResolvedValueOnce(matchedEntry)
       .mockResolvedValueOnce(cancelledEntry);
     prisma.party.findUnique.mockResolvedValue({
-      id: "party1", name: "파티", status: "active",
-      participants: [{ profile: { id: "p1", name: "A", age: 27, gender: "f", occupation: "dev", photoUrl: null, preferenceSignals: null } }],
+      id: "party1",
+      name: "파티",
+      status: "active",
+      participants: [
+        {
+          profile: {
+            id: "p1",
+            name: "A",
+            age: 27,
+            gender: "f",
+            occupation: "dev",
+            photoUrl: null,
+            preferenceSignals: null,
+          },
+        },
+      ],
     });
     const svc = new MatchmakingService(prisma);
     const res = await svc.getStatus("u1");
