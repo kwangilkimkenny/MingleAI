@@ -1,20 +1,22 @@
 /**
- * Doodle B&W palette — pure black & white, ZERO chroma. Single source of truth for mobile colors,
- * mirroring apps/web/design/DESIGN.md. Hierarchy comes from ink/gray/fill contrast, never hue.
+ * Doodle palette — ink line-art on a WHITE ground, with the coral point-color family
+ * (#FF5864 / #FF8276 / #FF9F9D) + warm taupe (#736357). Single source of truth for mobile
+ * colors. Hierarchy still comes from ink/contrast; the points stay sparing accents.
  */
 export const colors = {
   ink: "#17150F", // primary text / ink; also inverted-block fills
   paper: "#FFFFFF", // page background / text on inverted blocks
-  grayDark: "#45413A", // strong secondary text
+  grayDark: "#736357", // warm taupe — strong secondary text (point-palette neutral)
   grayMid: "#8A857C", // muted / subtitle text
   grayLight: "#D9D5CC", // borders / dividers
   fill: "#F1EFE9", // subtle surface fill
   fillDeep: "#E7E4DC", // deeper surface fill
-  // Accent — the single POINT COLOR (dark pink). Used sparingly for emphasis only:
-  // the one primary CTA per screen, the active tab, unread badges. Everything else stays B&W.
-  accent: "#C2185B", // dark pink — primary emphasis / active state
-  accentDeep: "#9E1350", // pressed / stronger accent
-  accentFill: "#FBE4EE", // pale pink surface tint
+  // Point colors — used sparingly for emphasis only: the one primary CTA per screen,
+  // the active tab, unread badges, small highlights. Everything else stays ink-on-white.
+  accent: "#FF5864", // coral — primary emphasis / active state
+  accentDeep: "#E5424E", // pressed / stronger accent (derived darker coral)
+  accentSoft: "#FF8276", // salmon — secondary highlight (icons, small pops)
+  accentFill: "#FF9F9D", // light salmon — small tinted fills / gauges
   onAccent: "#FFFFFF", // text/icons on an accent fill
 } as const;
 

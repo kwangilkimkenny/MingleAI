@@ -2,7 +2,7 @@ import { colors, doodle, fonts } from "../../../src/lib/theme";
 import { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Heart, ChevronRight } from "lucide-react-native";
+import { Heart, ChevronRight, Zap } from "lucide-react-native";
 import { getMyProfile } from "@mingle/client-core";
 import { DoodleButton, DoodleCard, ShadowBox } from "../../../src/components/Doodle";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
@@ -72,7 +72,10 @@ export default function Home() {
         style={styles.heroOuter}
       >
         <View style={styles.heroInner}>
-          <Text style={styles.heroTitle}>⚡ AI 매칭</Text>
+          <View style={styles.heroTitleRow}>
+            <Zap color={colors.accentSoft} size={20} strokeWidth={2.4} />
+            <Text style={styles.heroTitle}>AI 매칭</Text>
+          </View>
           <Text style={styles.heroDesc}>취향을 분석해 잘 맞는 사람들과 파티를 만들어줘요.</Text>
           <DoodleButton
             title="매칭 시작"
@@ -137,6 +140,7 @@ const styles = StyleSheet.create({
   greetingTitle: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },
   heroOuter: { alignSelf: "stretch" },
   heroInner: { padding: 18, gap: 12 },
+  heroTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   heroTitle: { fontFamily: fonts.display, fontSize: 19, color: colors.paper },
   heroDesc: { fontSize: 13.5, color: colors.paper, opacity: 0.85, lineHeight: 19 },
   shortcuts: { gap: 12 },
