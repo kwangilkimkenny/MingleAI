@@ -30,9 +30,7 @@ const prisma = {
   gameSession,
   profile,
   $executeRaw: jest.fn(),
-  $transaction: jest.fn((fn: any) =>
-    fn({ gameSession, profile, $executeRaw: txExecuteRaw }),
-  ),
+  $transaction: jest.fn((fn: any) => fn({ gameSession, profile, $executeRaw: txExecuteRaw })),
 } as any;
 
 const DEFAULT_CONFIG: AmongConfig = {
@@ -95,10 +93,42 @@ function buildPlayingState(overrides: Partial<AmongState> = {}): AmongState {
     sessionId: "g1",
     phase: "playing",
     players: [
-      { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-      { profileId: "p2", name: "P2", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-      { profileId: "p3", name: "P3", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-      { profileId: "p4", name: "P4", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+      {
+        profileId: "p1",
+        name: "P1",
+        role: "crew",
+        alive: true,
+        isBot: false,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+      {
+        profileId: "p2",
+        name: "P2",
+        role: "crew",
+        alive: true,
+        isBot: false,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+      {
+        profileId: "p3",
+        name: "P3",
+        role: "crew",
+        alive: true,
+        isBot: false,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+      {
+        profileId: "p4",
+        name: "P4",
+        role: "impostor",
+        alive: true,
+        isBot: false,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
     ],
     tasks: [],
     bodies: [],
@@ -192,9 +222,7 @@ describe("start", () => {
 // ---------------------------------------------------------------------------
 
 describe("doTask", () => {
-  function buildState(
-    overrides: Partial<{ phase: string; taskDone: boolean }> = {},
-  ) {
+  function buildState(overrides: Partial<{ phase: string; taskDone: boolean }> = {}) {
     const crew = ["p1", "p2", "p3"];
     const tasks = crew.flatMap((pid) =>
       Array.from({ length: 3 }, (_, i) => ({
@@ -210,10 +238,42 @@ describe("doTask", () => {
       sessionId: "g1",
       phase: (overrides.phase ?? "playing") as any,
       players: [
-        { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p2", name: "P2", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p3", name: "P3", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p4", name: "P4", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        {
+          profileId: "p1",
+          name: "P1",
+          role: "crew",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p2",
+          name: "P2",
+          role: "crew",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p3",
+          name: "P3",
+          role: "crew",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p4",
+          name: "P4",
+          role: "impostor",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
       ],
       tasks,
       bodies: [],
@@ -289,7 +349,16 @@ describe("doTask", () => {
 
 describe("current", () => {
   it("returns state when active", async () => {
-    const state = { sessionId: "g1", phase: "playing", players: [], tasks: [], bodies: [], meeting: null, lastEjected: null, result: null };
+    const state = {
+      sessionId: "g1",
+      phase: "playing",
+      players: [],
+      tasks: [],
+      bodies: [],
+      meeting: null,
+      lastEjected: null,
+      result: null,
+    };
     gameSession.findFirst.mockResolvedValue(activeRow(state));
     const result = await service.current("pt1");
     expect(result).not.toBeNull();
@@ -352,8 +421,24 @@ describe("project", () => {
       sessionId: "g1",
       phase: "playing",
       players: [
-        { profileId: "crew1", name: "C1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "imp1", name: "I1", role: "impostor", alive: true, isBot: false, killCooldownUntil: 9999, emergencyUsed: 0 },
+        {
+          profileId: "crew1",
+          name: "C1",
+          role: "crew",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "imp1",
+          name: "I1",
+          role: "impostor",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: 9999,
+          emergencyUsed: 0,
+        },
       ],
       tasks: [
         { taskId: "crew1:0", profileId: "crew1", kind: "wires", x: 0.3, y: 0.4, done: false },
@@ -392,7 +477,11 @@ describe("project", () => {
   });
 
   it("after ended, all roles revealed", () => {
-    const state = { ...buildFullState(), phase: "ended", result: { winner: "crew", reason: "tasks" } };
+    const state = {
+      ...buildFullState(),
+      phase: "ended",
+      result: { winner: "crew", reason: "tasks" },
+    };
     const snap = service.project(state, "crew1");
     snap!.players.forEach((p) => expect(p.role).not.toBeNull());
   });
@@ -444,42 +533,84 @@ describe("kill", () => {
   it("crew caller → invalid (not impostor)", async () => {
     const state = buildPlayingState();
     gameSession.findFirst.mockResolvedValue(activeRow(state));
-    await expect(service.kill("pt1", "p1", "p2", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.kill("pt1", "p1", "p2", 0.5, 0.5)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it("dead impostor → invalid", async () => {
     const state = buildPlayingState();
     state.players.find((p) => p.profileId === "p4")!.alive = false;
     gameSession.findFirst.mockResolvedValue(activeRow(state));
-    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it("kill while on cooldown → invalid", async () => {
     const state = buildPlayingState();
     state.players.find((p) => p.profileId === "p4")!.killCooldownUntil = Date.now() + 99999;
     gameSession.findFirst.mockResolvedValue(activeRow(state));
-    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it("kill impostor target → invalid (cannot kill impostor)", async () => {
     const state = buildPlayingState({
       players: [
-        { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p2", name: "P2", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p3", name: "P3", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p4", name: "P4", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        {
+          profileId: "p1",
+          name: "P1",
+          role: "crew",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p2",
+          name: "P2",
+          role: "impostor",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p3",
+          name: "P3",
+          role: "crew",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p4",
+          name: "P4",
+          role: "impostor",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
       ],
     });
     gameSession.findFirst.mockResolvedValue(activeRow(state));
     // p4 tries to kill fellow impostor p2
-    await expect(service.kill("pt1", "p4", "p2", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.kill("pt1", "p4", "p2", 0.5, 0.5)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it("kill dead target → invalid", async () => {
     const state = buildPlayingState();
     state.players.find((p) => p.profileId === "p1")!.alive = false;
     gameSession.findFirst.mockResolvedValue(activeRow(state));
-    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it("valid kill: target dies, body added, cooldown set", async () => {
@@ -495,7 +626,9 @@ describe("kill", () => {
     expect(result.bodies).toHaveLength(1);
     expect(result.bodies[0]).toMatchObject({ profileId: "p1", x: 0.3, y: 0.7, reported: false });
     const killer = result.players.find((p) => p.profileId === "p4")!;
-    expect(killer.killCooldownUntil).toBeGreaterThanOrEqual(now + DEFAULT_CONFIG.killCooldownMs - 50);
+    expect(killer.killCooldownUntil).toBeGreaterThanOrEqual(
+      now + DEFAULT_CONFIG.killCooldownMs - 50,
+    );
     expect(result.phase).toBe("playing");
     expect(result.result).toBeNull();
   });
@@ -503,17 +636,51 @@ describe("kill", () => {
   it("kill phase not playing → invalid", async () => {
     const state = buildPlayingState({ phase: "meeting" });
     gameSession.findFirst.mockResolvedValue(activeRow(state));
-    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it("kill until impostor parity → result impostor/kills + phase ended", async () => {
     // 2 crew alive, 1 impostor alive → parity after killing 1 crew
     const state = buildPlayingState({
       players: [
-        { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p2", name: "P2", role: "crew", alive: false, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p3", name: "P3", role: "crew", alive: false, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p4", name: "P4", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        {
+          profileId: "p1",
+          name: "P1",
+          role: "crew",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p2",
+          name: "P2",
+          role: "crew",
+          alive: false,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p3",
+          name: "P3",
+          role: "crew",
+          alive: false,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p4",
+          name: "P4",
+          role: "impostor",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
       ],
     });
     gameSession.findFirst.mockResolvedValue(activeRow(state));
@@ -531,7 +698,9 @@ describe("kill", () => {
 
   it("no active game → NotFoundException", async () => {
     gameSession.findFirst.mockResolvedValue(null);
-    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.kill("pt1", "p4", "p1", 0.5, 0.5)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
 
@@ -617,7 +786,8 @@ describe("emergency", () => {
 
   it("over limit → invalid", async () => {
     const state = buildPlayingState();
-    state.players.find((p) => p.profileId === "p1")!.emergencyUsed = DEFAULT_CONFIG.emergencyPerPlayer;
+    state.players.find((p) => p.profileId === "p1")!.emergencyUsed =
+      DEFAULT_CONFIG.emergencyPerPlayer;
     gameSession.findFirst.mockResolvedValue(activeRow(state));
     await expect(service.emergency("pt1", "p1")).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -737,9 +907,33 @@ describe("vote", () => {
       sessionId: "g1",
       phase: "voting",
       players: [
-        { profileId: "p1", name: "P1", role: "crew", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p2", name: "P2", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
-        { profileId: "p3", name: "P3", role: "impostor", alive: true, isBot: false, killCooldownUntil: null, emergencyUsed: 0 },
+        {
+          profileId: "p1",
+          name: "P1",
+          role: "crew",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p2",
+          name: "P2",
+          role: "impostor",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
+        {
+          profileId: "p3",
+          name: "P3",
+          role: "impostor",
+          alive: true,
+          isBot: false,
+          killCooldownUntil: null,
+          emergencyUsed: 0,
+        },
       ],
       tasks: [],
       bodies: [],
@@ -935,5 +1129,93 @@ describe("sweepMeetings", () => {
 
     expect(result).toContain("pt1");
     expect(result).not.toContain("pt2");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// dead-crew task exclusion (QA ISSUE-002): dead players' pending tasks must not
+// block the crew task win, or the game can deadlock (dead crew can't act).
+// ---------------------------------------------------------------------------
+
+describe("dead-crew task exclusion (QA ISSUE-002)", () => {
+  /** p1/p2/p3 crew (3 tasks each), p4 impostor. `doneBy` marks which crew's tasks are done. */
+  function buildTaskState(doneBy: string[], deadIds: string[] = []): AmongState {
+    const crew = ["p1", "p2", "p3"];
+    const tasks = crew.flatMap((pid) =>
+      Array.from({ length: 3 }, (_, i) => ({
+        taskId: `${pid}:${i}`,
+        profileId: pid,
+        kind: "wires" as const,
+        x: 0.5,
+        y: 0.5,
+        done: doneBy.includes(pid),
+      })),
+    );
+    const state = buildPlayingState({ tasks });
+    for (const id of deadIds) {
+      state.players.find((p) => p.profileId === id)!.alive = false;
+    }
+    return state;
+  }
+
+  it("doTask: last alive-crew task wins even when a dead crew has pending tasks", async () => {
+    // p3 is dead with 3 pending tasks; p2 done; p1 has one task left.
+    const state = buildTaskState(["p2"], ["p3"]);
+    state.tasks.find((t) => t.taskId === "p1:0")!.done = true;
+    state.tasks.find((t) => t.taskId === "p1:1")!.done = true;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.doTask("pt1", "p1", "p1:2");
+
+    expect(result.phase).toBe("ended");
+    expect(result.result).toEqual({ winner: "crew", reason: "tasks" });
+  });
+
+  it("kill: victim's pending tasks stop blocking — remaining crew all done → crew task win", async () => {
+    // p1/p2 done, p3 pending; impostor p4 kills p3 (no parity: 2 crew vs 1 impostor).
+    const state = buildTaskState(["p1", "p2"]);
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.kill("pt1", "p4", "p3", 0.3, 0.7);
+
+    expect(result.phase).toBe("ended");
+    expect(result.result).toEqual({ winner: "crew", reason: "tasks" });
+  });
+
+  it("vote/eject: ejecting a crew with pending tasks triggers the task win when others are done", async () => {
+    // p1/p2 done, p3 pending. Everyone votes p3 → ejected. Impostor p4 still alive,
+    // no parity (2 crew vs 1 impostor), and all remaining required tasks are done.
+    const state: AmongState = {
+      ...buildTaskState(["p1", "p2"]),
+      phase: "voting",
+      meeting: {
+        reason: "emergency",
+        calledBy: "p1",
+        discussionEndsAt: Date.now() - 1000,
+        voteEndsAt: Date.now() + 30000,
+        votes: { p2: "p3", p3: "p3", p4: "p3" },
+      },
+    };
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockResolvedValue({});
+
+    const result = await service.vote("pt1", "p1", "p3");
+
+    expect(result.phase).toBe("ended");
+    expect(result.result).toEqual({ winner: "crew", reason: "tasks" });
+    expect(result.meeting).toBeNull();
+  });
+
+  it("project: progress excludes dead players' tasks from done and total", () => {
+    // p1 done (3), p2 alive pending (3), p3 dead with 1 done + 2 pending.
+    const state = buildTaskState(["p1"], ["p3"]);
+    state.tasks.find((t) => t.taskId === "p3:0")!.done = true;
+
+    const snap = service.project(state, "p2");
+
+    // Required = alive-owned tasks only: p1(3) + p2(3). Done = p1's 3.
+    expect(snap!.progress).toEqual({ done: 3, total: 6 });
   });
 });

@@ -7,12 +7,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AmongConfigProvider } from "./among.config";
-import type {
-  AmongRole,
-  AmongTaskKind,
-  AmongResultView,
-  AmongSnapshot,
-} from "@mingle/shared";
+import type { AmongRole, AmongTaskKind, AmongResultView, AmongSnapshot } from "@mingle/shared";
 
 // ---------------------------------------------------------------------------
 // Server-only authoritative state (stored in GameSession.state Json column)
@@ -188,7 +183,7 @@ export class AmongService {
       task.done = true;
 
       // Check if all crew tasks are done → crew wins
-      const allDone = state.tasks.every((t) => t.done);
+      const allDone = this.crewTasksDone(state);
       let status: "active" | "ended" = "active";
       if (allDone) {
         state.result = { winner: "crew", reason: "tasks" };
@@ -307,10 +302,15 @@ export class AmongService {
       state.bodies.push({ profileId: targetProfileId, x, y, reported: false });
       caller.killCooldownUntil = now + this.config.value.killCooldownMs;
 
-      // Win check: impostor parity
+      // Win check: impostor parity, then crew-tasks (the victim's pending tasks no
+      // longer count, so a kill can complete the crew's task requirement).
       let status: "active" | "ended" = "active";
       if (this.impostorParity(state)) {
         state.result = { winner: "impostor", reason: "kills" };
+        state.phase = "ended";
+        status = "ended";
+      } else if (this.crewTasksDone(state)) {
+        state.result = { winner: "crew", reason: "tasks" };
         state.phase = "ended";
         status = "ended";
       }
@@ -348,9 +348,7 @@ export class AmongService {
       const caller = state.players.find((p) => p.profileId === profileId);
       if (!caller || !caller.alive) throw new BadRequestException("invalid");
 
-      const body = state.bodies.find(
-        (b) => b.profileId === bodyProfileId && b.reported === false,
-      );
+      const body = state.bodies.find((b) => b.profileId === bodyProfileId && b.reported === false);
       if (!body) throw new BadRequestException("invalid");
 
       body.reported = true;
@@ -556,19 +554,20 @@ export class AmongService {
       profileId: p.profileId,
       name: p.name,
       alive: p.alive,
-      role:
-        isEnded || p.profileId === viewerProfileId
-          ? p.role
-          : null,
+      role: isEnded || p.profileId === viewerProfileId ? p.role : null,
     }));
 
     const myTasks = state.tasks
       .filter((t) => t.profileId === viewerProfileId)
       .map((t) => ({ taskId: t.taskId, kind: t.kind, x: t.x, y: t.y, done: t.done }));
 
+    // Progress counts only tasks the crew can still be required to finish — dead
+    // players' tasks are excluded from both sides (they can't act; see crewTasksDone).
+    const aliveIds = new Set(state.players.filter((p) => p.alive).map((p) => p.profileId));
+    const requiredTasks = state.tasks.filter((t) => aliveIds.has(t.profileId));
     const progress = {
-      done: state.tasks.filter((t) => t.done).length,
-      total: state.tasks.length,
+      done: requiredTasks.filter((t) => t.done).length,
+      total: requiredTasks.length,
     };
 
     const bodies = state.bodies.map((b) => ({
@@ -611,6 +610,19 @@ export class AmongService {
   // -------------------------------------------------------------------------
 
   /** Count of alive impostors. */
+  /**
+   * Crew task win: every task owned by a LIVING player is done. Dead players can't act
+   * (no ghost task play), so their pending tasks must not block the win — otherwise a
+   * passive impostor deadlocks the game (QA ISSUE-002).
+   */
+  private crewTasksDone(state: AmongState): boolean {
+    // No task system in play (empty tasks) → never a task win; vacuous truth would
+    // otherwise end the game on the first kill/meeting in task-less states.
+    if (state.tasks.length === 0) return false;
+    const alive = new Set(state.players.filter((p) => p.alive).map((p) => p.profileId));
+    return state.tasks.every((t) => t.done || !alive.has(t.profileId));
+  }
+
   private aliveImpostors(state: AmongState): number {
     return state.players.filter((p) => p.role === "impostor" && p.alive).length;
   }
@@ -670,6 +682,13 @@ export class AmongService {
     }
     if (this.impostorParity(state)) {
       state.result = { winner: "impostor", reason: "kills" };
+      state.phase = "ended";
+      state.meeting = null;
+      return;
+    }
+    if (this.crewTasksDone(state)) {
+      // An ejected crew's pending tasks no longer count — the requirement may now be met.
+      state.result = { winner: "crew", reason: "tasks" };
       state.phase = "ended";
       state.meeting = null;
       return;
