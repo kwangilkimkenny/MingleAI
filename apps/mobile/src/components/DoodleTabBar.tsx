@@ -69,7 +69,8 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
 const styles = StyleSheet.create({
   wrap: { position: "absolute", left: 12, right: 12, bottom: 0, backgroundColor: "transparent" },
-  row: { flexDirection: "row", alignItems: "center", height: TAB_BAR_ROW_HEIGHT },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
+  row: { flexDirection: "row", alignItems: "stretch", height: TAB_BAR_ROW_HEIGHT },
+  // 탭 터치 타깃이 라벨 높이(~39px)로 쪼그라들지 않게 행 전체(60px)를 채운다 — 44px 최소 기준.
+  tab: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 2 },
   label: { fontFamily: fonts.display, fontSize: 11 },
 });
