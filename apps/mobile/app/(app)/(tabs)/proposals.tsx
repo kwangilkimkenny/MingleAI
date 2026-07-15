@@ -150,12 +150,15 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 8 },
   acceptBtn: {
     flex: 1,
-    backgroundColor: colors.ink,
-    borderRadius: 8,
+    // 수락 = 이 화면의 primary 액션 — 팔레트 규칙상 잉크 블록이 아닌 코랄 포인트.
+    backgroundColor: colors.accent,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    ...doodle.radius.button,
     paddingVertical: 10,
     alignItems: "center",
   },
-  acceptText: { color: colors.paper, fontWeight: "700", fontSize: 14 },
+  acceptText: { color: colors.onAccent, fontFamily: fonts.display, fontSize: 15 },
   declineBtn: {
     flex: 1,
     borderWidth: doodle.border,
