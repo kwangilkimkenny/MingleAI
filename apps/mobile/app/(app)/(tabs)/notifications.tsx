@@ -3,6 +3,7 @@ import {
   View,
   Text,
   FlatList,
+  Platform,
   Pressable,
   Switch,
   StyleSheet,
@@ -101,9 +102,13 @@ export default function Notifications() {
           <Switch
             value={pushOn}
             onValueChange={onTogglePush}
-            trackColor={{ false: colors.grayLight, true: colors.ink }}
+            trackColor={{ false: colors.grayLight, true: colors.accent }}
             thumbColor={colors.paper}
             ios_backgroundColor={colors.grayLight}
+            // RN Web은 trackColor 객체를 무시하고 자체 기본 그린을 쓴다 — 웹 전용 prop으로 교정.
+            {...(Platform.OS === "web"
+              ? ({ activeTrackColor: colors.accent, activeThumbColor: colors.paper } as object)
+              : {})}
           />
         </View>
       </View>
