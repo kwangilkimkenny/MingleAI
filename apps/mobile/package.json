@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "pretty-format": "29.7.0",
     "typescript": "~6.0.3",
     "vitest": "^2.1.9"
   },
