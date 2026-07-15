@@ -11,6 +11,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Redirect, router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createProfile, getMyProfile, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
@@ -50,6 +51,7 @@ function validate(fields: {
 export default function Onboarding() {
   const hydrated = useAuthHydrated();
   const token = useAuthStore((s) => s.token);
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
@@ -136,7 +138,10 @@ export default function Onboarding() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={[styles.container, { paddingTop: insets.top + 16 }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <DoodleHero tagline="가볍게 나를 소개해 볼까요" />
 
       <View style={styles.photoSection}>

@@ -1,7 +1,6 @@
 import { Stack } from "expo-router";
 import { useFonts, Gaegu_400Regular, Gaegu_700Bold } from "@expo-google-fonts/gaegu";
 import "../src/lib/client";
-import { doodleHeaderOptions } from "../src/lib/theme";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -11,13 +10,6 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Gaegu_400Regular, Gaegu_700Bold });
   if (!fontsLoaded && !fontError) return null;
 
-  return (
-    <Stack screenOptions={{ headerTitle: "MingleAI", ...doodleHeaderOptions }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ title: "로그인" }} />
-      <Stack.Screen name="register" options={{ title: "회원가입" }} />
-      <Stack.Screen name="(app)" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding" options={{ title: "프로필 설정" }} />
-    </Stack>
-  );
+  // 헤더 전면 비표시 — 인증 화면은 DoodleHero가 브랜딩을 담당하고, 탭/상세는 자체 크롬을 가진다.
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
