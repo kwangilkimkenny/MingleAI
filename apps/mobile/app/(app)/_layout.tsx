@@ -29,8 +29,12 @@ export default function AppLayout() {
           setProfileState("none");
         }
       })
-      .catch(() => { if (alive) setProfileState("error"); });
-    return () => { alive = false; };
+      .catch(() => {
+        if (alive) setProfileState("error");
+      });
+    return () => {
+      alive = false;
+    };
   }, [hydrated, token, setAuth]);
 
   useEffect(() => {
@@ -54,7 +58,14 @@ export default function AppLayout() {
     );
   }
   return (
-    <Stack screenOptions={{ ...doodleHeaderOptions, headerShown: false }}>
+    <Stack
+      screenOptions={{
+        ...doodleHeaderOptions,
+        headerShown: false,
+        // 내비게이터 기본 배경(#F2F2F2)이 전환 틈에 비치지 않게 종이색으로 고정.
+        contentStyle: { backgroundColor: colors.paper },
+      }}
+    >
       {/* The fixed bottom-tab surface owns its own headers */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       {/* Detail screens push OVER the tabs with a back button */}
