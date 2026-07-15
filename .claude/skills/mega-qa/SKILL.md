@@ -9,10 +9,13 @@ description: Use when 전수검사/풀퍼널 검증이 필요할 때 — 백엔�
 
 `tools/mega-qa.mjs` 하나가 설계된 사용자 여정 전체를 실제 백엔드+Postgres 상대로 검사한다:
 health → 가입×4(중복 거부) → 온보딩(연령 400 포함) → 매칭 큐(파티 결성, 이중 enqueue 규약) →
-파티 소켓(presence·채팅·이동·비참가자 거부) → 밸런스 게임(비공개 투표→공개) → **어몽어스 풀 게임**
-(역할 비밀→킬→신고→회의→투표→추방→승리) → 프로포즈→수락→Match(중복 수락 멱등) → 메신저(REST+소켓+읽음) →
+파티 소켓(presence·채팅·이동·비참가자 거부) → **어몽어스 풀 게임**(4번째 입장 시 **자동 시작** —
+하니스는 `among:sync`로 감지해 흡수, 조건 미충족 시에만 명시적 `among:start`로 폴백; 역할 비밀→킬→
+신고→회의→투표→추방→승리) → 밸런스 게임(비공개 투표→공개, 어몽 세션이 ended여야 충돌 없이 시작됨이라
+어몽 다음 순서) → 프로포즈→수락→Match(중복 수락 멱등) → 메신저(REST+소켓+읽음) →
 데이트 플랜(select/confirm 역할 분리) → 모더레이션(신고·차단) → 대시보드 → **rate limit(마지막)**.
-59개 체크, 정상 ~20초, 실패 시 exit 1.
+60개 체크, 정상 ~20초, 실패 시 exit 1. (파티 정원 충족 시 어몽 자동 시작(2a446fc)에 맞춰 섹션
+순서를 어몽→밸런스로 재배치했다 — 근거는 `tools/mega-qa.mjs` 파일 헤더 ORDERING NOTE 참고.)
 
 ## 실행 절차
 
@@ -28,13 +31,13 @@ pnpm --filter @mingle/backend start:dev       # :3000 (apps/backend/.env: DATABA
 node tools/mega-qa.mjs                        # 기본 대상 http://localhost:3000 (env MEGA_QA_API로 변경)
 ```
 
-성공 기준: `MEGA-QA: 59/59 PASS` + exit 0. 각 체크는 `[N] PASS/FAIL — 이름 (상세)` 형식.
+성공 기준: `MEGA-QA: 60/60 PASS` + exit 0. 각 체크는 `[N] PASS/FAIL — 이름 (상세)` 형식.
 
 ## 반드시 알아야 할 규칙
 
 - **60초 간격 규칙이 최다 오탐 원인.** 어기면 가입(register) 단계부터 429 → 해당 계정 의존
   섹션(모더레이션 등)이 연쇄 중단된다. 이때 **체크 총수 자체가 줄어든다**(중단 섹션의 하위 체크
-  미등록 — 예: 52/55). 총수가 59 미만이면 가장 위의 FAIL이 근본 원인이고 나머지는 전파다.
+  미등록 — 예: 52/55). 총수가 60 미만이면 가장 위의 FAIL이 근본 원인이고 나머지는 전파다.
 - 실행마다 고유 run-id 계정을 새로 만든다 — **계정·프로필 등 데이터는 이전 실행 잔재와 충돌
   없음.** 단 **매칭 큐는 하니스 실행 간에 공유된다** — 이전(특히 중단된) 실행이 남긴 `status="waiting"`
   잔재 엔트리가 이번 실행의 파티에 섞여 들어가거나(presence가 4명을 넘음) 테스트 유저를 서로
@@ -44,6 +47,12 @@ node tools/mega-qa.mjs                        # 기본 대상 http://localhost:3
 
 ## 설계상 정상인 동작 (FAIL 아님)
 
+- 4번째 소켓이 `party:join`하는 순간(섹션 5 중) 어몽어스가 **자동 시작**된다 — 하니스가 `among:start`를
+  호출하기도 전에 이미 세션이 active일 수 있다(설계상 정상, 2a446fc). 어몽 섹션(6번)은 이를
+  `among:sync`로 감지해 "AUTO-START PATH" 체크를 PASS시키고, 조건 미충족(예: 공유 큐 분산으로 4명
+  미만 공유)일 때만 "FALLBACK PATH"로 명시적 `among:start`를 호출한다 — 체크 상세 문구에 어느
+  경로였는지 남는다. 어몽과 밸런스는 파티당 ACTIVE 세션 하나만 허용(타입 무관)이라 밸런스 섹션(7번)은
+  반드시 어몽이 ended된 뒤 실행되도록 순서가 재배치되어 있다 — 순서를 되돌리지 말 것.
 - 파티 "ended" 전환은 관리자 전용 → 실사용 퍼널에서 `dashboard.completedParties`는 0.
 - `among:kill` 서버측 거리검증 없음 — 근접판정은 클라이언트 신뢰 설계(안티치트 스코프 밖).
 - 이중 enqueue: waiting 중엔 멱등 반환, matched 후엔 409.
@@ -69,3 +78,4 @@ node tools/mega-qa.mjs                        # 기본 대상 http://localhost:3
 | enqueue 후 파티 미결성 타임아웃                             | 백엔드 env `MIN_PARTY_SIZE` 확인(기본 4 — 하니스는 4계정 가정)                                                                                                                                                                               |
 | 소켓 체크 전멸                                              | 백엔드 재시작 직후 소켓 미준비 — 헬스 200 확인 후 재실행                                                                                                                                                                                     |
 | `ECONNREFUSED`                                              | 백엔드 다운 또는 `MEGA_QA_API` 오설정                                                                                                                                                                                                        |
+| 밸런스 섹션의 `game:start`가 `already-active` FAIL          | 어몽 섹션이 밸런스보다 먼저 끝나 있어야 한다(파티당 ACTIVE 세션은 하나) — 두 섹션 순서를 어몽→밸런스로 되돌렸는지, 어몽 섹션의 마지막 체크("ejection → crew win (ended)")가 정말 PASS했는지 확인.                                          |
