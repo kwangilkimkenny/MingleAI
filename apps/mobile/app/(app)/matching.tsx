@@ -61,8 +61,11 @@ export default function Matching() {
         poll();
       } catch (e) {
         if (!alive.current) return;
+        // enqueue 거부가 "이미 매칭됨"(파티 참여 중 409)일 수 있다 — 상태를 확인해
+        // matched면 poll()의 기존 경로가 파티로 바로 보낸다 (QA ISSUE-001: 매칭된
+        // 사용자가 파티로 돌아갈 UI 경로가 없던 막다른 화면 제거).
         setError(e instanceof ApiError ? e.message : "매칭을 시작하지 못했습니다.");
-        setPhase("error");
+        poll();
       }
     })();
 
