@@ -235,6 +235,111 @@ it("game:end broadcasts the ended snapshot", async () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// balance (game:*) end → retry Among Us auto-start (rescues the pre-emption
+// case where the balance game started before the 4th socket joined, so that
+// join's auto-start attempt raced into a Conflict and was swallowed)
+// ---------------------------------------------------------------------------
+
+async function fillRoster(gw: any, partyId: string, count = 4) {
+  for (let i = 1; i <= count; i++) {
+    party.assertParticipant.mockResolvedValueOnce(`pf${i}`);
+    const client = clientWith(`u${i}`);
+    client.id = `sock-${i}`;
+    await gw.handleJoin(client, { partyId });
+  }
+}
+
+it("game:end retries the Among Us auto-start after the 4th join's attempt was pre-empted by the still-active balance session", async () => {
+  party.findOne.mockResolvedValue({ participantCount: 4 });
+  among.latestAmong.mockResolvedValue(null); // Among has never successfully started
+  // 1st attempt — fired by the 4th join while the balance session is still active — conflicts,
+  // exactly like the real AmongService.start does (findActiveAny sees the active GameSession row
+  // regardless of gameType).
+  among.start.mockRejectedValueOnce(new ConflictException("already-active"));
+  // 2nd attempt — retried once the balance session has ended — succeeds.
+  among.start.mockResolvedValueOnce(fakeAmongState);
+  among.project.mockReturnValue(fakeSnapshot);
+
+  const gw = gatewayWith();
+  await fillRoster(gw, "pt1");
+  expect(among.start).toHaveBeenCalledTimes(1); // pre-emption happened, join itself did not fail
+
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  const snap = { sessionId: "g1", status: "ended" };
+  game.end.mockResolvedValueOnce(snap);
+  const client = clientWith("u1");
+  await gw.handleGameEnd(client, { partyId: "pt1" });
+
+  expect(among.start).toHaveBeenCalledTimes(2);
+  expect(among.start.mock.calls[1][0]).toBe("pt1");
+  expect(among.start.mock.calls[1][1]).toHaveLength(4);
+});
+
+it("game:end does not retry the auto-start when an Among Us session already existed", async () => {
+  party.findOne.mockResolvedValue({ participantCount: 4 });
+  among.latestAmong.mockResolvedValue({ ...fakeAmongState, phase: "ended" });
+
+  const gw = gatewayWith();
+  await fillRoster(gw, "pt1");
+
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  game.end.mockResolvedValueOnce({ sessionId: "g1", status: "ended" });
+  const client = clientWith("u1");
+  await gw.handleGameEnd(client, { partyId: "pt1" });
+
+  expect(among.start).not.toHaveBeenCalled();
+});
+
+it("game:vote's natural end (final round) retries the Among Us auto-start after pre-emption by the still-active balance session", async () => {
+  party.findOne.mockResolvedValue({ participantCount: 4 });
+  among.latestAmong.mockResolvedValue(null);
+  among.start.mockRejectedValueOnce(new ConflictException("already-active")); // pre-empted at the 4th join
+  among.start.mockResolvedValueOnce(fakeAmongState); // retried after the balance game ends
+  among.project.mockReturnValue(fakeSnapshot);
+
+  const gw = gatewayWith();
+  await fillRoster(gw, "pt1");
+  expect(among.start).toHaveBeenCalledTimes(1);
+
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  const snap = { sessionId: "g1", status: "ended" };
+  game.vote.mockResolvedValueOnce(snap);
+  const client = clientWith("u1");
+  await gw.handleGameVote(client, { partyId: "pt1", choice: "a" });
+
+  expect(among.start).toHaveBeenCalledTimes(2);
+  expect(among.start.mock.calls[1][0]).toBe("pt1");
+  expect(among.start.mock.calls[1][1]).toHaveLength(4);
+});
+
+it("game:vote's natural end does not retry the auto-start when an Among Us session already existed", async () => {
+  party.findOne.mockResolvedValue({ participantCount: 4 });
+  among.latestAmong.mockResolvedValue({ ...fakeAmongState, phase: "ended" });
+
+  const gw = gatewayWith();
+  await fillRoster(gw, "pt1");
+
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  game.vote.mockResolvedValueOnce({ sessionId: "g1", status: "ended" });
+  const client = clientWith("u1");
+  await gw.handleGameVote(client, { partyId: "pt1", choice: "a" });
+
+  expect(among.start).not.toHaveBeenCalled();
+});
+
+it("game:vote does not attempt an auto-start retry when the round is still active", async () => {
+  const gw = gatewayWith();
+
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  game.vote.mockResolvedValueOnce({ sessionId: "g1", status: "active" });
+  const client = clientWith("u1");
+  await gw.handleGameVote(client, { partyId: "pt1", choice: "a" });
+
+  expect(among.latestAmong).not.toHaveBeenCalled();
+  expect(among.start).not.toHaveBeenCalled();
+});
+
 it("game handlers refuse non-participants", async () => {
   party.assertParticipant.mockResolvedValueOnce(null);
   const gw = gatewayWith();

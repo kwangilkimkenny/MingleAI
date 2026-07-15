@@ -154,6 +154,13 @@ export class PartyGateway
       const roster = [...new Set(this.presence.get(body.partyId)?.values() ?? [])];
       const snapshot = await this.game.vote(body.partyId, me, body.choice, roster);
       this.server.to(body.partyId).emit("game:state", { partyId: body.partyId, snapshot });
+      // Natural end (final round's last vote): the party may have filled up WHILE the balance
+      // game was running, in which case the 4th join's auto-start attempt hit a Conflict (one
+      // active session per party) and was swallowed — see maybeAutoStartAmong. Retry now that
+      // the balance session is out of the way.
+      if (snapshot.status === "ended") {
+        await this.maybeAutoStartAmong(body.partyId);
+      }
     } catch (e) {
       client.emit("party:error", { message: this.gameErrorMessage(e) });
     }
@@ -177,6 +184,9 @@ export class PartyGateway
     try {
       const snapshot = await this.game.end(body.partyId);
       this.server.to(body.partyId).emit("game:state", { partyId: body.partyId, snapshot });
+      // Same pre-emption rescue as the vote-induced natural end above: retry the Among Us
+      // auto-start now that the balance session has ended.
+      await this.maybeAutoStartAmong(body.partyId);
     } catch (e) {
       client.emit("party:error", { message: this.gameErrorMessage(e) });
     }
@@ -208,9 +218,13 @@ export class PartyGateway
 
   /**
    * Auto-starts Among Us the moment the party fills to capacity — no manual "start" button.
-   * Fires at the end of `party:join`. Guarded so it only ever fires the party's FIRST game:
-   * a party that already has an ended session must use the existing manual 다시하기 path
-   * (`among:start`) instead of silently re-starting.
+   * Fires at the end of `party:join`, and is retried when a balance (`game:*`) session ends
+   * (both the explicit `game:end` handler and the vote-induced natural end) to rescue the
+   * pre-emption case: a balance game started before the roster filled up, so the 4th join's
+   * auto-start attempt raced into a Conflict (one active session per party) and was swallowed —
+   * without this retry Among Us would never start for that party. Guarded so it only ever fires
+   * the party's FIRST game: a party that already has an (active or ended) session must use the
+   * existing manual 다시하기 path (`among:start`) instead of silently re-starting.
    *
    * Non-fatal by design: any failure here (including the expected Conflict race when two
    * sockets join concurrently and both observe a full roster) is logged and swallowed — the
@@ -222,11 +236,13 @@ export class PartyGateway
       const roster = [...new Set(this.presence.get(partyId)?.values() ?? [])];
       if (roster.length < this.amongConfig.value.minPlayers) return;
 
-      const party = await this.party.findOne(partyId);
-      if (roster.length !== party.participantCount) return;
-
+      // Cheap bail first: most calls land on a party whose Among session already ran (or is
+      // running) — check that before paying for the party.findOne round-trip.
       const everExisted = await this.among.latestAmong(partyId);
       if (everExisted) return;
+
+      const party = await this.party.findOne(partyId);
+      if (roster.length !== party.participantCount) return;
 
       const state = await this.among.start(
         partyId,
