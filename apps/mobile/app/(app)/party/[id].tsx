@@ -322,6 +322,37 @@ export default function PartyScreen() {
 
   return (
     <View style={styles.screen}>
+      <View style={styles.topBar}>
+        <BackButton label="나가기" onPress={() => router.replace("/home")} />
+        <View style={[styles.topBarInfo, { marginTop: insets.top }]}>
+          <Text style={styles.partyName} numberOfLines={1}>
+            {party.name}
+          </Text>
+        </View>
+        <View style={[styles.topBarActions, { marginTop: insets.top }]}>
+          <Pressable
+            style={styles.membersBtn}
+            onPress={() => openMemberSheet(null)}
+            accessibilityRole="button"
+            accessibilityLabel="멤버 목록 보기"
+            hitSlop={6}
+          >
+            <Text style={styles.membersIcon}>👥</Text>
+          </Pressable>
+          {amongEnded ? (
+            <Pressable
+              style={styles.lobbyBtn}
+              onPress={() => setDismissedSessionId(among!.sessionId)}
+              accessibilityRole="button"
+              accessibilityLabel="로비로 돌아가기"
+            >
+              <Text style={styles.lobbyBtnText}>로비로</Text>
+            </Pressable>
+          ) : null}
+          <DoodleChip label={`${presentCount}명`} tiny />
+        </View>
+      </View>
+
       <View style={styles.world} onLayout={(e) => setWorldHeight(e.nativeEvent.layout.height)}>
         {showAmong && among ? (
           <View style={styles.amongWrap}>
@@ -352,48 +383,16 @@ export default function PartyScreen() {
             </Pressable>
           </View>
         )}
-      </View>
 
-      <View style={styles.topBar}>
-        <BackButton label="나가기" onPress={() => router.replace("/home")} />
-        <View style={[styles.topBarInfo, { marginTop: insets.top }]}>
-          <Text style={styles.partyName} numberOfLines={1}>
-            {party.name}
-          </Text>
-        </View>
-        <View style={[styles.topBarActions, { marginTop: insets.top }]}>
-          {!showAmong ? (
-            <Pressable
-              style={styles.membersBtn}
-              onPress={() => openMemberSheet(null)}
-              accessibilityRole="button"
-              accessibilityLabel="멤버 목록 보기"
-              hitSlop={6}
-            >
-              <Text style={styles.membersIcon}>👥</Text>
-            </Pressable>
-          ) : amongEnded ? (
-            <Pressable
-              style={styles.lobbyBtn}
-              onPress={() => setDismissedSessionId(among!.sessionId)}
-              accessibilityRole="button"
-              accessibilityLabel="로비로 돌아가기"
-            >
-              <Text style={styles.lobbyBtnText}>로비로</Text>
-            </Pressable>
-          ) : null}
-          <DoodleChip label={`${presentCount}명`} tiny />
-        </View>
+        <PartyChatOverlay
+          messages={messages}
+          myProfileId={myProfileId}
+          socketDown={socketDown}
+          senderName={senderName}
+          onSend={onSendChat}
+          hideFab={hideFab}
+        />
       </View>
-
-      <PartyChatOverlay
-        messages={messages}
-        myProfileId={myProfileId}
-        socketDown={socketDown}
-        senderName={senderName}
-        onSend={onSendChat}
-        hideFab={hideFab}
-      />
 
       <MemberSheet
         visible={memberSheetOpen}
@@ -499,17 +498,13 @@ const styles = StyleSheet.create({
   error: { color: colors.ink, textAlign: "center" },
 
   screen: { flex: 1, backgroundColor: colors.paper },
-  world: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  world: { flex: 1, position: "relative" },
   amongWrap: { flex: 1 },
   lobbyWrap: { flex: 1, position: "relative" },
 
   balanceStation: { position: "absolute", left: 16, zIndex: 15 },
 
   topBar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     flexDirection: "row",
     alignItems: "flex-start",
     backgroundColor: "rgba(255,255,255,0.88)",
@@ -517,7 +512,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.ink,
     paddingHorizontal: 4,
     paddingBottom: 8,
-    zIndex: 20,
   },
   topBarInfo: {
     flex: 1,

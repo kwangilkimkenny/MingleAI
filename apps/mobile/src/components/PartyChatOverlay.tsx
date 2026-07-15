@@ -5,7 +5,7 @@
  * visible behind it. Message data + the send action are owned by the party screen
  * (moved verbatim); input text and open/unread state are local to this component.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PartyMessageView } from "@mingle/client-core";
@@ -43,8 +43,21 @@ export function PartyChatOverlay({
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [seenCount, setSeenCount] = useState(messages.length);
+  const historySeededRef = useRef(false);
 
   const hasUnread = !open && messages.length > seenCount;
+
+  // Message history loads asynchronously — `messages` is still [] on mount, so seenCount
+  // starts at 0. Without this, the first history fetch (arriving after mount) bumps
+  // messages.length past that stale 0 and lights the unread dot for messages the user
+  // never actually missed. Seed seenCount once, the first time history arrives non-empty,
+  // so only messages that show up after entry count as unread.
+  useEffect(() => {
+    if (!historySeededRef.current && messages.length > 0) {
+      historySeededRef.current = true;
+      setSeenCount(messages.length);
+    }
+  }, [messages.length]);
 
   // Keep "seen" in sync with the latest message while the panel is open, so closing
   // it doesn't immediately show a stale unread dot.
