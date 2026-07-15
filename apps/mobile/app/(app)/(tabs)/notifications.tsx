@@ -22,6 +22,7 @@ import {
   type NotificationData,
 } from "../../../src/lib/route-for-notification";
 import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
+import { EnterRow } from "../../../src/components/Motion";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, fonts } from "../../../src/lib/theme";
 
@@ -126,14 +127,16 @@ export default function Notifications() {
             <Text style={styles.empty}>아직 알림이 없어요.</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable style={styles.row} onPress={() => onTapItem(item)}>
-            <View style={styles.rowHead}>
-              <Text style={styles.rowTitle}>{item.title}</Text>
-              {!item.read ? <View style={styles.dot} /> : null}
-            </View>
-            <Text style={styles.rowMsg}>{item.message}</Text>
-          </Pressable>
+        renderItem={({ item, index }) => (
+          <EnterRow index={index}>
+            <Pressable style={styles.row} onPress={() => onTapItem(item)}>
+              <View style={styles.rowHead}>
+                <Text style={styles.rowTitle}>{item.title}</Text>
+                {!item.read ? <View style={styles.dot} /> : null}
+              </View>
+              <Text style={styles.rowMsg}>{item.message}</Text>
+            </Pressable>
+          </EnterRow>
         )}
       />
     </View>

@@ -5,6 +5,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Heart, ChevronRight, Zap } from "lucide-react-native";
 import { getMyProfile } from "@mingle/client-core";
 import { DoodleButton, DoodleCard, ShadowBox } from "../../../src/components/Doodle";
+import { Enter } from "../../../src/components/Motion";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 
 export default function Home() {
@@ -58,72 +59,82 @@ export default function Home() {
         </DoodleCard>
       ) : null}
 
-      <View style={styles.appbar}>
-        <Text style={styles.greetingTiny}>안녕하세요 👋</Text>
-        <Text style={styles.greetingTitle}>
-          {name ? `${name}님, 오늘 나가볼까요?` : "오늘 나가볼까요?"}
-        </Text>
-      </View>
-
-      <ShadowBox
-        radius={doodle.radius.card}
-        bg={colors.ink}
-        rotate="-0.6deg"
-        style={styles.heroOuter}
-      >
-        <View style={styles.heroInner}>
-          <View style={styles.heroTitleRow}>
-            <Zap color={colors.accentSoft} size={20} strokeWidth={2.4} />
-            <Text style={styles.heroTitle}>AI 매칭</Text>
-          </View>
-          <Text style={styles.heroDesc}>취향을 분석해 잘 맞는 사람들과 파티를 만들어줘요.</Text>
-          <DoodleButton
-            title="매칭 시작"
-            onPress={onStartMatching}
-            variant="primary"
-            rotate="-0.8deg"
-            icon={(color, size) => <Heart color={color} size={size} strokeWidth={2} />}
-          />
+      <Enter index={0}>
+        <View style={styles.appbar}>
+          <Text style={styles.greetingTiny}>안녕하세요 👋</Text>
+          <Text style={styles.greetingTitle}>
+            {name ? `${name}님, 오늘 나가볼까요?` : "오늘 나가볼까요?"}
+          </Text>
         </View>
-      </ShadowBox>
+      </Enter>
+
+      <Enter index={1}>
+        <ShadowBox
+          radius={doodle.radius.card}
+          bg={colors.ink}
+          rotate="-0.6deg"
+          style={styles.heroOuter}
+        >
+          <View style={styles.heroInner}>
+            <View style={styles.heroTitleRow}>
+              <Zap color={colors.accentSoft} size={20} strokeWidth={2.4} />
+              <Text style={styles.heroTitle}>AI 매칭</Text>
+            </View>
+            <Text style={styles.heroDesc}>취향을 분석해 잘 맞는 사람들과 파티를 만들어줘요.</Text>
+            <DoodleButton
+              title="매칭 시작"
+              onPress={onStartMatching}
+              variant="primary"
+              rotate="-0.8deg"
+              icon={(color, size) => <Heart color={color} size={size} strokeWidth={2} />}
+            />
+          </View>
+        </ShadowBox>
+      </Enter>
 
       <View style={styles.shortcuts}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push("/chats")}
-          style={({ pressed }) => (pressed ? styles.shortcutPressed : null)}
-        >
-          <DoodleCard rotate="0.5deg">
-            <View style={styles.shortcutRow}>
-              <View style={styles.shortcutText}>
-                <Text style={styles.shortcutTitle}>💬 채팅</Text>
-                <Text style={styles.shortcutDesc}>매칭된 사람들과의 대화를 이어가요.</Text>
+        <Enter index={2}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/chats")}
+            style={({ pressed }) => (pressed ? styles.shortcutPressed : null)}
+          >
+            <DoodleCard rotate="0.5deg">
+              <View style={styles.shortcutRow}>
+                <View style={styles.shortcutText}>
+                  <Text style={styles.shortcutTitle}>💬 채팅</Text>
+                  <Text style={styles.shortcutDesc}>매칭된 사람들과의 대화를 이어가요.</Text>
+                </View>
+                <ChevronRight color={colors.grayMid} size={22} strokeWidth={2} />
               </View>
-              <ChevronRight color={colors.grayMid} size={22} strokeWidth={2} />
-            </View>
-          </DoodleCard>
-        </Pressable>
+            </DoodleCard>
+          </Pressable>
+        </Enter>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push("/proposals")}
-          style={({ pressed }) => (pressed ? styles.shortcutPressed : null)}
-        >
-          <DoodleCard rotate="-0.4deg">
-            <View style={styles.shortcutRow}>
-              <View style={styles.shortcutText}>
-                <Text style={styles.shortcutTitle}>🤝 프로포즈</Text>
-                <Text style={styles.shortcutDesc}>마음에 든 사람에게 프로포즈를 보내요.</Text>
+        <Enter index={3}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/proposals")}
+            style={({ pressed }) => (pressed ? styles.shortcutPressed : null)}
+          >
+            <DoodleCard rotate="-0.4deg">
+              <View style={styles.shortcutRow}>
+                <View style={styles.shortcutText}>
+                  <Text style={styles.shortcutTitle}>🤝 프로포즈</Text>
+                  <Text style={styles.shortcutDesc}>마음에 든 사람에게 프로포즈를 보내요.</Text>
+                </View>
+                <ChevronRight color={colors.grayMid} size={22} strokeWidth={2} />
               </View>
-              <ChevronRight color={colors.grayMid} size={22} strokeWidth={2} />
-            </View>
-          </DoodleCard>
-        </Pressable>
+            </DoodleCard>
+          </Pressable>
+        </Enter>
       </View>
 
-      <Text style={styles.hint}>
-        새로운 사람들과 가볍게 만나보세요.{"\n"}채팅·프로포즈·알림은 아래 탭에서 확인해요.
-      </Text>
+      <Enter index={4}>
+        <Text style={styles.hint}>
+          새로운 사람들과 가볍게 만나보세요.{"\n"}채팅·프로포즈·알림은 아래 탭에서 확인해요.
+        </Text>
+      </Enter>
     </ScrollView>
   );
 }

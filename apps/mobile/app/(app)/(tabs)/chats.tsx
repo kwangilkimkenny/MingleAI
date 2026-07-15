@@ -11,6 +11,7 @@ import { router, useFocusEffect } from "expo-router";
 import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
+import { EnterRow } from "../../../src/components/Motion";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, fonts } from "../../../src/lib/theme";
 
@@ -74,26 +75,28 @@ export default function Chats() {
           keyExtractor={(item) => item.roomId}
           contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           ItemSeparatorComponent={Separator}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() =>
-                router.push({ pathname: "/(app)/chat/[roomId]", params: { roomId: item.roomId } })
-              }
-            >
-              <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={46} />
-              <View style={styles.rowLeft}>
-                <Text style={styles.peerName}>{item.peer.name}</Text>
-                <Text style={styles.lastMsg} numberOfLines={1}>
-                  {item.lastMessage?.content ?? "메시지를 보내보세요"}
-                </Text>
-              </View>
-              {item.unreadCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{item.unreadCount}</Text>
+          renderItem={({ item, index }) => (
+            <EnterRow index={index}>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() =>
+                  router.push({ pathname: "/(app)/chat/[roomId]", params: { roomId: item.roomId } })
+                }
+              >
+                <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={46} />
+                <View style={styles.rowLeft}>
+                  <Text style={styles.peerName}>{item.peer.name}</Text>
+                  <Text style={styles.lastMsg} numberOfLines={1}>
+                    {item.lastMessage?.content ?? "메시지를 보내보세요"}
+                  </Text>
                 </View>
-              ) : null}
-            </TouchableOpacity>
+                {item.unreadCount > 0 ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.unreadCount}</Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            </EnterRow>
           )}
         />
       )}

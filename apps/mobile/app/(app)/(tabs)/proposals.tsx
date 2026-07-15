@@ -19,6 +19,7 @@ import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { DoodleCard } from "../../../src/components/Doodle";
 import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
+import { EnterRow } from "../../../src/components/Motion";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, doodle, fonts } from "../../../src/lib/theme";
 
@@ -92,38 +93,40 @@ export default function Proposals() {
           data={proposals}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
-          renderItem={({ item }) => (
-            <DoodleCard tone="paper" contentStyle={styles.cardInner}>
-              <View style={styles.cardHeader}>
-                <PeerModerationMenu
-                  peer={{ profileId: item.peer.profileId, name: item.peer.name }}
-                  onBlocked={() => setProposals((prev) => prev.filter((p) => p.id !== item.id))}
-                />
-              </View>
-              <View style={styles.peerInfo}>
-                <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={54} />
-                <View style={styles.peerText}>
-                  <Text style={styles.name}>
-                    {item.peer.name} · {item.peer.age}
-                  </Text>
-                  <Text style={styles.meta}>{item.peer.occupation}</Text>
-                  {item.peer.preferenceSummary ? (
-                    <Text style={styles.summary}>{item.peer.preferenceSummary}</Text>
-                  ) : null}
+          renderItem={({ item, index }) => (
+            <EnterRow index={index}>
+              <DoodleCard tone="paper" contentStyle={styles.cardInner}>
+                <View style={styles.cardHeader}>
+                  <PeerModerationMenu
+                    peer={{ profileId: item.peer.profileId, name: item.peer.name }}
+                    onBlocked={() => setProposals((prev) => prev.filter((p) => p.id !== item.id))}
+                  />
                 </View>
-              </View>
-              <View style={styles.divider}>
-                <DashedLine />
-              </View>
-              <View style={styles.actions}>
-                <TouchableOpacity style={styles.acceptBtn} onPress={() => onAccept(item.id)}>
-                  <Text style={styles.acceptText}>수락</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.declineBtn} onPress={() => onDecline(item.id)}>
-                  <Text style={styles.declineText}>거절</Text>
-                </TouchableOpacity>
-              </View>
-            </DoodleCard>
+                <View style={styles.peerInfo}>
+                  <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={54} />
+                  <View style={styles.peerText}>
+                    <Text style={styles.name}>
+                      {item.peer.name} · {item.peer.age}
+                    </Text>
+                    <Text style={styles.meta}>{item.peer.occupation}</Text>
+                    {item.peer.preferenceSummary ? (
+                      <Text style={styles.summary}>{item.peer.preferenceSummary}</Text>
+                    ) : null}
+                  </View>
+                </View>
+                <View style={styles.divider}>
+                  <DashedLine />
+                </View>
+                <View style={styles.actions}>
+                  <TouchableOpacity style={styles.acceptBtn} onPress={() => onAccept(item.id)}>
+                    <Text style={styles.acceptText}>수락</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.declineBtn} onPress={() => onDecline(item.id)}>
+                    <Text style={styles.declineText}>거절</Text>
+                  </TouchableOpacity>
+                </View>
+              </DoodleCard>
+            </EnterRow>
           )}
         />
       )}
