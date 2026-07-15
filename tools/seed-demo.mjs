@@ -6,7 +6,9 @@
  * preferences matching the human's (so matchmaking groups everyone into one party),
  * gets all 4 matched, then keeps the 3 bots' party sockets alive for the rest of the
  * process so a human operator can walk through every feature live in the mobile/web UI:
- * party chat/move, balance game, Among Us, proposals, messenger, date plans, moderation.
+ * party chat/move, Among Us (AUTO-STARTED the instant the human's socket becomes the 4th
+ * party:join — see the checklist note in printChecklist()), balance game, proposals,
+ * messenger, date plans, moderation.
  *
  * It also pre-seeds the relationship funnel via REST (proposal → accept → match → DM →
  * date plan) so the 채팅/알림/프로포즈 tabs are populated the moment the human opens the app.
@@ -683,9 +685,11 @@ function printChecklist() {
   console.log("");
   console.log("☐ 사람이 직접 UI에서 확인할 시나리오:");
   console.log("  1. 파티 입장 → 봇 3명(서연/도윤/하은)과 실시간 채팅/이동 확인");
-  console.log("  2. 밸런스 게임 시작 → 5라운드 전체 플레이 (봇이 자동으로 투표)");
-  console.log("  3. 어몽어스 시작 → 크루 태스크/임포스터 킬/신고/회의/투표 전 과정 진행");
+  console.log("     ⚠ 사람이 4번째로 입장하는 순간 어몽어스가 자동 시작됨(수동 시작 버튼 없음, 2a446fc)");
+  console.log("  2. (자동 시작된) 어몽어스 → 크루 태스크/임포스터 킬/신고/회의/투표 전 과정 진행");
   console.log("     (봇: 크루는 ~15초마다 태스크 1개, 임포스터는 게임 90초 경과 후 1회만 킬)");
+  console.log("  3. 어몽어스가 끝난 뒤 밸런스 게임 시작 → 5라운드 전체 플레이 (봇이 자동으로 투표)");
+  console.log("     (파티당 ACTIVE 세션은 하나뿐 — 어몽 진행 중엔 밸런스 시작이 already-active로 거부됨)");
   console.log("  4. 알림 탭에서 match/message 알림 확인");
   console.log("  5. 프로포즈 탭에서 도윤의 PENDING 프로포즈 수락");
   console.log("  6. 채팅 탭에서 서연과의 대화 열고 답장 보내기 (봇이 20초 내 1회 응답)");

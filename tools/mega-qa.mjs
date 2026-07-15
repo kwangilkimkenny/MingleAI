@@ -3,9 +3,22 @@
  *
  * Exercises the whole designed user journey against an ALREADY-RUNNING backend:
  *   health → signup×4 → onboarding → matchmaking → party realtime (chat/move/presence)
- *   → balance game → Among Us (full kill/report/meeting/vote/eject path) → proposal → match
+ *   → Among Us (AUTO-STARTED once the 4th socket joins — see ORDERING NOTE below; full
+ *   kill/report/meeting/vote/eject path) → balance game → proposal → match
  *   → messenger (REST + socket + read receipts) → date plan → moderation (report/block)
  *   → dashboard → rate limiting (last).
+ *
+ * ORDERING NOTE (2026-07-15, party-game-world T3): `party.gateway.ts`'s `maybeAutoStartAmong`
+ * (commit 2a446fc) auto-starts Among Us the instant `party:join` fills the presence roster to
+ * the party's full `participantCount` — i.e. it fires DURING section 5 (party realtime), before
+ * this harness ever calls `among:start` itself. Balance and Among share a single "one ACTIVE
+ * GameSession per party" constraint (`game.service.ts` `findActive` has no `gameType` filter),
+ * so running the balance section while that auto-started Among session is still active would hit
+ * "already-active". Smallest-correct fix: the Among Us section now runs BEFORE the balance
+ * section (swapped from the historical 6→7 numbering) — it detects the auto-started session via
+ * `among:sync` (falling back to an explicit `among:start` only if auto-start conditions weren't
+ * met) and plays it through to a real "ended" result, so the balance section starts cleanly
+ * afterward. Section number comments below reflect actual run order.
  *
  * Style/contract reference: tools/among-bots.mjs (socket auth handshake + among event usage).
  * Contracts read directly from apps/backend/src/{party,matchmaking,proposal,match,messenger,
@@ -173,6 +186,11 @@ function connectPartySocket(tag) {
     errors: [],
     gameState: null,
     amongState: null,
+    // Bumped on every "among:state" receipt (auto-start broadcast OR among:sync response OR any
+    // other among:* ack). amongState alone can't distinguish "no response yet" from "a response
+    // arrived and it legitimately carries no active session" (project() returns null when there's
+    // no session) — the count lets checks detect a fresh event regardless of payload shape.
+    amongEventCount: 0,
   };
   socket.on("party:presence", (d) => {
     state.presence = d;
@@ -191,6 +209,7 @@ function connectPartySocket(tag) {
   });
   socket.on("among:state", (d) => {
     state.amongState = d?.snapshot ?? null;
+    state.amongEventCount++;
   });
   sockets[tag] = { socket, state };
   return sockets[tag];
@@ -556,94 +575,23 @@ async function sectionPartyRealtime() {
   });
 }
 
-// ─── 6. Balance game ────────────────────────────────────────────────────────
-// party.gateway.ts game:* handlers + game.service.ts. votedProfileIds is the only per-round
-// visibility exposed pre-reveal (GameSnapshot never carries raw per-user choices).
-
-async function sectionBalanceGame() {
-  // game.service.vote() completes a round once every CONNECTED socket (presence roster) has
-  // voted — not a hardcoded party size — so this section tolerates the shared-queue partyTags
-  // subset down to 2 users (min for a meaningful a/b vote).
-  if (!partyId || partyTags.length < 2 || Object.keys(sockets).length < partyTags.length) {
-    throw new Error(
-      "party sockets not established (need >=2 shared test users) — section 5 did not complete; skipping balance game",
-    );
-  }
-  const [leadTag, ...restTags] = partyTags;
-
-  await check(`Balance game: game:start → all ${partyTags.length} receive round 0`, async () => {
-    sockets[leadTag].socket.emit("game:start", { partyId });
-    await waitFor(
-      () =>
-        partyTags.every(
-          (t) =>
-            sockets[t].state.gameState?.round === 0 &&
-            sockets[t].state.gameState?.status === "active",
-        ),
-      { timeoutMs: 5000, label: `all ${partyTags.length} receive round=0 active` },
-    );
-    return `round=0 totalRounds=${sockets[leadTag].state.gameState.totalRounds}`;
-  });
-
-  await check(
-    `Balance game: ${leadTag} votes → snapshot shows votedProfileIds only, no choices`,
-    async () => {
-      sockets[leadTag].socket.emit("game:vote", { partyId, choice: "a" });
-      await waitFor(
-        () => sockets[leadTag].state.gameState?.votedProfileIds?.includes(users[leadTag].profileId),
-        {
-          timeoutMs: 4000,
-          label: `${leadTag}'s vote reflected in votedProfileIds`,
-        },
-      );
-      const snap = sockets[leadTag].state.gameState;
-      if ("choices" in snap || "votes" in snap)
-        throw new Error("BUG: snapshot leaked raw per-user choices");
-      return `votedProfileIds=${JSON.stringify(snap.votedProfileIds)}`;
-    },
-  );
-
-  await check(`Balance game: all ${partyTags.length} vote → reveal + round advance`, async () => {
-    restTags.forEach((t, i) => {
-      sockets[t].socket.emit("game:vote", { partyId, choice: i % 2 === 0 ? "a" : "b" });
-    });
-    await waitFor(() => sockets[leadTag].state.gameState?.round === 1, {
-      timeoutMs: 6000,
-      label: "round advances to 1",
-    });
-    const snap = sockets[leadTag].state.gameState;
-    if (snap.reveals.length !== 1 || snap.reveals[0].round !== 0) {
-      throw new Error(`unexpected reveals: ${JSON.stringify(snap.reveals)}`);
-    }
-    const voters = new Set([...snap.reveals[0].aVoters, ...snap.reveals[0].bVoters]);
-    if (voters.size !== partyTags.length)
-      throw new Error(`expected ${partyTags.length} voters revealed, got ${voters.size}`);
-    return `round=1 reveals=1 votersRevealed=${voters.size}`;
-  });
-
-  await check("Balance game: game:end force-ends", async () => {
-    sockets[leadTag].socket.emit("game:end", { partyId });
-    await waitFor(() => sockets[leadTag].state.gameState?.status === "ended", {
-      timeoutMs: 4000,
-      label: "status=ended",
-    });
-    return `status=${sockets[leadTag].state.gameState.status}`;
-  });
-}
-
-// ─── 7. Among Us ────────────────────────────────────────────────────────────
-// party.gateway.ts among:* handlers + among.service.ts. We fully control every "bot" (all 4
-// sockets are ours), so the FULL path is deterministic, not brittle: kill a chosen crew victim,
-// report, wait out the (env-tuned, AMONG_DISCUSSION_MS=10000) discussion window via the server's
-// own 1s sweep, then have every alive player vote the impostor for a guaranteed unique-plurality
-// ejection → crew win. among.service.kill() has no server-side distance check (confirmed by
-// reading the source — killRange is unused in kill()), so party:move-before-kill is done for
-// narrative fidelity to the mission spec, not because the backend enforces it.
+// ─── 6. Among Us (auto-started once the party fills to capacity) ───────────
+// party.gateway.ts among:* handlers + among.service.ts. Runs BEFORE the balance-game section (see
+// the file-header ORDERING NOTE) because party.gateway's maybeAutoStartAmong fires as soon as the
+// presence roster fills during section 5's party:join — by the time this section starts, an Among
+// Us GameSession is very likely ALREADY "active", started without this harness ever calling
+// among:start. We fully control every "bot" (all 4 sockets are ours), so the FULL path is
+// deterministic, not brittle: kill a chosen crew victim, report, wait out the (env-tuned,
+// AMONG_DISCUSSION_MS=10000) discussion window via the server's own 1s sweep, then have every
+// alive player vote the impostor for a guaranteed unique-plurality ejection → crew win.
+// among.service.kill() has no server-side distance check (confirmed by reading the source —
+// killRange is unused in kill()), so party:move-before-kill is done for narrative fidelity to the
+// mission spec, not because the backend enforces it.
 
 async function sectionAmongUs() {
   // among.service.start() enforces AMONG_MIN_PLAYERS (default 4, apps/backend/.env doesn't
   // override it) against the CONNECTED socket roster — so unlike balance game, Among Us
-  // genuinely needs the full 4-user partyTags subset to start at all.
+  // genuinely needs the full 4-user partyTags subset to start (auto- or manually) at all.
   if (!partyId || partyTags.length < 4 || Object.keys(sockets).length < 4) {
     throw new Error(
       "party sockets not established (need all 4 shared test users — AMONG_MIN_PLAYERS=4) — skipping Among Us",
@@ -651,29 +599,58 @@ async function sectionAmongUs() {
   }
 
   await check(
-    `Among Us: among:start → per-socket secrecy (own role visible, others null)`,
+    "Among Us: auto-start — 정원 충족 시 어몽 자동 시작 (party.gateway.maybeAutoStartAmong)",
     async () => {
+      // among:sync answers the CALLER ONLY (not a room broadcast) — poll every socket individually
+      // so each one's state.amongState reflects its OWN personalized (role-redacted) snapshot,
+      // independent of whether it already captured the auto-start broadcast during section 5.
+      // amongEventCount (not amongState nullness) is what we wait on: project() legitimately
+      // returns null when there's no session, so nullness can't distinguish "no reply yet" from
+      // "replied: nothing running".
+      const before = partyTags.map((t) => sockets[t].state.amongEventCount);
+      for (const tag of partyTags) sockets[tag].socket.emit("among:sync", { partyId });
+      await waitFor(
+        () => partyTags.every((t, i) => sockets[t].state.amongEventCount > before[i]),
+        { timeoutMs: 5000, label: "all sockets receive an among:sync response" },
+      );
+
+      const alreadyActive = partyTags.every(
+        (t) => sockets[t].state.amongState?.phase === "playing",
+      );
+      if (alreadyActive) {
+        return (
+          `AUTO-START PATH — sync shows phase=playing on all ${partyTags.length} sockets; this ` +
+          `harness never called among:start (party:join filled the roster to capacity in section 5)`
+        );
+      }
+
+      // Fallback: sync shows no active session (auto-start conditions unmet in this env — e.g. a
+      // shared-queue split left partyTags.length or party.participantCount off 4). Use the same
+      // manual path a real 다시하기 uses.
       sockets[partyTags[0]].socket.emit("among:start", { partyId });
       await waitFor(
         () => partyTags.every((t) => sockets[t].state.amongState?.phase === "playing"),
         {
           timeoutMs: 6000,
-          label: `all ${partyTags.length} receive phase=playing snapshot`,
+          label: `all ${partyTags.length} receive phase=playing after explicit among:start`,
         },
       );
-      for (const tag of partyTags) {
-        const snap = sockets[tag].state.amongState;
-        if (!snap.myRole) throw new Error(`${tag}: myRole missing`);
-        const me = snap.players.find((p) => p.profileId === users[tag].profileId);
-        if (!me || me.role !== snap.myRole)
-          throw new Error(`${tag}: own role mismatch in players[]`);
-        const others = snap.players.filter((p) => p.profileId !== users[tag].profileId);
-        if (others.some((p) => p.role !== null))
-          throw new Error(`BUG: ${tag} can see another player's role pre-reveal`);
-      }
-      return `secrecy verified for all ${partyTags.length} (own role visible, others null)`;
+      return "FALLBACK PATH — sync showed no active session; used explicit among:start";
     },
   );
+
+  await check(`Among Us: per-socket secrecy (own role visible, others null)`, async () => {
+    for (const tag of partyTags) {
+      const snap = sockets[tag].state.amongState;
+      if (!snap.myRole) throw new Error(`${tag}: myRole missing`);
+      const me = snap.players.find((p) => p.profileId === users[tag].profileId);
+      if (!me || me.role !== snap.myRole) throw new Error(`${tag}: own role mismatch in players[]`);
+      const others = snap.players.filter((p) => p.profileId !== users[tag].profileId);
+      if (others.some((p) => p.role !== null))
+        throw new Error(`BUG: ${tag} can see another player's role pre-reveal`);
+    }
+    return `secrecy verified for all ${partyTags.length} (own role visible, others null)`;
+  });
 
   let impostorTag = null;
   const crewTags = [];
@@ -766,6 +743,84 @@ async function sectionAmongUs() {
     const rolesRevealed = sockets.A.state.amongState.players.every((p) => p.role !== null);
     if (!rolesRevealed) throw new Error("BUG: final 'ended' snapshot did not reveal all roles");
     return `winner=${result.winner} reason=${result.reason}, roles revealed on end`;
+  });
+}
+
+// ─── 7. Balance game ────────────────────────────────────────────────────────
+// party.gateway.ts game:* handlers + game.service.ts. votedProfileIds is the only per-round
+// visibility exposed pre-reveal (GameSnapshot never carries raw per-user choices). Runs AFTER
+// Among Us (see the file-header ORDERING NOTE) — section 6 plays the auto-started Among session
+// through to "ended", so game.service.findActive (no gameType filter — balance/among share one
+// "one ACTIVE session per party" slot) sees nothing active and game:start below starts cleanly.
+
+async function sectionBalanceGame() {
+  // game.service.vote() completes a round once every CONNECTED socket (presence roster) has
+  // voted — not a hardcoded party size — so this section tolerates the shared-queue partyTags
+  // subset down to 2 users (min for a meaningful a/b vote).
+  if (!partyId || partyTags.length < 2 || Object.keys(sockets).length < partyTags.length) {
+    throw new Error(
+      "party sockets not established (need >=2 shared test users) — section 5 did not complete; skipping balance game",
+    );
+  }
+  const [leadTag, ...restTags] = partyTags;
+
+  await check(`Balance game: game:start → all ${partyTags.length} receive round 0`, async () => {
+    sockets[leadTag].socket.emit("game:start", { partyId });
+    await waitFor(
+      () =>
+        partyTags.every(
+          (t) =>
+            sockets[t].state.gameState?.round === 0 &&
+            sockets[t].state.gameState?.status === "active",
+        ),
+      { timeoutMs: 5000, label: `all ${partyTags.length} receive round=0 active` },
+    );
+    return `round=0 totalRounds=${sockets[leadTag].state.gameState.totalRounds}`;
+  });
+
+  await check(
+    `Balance game: ${leadTag} votes → snapshot shows votedProfileIds only, no choices`,
+    async () => {
+      sockets[leadTag].socket.emit("game:vote", { partyId, choice: "a" });
+      await waitFor(
+        () => sockets[leadTag].state.gameState?.votedProfileIds?.includes(users[leadTag].profileId),
+        {
+          timeoutMs: 4000,
+          label: `${leadTag}'s vote reflected in votedProfileIds`,
+        },
+      );
+      const snap = sockets[leadTag].state.gameState;
+      if ("choices" in snap || "votes" in snap)
+        throw new Error("BUG: snapshot leaked raw per-user choices");
+      return `votedProfileIds=${JSON.stringify(snap.votedProfileIds)}`;
+    },
+  );
+
+  await check(`Balance game: all ${partyTags.length} vote → reveal + round advance`, async () => {
+    restTags.forEach((t, i) => {
+      sockets[t].socket.emit("game:vote", { partyId, choice: i % 2 === 0 ? "a" : "b" });
+    });
+    await waitFor(() => sockets[leadTag].state.gameState?.round === 1, {
+      timeoutMs: 6000,
+      label: "round advances to 1",
+    });
+    const snap = sockets[leadTag].state.gameState;
+    if (snap.reveals.length !== 1 || snap.reveals[0].round !== 0) {
+      throw new Error(`unexpected reveals: ${JSON.stringify(snap.reveals)}`);
+    }
+    const voters = new Set([...snap.reveals[0].aVoters, ...snap.reveals[0].bVoters]);
+    if (voters.size !== partyTags.length)
+      throw new Error(`expected ${partyTags.length} voters revealed, got ${voters.size}`);
+    return `round=1 reveals=1 votersRevealed=${voters.size}`;
+  });
+
+  await check("Balance game: game:end force-ends", async () => {
+    sockets[leadTag].socket.emit("game:end", { partyId });
+    await waitFor(() => sockets[leadTag].state.gameState?.status === "ended", {
+      timeoutMs: 4000,
+      label: "status=ended",
+    });
+    return `status=${sockets[leadTag].state.gameState.status}`;
   });
 }
 
@@ -1081,8 +1136,8 @@ async function main() {
   await runSection("3. Onboarding", sectionOnboarding);
   await runSection("4. Matchmaking", sectionMatchmaking);
   await runSection("5. Party realtime", sectionPartyRealtime);
-  await runSection("6. Balance game", sectionBalanceGame);
-  await runSection("7. Among Us", sectionAmongUs);
+  await runSection("6. Among Us (auto-started at full roster)", sectionAmongUs);
+  await runSection("7. Balance game", sectionBalanceGame);
   await runSection("8. Party end → proposal window", sectionProposal);
   await runSection("9. Messenger", sectionMessenger);
   await runSection("10. Date plan", sectionDatePlan);
