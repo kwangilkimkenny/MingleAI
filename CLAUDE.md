@@ -18,7 +18,7 @@ Writing tips:
 - `apps/mobile` (`@mingle/mobile`) — ⭐ primary client. Expo SDK 56, Expo Router(file-based `app/`), expo-secure-store(JWT), expo-notifications+expo-device(push), expo-image-picker, expo-screen-orientation(파티 화면 가로 lock), lucide-react-native + react-native-svg, reanimated 4, `@expo-google-fonts/gaegu`.
   - **내비**: 비로그인 루트(`app/index.tsx`) → `/register`. 로그인+온보딩 후 = 하단 탭바(`app/(app)/(tabs)/_layout.tsx` — 홈·채팅·프로포즈·알림·설정, 커스텀 `DoodleTabBar`). 상세 화면(matching/blocks/chat/party/date-plan/report)은 `(app)` Stack이 탭 위로 push. **네이티브 헤더 전면 비표시**(루트 포함) — 뒤로가기는 `src/components/BackButton.tsx`, 브랜딩은 `DoodleHero`(라인아트 나무늘보 로고 `assets/images/logo.png`).
   - **href 규칙**: 탭 화면은 그룹 탈락형(`/home`, `/chats`, …), 상세 화면은 `(app)` 유지(`/(app)/party/[id]`, …). typed routes는 `expo start`가 재생성 — desync 시 tsc가 잡음.
-  - **파티 화면 = 게임 월드**(`party/[id].tsx`): 어몽 세션 활성/직후엔 `AmongGame` 전체화면, 그 외 로비 모드 — 둘 다 공용 `PartyWorld` 렌더러(+얇은 상단 바). 채팅=`PartyChatOverlay`(FAB→하단 시트), 멤버시트 진입 = 근처 유저 액션패드 "프로필" 또는 상단 👥(`MemberSheet` — 프로포즈/⋯모더레이션), 밸런스 게임 진입 = DJ 부스 앞 액션패드 "밸런스 게임"→모달. 어몽 내부는 `src/components/among/*`(missions ARE minigames).
+  - **파티 화면 = 게임 월드**(`party/[id].tsx`): 어몽 세션 활성/직후엔 `AmongGame` 전체화면, 그 외 로비 모드 — 둘 다 공용 `PartyWorld` 렌더러(+얇은 상단 바). 채팅=`PartyChatOverlay`(FAB→중앙 카드), 멤버시트 진입 = 근처 유저 액션패드 "프로필" 또는 상단 👥(`MemberSheet` — 프로포즈/⋯모더레이션), 밸런스 게임 진입 = DJ 부스 앞 액션패드 "밸런스 게임"→모달. 어몽 내부는 `src/components/among/*`(missions ARE minigames).
   - ⚠️ **이동 = 좌측 조이스틱**(PanResponder — 웹 포함 동작). 파티 화면은 expo-screen-orientation으로 가로 고정(루트는 세로 lock, app.json `orientation: "default"`). 거리·충돌은 world 계량(x×1.9) — 맵/스테이션 단일 진실은 `@mingle/shared` `PARTY_MAP`(백엔드 태스크 배치 공유).
   - **폰트**: Gaegu는 `app/_layout.tsx` `useFonts`로 로드(로드 전 렌더 게이트). `fonts.display`는 워드마크·타이틀·버튼 라벨용 — **긴 한글 본문은 시스템 산스**(Gaegu 14px 미만 금지). Pretendard 본문 폰트는 아직 미번들(백로그).
   - **RN `<Button>` 금지**(플랫폼 기본 파란색이 팔레트 밖) — 항상 `DoodleButton`.
@@ -87,7 +87,7 @@ Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **
 
 ## Status (요약 — 상세는 git log + docs/superpowers/plans/)
 
-- **현재 상태**: Phases 0–6d + 두들 디자인 이식 + 코랄 팔레트 + 파티=게임 월드 재구성 + 출시 준비(rate limit·연령 게이트·CORS) 전부 origin/megahuni에 푸시. 마지막 풀 그린: backend jest **295/295**, client-core 73/73, mobile tsc+vitest 84/84, **mega-qa 60/60**, 웹/iOS/Android 번들 스모크.
+- **현재 상태**: Phases 0–6d + 두들 디자인 이식 + 코랄 팔레트 + 파티=게임 월드 재구성 + 출시 준비(rate limit·연령 게이트·CORS) 전부 origin/megahuni에 푸시. 마지막 풀 그린: backend jest **296/296**, client-core 73/73, mobile tsc+vitest 103/103, **mega-qa 60/60**, 웹/iOS/Android 번들 스모크.
 - **완료 페이즈 한 줄 요약**: P0 스캐폴드+client-core · P1 데이터모델 v2 · P2 온보딩+AI 선호분석(LLM env 미설정 시 stub) · P3 매칭 큐+파티 결성 · P4 프로포즈→매칭→DM(첫 게이트웨이) · P5a push · P5b 데이트플랜 합의 · P5c 모더레이션 UI · P6a 파티 실시간 · P6b 2D 공간 · P6c 밸런스(5라운드, 공개 전 비노출 투표) · P6d 어몽어스 실게임 · 2026-07-14 두들 이식(9task SDD) · 2026-07-15 게임 월드 재구성 + /qa·/design-review 패스(매칭 막다른 화면·어몽 교착 수정, 모션 시스템, 탭 타깃 60px).
 - **남은 출시 항목**: EAS projectId(사용자 `npx eas-cli init`), **실기기 네이티브 E2E**(`docs/qa/2026-07-14-native-e2e-runbook.md` — 두들 체크리스트 §5 포함), refresh token, 관리자 모더레이션 웹.
 - **백로그**(비차단): 어몽 추방 결과 미표시(`lastEjected` 미렌더)·긴급회의 소진 시 오류문구 미흡·종료 게임 결과 재입장 재노출 정책(제품 판단); push DTO `@ApiProperty` 부재·토글 read-back 없음·cold-start tap 미처리·안읽음 탭 배지; DatePlan `completed` 전이 미구현·결제 잔재 컬럼·레거시 웹 DatePlan 폼(v1 필드, broken); reportUser dedup 잔여 TOCTOU; MatchGauge 미사용(궁합 표시 예약); Pretendard 미번들; 온보딩 iOS KAV 부재·입력 accessibilityLabel 부재; 결과 화면 emoji 아이콘→Lucide.
