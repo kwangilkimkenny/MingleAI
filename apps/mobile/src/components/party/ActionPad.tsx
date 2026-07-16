@@ -27,9 +27,15 @@ const circleRadius = (d: number) => ({
   borderBottomLeftRadius: d / 2,
 });
 
+function seedOf(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return (h % 97) + 5;
+}
+
 function PadButton({ action, size }: { action: PadAction; size: number }) {
   const d = size - 4;
-  const path = wobbleRect(d, d, circleRadius(d), action.key.length * 7 + 5, {
+  const path = wobbleRect(d, d, circleRadius(d), seedOf(action.key), {
     amp: 1.2,
     step: 9,
   });
