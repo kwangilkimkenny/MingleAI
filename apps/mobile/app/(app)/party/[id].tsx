@@ -377,7 +377,8 @@ export default function PartyScreen() {
             myProfileId={myProfileId ?? ""}
             partyId={partyId!}
             positions={positions}
-            onTapMove={() => {}} // 임시 no-op — Task 12에서 prop 자체를 제거하고 characters/clock으로 교체
+            characters={characters}
+            clock={clock}
             handlers={amongHandlers}
           />
         ) : (
