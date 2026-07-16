@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { useFonts, Gaegu_400Regular, Gaegu_700Bold } from "@expo-google-fonts/gaegu";
 import "../src/lib/client";
 import { colors } from "../src/lib/theme";
@@ -9,6 +11,13 @@ export default function RootLayout() {
   // Gaegu (handwriting) powers the display type. Fonts are bundled, so this resolves fast;
   // hold the first frame until they're ready so headings don't flash in the system fallback.
   const [fontsLoaded, fontError] = useFonts({ Gaegu_400Regular, Gaegu_700Bold });
+
+  // app.json orientation="default"(runtime lock을 위해 필요) 상태에서 앱 전역은 세로 고정.
+  // 파티 화면만 useLandscapeLock으로 가로 전환. 웹은 미지원 — no-op.
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+  }, []);
+
   if (!fontsLoaded && !fontError) return null;
 
   // 헤더 전면 비표시 — 인증 화면은 DoodleHero가 브랜딩을 담당하고, 탭/상세는 자체 크롬을 가진다.
