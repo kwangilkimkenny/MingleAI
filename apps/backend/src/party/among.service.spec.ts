@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from "@nest
 import { AmongService } from "./among.service";
 import type { AmongConfig } from "./among.config";
 import type { AmongState } from "./among.service";
+import { PARTY_MAP } from "@mingle/shared";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -171,6 +172,22 @@ describe("start", () => {
 
     // sessionId set
     expect(state.sessionId).toBe("g1");
+  });
+
+  it("태스크 좌표는 전부 PARTY_MAP 스테이션 앵커에서 나온다", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    profile.findMany.mockResolvedValue(profileNames(4));
+    gameSession.create.mockImplementation(async ({ data }: any) => ({ id: "g1", ...data }));
+
+    const state = await service.start("pt1", roster(4));
+
+    const anchors = new Set(PARTY_MAP.stations.map((s) => `${s.x},${s.y}`));
+    for (const t of state.tasks) {
+      expect(anchors.has(`${t.x},${t.y}`)).toBe(true);
+    }
+    // 셔플 배정이므로 최소 2개 이상의 서로 다른 스테이션을 쓴다 (9 tasks / 8 stations)
+    const used = new Set(state.tasks.map((t) => `${t.x},${t.y}`));
+    expect(used.size).toBeGreaterThanOrEqual(2);
   });
 
   it("throws not-enough-players when roster < minPlayers", async () => {

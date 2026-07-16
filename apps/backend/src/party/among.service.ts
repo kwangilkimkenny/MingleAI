@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AmongConfigProvider } from "./among.config";
 import type { AmongRole, AmongTaskKind, AmongResultView, AmongSnapshot } from "@mingle/shared";
+import { PARTY_MAP } from "@mingle/shared";
 
 // ---------------------------------------------------------------------------
 // Server-only authoritative state (stored in GameSession.state Json column)
@@ -107,18 +108,21 @@ export class AmongService {
           emergencyUsed: 0,
         }));
 
-        // Build tasks: each crew player gets cfg.tasksPerCrew tasks
+        // Build tasks: each crew player gets cfg.tasksPerCrew tasks,
+        // placed on shuffled PARTY_MAP station anchors (round-robin if tasks > stations).
+        const stationPool = shuffle([...PARTY_MAP.stations]);
         const tasks: AmongState["tasks"] = [];
         let taskCounter = 0;
         for (const player of players) {
           if (player.role !== "crew") continue;
           for (let i = 0; i < cfg.tasksPerCrew; i++) {
+            const station = stationPool[taskCounter % stationPool.length]!;
             tasks.push({
               taskId: `${player.profileId}:${i}`,
               profileId: player.profileId,
               kind: KINDS[taskCounter % 4]!,
-              x: randomInRoom(),
-              y: randomInRoom(),
+              x: station.x,
+              y: station.y,
               done: false,
             });
             taskCounter++;
@@ -725,10 +729,6 @@ export class AmongService {
 // ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
-
-function randomInRoom(): number {
-  return 0.1 + Math.random() * 0.8; // [0.1, 0.9)
-}
 
 function shuffle<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
