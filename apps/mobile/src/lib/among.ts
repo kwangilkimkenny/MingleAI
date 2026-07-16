@@ -1,13 +1,12 @@
 import type { Vec2 } from "./party-space";
+import { worldDist } from "./party-space";
 import type { AmongTaskView, AmongPlayerView, AmongBodyView } from "@mingle/shared";
 
-/** Proximity thresholds in normalized room coordinates. */
+/** Proximity thresholds — world 계량(방 높이=1) 기준. */
 export const RANGE = { task: 0.1, kill: 0.12 } as const;
 
-/** Euclidean distance between two normalized-coordinate points. */
-export function dist(a: Vec2, b: Vec2): number {
-  return Math.hypot(b.x - a.x, b.y - a.y);
-}
+/** world 계량 거리(= party-space.worldDist). 시각 원형과 판정 원형이 일치한다. */
+export const dist = worldDist;
 
 /**
  * Return the closest incomplete task within `range`, or null.
