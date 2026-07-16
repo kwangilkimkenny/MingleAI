@@ -20,6 +20,8 @@ export const EMIT_MIN_DELTA = 0.005; // normalized min movement to emit
 export const INTERACT_RANGE = 0.14;
 /** 충돌 적분 dt 클램프 — 백그라운드 복귀 등 dt 스파이크 시 터널링 방지. */
 export const MAX_STEP_DT_MS = 50;
+/** 한 호출이 시뮬레이션하는 최대 누적 시간(ms) — 백그라운드 복귀 시 순간이동/프리즈 방지. */
+export const MAX_SIM_MS = 250;
 
 /** Clamp a point into the walkable room (margin-inset unit square). */
 export function clampToRoom(p: Vec2): Vec2 {
@@ -68,8 +70,11 @@ export function moveWithCollision(
   const ny = vel.y / mag;
 
   let current = pos;
-  let remainingDt = dtMs;
+  // 비유한 dtMs(업스트림 버그)는 0으로 — 루프 미실행, pos 그대로 반환.
+  let remainingDt = Number.isFinite(dtMs) ? Math.min(dtMs, MAX_SIM_MS) : 0;
 
+  // 서브스텝 적분: 일반 프레임(≤50ms)은 1패스, 큰 dt는 ≤50ms 단위로 쪼개 매 스텝 충돌 검사,
+  // 총 시뮬레이션 시간은 MAX_SIM_MS로 캡(터널링·순간이동·프리즈 방지).
   while (remainingDt > 0) {
     const dt = Math.min(remainingDt, MAX_STEP_DT_MS);
     const step = MOVE_SPEED * Math.min(mag, 1) * (dt / 1000);

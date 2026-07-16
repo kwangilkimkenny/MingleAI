@@ -12,6 +12,7 @@ import {
   ROOM_MARGIN,
   EMIT_MIN_INTERVAL_MS,
   MOVE_SPEED,
+  MAX_SIM_MS,
 } from "../party-space";
 
 describe("clampToRoom", () => {
@@ -85,6 +86,17 @@ describe("moveWithCollision", () => {
     const next = moveWithCollision({ x: 0.07, y: 0.07 }, { x: -1, y: -1 }, 100, []);
     expect(next.x).toBeGreaterThanOrEqual(ROOM_MARGIN);
     expect(next.y).toBeGreaterThanOrEqual(ROOM_MARGIN);
+  });
+
+  it("총 시뮬레이션 시간은 MAX_SIM_MS로 캡 — 장시간 백그라운드 복귀에도 순간이동 없음", () => {
+    const next = moveWithCollision({ x: 0.5, y: 0.2 }, { x: 0, y: 1 }, 8 * 60 * 60 * 1000, []);
+    expect(next.y - 0.2).toBeCloseTo(MOVE_SPEED * (MAX_SIM_MS / 1000), 5);
+  });
+
+  it("dtMs가 Infinity/NaN이어도 종료하고 제자리를 반환한다", () => {
+    const p = { x: 0.5, y: 0.5 };
+    expect(moveWithCollision(p, { x: 0, y: 1 }, Infinity, [])).toEqual(p);
+    expect(moveWithCollision(p, { x: 0, y: 1 }, Number.NaN, [])).toEqual(p);
   });
 });
 
