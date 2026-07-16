@@ -13,13 +13,12 @@ import type {
   GameChoice,
 } from "@mingle/client-core";
 import { getPartyMessages } from "@mingle/client-core";
-import type { AmongSnapshot } from "@mingle/shared";
 import { useAuthStore } from "../../../src/lib/client";
 import { BackButton } from "../../../src/components/BackButton";
 import { openPartySocket } from "../../../src/lib/party-socket";
 import { PartyChatOverlay } from "../../../src/components/PartyChatOverlay";
 import { MemberSheet } from "../../../src/components/MemberSheet";
-import { PARTY_MAP, BALANCE_STATION_ID } from "@mingle/shared";
+import { PARTY_MAP, BALANCE_STATION_ID, type AmongSnapshot } from "@mingle/shared";
 import {
   clampToRoom,
   spawnFor,
@@ -398,7 +397,9 @@ export default function PartyScreen() {
         {(!showAmong || among?.phase === "playing") && (
           <Joystick
             onVector={(v) => {
+              const wasMoving = velRef.current.x !== 0 || velRef.current.y !== 0;
               velRef.current = v;
+              if (wasMoving && v.x === 0 && v.y === 0) setFrame((f) => f + 1);
             }}
             style={[styles.joystick, { left: 16 + insets.left, bottom: 20 + insets.bottom }]}
           />

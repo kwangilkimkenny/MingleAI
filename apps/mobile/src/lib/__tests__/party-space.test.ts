@@ -76,9 +76,9 @@ describe("moveWithCollision", () => {
     expect(next.y).toBeGreaterThan(start.y); // y는 계속 진행
   });
 
-  it("큰 dt(백그라운드 복귀)에도 얇은 벽을 관통하지 않는다", () => {
-    const start = { x: 0.3, y: 0.5 };
-    const next = moveWithCollision(start, { x: 1, y: 0 }, 5000, RECTS);
+  it("큰 dt(멀티 서브스텝)에도 벽을 관통하지 않는다", () => {
+    const startX = RECTS[0]!.x1 / WORLD_ASPECT - 0.02 / WORLD_ASPECT; // 벽에서 world 0.02 앞
+    const next = moveWithCollision({ x: startX, y: 0.5 }, { x: 1, y: 0 }, 5000, RECTS);
     expect(next.x * WORLD_ASPECT).toBeLessThanOrEqual(RECTS[0]!.x1 + 1e-9);
   });
 
@@ -105,9 +105,9 @@ describe("shouldEmit", () => {
     expect(shouldEmit(null, 0, { x: 0.5, y: 0.5 }, 0)).toBe(true);
   });
   it("suppresses within the min interval", () => {
-    expect(
-      shouldEmit({ x: 0, y: 0 }, 1000, { x: 1, y: 1 }, 1000 + EMIT_MIN_INTERVAL_MS - 1),
-    ).toBe(false);
+    expect(shouldEmit({ x: 0, y: 0 }, 1000, { x: 1, y: 1 }, 1000 + EMIT_MIN_INTERVAL_MS - 1)).toBe(
+      false,
+    );
   });
   it("suppresses sub-delta jitter even after the interval", () => {
     expect(shouldEmit({ x: 0.5, y: 0.5 }, 0, { x: 0.5001, y: 0.5 }, 500)).toBe(false);

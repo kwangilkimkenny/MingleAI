@@ -1,11 +1,11 @@
 /**
- * MemberSheet — bottom sheet showing party member profile(s).
+ * MemberSheet — party member profile(s), rendered as a center card modal (bottom
+ * sheet 아님 — 가로 게임 월드 전환 이후 오버레이류는 중앙 카드로 통일).
  *
  * Two entry points, one sheet:
- *  - avatar tap in the lobby map → opens straight to that member's detail.
- *  - top-bar 👥 button (the RN-Web locationX fallback, since avatar-tap can be a
- *    no-op there) → opens a roster list; tapping a row drills into the exact same
- *    detail view, with a back arrow to return to the list.
+ *  - 근처 유저 + ActionPad "사용" 버튼(프로필) → 그 멤버 detail로 바로 진입.
+ *  - top-bar 👥 button → opens a roster list; tapping a row drills into the exact
+ *    same detail view, with a back arrow to return to the list.
  *
  * Propose/report state is owned by the party screen (moved, not rewritten) — this
  * component is presentational and calls back out for those actions.

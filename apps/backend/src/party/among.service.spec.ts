@@ -185,9 +185,9 @@ describe("start", () => {
     for (const t of state.tasks) {
       expect(anchors.has(`${t.x},${t.y}`)).toBe(true);
     }
-    // 셔플 배정이므로 최소 2개 이상의 서로 다른 스테이션을 쓴다 (9 tasks / 8 stations)
+    // 셔플 배정 — 9 tasks / 8 stations이므로 결정적으로 스테이션 전부(min(9,8)=8개)를 쓴다
     const used = new Set(state.tasks.map((t) => `${t.x},${t.y}`));
-    expect(used.size).toBeGreaterThanOrEqual(2);
+    expect(used.size).toBe(Math.min(state.tasks.length, PARTY_MAP.stations.length));
   });
 
   it("throws not-enough-players when roster < minPlayers", async () => {

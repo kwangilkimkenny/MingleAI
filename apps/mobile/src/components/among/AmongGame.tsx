@@ -198,6 +198,11 @@ export function AmongGame({
         onRequestClose={closeMiniGame}
       >
         <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeMiniGame}
+            accessibilityLabel="미니게임 닫기"
+          />
           <View style={styles.modalSheet}>
             <Pressable onPress={closeMiniGame} style={styles.modalClose}>
               <Text style={styles.modalCloseText}>✕ 닫기</Text>

@@ -1,9 +1,9 @@
 /**
  * PartyChatOverlay — collapsible in-game party chat.
- * Renders as a bottom-right FAB (💬, unread dot) that opens a bottom sheet over the
- * fullscreen party world. The panel background is translucent so the map/game stays
- * visible behind it. Message data + the send action are owned by the party screen
- * (moved verbatim); input text and open/unread state are local to this component.
+ * FAB(💬, unread dot; 파티 화면에서는 우상단으로 재배치)를 탭하면 화면 중앙 카드 모달이
+ * 뜬다(바텀시트 아님 — 가로 게임 월드 전환 이후 오버레이류는 중앙 카드로 통일). 메시지
+ * 데이터와 전송 액션은 파티 화면이 소유(이동됨, 재작성 아님); 입력 텍스트·open/unread
+ * 상태만 이 컴포넌트 로컬.
  */
 import { useEffect, useRef, useState } from "react";
 import {
