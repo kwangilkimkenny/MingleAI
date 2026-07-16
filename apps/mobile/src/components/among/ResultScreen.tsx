@@ -72,7 +72,8 @@ export function ResultScreen({
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center" },
-  card: { flex: 1, width: "100%", maxWidth: 560 },
+  // alignSelf: ShadowBox 기본 stretch가 부모 alignItems를 무시하므로 center 명시 필수
+  card: { flex: 1, width: "100%", maxWidth: 560, alignSelf: "center" },
   banner: {
     alignItems: "center",
     paddingVertical: 12,

@@ -310,7 +310,8 @@ export default function PartyScreen() {
   const lobbyMain: PadAction = nearBalance
     ? {
         key: "balance",
-        label: game?.status === "active" ? "게임 참여" : "밸런스 게임",
+        // 76px 원형 버튼에 5자 이상은 잘림("밸런스 ...") — 4자 이내 유지
+        label: game?.status === "active" ? "게임 참여" : "밸런스",
         onPress: () => setBalanceOpen(true),
       }
     : nearPeer

@@ -44,7 +44,8 @@ const styles = StyleSheet.create({
     zIndex: 100,
     padding: 24,
   },
-  card: { width: "100%", maxWidth: 560 },
+  // alignSelf: ShadowBox 기본 stretch가 부모 alignItems를 무시하므로 center 명시 필수
+  card: { width: "100%", maxWidth: 560, alignSelf: "center" },
   inner: { alignItems: "center", gap: 12, paddingVertical: 8 },
   emoji: { fontSize: 56 },
   label: {
