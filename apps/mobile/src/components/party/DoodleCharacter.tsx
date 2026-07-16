@@ -4,7 +4,6 @@
  * 리렌더를 일으키므로 별도 타이머/Reanimated 불필요(게임 내부 Motion 미적용 원칙).
  * facing은 SVG만 좌우 반전(이름표는 반전 금지).
  */
-import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path } from "react-native-svg";
 import { mulberry, wobbleRect } from "../../lib/doodle-path";
@@ -19,7 +18,7 @@ function seedOf(name: string): number {
   return (h % 97) + 1;
 }
 
-export const DoodleCharacter = memo(function DoodleCharacter({
+export function DoodleCharacter({
   name,
   mine,
   walking,
@@ -155,7 +154,7 @@ export const DoodleCharacter = memo(function DoodleCharacter({
       </View>
     </View>
   );
-});
+}
 
 /** 어몽 시체 — 누운 몸 + X 눈. */
 export function DoodleCorpse({ size = 40 }: { size?: number }) {
@@ -175,7 +174,14 @@ export function DoodleCorpse({ size = 40 }: { size?: number }) {
           strokeLinecap="round"
         />
         {/* 머리 */}
-        <Circle cx={headR + 2} cy={cy} r={headR} fill={colors.paper} stroke={colors.ink} strokeWidth={2} />
+        <Circle
+          cx={headR + 2}
+          cy={cy}
+          r={headR}
+          fill={colors.paper}
+          stroke={colors.ink}
+          strokeWidth={2}
+        />
         {/* X 눈 */}
         <Path
           d={`M${headR - 1} ${cy - 3} l3 3 m0 -3 l-3 3 M${headR + 4} ${cy - 3} l3 3 m0 -3 l-3 3`}
