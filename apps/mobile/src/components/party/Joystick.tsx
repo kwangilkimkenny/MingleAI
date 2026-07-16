@@ -66,7 +66,8 @@ export function Joystick({
           d={BASE_PATH}
           x={2}
           y={2}
-          fill="rgba(255,255,255,0.35)"
+          fill={colors.paper}
+          fillOpacity={0.35}
           stroke={colors.ink}
           strokeWidth={2}
           opacity={0.55}
