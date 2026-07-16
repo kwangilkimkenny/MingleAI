@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
     padding: 24,
   },
-  card: { alignSelf: "stretch" },
+  card: { width: "100%", maxWidth: 560 },
   inner: { alignItems: "center", gap: 12, paddingVertical: 8 },
   emoji: { fontSize: 56 },
   label: {

@@ -23,15 +23,6 @@ import { WobbleBox, DashedLine } from "./DoodleSvg";
 import { doodleInputStyle } from "./Doodle";
 import { colors, doodle, fonts } from "../lib/theme";
 
-// Flush-bottom sheet: rounded top corners only, so it reads as sliding up from the
-// screen edge rather than floating like a card.
-const PANEL_RADIUS = {
-  borderTopLeftRadius: 22,
-  borderTopRightRadius: 16,
-  borderBottomRightRadius: 0,
-  borderBottomLeftRadius: 0,
-};
-
 export function PartyChatOverlay({
   messages,
   myProfileId,
@@ -113,10 +104,10 @@ export function PartyChatOverlay({
             accessibilityLabel="채팅 패널 닫기"
           />
           <WobbleBox
-            radius={PANEL_RADIUS}
+            radius={doodle.radius.card}
             bg="rgba(255,255,255,0.94)"
             style={styles.panel}
-            contentStyle={[styles.panelInner, { paddingBottom: 12 + insets.bottom }]}
+            contentStyle={styles.panelInner}
           >
             <View style={styles.header}>
               <Text style={styles.title}>파티 채팅</Text>
@@ -190,8 +181,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.paper,
   },
-  modalRoot: { flex: 1, justifyContent: "flex-end" },
-  panel: { height: "42%", alignSelf: "stretch" },
+  modalRoot: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  panel: { width: "100%", maxWidth: 480, height: 300 },
   panelInner: { flex: 1, padding: 16, gap: 10 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { fontFamily: fonts.display, fontSize: 18, color: colors.ink },

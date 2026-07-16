@@ -19,15 +19,6 @@ import { PeerModerationMenu } from "./PeerModerationMenu";
 import { colors, doodle, fonts } from "../lib/theme";
 import { initialOf } from "../lib/party-space";
 
-// Flush-bottom sheet — same treatment as PartyChatOverlay's panel for a consistent
-// "slides up from the screen edge" language across overlays.
-const PANEL_RADIUS = {
-  borderTopLeftRadius: 22,
-  borderTopRightRadius: 16,
-  borderBottomRightRadius: 0,
-  borderBottomLeftRadius: 0,
-};
-
 export function MemberSheet({
   visible,
   members,
@@ -79,7 +70,7 @@ export function MemberSheet({
           accessibilityLabel="시트 닫기"
         />
         <WobbleBox
-          radius={PANEL_RADIUS}
+          radius={doodle.radius.card}
           bg={colors.paper}
           style={styles.panel}
           contentStyle={styles.panelInner}
@@ -167,8 +158,8 @@ export function MemberSheet({
 }
 
 const styles = StyleSheet.create({
-  modalRoot: { flex: 1, justifyContent: "flex-end" },
-  panel: { maxHeight: "72%", alignSelf: "stretch" },
+  modalRoot: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  panel: { width: "100%", maxWidth: 480, maxHeight: "88%" },
   panelInner: { padding: 16, gap: 10 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerSpacer: { width: 40 },

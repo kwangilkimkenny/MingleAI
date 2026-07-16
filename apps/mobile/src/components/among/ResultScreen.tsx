@@ -71,8 +71,8 @@ export function ResultScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  card: { flex: 1 },
+  container: { flex: 1, alignItems: "center" },
+  card: { flex: 1, width: "100%", maxWidth: 560 },
   banner: {
     alignItems: "center",
     paddingVertical: 12,

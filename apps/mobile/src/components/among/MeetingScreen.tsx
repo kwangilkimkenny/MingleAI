@@ -33,8 +33,7 @@ export function MeetingScreen({
 
   const isVoting = meeting.phase === "voting";
   const alreadyVoted = meeting.votedProfileIds.includes(myProfileId);
-  const reasonLabel =
-    meeting.reason === "emergency" ? "🚨 긴급 회의" : "🪦 시체 신고";
+  const reasonLabel = meeting.reason === "emergency" ? "🚨 긴급 회의" : "🪦 시체 신고";
 
   return (
     <View style={styles.container}>
@@ -56,10 +55,7 @@ export function MeetingScreen({
             {snapshot.players.map((p) => (
               <View key={p.profileId} style={styles.playerRow}>
                 <View
-                  style={[
-                    styles.dot,
-                    { backgroundColor: p.alive ? colors.ink : colors.grayLight },
-                  ]}
+                  style={[styles.dot, { backgroundColor: p.alive ? colors.ink : colors.grayLight }]}
                 />
                 <Text
                   style={[
@@ -119,8 +115,8 @@ export function MeetingScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  card: { flex: 1 },
+  container: { flex: 1, alignItems: "center" },
+  card: { flex: 1, width: "100%", maxWidth: 560 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -149,7 +145,7 @@ const styles = StyleSheet.create({
     color: colors.grayMid,
     marginBottom: 12,
   },
-  list: { maxHeight: 280, marginBottom: 8 },
+  list: { maxHeight: 160, marginBottom: 8 },
   playerRow: {
     flexDirection: "row",
     alignItems: "center",

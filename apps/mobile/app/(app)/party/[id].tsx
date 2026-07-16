@@ -437,7 +437,7 @@ export default function PartyScreen() {
             onPress={() => setBalanceOpen(false)}
             accessibilityLabel="밸런스 게임 닫기"
           />
-          <View style={[styles.balanceSheet, { paddingBottom: 16 + insets.bottom }]}>
+          <View style={styles.balanceSheet}>
             <View style={styles.gameHeader}>
               <Text style={styles.gameTitle}>밸런스 게임</Text>
               <View style={styles.gameHeaderActions}>
@@ -565,13 +565,14 @@ const styles = StyleSheet.create({
   },
   lobbyBtnText: { color: colors.paper, fontSize: 12, fontWeight: "700" },
 
-  modalRoot: { flex: 1, justifyContent: "flex-end" },
+  modalRoot: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
   balanceSheet: {
     backgroundColor: colors.paper,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 16,
-    borderTopWidth: doodle.border,
-    borderTopColor: colors.ink,
+    ...doodle.radius.card,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    width: "100%",
+    maxWidth: 480,
     padding: 16,
     gap: 10,
   },
