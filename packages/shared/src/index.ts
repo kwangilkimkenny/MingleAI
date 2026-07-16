@@ -83,3 +83,14 @@ export type {
   AmongSnapshot,
   AmongStateEvent,
 } from "./types/among.js";
+
+export {
+  PARTY_MAP,
+  WORLD_ASPECT,
+  CHAR_R,
+  ROOM_MARGIN,
+  BALANCE_STATION_ID,
+  isSolid,
+  solidFurniture,
+} from "./party-map/map.js";
+export type { FurnitureKind, FurnitureDef, StationDef, PartyMapDef } from "./party-map/map.js";
