@@ -4,7 +4,7 @@
  *
  * Two entry points, one sheet:
  *  - 근처 유저 + ActionPad "사용" 버튼(프로필) → 그 멤버 detail로 바로 진입.
- *  - top-bar 👥 button → opens a roster list; tapping a row drills into the exact
+ *  - top-bar Users(멤버) button → opens a roster list; tapping a row drills into the exact
  *    same detail view, with a back arrow to return to the list.
  *
  * Propose/report state is owned by the party screen (moved, not rewritten) — this

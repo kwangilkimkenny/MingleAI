@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ghost } from "lucide-react-native";
 import type { AmongSnapshot, AmongRole } from "@mingle/shared";
 import type { Vec2 } from "../../lib/party-space";
 import { spawnFor } from "../../lib/party-space";
@@ -184,7 +185,8 @@ export function AmongGame({
 
       {iAmDead ? (
         <View style={styles.spectatorBadge} pointerEvents="none">
-          <Text style={styles.spectatorText}>관전 중 👻</Text>
+          <Ghost color={colors.grayMid} size={15} strokeWidth={2.2} />
+          <Text style={styles.spectatorText}>관전 중</Text>
         </View>
       ) : (
         <ActionPad main={mainAction} secondaries={secondaries} style={styles.actionPad} />
@@ -263,6 +265,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 24,
     alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: colors.fillDeep,
     borderWidth: 1,
     borderColor: colors.grayMid,

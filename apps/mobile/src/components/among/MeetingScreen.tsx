@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Siren, Skull } from "lucide-react-native";
 import type { AmongSnapshot } from "@mingle/shared";
 import { colors, fonts } from "../../lib/theme";
 import { DoodleButton, DoodleCard } from "../Doodle";
@@ -33,21 +34,28 @@ export function MeetingScreen({
 
   const isVoting = meeting.phase === "voting";
   const alreadyVoted = meeting.votedProfileIds.includes(myProfileId);
-  const reasonLabel = meeting.reason === "emergency" ? "🚨 긴급 회의" : "🪦 시체 신고";
+  const emergency = meeting.reason === "emergency";
 
   return (
     <View style={styles.container}>
       <DoodleCard style={styles.card}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.reasonText}>{reasonLabel}</Text>
+          <View style={styles.reasonRow}>
+            {emergency ? (
+              <Siren color={colors.accent} size={20} strokeWidth={2.2} />
+            ) : (
+              <Skull color={colors.ink} size={20} strokeWidth={2.2} />
+            )}
+            <Text style={styles.reasonText}>{emergency ? "긴급 회의" : "시체 신고"}</Text>
+          </View>
           <View style={styles.timerBadge}>
             <Text style={styles.timerText}>{secondsLeft}s</Text>
           </View>
         </View>
 
         {/* Phase label */}
-        <Text style={styles.phaseLabel}>{isVoting ? "투표 단계" : "토론 중 💬"}</Text>
+        <Text style={styles.phaseLabel}>{isVoting ? "투표 단계" : "토론 중"}</Text>
 
         {/* Discussion phase: participant list */}
         {!isVoting && (
@@ -124,6 +132,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
+  reasonRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   reasonText: {
     fontFamily: fonts.display,
     fontSize: 22,

@@ -3,6 +3,7 @@
  * Reveals winner + all players' roles. "다시하기" CTA.
  */
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Flag, PartyPopper, Skull, Wrench } from "lucide-react-native";
 import type { AmongPlayerView, AmongResultView } from "@mingle/shared";
 import { colors, fonts } from "../../lib/theme";
 import { DoodleButton, DoodleCard } from "../Doodle";
@@ -30,7 +31,13 @@ export function ResultScreen({
       <DoodleCard style={styles.card}>
         {/* Winner banner */}
         <View style={styles.banner}>
-          <Text style={styles.bannerEmoji}>{!result ? "🏁" : crewWon ? "🎉" : "🔪"}</Text>
+          {!result ? (
+            <Flag color={colors.ink} size={44} strokeWidth={2} />
+          ) : crewWon ? (
+            <PartyPopper color={colors.accent} size={44} strokeWidth={2} />
+          ) : (
+            <Skull color={colors.accent} size={44} strokeWidth={2} />
+          )}
           <Text style={[styles.bannerTitle, { color: crewWon ? colors.ink : colors.accent }]}>
             {!result ? "게임 종료" : crewWon ? "크루메이트 승리!" : "임포스터 승리!"}
           </Text>
@@ -45,7 +52,11 @@ export function ResultScreen({
               const isImpostor = p.role === "impostor";
               return (
                 <View key={p.profileId} style={styles.playerRow}>
-                  <Text style={styles.roleEmoji}>{isImpostor ? "🔪" : "🛠️"}</Text>
+                  {isImpostor ? (
+                    <Skull color={colors.accent} size={20} strokeWidth={2.2} />
+                  ) : (
+                    <Wrench color={colors.grayDark} size={20} strokeWidth={2.2} />
+                  )}
                   <View style={styles.playerInfo}>
                     <Text style={styles.playerName}>{p.name}</Text>
                     <Text
@@ -82,7 +93,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.grayLight,
     gap: 6,
   },
-  bannerEmoji: { fontSize: 48 },
   bannerTitle: {
     fontFamily: fonts.display,
     fontSize: 28,
@@ -111,7 +121,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.grayLight,
   },
-  roleEmoji: { fontSize: 22 },
   playerInfo: { flex: 1 },
   playerName: { fontSize: 16, color: colors.ink, fontWeight: "600" },
   roleLabel: { fontSize: 12, marginTop: 2 },

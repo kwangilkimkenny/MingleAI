@@ -61,7 +61,7 @@ export function Hold({ onComplete }: { onComplete: () => void }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>길게 눌러 충전</Text>
-      <Text style={styles.hint}>{completed ? "완충 완료! ⚡" : "버튼을 꾹 누르고 있으세요"}</Text>
+      <Text style={styles.hint}>{completed ? "완충 완료!" : "버튼을 꾹 누르고 있으세요"}</Text>
 
       {/* Progress track */}
       <View style={styles.track}>
@@ -73,7 +73,11 @@ export function Hold({ onComplete }: { onComplete: () => void }) {
                 inputRange: [0, 1],
                 outputRange: ["0%", "100%"],
               }),
-              backgroundColor: completed ? colors.accent : pressing ? colors.accent : colors.grayMid,
+              backgroundColor: completed
+                ? colors.accent
+                : pressing
+                  ? colors.accent
+                  : colors.grayMid,
             },
           ]}
         />
@@ -88,11 +92,7 @@ export function Hold({ onComplete }: { onComplete: () => void }) {
         style={({ pressed }) => [
           styles.holdBtn,
           {
-            backgroundColor: completed
-              ? colors.fillDeep
-              : pressed
-                ? colors.accent
-                : colors.paper,
+            backgroundColor: completed ? colors.fillDeep : pressed ? colors.accent : colors.paper,
             borderColor: completed ? colors.grayLight : colors.ink,
           },
         ]}

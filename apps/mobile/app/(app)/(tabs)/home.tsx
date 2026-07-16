@@ -2,7 +2,7 @@ import { colors, doodle, fonts } from "../../../src/lib/theme";
 import { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Heart, ChevronRight, Zap } from "lucide-react-native";
+import { Heart, ChevronRight, Zap, MessageCircle, Handshake } from "lucide-react-native";
 import { getMyProfile } from "@mingle/client-core";
 import { DoodleButton, DoodleCard, ShadowBox } from "../../../src/components/Doodle";
 import { Enter } from "../../../src/components/Motion";
@@ -61,7 +61,7 @@ export default function Home() {
 
       <Enter index={0}>
         <View style={styles.appbar}>
-          <Text style={styles.greetingTiny}>안녕하세요 👋</Text>
+          <Text style={styles.greetingTiny}>안녕하세요</Text>
           <Text style={styles.greetingTitle}>
             {name ? `${name}님, 오늘 나가볼까요?` : "오늘 나가볼까요?"}
           </Text>
@@ -102,7 +102,10 @@ export default function Home() {
             <DoodleCard rotate="0.5deg">
               <View style={styles.shortcutRow}>
                 <View style={styles.shortcutText}>
-                  <Text style={styles.shortcutTitle}>💬 채팅</Text>
+                  <View style={styles.shortcutTitleRow}>
+                    <MessageCircle color={colors.ink} size={18} strokeWidth={2.2} />
+                    <Text style={styles.shortcutTitle}>채팅</Text>
+                  </View>
                   <Text style={styles.shortcutDesc}>매칭된 사람들과의 대화를 이어가요.</Text>
                 </View>
                 <ChevronRight color={colors.grayMid} size={22} strokeWidth={2} />
@@ -120,7 +123,10 @@ export default function Home() {
             <DoodleCard rotate="-0.4deg">
               <View style={styles.shortcutRow}>
                 <View style={styles.shortcutText}>
-                  <Text style={styles.shortcutTitle}>🤝 프로포즈</Text>
+                  <View style={styles.shortcutTitleRow}>
+                    <Handshake color={colors.ink} size={18} strokeWidth={2.2} />
+                    <Text style={styles.shortcutTitle}>프로포즈</Text>
+                  </View>
                   <Text style={styles.shortcutDesc}>마음에 든 사람에게 프로포즈를 보내요.</Text>
                 </View>
                 <ChevronRight color={colors.grayMid} size={22} strokeWidth={2} />
@@ -158,6 +164,7 @@ const styles = StyleSheet.create({
   shortcutPressed: { opacity: 0.85 },
   shortcutRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   shortcutText: { flex: 1, gap: 3 },
+  shortcutTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   shortcutTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
   shortcutDesc: { fontSize: 12.5, color: colors.grayMid },
   hint: { fontSize: 13, color: colors.grayMid, textAlign: "center", lineHeight: 20 },

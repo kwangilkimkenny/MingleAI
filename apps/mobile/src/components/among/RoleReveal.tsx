@@ -4,6 +4,7 @@
  */
 import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { Skull, Wrench } from "lucide-react-native";
 import type { AmongRole } from "@mingle/shared";
 import { colors, fonts } from "../../lib/theme";
 import { DoodleCard } from "../Doodle";
@@ -15,7 +16,7 @@ export function RoleReveal({ role, onDone }: { role: AmongRole; onDone: () => vo
   }, [onDone]);
 
   const isImpostor = role === "impostor";
-  const label = isImpostor ? "당신은 임포스터 🔪" : "당신은 크루메이트 🛠️";
+  const label = isImpostor ? "당신은 임포스터" : "당신은 크루메이트";
   const sub = isImpostor
     ? "크루메이트를 처치하고 방해하세요!"
     : "모든 미션을 완료하거나 임포스터를 찾아내세요!";
@@ -25,7 +26,11 @@ export function RoleReveal({ role, onDone }: { role: AmongRole; onDone: () => vo
     <View style={styles.overlay}>
       <DoodleCard style={styles.card}>
         <View style={styles.inner}>
-          <Text style={[styles.emoji]}>{isImpostor ? "🔪" : "🛠️"}</Text>
+          {isImpostor ? (
+            <Skull color={accent} size={52} strokeWidth={2} />
+          ) : (
+            <Wrench color={accent} size={52} strokeWidth={2} />
+          )}
           <Text style={[styles.label, { color: accent }]}>{label}</Text>
           <Text style={styles.sub}>{sub}</Text>
           <Text style={styles.hint}>잠시 후 게임이 시작됩니다...</Text>
@@ -47,7 +52,6 @@ const styles = StyleSheet.create({
   // alignSelf: ShadowBox 기본 stretch가 부모 alignItems를 무시하므로 center 명시 필수
   card: { width: "100%", maxWidth: 560, alignSelf: "center" },
   inner: { alignItems: "center", gap: 12, paddingVertical: 8 },
-  emoji: { fontSize: 56 },
   label: {
     fontFamily: fonts.display,
     fontSize: 26,

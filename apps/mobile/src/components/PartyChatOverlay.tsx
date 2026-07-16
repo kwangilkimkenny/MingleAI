@@ -1,6 +1,6 @@
 /**
  * PartyChatOverlay — collapsible in-game party chat.
- * FAB(💬, unread dot; 파티 화면에서는 우상단으로 재배치)를 탭하면 화면 중앙 카드 모달이
+ * FAB(말풍선 아이콘, unread dot; 파티 화면에서는 우상단으로 재배치)를 탭하면 화면 중앙 카드 모달이
  * 뜬다(바텀시트 아님 — 가로 게임 월드 전환 이후 오버레이류는 중앙 카드로 통일). 메시지
  * 데이터와 전송 액션은 파티 화면이 소유(이동됨, 재작성 아님); 입력 텍스트·open/unread
  * 상태만 이 컴포넌트 로컬.
@@ -18,6 +18,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MessageCircle } from "lucide-react-native";
 import type { PartyMessageView } from "@mingle/client-core";
 import { WobbleBox, DashedLine } from "./DoodleSvg";
 import { doodleInputStyle } from "./Doodle";
@@ -91,7 +92,7 @@ export function PartyChatOverlay({
           accessibilityRole="button"
           accessibilityLabel="채팅 열기"
         >
-          <Text style={styles.fabIcon}>💬</Text>
+          <MessageCircle color={colors.ink} size={24} strokeWidth={2.2} />
           {hasUnread ? <View style={styles.fabDot} /> : null}
         </Pressable>
       ) : null}
@@ -169,7 +170,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 30,
   },
-  fabIcon: { fontSize: 24 },
   fabDot: {
     position: "absolute",
     top: 6,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { View, Text, ActivityIndicator, Pressable, StyleSheet, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
+import { Users } from "lucide-react-native";
 import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { getMatchmakingStatus, sendProposal, ApiError } from "@mingle/client-core";
@@ -354,7 +355,7 @@ export default function PartyScreen() {
             accessibilityLabel="멤버 목록 보기"
             hitSlop={6}
           >
-            <Text style={styles.membersIcon}>👥</Text>
+            <Users color={colors.ink} size={16} strokeWidth={2.2} />
           </Pressable>
           {amongEnded ? (
             <Pressable
@@ -556,7 +557,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.paper,
   },
-  membersIcon: { fontSize: 15 },
   lobbyBtn: {
     borderWidth: 1.5,
     borderColor: colors.ink,
