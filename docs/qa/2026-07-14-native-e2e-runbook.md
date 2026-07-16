@@ -78,3 +78,4 @@ npx eas-cli@latest init     # app.json extra.eas.projectId 자동 기입
 - [ ] 로비: 유저 옆 → "프로필", DJ 부스 앞 → "밸런스 게임", 그 외 dim
 - [ ] 어몽: 태스크 마커 station 위치, 미션/신고/긴급/킬(쿨다운 링) 버튼, 유령 이동
 - [ ] 채팅/멤버시트/밸런스/미니게임 = 중앙 카드, 가로 키보드에서 입력 가능
+- [ ] iPad: 파티 가로 고정 + 그 외 세로 고정 동작(requireFullScreen) — 멀티태스킹 화면분할 시도 포함

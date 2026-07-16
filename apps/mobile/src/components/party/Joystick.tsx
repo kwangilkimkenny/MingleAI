@@ -4,7 +4,7 @@
  * "고정 베이스 + 마이크로 플로팅" 방식 — 베이스 어디를 눌러도 그 지점이 기준.
  * 이동은 onVector로만 나간다(부모 velRef → rAF 적분). 노브 상태는 로컬 렌더 전용.
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { wobbleRect } from "../../lib/doodle-path";
@@ -33,6 +33,9 @@ export function Joystick({
   const [knob, setKnob] = useState<Vec2>({ x: 0, y: 0 });
   const onVectorRef = useRef(onVector);
   onVectorRef.current = onVector;
+
+  // 언마운트 시(회의 전환 등) 스틱을 놓은 것으로 처리 — velRef 잔류 방지
+  useEffect(() => () => onVectorRef.current({ x: 0, y: 0 }), []);
 
   const responder = useMemo(
     () =>
