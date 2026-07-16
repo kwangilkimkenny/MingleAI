@@ -60,8 +60,12 @@ export function AmongGame({
   // 킬 쿨다운 링은 초 단위 갱신이 필요 — 쿨다운 진행 중에만 1s 틱.
   const [, setCooldownTick] = useState(0);
   useEffect(() => {
-    if (!among?.killCooldownUntil || among.killCooldownUntil <= Date.now()) return;
-    const t = setInterval(() => setCooldownTick((v) => v + 1), 1000);
+    const until = among?.killCooldownUntil;
+    if (!until || until <= Date.now()) return;
+    const t = setInterval(() => {
+      setCooldownTick((v) => v + 1);
+      if (until <= Date.now()) clearInterval(t);
+    }, 1000);
     return () => clearInterval(t);
   }, [among?.killCooldownUntil]);
 
