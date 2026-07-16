@@ -6,7 +6,17 @@
  * (moved verbatim); input text and open/unread state are local to this component.
  */
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PartyMessageView } from "@mingle/client-core";
 import { WobbleBox, DashedLine } from "./DoodleSvg";
@@ -29,6 +39,7 @@ export function PartyChatOverlay({
   senderName,
   onSend,
   hideFab = false,
+  fabStyle,
 }: {
   messages: PartyMessageView[];
   myProfileId: string | null;
@@ -38,6 +49,8 @@ export function PartyChatOverlay({
   onSend: (content: string) => void;
   /** Hide the FAB entirely — e.g. while an Among Us meeting/result screen is up. */
   hideFab?: boolean;
+  /** Extra style merged onto the FAB — e.g. reposition it away from the joystick/pad. */
+  fabStyle?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
@@ -82,7 +95,7 @@ export function PartyChatOverlay({
       {!hideFab ? (
         <Pressable
           onPress={() => setOpen(true)}
-          style={[styles.fab, { bottom: 24 + insets.bottom }]}
+          style={[styles.fab, { bottom: 24 + insets.bottom }, fabStyle]}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel="채팅 열기"

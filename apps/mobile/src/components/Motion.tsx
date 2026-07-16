@@ -2,7 +2,7 @@
  * Doodle motion primitives (DESIGN.md §5) — sparing, purposeful entrances only.
  *  - `Enter`: 카드가 "톡" 하고 붙는 스티커 등장(페이드 + 8px 상승 스프링), `index`로 stagger.
  *  - 접근성: `useReducedMotion`이 참이면 애니메이션 없이 즉시 최종 상태로 렌더.
- * 게임 내부(among/*, PartyRoomCanvas)는 자체 rAF 루프를 가지므로 여기 프리미티브를 쓰지 않는다.
+ * 게임 내부(among/*, party 월드)는 자체 rAF 루프를 가지므로 여기 프리미티브를 쓰지 않는다.
  */
 import { useEffect, type ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";

@@ -17,25 +17,28 @@ import type { AmongSnapshot } from "@mingle/shared";
 import { useAuthStore } from "../../../src/lib/client";
 import { BackButton } from "../../../src/components/BackButton";
 import { openPartySocket } from "../../../src/lib/party-socket";
-import { PartyRoomCanvas } from "../../../src/components/PartyRoomCanvas";
 import { PartyChatOverlay } from "../../../src/components/PartyChatOverlay";
 import { MemberSheet } from "../../../src/components/MemberSheet";
+import { PARTY_MAP, BALANCE_STATION_ID } from "@mingle/shared";
 import {
   clampToRoom,
   spawnFor,
   stepToward,
   shouldEmit,
+  moveWithCollision,
+  worldDist,
+  INTERACT_RANGE,
   type Vec2,
 } from "../../../src/lib/party-space";
+import { useLandscapeLock } from "../../../src/lib/use-landscape";
+import { PartyWorld, type WorldCharacter } from "../../../src/components/party/PartyWorld";
+import { Joystick } from "../../../src/components/party/Joystick";
+import { ActionPad, type PadAction } from "../../../src/components/party/ActionPad";
 import { AmongGame } from "../../../src/components/among/AmongGame";
 import { colors, doodle, fonts } from "../../../src/lib/theme";
 
-// Normalized-coord tap radius for "did the user tap an avatar" in the lobby map —
-// best-effort only (RN Web's locationX can be unreliable), the 👥 top-bar button is
-// the guaranteed fallback to the same MemberSheet.
-const AVATAR_TAP_RADIUS = 0.06;
-
 export default function PartyScreen() {
+  useLandscapeLock();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const partyId = Array.isArray(id) ? id[0] : id;
@@ -63,13 +66,14 @@ export default function PartyScreen() {
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [memberSheetOpen, setMemberSheetOpen] = useState(false);
   const [memberSheetTarget, setMemberSheetTarget] = useState<string | null>(null);
-  const [worldHeight, setWorldHeight] = useState(0);
 
   // 2D room positions — ref-driven; a tick state re-renders only when something moved.
   const posRef = useRef<Record<string, { pos: Vec2; target: Vec2 }>>({});
   const rosterRef = useRef<string[]>([]);
   const lastSentRef = useRef<{ pos: Vec2 | null; at: number }>({ pos: null, at: 0 });
   const [, setFrame] = useState(0);
+  const velRef = useRef<Vec2>({ x: 0, y: 0 });
+  const facingRef = useRef<Record<string, 1 | -1>>({});
 
   useEffect(() => {
     alive.current = true;
@@ -165,7 +169,7 @@ export default function PartyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token, party != null]);
 
-  // Animation loop: lerp every avatar toward its target; emit self position, throttled.
+  // Animation loop: 내 캐릭터 = 조이스틱 속도 적분(충돌 포함), 피어 = target lerp.
   useEffect(() => {
     if (!id || !party) return;
     let raf = 0;
@@ -175,8 +179,12 @@ export default function PartyScreen() {
       last = now;
       let moved = false;
       for (const [pid, entry] of Object.entries(posRef.current)) {
-        const next = stepToward(entry.pos, entry.target, dt);
+        const next =
+          pid === myProfileId
+            ? moveWithCollision(entry.pos, velRef.current, dt)
+            : stepToward(entry.pos, entry.target, dt);
         if (next.x !== entry.pos.x || next.y !== entry.pos.y) {
+          if (next.x !== entry.pos.x) facingRef.current[pid] = next.x > entry.pos.x ? 1 : -1;
           entry.pos = next;
           moved = true;
           if (pid === myProfileId) {
@@ -248,12 +256,6 @@ export default function PartyScreen() {
     socketRef.current?.sendChat(partyId, content);
   }
 
-  function onTapMove(target: Vec2) {
-    if (!myProfileId) return;
-    const entry = posRef.current[myProfileId];
-    if (entry) entry.target = target;
-  }
-
   function onStartGame() {
     socketRef.current?.startGame(partyId!);
   }
@@ -270,38 +272,51 @@ export default function PartyScreen() {
     setMemberSheetOpen(true);
   }
 
-  const roomMembers = Object.entries(posRef.current).map(([pid, entry]) => ({
-    profileId: pid,
-    name:
-      pid === myProfileId
-        ? "나"
-        : (party.participants.find((p) => p.profileId === pid)?.name ?? "?"),
-    pos: entry.pos,
-  }));
+  const clock = Date.now();
+  const characters: WorldCharacter[] = Object.entries(posRef.current).map(([pid, entry]) => {
+    const mine = pid === myProfileId;
+    const walking = mine
+      ? velRef.current.x !== 0 || velRef.current.y !== 0
+      : worldDist(entry.pos, entry.target) > 0.002;
+    return {
+      profileId: pid,
+      name: mine ? "나" : (party.participants.find((p) => p.profileId === pid)?.name ?? "?"),
+      pos: entry.pos,
+      mine,
+      walking,
+      facing: facingRef.current[pid] ?? 1,
+    };
+  });
 
   const positions: Record<string, Vec2> = {};
   for (const [pid, entry] of Object.entries(posRef.current)) {
     positions[pid] = entry.pos;
   }
 
-  // Lobby-only tap handler: guess whether the tap landed on a peer's avatar (best-effort
-  // — see AVATAR_TAP_RADIUS note) and open their MemberSheet instead of walking there.
-  // AmongGame keeps using the raw onTapMove untouched.
-  function onLobbyTap(target: Vec2) {
-    let nearest: { profileId: string; dist: number } | null = null;
-    for (const m of roomMembers) {
-      if (m.profileId === myProfileId) continue;
-      const dist = Math.hypot(m.pos.x - target.x, m.pos.y - target.y);
-      if (dist <= AVATAR_TAP_RADIUS && (!nearest || dist < nearest.dist)) {
-        nearest = { profileId: m.profileId, dist };
+  const myPos = myProfileId ? (posRef.current[myProfileId]?.pos ?? null) : null;
+  const balanceAnchor = PARTY_MAP.stations.find((s) => s.id === BALANCE_STATION_ID)!;
+  const nearBalance = myPos !== null && worldDist(myPos, balanceAnchor) <= INTERACT_RANGE;
+  let nearPeer: WorldCharacter | null = null;
+  if (myPos) {
+    let bd = Infinity;
+    for (const c of characters) {
+      if (c.mine || hidden[c.profileId]) continue;
+      const d = worldDist(myPos, c.pos);
+      if (d <= INTERACT_RANGE && d < bd) {
+        nearPeer = c;
+        bd = d;
       }
     }
-    if (nearest) {
-      openMemberSheet(nearest.profileId);
-      return;
-    }
-    onTapMove(target);
   }
+  const lobbyMain: PadAction = nearBalance
+    ? {
+        key: "balance",
+        label: game?.status === "active" ? "게임 참여" : "밸런스 게임",
+        onPress: () => setBalanceOpen(true),
+      }
+    : nearPeer
+      ? { key: "profile", label: "프로필", onPress: () => openMemberSheet(nearPeer!.profileId) }
+      : { key: "idle", label: "사용", onPress: () => {}, disabled: true };
 
   const amongHandlers = {
     start: () => socketRef.current?.startAmong(partyId!),
@@ -322,7 +337,9 @@ export default function PartyScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topBar}>
+      <View
+        style={[styles.topBar, { paddingLeft: 4 + insets.left, paddingRight: 4 + insets.right }]}
+      >
         <BackButton label="나가기" onPress={() => router.replace("/home")} />
         <View style={[styles.topBarInfo, { marginTop: insets.top }]}>
           <Text style={styles.partyName} numberOfLines={1}>
@@ -353,35 +370,18 @@ export default function PartyScreen() {
         </View>
       </View>
 
-      <View style={styles.world} onLayout={(e) => setWorldHeight(e.nativeEvent.layout.height)}>
+      <View style={styles.world}>
         {showAmong && among ? (
-          <View style={styles.amongWrap}>
-            <AmongGame
-              among={among}
-              myProfileId={myProfileId ?? ""}
-              partyId={partyId!}
-              positions={positions}
-              onTapMove={onTapMove}
-              handlers={amongHandlers}
-            />
-          </View>
+          <AmongGame
+            among={among}
+            myProfileId={myProfileId ?? ""}
+            partyId={partyId!}
+            positions={positions}
+            onTapMove={() => {}} // 임시 no-op — Task 12에서 prop 자체를 제거하고 characters/clock으로 교체
+            handlers={amongHandlers}
+          />
         ) : (
-          <View style={styles.lobbyWrap}>
-            <PartyRoomCanvas
-              members={roomMembers}
-              myProfileId={myProfileId}
-              onTapMove={onLobbyTap}
-              height={worldHeight}
-            />
-            <Pressable
-              style={[styles.balanceStation, { bottom: 24 + insets.bottom }]}
-              onPress={() => setBalanceOpen(true)}
-            >
-              <DoodleChip
-                label={game?.status === "active" ? "밸런스 게임 · 진행중" : "밸런스 게임"}
-              />
-            </Pressable>
-          </View>
+          <PartyWorld characters={characters} showBalanceStation clock={clock} />
         )}
 
         <PartyChatOverlay
@@ -391,7 +391,24 @@ export default function PartyScreen() {
           senderName={senderName}
           onSend={onSendChat}
           hideFab={hideFab}
+          fabStyle={{ bottom: undefined, top: 8, right: 12 + insets.right }}
         />
+
+        {(!showAmong || among?.phase === "playing") && (
+          <Joystick
+            onVector={(v) => {
+              velRef.current = v;
+            }}
+            style={[styles.joystick, { left: 16 + insets.left, bottom: 20 + insets.bottom }]}
+          />
+        )}
+
+        {!showAmong && (
+          <ActionPad
+            main={lobbyMain}
+            style={[styles.actionPad, { right: 16 + insets.right, bottom: 20 + insets.bottom }]}
+          />
+        )}
       </View>
 
       <MemberSheet
@@ -499,10 +516,9 @@ const styles = StyleSheet.create({
 
   screen: { flex: 1, backgroundColor: colors.paper },
   world: { flex: 1, position: "relative" },
-  amongWrap: { flex: 1 },
-  lobbyWrap: { flex: 1, position: "relative" },
 
-  balanceStation: { position: "absolute", left: 16, zIndex: 15 },
+  joystick: { position: "absolute", zIndex: 20 },
+  actionPad: { position: "absolute", zIndex: 20 },
 
   topBar: {
     flexDirection: "row",
@@ -510,7 +526,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.88)",
     borderBottomWidth: doodle.border,
     borderBottomColor: colors.ink,
-    paddingHorizontal: 4,
     paddingBottom: 8,
   },
   topBarInfo: {

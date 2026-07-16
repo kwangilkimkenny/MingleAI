@@ -1,6 +1,6 @@
 /**
  * AmongMap — top-down 2D game map for the Among Us minigame.
- * Plain RN Views (no Skia), same normalized-coord approach as PartyRoomCanvas.
+ * Plain RN Views (no Skia), same normalized-coord approach as the party lobby world.
  * Shows: players (alive/dead), the viewer's incomplete task stations, dead bodies.
  * Tap on floor → onTapMove(clampToRoom normalized coord).
  */
