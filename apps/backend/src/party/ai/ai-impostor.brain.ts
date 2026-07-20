@@ -1,4 +1,4 @@
-import { PARTY_MAP, worldDist } from "@mingle/shared";
+import { PARTY_MAP, WORLD_ASPECT, worldDist } from "@mingle/shared";
 import type { AmongConfig } from "../among.config";
 import type { AmongState } from "../among.service";
 
@@ -83,9 +83,9 @@ export class AiImpostorBrain {
         bot.targetIdx = Math.floor(rand() * PARTY_MAP.stations.length);
       } else {
         const stepLen = Math.min(AI_BOT_SPEED * dtSec, d);
-        const wdx = (target.x - bot.x) * 1.9;
+        const wdx = (target.x - bot.x) * WORLD_ASPECT;
         const wdy = target.y - bot.y;
-        bot.x += ((wdx / d) * stepLen) / 1.9;
+        bot.x += ((wdx / d) * stepLen) / WORLD_ASPECT;
         bot.y += (wdy / d) * stepLen;
       }
       step.moves.push({ profileId: ai.profileId, x: bot.x, y: bot.y });

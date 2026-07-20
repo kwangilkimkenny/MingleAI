@@ -66,7 +66,7 @@ Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **
 - backend TS 에러 grep: ANSI 색코드 때문에 `error TS`가 0으로 나옴 — `"Found N error"`로.
 - 포트: backend dev 3000 / PM2 4000(`instances:1` 고정 — redis-adapter 전까지) / web 3100 / Metro 8081.
 - **매칭 env**(선택→검증 기본값): `MIN_PARTY_SIZE`(4)/`MAX_PARTY_SIZE`(8)/`MATCH_SWEEP_MS`(2500)/`MATCH_MAX_WAIT_MS`(120000)/`MATCH_BASE_THRESHOLD`(0.5). 스윕은 lifecycle `setInterval` — 단일 인스턴스 전용.
-- **어몽 = "AI를 찾아라"(2026-07-20 변형)**: 인간은 **전원 crew** — 임포스터는 **AI 페르소나 전용**(`AMONG_AI_COUNT`명, `ai-` 접두 profileId, 인간 임포스터 선출 로직 제거). AI는 LLM으로 채팅·투표·이동·킬(`AiImpostorBrain`, PartyGateway 1s 스윕에 편입) — `LLM_API_URL` 미설정 시 `AMONG_AI_REQUIRE_LLM=false`여야 시작 가능(그 외엔 템플릿 대사 폴백). `AMONG_AUTO_MEETING_MS` 경과 시 주기 자동 회의 소집(`reason:"auto"`). `isAi`/`isBot`은 플레이 중 리댁션, ended 스냅샷에만 노출.
+- **어몽 = "AI를 찾아라"(2026-07-20 변형)**: 인간은 **전원 crew** — 임포스터는 **AI 페르소나 전용**(`AMONG_AI_COUNT`명, `ai-` 접두 profileId, 인간 임포스터 선출 로직 제거). AI는 LLM으로 채팅·투표·이동·킬(`AiImpostorBrain`, PartyGateway 1s 스윕에 편입) — `LLM_API_URL` 미설정 시 `AMONG_AI_REQUIRE_LLM=false`여야 시작 가능(그 외엔 템플릿 대사 폴백). `AMONG_AUTO_MEETING_MS` 경과 시 주기 자동 회의 소집(`reason:"auto"`). `isAi`는 ended 스냅샷에만 노출(`isBot`은 어떤 스냅샷에도 미노출 — 서버 내부 전용).
 - **어몽 env**(`party/among.config.ts` 검증 기본값): `AMONG_MIN_PLAYERS`(4)/`AMONG_TASKS_PER_CREW`(3)/`AMONG_KILL_RANGE`(0.12)/`AMONG_TASK_RANGE`(0.10)/`AMONG_KILL_COOLDOWN_MS`(20000)/`AMONG_DISCUSSION_MS`(30000)/`AMONG_VOTE_MS`(30000)/`AMONG_EMERGENCY_PER_PLAYER`(1)/`AMONG_SWEEP_MS`(1000)/`AMONG_AI_COUNT`(2)/`AMONG_AUTO_MEETING_MS`(120000)/`AMONG_AI_REQUIRE_LLM`(true)/`AMONG_AI_LLM_MAX_CALLS`(60)/`AMONG_AI_CHAT_MIN_MS`(60000)/`AMONG_AI_CHAT_MAX_MS`(90000). 스윕(PartyGateway lifecycle `setInterval`, 단일 인스턴스 전용)이 회의 타이머·주기 자동 회의·AI 봇 틱(이동/킬/투표/채팅)을 전부 처리.
 - **게이트웨이 인메모리 상태**: `PartyGateway`의 `humanPos`(플레이어 좌표 맵)·`chatBuf`(파티별 최근 채팅 링버퍼, AI 발화 컨텍스트용)는 프로세스 메모리 — 단일 인스턴스 전용(redis-adapter 전까지 재시작 시 유실).
 - **어몽 자동 시작**: `party:join` 후 프레즌스 로스터==파티 정원 && 이 파티에 among 세션이 **한 번도 없었으면** 자동 시작(`maybeAutoStartAmong`; 밸런스 종료 시에도 구제 재시도). ended 파티는 자동 재시작 안 함(다시하기=수동 `among:start`). 실패는 삼킴 — advisory lock+partial unique가 최종 방어. **도구 영향**: 4소켓 파티 join 즉시 게임 시작 — `game:start`(밸런스)는 among ended 후에만(파티당 ACTIVE `GameSession` 1개, gameType 무관).
@@ -85,7 +85,7 @@ Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **
 - 동시성: 용량/카운트 경로는 Serializable tx + `P2034` 재시도 + `P2002` 충돌 처리; 알림은 tx **밖**에서 non-fatal. 게임 상태 전이는 파티별 `pg_advisory_xact_lock` + partial unique(`game_sessions(party_id) WHERE status='active'`, `matchmaking_queue_entries(profile_id) WHERE status='waiting'`).
 - 불변식: Match는 `(profileId1,profileId2)` 정렬 정규화 + `upsert` 멱등(try/catch+refetch는 Serializable tx를 abort시킴 — 금지). Block은 양방향(`isBlockedBetween`) — 메신저 send/history/gateway·프로포즈·수락·스윕에서 강제. **피어 프로젝션은 `{profileId,name,age,gender,occupation,photoUrl?,preferenceSummary?}`만**(`toPeer`/`toPublicProfile`) — `userId`/`riskScore`/raw signals 노출 금지.
 - DatePlan: 모든 라우트 membership+block 게이트(`memberContext`); `select`=작성자만, `confirm`=상대만(멱등); 응답은 `DatePlanView`(결제 필드 없음).
-- 어몽 스냅샷은 per-viewer 리댁션(타인 role은 ended 전까지 null, 내 태스크만, 투표 대상 숨김) — 브로드캐스트는 per-socket personalized.
+- 어몽 스냅샷은 per-viewer 리댁션(타인 role은 ended 전까지 null, `isAi`는 ended 전까지 미노출, 내 태스크만, 투표 대상 숨김) — 브로드캐스트는 per-socket personalized.
 
 ## Status (요약 — 상세는 git log + docs/superpowers/plans/)
 

@@ -10,7 +10,7 @@ import { DoodleButton, DoodleCard } from "../Doodle";
 
 const REASON_LABELS: Record<AmongResultView["reason"], string> = {
   tasks: "모든 미션 완료",
-  ejected: "임포스터 추방",
+  ejected: "AI 전원 추방",
   kills: "크루메이트 전멸",
 };
 
@@ -40,7 +40,7 @@ export function ResultScreen({
               <Skull color={colors.accent} size={30} strokeWidth={2} />
             )}
             <Text style={[styles.bannerTitle, { color: crewWon ? colors.ink : colors.accent }]}>
-              {!result ? "게임 종료" : crewWon ? "크루메이트 승리!" : "임포스터 승리!"}
+              {!result ? "게임 종료" : crewWon ? "크루메이트 승리!" : "AI 승리!"}
             </Text>
           </View>
           {result ? <Text style={styles.bannerReason}>{REASON_LABELS[result.reason]}</Text> : null}

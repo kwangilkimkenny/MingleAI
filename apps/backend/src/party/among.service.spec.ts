@@ -255,6 +255,7 @@ describe("start", () => {
     profile.findMany.mockResolvedValue(profileNames(4));
     gameSession.create.mockImplementation(async ({ data }: any) => ({ id: "g1", ...data }));
 
+    const now = Date.now();
     const state = await service.start("pt1", roster(4));
 
     expect(state.players).toHaveLength(6); // 인간 4 + AI 2
@@ -265,6 +266,14 @@ describe("start", () => {
     expect(ais).toHaveLength(2);
     expect(ais.every((p) => p.role === "impostor")).toBe(true);
     expect(ais.every((p) => p.profileId.startsWith("ai-"))).toBe(true);
+    // AI 임포스터도 킬 쿨다운을 갖고 시작한다 — 시작 즉시 킬 불가(now+killCooldownMs 이후).
+    expect(
+      ais.every(
+        (p) =>
+          p.killCooldownUntil !== null &&
+          p.killCooldownUntil >= now + DEFAULT_CONFIG.killCooldownMs,
+      ),
+    ).toBe(true);
     // 태스크는 인간 크루에게만
     const humanIds = new Set(humans.map((p) => p.profileId));
     expect(state.tasks).toHaveLength(4 * 3);
@@ -1445,6 +1454,15 @@ describe("sweepAutoMeetings", () => {
     gameSession.update.mockImplementation(async ({ data }: any) => data);
 
     await service.report("pt1", "p1", "p2");
+    expect(state.nextAutoMeetingAt).toBeGreaterThan(Date.now());
+  });
+
+  it("emergency 소집도 nextAutoMeetingAt을 리셋한다", async () => {
+    const state = buildPlayingState({ nextAutoMeetingAt: 1 });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockImplementation(async ({ data }: any) => data);
+
+    await service.emergency("pt1", "p1");
     expect(state.nextAutoMeetingAt).toBeGreaterThan(Date.now());
   });
 });

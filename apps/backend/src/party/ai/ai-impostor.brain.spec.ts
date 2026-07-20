@@ -1,4 +1,4 @@
-import { AiImpostorBrain, AI_BOT_SPEED, AI_WITNESS_RADIUS } from "./ai-impostor.brain";
+import { AiImpostorBrain, AI_WITNESS_RADIUS } from "./ai-impostor.brain";
 import { PARTY_MAP } from "@mingle/shared";
 
 const CFG = {
