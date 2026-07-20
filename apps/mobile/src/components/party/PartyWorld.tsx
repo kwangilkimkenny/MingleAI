@@ -141,10 +141,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: TASK_MARKER,
     height: TASK_MARKER,
-    borderWidth: 2,
+    borderWidth: 2.4,
     borderColor: colors.accent,
-    backgroundColor: colors.accentFill,
-    borderRadius: 4,
+    borderRadius: TASK_MARKER / 2,
+    backgroundColor: "transparent",
   },
   balanceMarker: {
     position: "absolute",
