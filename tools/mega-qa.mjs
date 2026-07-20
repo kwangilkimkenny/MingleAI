@@ -3,9 +3,10 @@
  *
  * Exercises the whole designed user journey against an ALREADY-RUNNING backend:
  *   health → signup×4 → onboarding → matchmaking → party realtime (chat/move/presence)
- *   → Among Us (AUTO-STARTED once the 4th socket joins — see ORDERING NOTE below; full
- *   kill/report/meeting/vote/eject path) → balance game → proposal → match
- *   → messenger (REST + socket + read receipts) → date plan → moderation (report/block)
+ *   → Among Us "AI를 찾아라" (AUTO-STARTED once the 4th socket joins — see ORDERING NOTE below;
+ *   role contract — all 4 humans are crew, the only impostors are 2 server-driven AI personas —
+ *   AI liveliness, two emergency-meeting ejections, identity reveal) → balance game → proposal
+ *   → match → messenger (REST + socket + read receipts) → date plan → moderation (report/block)
  *   → dashboard → rate limiting (last).
  *
  * ORDERING NOTE (2026-07-15, party-game-world T3): `party.gateway.ts`'s `maybeAutoStartAmong`
@@ -536,18 +537,27 @@ async function sectionPartyRealtime() {
   await check(
     `Party realtime: ${senderTag} move → ${receiverTag} receives party:moved, ${senderTag} gets no echo`,
     async () => {
+      // Filtered by profileId, not raw array-length growth: Among Us auto-starts as a side effect
+      // of the party:join calls above (party.gateway maybeAutoStartAmong), and once active its 1s
+      // AI-bot sweep independently broadcasts unrelated party:moved events (ai- profileIds) to the
+      // WHOLE room (correct product behavior — every member must see AI avatars move too). Raw
+      // length growth can no longer distinguish "I got my own echo" from "an AI bot happened to
+      // move in this window", so both checks below key off profileId specifically.
       const beforeSender = sockets[senderTag].state.moved.length;
       const beforeReceiver = sockets[receiverTag].state.moved.length;
+      const senderProfileId = users[senderTag].profileId;
       sockets[senderTag].socket.emit("party:move", { partyId, x: 0.42, y: 0.58 });
-      await waitFor(() => sockets[receiverTag].state.moved.length > beforeReceiver, {
-        timeoutMs: 3000,
-        label: `${receiverTag} receives party:moved`,
-      });
+      const fromSender = (arr, from) =>
+        arr.slice(from).find((m) => m.profileId === senderProfileId);
+      await waitFor(
+        () => fromSender(sockets[receiverTag].state.moved, beforeReceiver) !== undefined,
+        { timeoutMs: 3000, label: `${receiverTag} receives party:moved from ${senderTag}` },
+      );
       await sleep(500);
-      if (sockets[senderTag].state.moved.length > beforeSender)
+      if (fromSender(sockets[senderTag].state.moved, beforeSender) !== undefined)
         throw new Error(`BUG: ${senderTag} received an echo of its own party:move`);
-      const last = sockets[receiverTag].state.moved[sockets[receiverTag].state.moved.length - 1];
-      if (last.profileId !== users[senderTag].profileId || last.x !== 0.42 || last.y !== 0.58) {
+      const last = fromSender(sockets[receiverTag].state.moved, beforeReceiver);
+      if (last.x !== 0.42 || last.y !== 0.58) {
         throw new Error(`unexpected payload: ${JSON.stringify(last)}`);
       }
       return `${receiverTag} got {x:${last.x},y:${last.y}} from ${last.profileId.slice(-6)}, ${senderTag}: no echo`;
@@ -575,18 +585,58 @@ async function sectionPartyRealtime() {
   });
 }
 
-// ─── 6. Among Us (auto-started once the party fills to capacity) ───────────
+// ─── 6. Among Us — "AI를 찾아라" (auto-started once the party fills to capacity) ───
 // party.gateway.ts among:* handlers + among.service.ts. Runs BEFORE the balance-game section (see
 // the file-header ORDERING NOTE) because party.gateway's maybeAutoStartAmong fires as soon as the
 // presence roster fills during section 5's party:join — by the time this section starts, an Among
 // Us GameSession is very likely ALREADY "active", started without this harness ever calling
-// among:start. We fully control every "bot" (all 4 sockets are ours), so the FULL path is
-// deterministic, not brittle: kill a chosen crew victim, report, wait out the (env-tuned,
-// AMONG_DISCUSSION_MS=10000) discussion window via the server's own 1s sweep, then have every
-// alive player vote the impostor for a guaranteed unique-plurality ejection → crew win.
-// among.service.kill() has no server-side distance check (confirmed by reading the source —
-// killRange is unused in kill()), so party:move-before-kill is done for narrative fidelity to the
-// mission spec, not because the backend enforces it.
+// among:start.
+//
+// 2026-07-20 game-rule rewrite ("AI를 찾아라"): ALL 4 human players are crew — the only impostors
+// are 2 server-driven AI personas (synthetic `ai-`-prefixed profileIds, never a real Profile row;
+// see among.service.start()'s `pickPersonas` call and apps/backend/src/party/ai/personas.ts). There
+// is no human-vs-human suspicion anymore, so this section no longer plays a kill/report path: it
+// verifies the role contract (all 4 humans are crew, the 2 AI players' role is redacted pre-reveal,
+// and no snapshot carries an `isAi` field at all until the game ends — among.service.ts project()
+// only spreads `isAi: true` in when `isEnded && p.isAi`), observes an AI persona moving on its own
+// (party.gateway's 1s sweep drives `runBotTick`/`AiImpostorBrain`, not a human party:move), then
+// runs the meeting mechanic through TWO emergency meetings (env: AMONG_DISCUSSION_MS=10000,
+// AMONG_VOTE_MS=15000, AMONG_EMERGENCY_PER_PLAYER=1 so the two calls MUST come from two different
+// users) — meeting #1 ejects one AI mid-game (game continues), meeting #2 ejects the second AI and
+// ends the game (winner="crew", reason="ejected"), and the final "ended" snapshot reveals both
+// impostors' `isAi: true`. Both meetings vote the whole party (4 humans) onto the target AI: the
+// server's own sweep (`castAiVote`) auto-votes the still-alive AI persona(s) too (random alive
+// human, since AMONG_AI_REQUIRE_LLM=false/no LLM_API_URL means aiChat.enabled is false here) — with
+// at most 2 AI votes scattering across humans and all 4 humans concentrated on the target AI, the
+// target's plurality (4) always strictly beats any split AI tally (≤2), so ejection is deterministic
+// regardless of whether resolution fires via "everyone voted" or the AMONG_VOTE_MS timeout fallback.
+// among.service.kill() has no server-side distance check and AI kill probability/cooldowns are tuned
+// long (45s cooldown + 15s post-meeting hold) relative to this section's runtime, so an AI-initiated
+// kill mid-flow is possible but very unlikely to land inside the test window.
+
+/**
+ * Drives one full emergency-meeting cycle to a plurality ejection of `targetAiId`: `callerTag`
+ * calls `among:emergency`, waits for the broadcast "meeting" phase, waits for the server sweep to
+ * advance to "voting" after the AMONG_DISCUSSION_MS window, then has every one of the 4 human
+ * sockets vote the target AI. Resolution (and thus the next phase/result) happens asynchronously
+ * once every alive player — humans AND the server-driven AI votes — has voted (or the
+ * AMONG_VOTE_MS timeout elapses); callers wait for their own success condition afterward.
+ */
+async function runEmergencyEjection(callerTag, targetAiId) {
+  sockets[callerTag].socket.emit("among:emergency", { partyId });
+  await waitFor(() => partyTags.every((t) => sockets[t].state.amongState?.phase === "meeting"), {
+    timeoutMs: 5000,
+    label: `all sockets see phase=meeting (called by ${callerTag})`,
+  });
+  await waitFor(() => partyTags.every((t) => sockets[t].state.amongState?.phase === "voting"), {
+    timeoutMs: 14000,
+    intervalMs: 500,
+    label: "phase=voting (server sweep after AMONG_DISCUSSION_MS)",
+  });
+  for (const t of partyTags) {
+    sockets[t].socket.emit("among:vote", { partyId, targetProfileId: targetAiId });
+  }
+}
 
 async function sectionAmongUs() {
   // among.service.start() enforces AMONG_MIN_PLAYERS (default 4, apps/backend/.env doesn't
@@ -598,6 +648,7 @@ async function sectionAmongUs() {
     );
   }
 
+  // ── 1. Auto-start ──────────────────────────────────────────────────────────────────────────
   await check(
     "Among Us: auto-start — 정원 충족 시 어몽 자동 시작 (party.gateway.maybeAutoStartAmong)",
     async () => {
@@ -609,10 +660,10 @@ async function sectionAmongUs() {
       // "replied: nothing running".
       const before = partyTags.map((t) => sockets[t].state.amongEventCount);
       for (const tag of partyTags) sockets[tag].socket.emit("among:sync", { partyId });
-      await waitFor(
-        () => partyTags.every((t, i) => sockets[t].state.amongEventCount > before[i]),
-        { timeoutMs: 5000, label: "all sockets receive an among:sync response" },
-      );
+      await waitFor(() => partyTags.every((t, i) => sockets[t].state.amongEventCount > before[i]), {
+        timeoutMs: 5000,
+        label: "all sockets receive an among:sync response",
+      });
 
       const alreadyActive = partyTags.every(
         (t) => sockets[t].state.amongState?.phase === "playing",
@@ -639,111 +690,111 @@ async function sectionAmongUs() {
     },
   );
 
-  await check(`Among Us: per-socket secrecy (own role visible, others null)`, async () => {
-    for (const tag of partyTags) {
-      const snap = sockets[tag].state.amongState;
-      if (!snap.myRole) throw new Error(`${tag}: myRole missing`);
-      const me = snap.players.find((p) => p.profileId === users[tag].profileId);
-      if (!me || me.role !== snap.myRole) throw new Error(`${tag}: own role mismatch in players[]`);
-      const others = snap.players.filter((p) => p.profileId !== users[tag].profileId);
-      if (others.some((p) => p.role !== null))
-        throw new Error(`BUG: ${tag} can see another player's role pre-reveal`);
-    }
-    return `secrecy verified for all ${partyTags.length} (own role visible, others null)`;
-  });
-
-  let impostorTag = null;
-  const crewTags = [];
+  // ── 2. Role contract ───────────────────────────────────────────────────────────────────────
+  let aiId1 = null;
+  let aiId2 = null;
   await check(
-    `Among Us: exactly one impostor identified among the ${partyTags.length} snapshots`,
+    "Among Us: 역할 계약 — 4소켓 전원 crew, players에 ai- 2명(role 리댁션), isAi 필드 부재",
     async () => {
       for (const tag of partyTags) {
-        if (sockets[tag].state.amongState.myRole === "impostor") impostorTag = tag;
-        else crewTags.push(tag);
+        const snap = sockets[tag].state.amongState;
+        if (snap.myRole !== "crew")
+          throw new Error(`BUG: ${tag}.myRole=${snap.myRole} (all 4 humans must be crew)`);
+        for (const p of snap.players) {
+          if ("isAi" in p)
+            throw new Error(`BUG: ${tag} sees an isAi field mid-game on ${p.profileId.slice(-6)}`);
+        }
+        const aiPlayers = snap.players.filter((p) => p.profileId.startsWith("ai-"));
+        if (aiPlayers.length !== 2)
+          throw new Error(`BUG: ${tag} sees ${aiPlayers.length} ai- prefixed players, expected 2`);
+        if (aiPlayers.some((p) => p.role !== null))
+          throw new Error(`BUG: ${tag} can see an AI player's role pre-reveal`);
       }
-      if (!impostorTag || crewTags.length !== partyTags.length - 1) {
-        throw new Error(`impostor=${impostorTag ?? "none"} crew=[${crewTags.join(",")}]`);
-      }
-      return `impostor=${impostorTag}, crew=[${crewTags.join(",")}]`;
+      const ids = sockets[partyTags[0]].state.amongState.players
+        .filter((p) => p.profileId.startsWith("ai-"))
+        .map((p) => p.profileId)
+        .sort();
+      [aiId1, aiId2] = ids;
+      return `crew confirmed on all ${partyTags.length}, AI personas=[${aiId1.slice(-6)},${aiId2.slice(-6)}], role/isAi redacted`;
     },
   );
 
-  let victimTag = null;
+  // ── 3. AI liveliness ───────────────────────────────────────────────────────────────────────
+  await check("Among Us: AI 생동 — 15초 내 ai- 접두 party:moved 수신", async () => {
+    const watcher = partyTags[0];
+    const before = sockets[watcher].state.moved.length;
+    await waitFor(
+      () => sockets[watcher].state.moved.slice(before).some((m) => m.profileId.startsWith("ai-")),
+      { timeoutMs: 15000, intervalMs: 500, label: "an ai- profileId appears in party:moved" },
+    );
+    const mover = sockets[watcher].state.moved
+      .slice(before)
+      .find((m) => m.profileId.startsWith("ai-"));
+    return `${watcher} saw AI ${mover.profileId.slice(-6)} move to {x:${mover.x.toFixed(2)},y:${mover.y.toFixed(2)}}`;
+  });
+
+  // ── 4. Emergency meeting #1 → single ejection, game continues ─────────────────────────────
   await check(
-    "Among Us: impostor moves adjacent + among:kill a crew victim → body appears",
+    "Among Us: 긴급회의 #1 — 전원 AI#1 투표 → 추방, phase=playing 복귀(게임 계속)",
     async () => {
-      victimTag = crewTags[0];
-      const victimProfileId = users[victimTag].profileId;
-      sockets[impostorTag].socket.emit("party:move", { partyId, x: 0.5, y: 0.5 });
-      await sleep(150);
-      sockets[impostorTag].socket.emit("among:kill", {
-        partyId,
-        targetProfileId: victimProfileId,
-        x: 0.5,
-        y: 0.5,
-      });
+      await runEmergencyEjection(partyTags[0], aiId1);
       await waitFor(
-        () =>
-          sockets[impostorTag].state.amongState?.bodies?.some(
-            (b) => b.profileId === victimProfileId,
-          ),
-        {
-          timeoutMs: 4000,
-          label: "body appears in impostor's snapshot",
-        },
+        () => partyTags.every((t) => sockets[t].state.amongState?.phase === "playing"),
+        { timeoutMs: 35000, intervalMs: 500, label: "phase returns to playing after ejection #1" },
       );
-      const victimAlive = sockets[impostorTag].state.amongState.players.find(
-        (p) => p.profileId === victimProfileId,
-      )?.alive;
-      if (victimAlive !== false) throw new Error("victim still shows alive === true after kill");
-      return `victim=${victimTag} (${victimProfileId.slice(-6)}) killed, body recorded`;
+      const snap = sockets[partyTags[0]].state.amongState;
+      const ejected = snap.players.find((p) => p.profileId === aiId1);
+      if (!ejected || ejected.alive !== false)
+        throw new Error(`BUG: AI#1 (${aiId1.slice(-6)}) not shown as ejected (alive !== false)`);
+      if (snap.result !== null)
+        throw new Error(
+          `BUG: game already ended after only 1 of 2 impostors ejected: ${JSON.stringify(snap.result)}`,
+        );
+      return `AI#1 (${aiId1.slice(-6)}) ejected, phase=playing, game continues`;
     },
   );
 
-  let reporterTag = null;
-  await check("Among Us: crew among:report → meeting phase", async () => {
-    reporterTag = crewTags.find((t) => t !== victimTag);
-    const victimProfileId = users[victimTag].profileId;
-    sockets[reporterTag].socket.emit("among:report", { partyId, bodyProfileId: victimProfileId });
-    await waitFor(() => sockets[reporterTag].state.amongState?.phase === "meeting", {
-      timeoutMs: 4000,
-      label: "phase=meeting",
-    });
-    const m = sockets[reporterTag].state.amongState.meeting;
-    return `phase=meeting calledBy=${m.calledBy.slice(-6)} reason=${m.reason}`;
-  });
+  // ── 5. Emergency meeting #2 → final ejection, crew win ─────────────────────────────────────
+  await check(
+    "Among Us: 긴급회의 #2 — 전원 AI#2 투표 → 추방 → ended, winner=crew reason=ejected",
+    async () => {
+      // AMONG_EMERGENCY_PER_PLAYER=1 — partyTags[0] already spent its emergency in meeting #1, so
+      // meeting #2 MUST be called by a different user (partyTags[1]).
+      await runEmergencyEjection(partyTags[1], aiId2);
+      await waitFor(() => sockets[partyTags[0]].state.amongState?.result != null, {
+        timeoutMs: 35000,
+        intervalMs: 500,
+        label: "game result present after ejection #2",
+      });
+      const result = sockets[partyTags[0]].state.amongState.result;
+      if (result.winner !== "crew" || result.reason !== "ejected") {
+        throw new Error(`unexpected result: ${JSON.stringify(result)}`);
+      }
+      return `AI#2 (${aiId2.slice(-6)}) ejected, winner=${result.winner} reason=${result.reason}`;
+    },
+  );
 
-  await check("Among Us: meeting auto-advances to voting after the discussion window", async () => {
-    await waitFor(() => sockets[reporterTag].state.amongState?.phase === "voting", {
-      timeoutMs: 14000,
-      intervalMs: 500,
-      label: "phase=voting (server sweep after AMONG_DISCUSSION_MS)",
-    });
-    return "phase=voting";
-  });
-
-  await check("Among Us: all alive vote the impostor → ejection → crew win (ended)", async () => {
-    const impostorProfileId = users[impostorTag].profileId;
-    const aliveCrew = crewTags.filter((t) => t !== victimTag);
-    for (const t of aliveCrew)
-      sockets[t].socket.emit("among:vote", { partyId, targetProfileId: impostorProfileId });
-    sockets[impostorTag].socket.emit("among:vote", { partyId, targetProfileId: "skip" });
-    await waitFor(() => sockets[reporterTag].state.amongState?.result != null, {
-      timeoutMs: 6000,
-      label: "game result present",
-    });
-    const result = sockets[reporterTag].state.amongState.result;
-    if (result.winner !== "crew" || result.reason !== "ejected") {
-      throw new Error(`unexpected result: ${JSON.stringify(result)}`);
-    }
-    await waitFor(() => sockets.A.state.amongState?.result != null, {
-      timeoutMs: 4000,
-      label: "A sees final result",
-    });
-    const rolesRevealed = sockets.A.state.amongState.players.every((p) => p.role !== null);
-    if (!rolesRevealed) throw new Error("BUG: final 'ended' snapshot did not reveal all roles");
-    return `winner=${result.winner} reason=${result.reason}, roles revealed on end`;
-  });
+  // ── 6. Identity reveal ──────────────────────────────────────────────────────────────────────
+  await check(
+    "Among Us: 정체 공개 — ended 스냅샷에 isAi===true 정확히 2명, 전원 ai- 접두",
+    async () => {
+      await waitFor(() => partyTags.every((t) => sockets[t].state.amongState?.phase === "ended"), {
+        timeoutMs: 6000,
+        label: "all sockets see phase=ended",
+      });
+      for (const tag of partyTags) {
+        const snap = sockets[tag].state.amongState;
+        const revealedAi = snap.players.filter((p) => p.isAi === true);
+        if (revealedAi.length !== 2)
+          throw new Error(`BUG: ${tag} sees ${revealedAi.length} isAi:true players, expected 2`);
+        if (!revealedAi.every((p) => p.profileId.startsWith("ai-")))
+          throw new Error(`BUG: ${tag} — a non-ai- profileId carries isAi:true`);
+        if (!snap.players.every((p) => p.role !== null))
+          throw new Error(`BUG: ${tag} — not all roles revealed on 'ended' snapshot`);
+      }
+      return `isAi:true on exactly 2 (both ai- prefixed, roles revealed) across all ${partyTags.length} sockets`;
+    },
+  );
 }
 
 // ─── 7. Balance game ────────────────────────────────────────────────────────
@@ -1136,7 +1187,7 @@ async function main() {
   await runSection("3. Onboarding", sectionOnboarding);
   await runSection("4. Matchmaking", sectionMatchmaking);
   await runSection("5. Party realtime", sectionPartyRealtime);
-  await runSection("6. Among Us (auto-started at full roster)", sectionAmongUs);
+  await runSection("6. Among Us — AI를 찾아라 (auto-started at full roster)", sectionAmongUs);
   await runSection("7. Balance game", sectionBalanceGame);
   await runSection("8. Party end → proposal window", sectionProposal);
   await runSection("9. Messenger", sectionMessenger);
