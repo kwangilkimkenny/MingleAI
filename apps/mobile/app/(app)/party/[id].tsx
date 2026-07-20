@@ -156,6 +156,8 @@ export default function PartyScreen() {
         if (msg === "not-enough-players") setGameNotice("4명이 모여야 시작할 수 있어요");
         else if (msg === "AI 게임 준비 중이에요")
           setGameNotice("AI 게임 준비 중이에요 — 잠시 후 다시 시도해주세요");
+        else if (msg === "invalid") setGameNotice("잘못된 요청이에요");
+        else if (msg === "forbidden") setGameNotice("권한이 없어요");
         else setGameNotice(msg);
       },
       onReconnect: () => {
@@ -240,6 +242,24 @@ export default function PartyScreen() {
       setMemberSheetOpen(false);
     }
   }, [showAmong]);
+
+  // 게임 종료/세션 소멸 시 프레즌스에 없는 캐릭터(AI 페르소나) 정리 — 로비 잔상 방지.
+  // AI 임포스터는 among 세션 동안만 posRef에 존재하는데(party:presence는 사람만 담는다),
+  // 세션이 ended로 전환되거나 소멸(null)되면 로비 렌더러(PartyWorld)로 돌아가면서
+  // 그 캐릭터가 화면에 그대로 남아 걸어다니는 것처럼 보이는 버그를 막는다.
+  useEffect(() => {
+    if (among === null || among.phase === "ended") {
+      let removed = false;
+      for (const pid of Object.keys(posRef.current)) {
+        if (pid !== myProfileId && !rosterRef.current.includes(pid)) {
+          delete posRef.current[pid];
+          removed = true;
+        }
+      }
+      if (removed) setFrame((f) => f + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [among === null, among?.phase, among?.sessionId, myProfileId]);
 
   if (error) {
     return (

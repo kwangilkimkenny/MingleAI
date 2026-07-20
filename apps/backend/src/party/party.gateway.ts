@@ -53,6 +53,12 @@ export class PartyGateway
   /** `${partyId}:${aiProfileId}` — 투표 결정이 LLM 왕복 중인 봇(중복 파견 방지). */
   private readonly votingInFlight = new Set<string>();
 
+  /** `${partyId}:${discussionEndsAt}` — 회의당 AI 발화 파견은 1회만(중복 소집 방지). */
+  private readonly meetingSpokeFor = new Set<string>();
+
+  /** among 자동시작이 ai-unavailable로 실패했음을 이미 방(room)에 알린 파티 — 반복 join 스팸 방지. */
+  private readonly aiUnavailableNotified = new Set<string>();
+
   private readonly aiChat: AiChatClient;
 
   private sweepTimer?: ReturnType<typeof setInterval>;
@@ -98,6 +104,7 @@ export class PartyGateway
         if (members.size === 0) {
           this.presence.delete(partyId);
           this.chatBuf.delete(partyId);
+          this.aiUnavailableNotified.delete(partyId);
         }
         this.broadcastPresence(partyId);
       }
@@ -132,6 +139,7 @@ export class PartyGateway
       if (members.size === 0) {
         this.presence.delete(body.partyId);
         this.chatBuf.delete(body.partyId);
+        this.aiUnavailableNotified.delete(body.partyId);
       }
       this.broadcastPresence(body.partyId);
     }
@@ -268,9 +276,30 @@ export class PartyGateway
   }
 
   /** Re-fetches the latest state (active, or ended-fallback) and re-broadcasts it. */
-  private async rebroadcastAmong(partyId: string): Promise<void> {
+  private async rebroadcastAmong(partyId: string): Promise<AmongState | null> {
     const st = (await this.among.current(partyId)) ?? (await this.among.latestAmong(partyId));
     if (st) this.broadcastAmong(partyId, st);
+    return st;
+  }
+
+  /**
+   * 회의 '시작'(playing → meeting 진입) 시점에만 호출 — 생존 AI마다 랜덤 지연(2~8s) 후
+   * 1회씩 발화를 파견한다(스펙 §4). 해소(discussion→voting, voting→resolve)는 호출부가
+   * 아예 여기로 넣지 않는다(대칭적인 침묵도 정보라 즉시 티가 남).
+   * `${partyId}:${discussionEndsAt}` 키로 회의당 1회만 파견되도록 가드한다.
+   */
+  private dispatchMeetingAiSpeech(partyId: string, state: AmongState): void {
+    if (state.phase !== "meeting" || !state.meeting) return;
+    const key = `${partyId}:${state.meeting.discussionEndsAt}`;
+    if (this.meetingSpokeFor.has(key)) return;
+    this.meetingSpokeFor.add(key);
+    const survivors = state.players.filter((p) => p.isAi && p.alive);
+    for (const p of survivors) {
+      const delay = 2000 + Math.random() * 6000;
+      setTimeout(() => {
+        void this.sayAsAi(partyId, p.profileId, "meeting");
+      }, delay);
+    }
   }
 
   /** Removes a profile's cached position for a party (join-time membership already gone). */
@@ -316,14 +345,25 @@ export class PartyGateway
       this.broadcastAmong(partyId, state);
     } catch (e) {
       console.warn(`[party.gateway] among auto-start failed for party ${partyId}:`, e);
+      // ai-unavailable만 표면화(다른 실패 사유는 기존대로 무음) — 파티당 1회만, 반복 join마다
+      // 스팸하지 않는다. aiUnavailableNotified는 party:leave/disconnect로 방이 비면 정리된다.
+      const msg = this.gameErrorMessage(e);
+      if (msg === "AI 게임 준비 중이에요" && !this.aiUnavailableNotified.has(partyId)) {
+        this.aiUnavailableNotified.add(partyId);
+        this.server.to(partyId).emit("party:error", { message: msg });
+      }
     }
   }
 
   private async runAmongSweep(): Promise<void> {
     try {
+      // sweepAutoMeetings는 항상 playing→meeting 진입(회의 '시작')만 만든다 — AI 발화 파견 대상.
       for (const pid of await this.among.sweepAutoMeetings()) {
-        await this.rebroadcastAmong(pid);
+        const st = await this.rebroadcastAmong(pid);
+        if (st) this.dispatchMeetingAiSpeech(pid, st);
       }
+      // sweepMeetings는 discussion→voting(해소 아님이지만 신규 소집도 아님)과 voting→resolve
+      // (해소)만 만든다 — 회의 '시작'이 아니므로 발화 파견 대상이 아니다.
       for (const pid of await this.among.sweepMeetings()) {
         await this.rebroadcastAmong(pid);
       }
@@ -355,6 +395,8 @@ export class PartyGateway
     if (this.votingInFlight.has(key)) return;
     this.votingInFlight.add(key);
     try {
+      // 즉시 몰표 방지 — 회의 소집 직후 AI가 곧바로 투표하면 타이밍 자체가 텔이 된다.
+      await new Promise((r) => setTimeout(r, 3000 + Math.random() * 7000));
       const state = await this.among.current(partyId);
       if (!state || state.phase !== "voting") return;
       const me = state.players.find((p) => p.profileId === aiProfileId);
@@ -412,12 +454,14 @@ export class PartyGateway
       // 타이핑 지연 리얼리즘(글자수 비례, 상한 4s) — 즉시 도착하면 봇 티가 난다.
       await new Promise((r) => setTimeout(r, Math.min(text.length * 80, 4000)));
       // 지연 동안 게임이 진행됐을 수 있다 — emit 직전 재검증(죽었거나, idle 잡담인데 회의/종료로
-      // 전환됐으면 뒷북이므로 버린다). 메시지 자체는 여전히 among.chat이 아니라 party:message라
-      // 채팅 로그엔 남지만, 최소한 상황과 어긋난 발화의 방송은 막는다.
+      // 전환됐으면, 혹은 회의 발화인데 회의가 이미 끝났으면 뒷북이므로 버린다). 메시지 자체는
+      // 여전히 among.chat이 아니라 party:message라 DB 미저장 — 세션 중 오버레이에만 표시,
+      // 히스토리 리로드 시 소멸.
       const fresh = await this.among.current(partyId);
       const stillAlive = fresh?.players.some((p) => p.profileId === aiProfileId && p.alive);
       if (!fresh || !stillAlive) return;
       if (scene === "idle" && fresh.phase !== "playing") return;
+      if (scene === "meeting" && fresh.phase !== "meeting" && fresh.phase !== "voting") return;
       this.server.to(partyId).emit("party:message", {
         id: `ai-${randomUUID()}`,
         partyId,
@@ -492,6 +536,7 @@ export class PartyGateway
     try {
       const s = await this.among.report(body.partyId, me, body.bodyProfileId);
       this.broadcastAmong(body.partyId, s);
+      this.dispatchMeetingAiSpeech(body.partyId, s); // 회의 시작(신고 소집) — AI 발화 파견
     } catch (e) {
       client.emit("party:error", { message: this.gameErrorMessage(e) });
     }
@@ -507,6 +552,7 @@ export class PartyGateway
     try {
       const s = await this.among.emergency(body.partyId, me);
       this.broadcastAmong(body.partyId, s);
+      this.dispatchMeetingAiSpeech(body.partyId, s); // 회의 시작(긴급 소집) — AI 발화 파견
     } catch (e) {
       client.emit("party:error", { message: this.gameErrorMessage(e) });
     }

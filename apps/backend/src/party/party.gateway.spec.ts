@@ -699,48 +699,65 @@ function votingStateWith(aiAlive = true) {
 }
 
 it("castAiVote는 재진입하지 않는다 — pickVote가 pending인 동안 두 번째 호출은 즉시 반환한다", async () => {
-  const state = votingStateWith();
-  among.current.mockResolvedValue(state);
-  among.vote.mockResolvedValue(state);
-  among.bumpLlmCalls.mockResolvedValue(undefined);
-  among.project.mockReturnValue(fakeSnapshot);
+  jest.useFakeTimers();
+  try {
+    const state = votingStateWith();
+    among.current.mockResolvedValue(state);
+    among.vote.mockResolvedValue(state);
+    among.bumpLlmCalls.mockResolvedValue(undefined);
+    among.project.mockReturnValue(fakeSnapshot);
 
-  const gw = gatewayWith();
-  let resolvePickVote!: (v: string | null) => void;
-  const pending = new Promise<string | null>((resolve) => {
-    resolvePickVote = resolve;
-  });
-  const pickVote = jest.fn().mockReturnValue(pending);
-  (gw as any).aiChat = { enabled: true, pickVote, say: jest.fn() };
+    const gw = gatewayWith();
+    let resolvePickVote!: (v: string | null) => void;
+    const pending = new Promise<string | null>((resolve) => {
+      resolvePickVote = resolve;
+    });
+    const pickVote = jest.fn().mockReturnValue(pending);
+    (gw as any).aiChat = { enabled: true, pickVote, say: jest.fn() };
 
-  const p1 = (gw as any).castAiVote("pt1", "ai-1");
-  // Dispatched again before the first pickVote round-trip resolved — must be a no-op.
-  const p2 = (gw as any).castAiVote("pt1", "ai-1");
+    const p1 = (gw as any).castAiVote("pt1", "ai-1");
+    // Dispatched again before the first pickVote round-trip resolved — must be a no-op.
+    const p2 = (gw as any).castAiVote("pt1", "ai-1");
 
-  resolvePickVote("pf1");
-  await p1;
-  await p2;
+    // 즉시 몰표 방지 지연(최대 10s)을 흘려보낸 뒤에야 pickVote가 호출된다.
+    await jest.advanceTimersByTimeAsync(10000);
+    resolvePickVote("pf1");
+    await p1;
+    await p2;
 
-  expect(pickVote).toHaveBeenCalledTimes(1);
-  expect(among.vote).toHaveBeenCalledTimes(1);
+    expect(pickVote).toHaveBeenCalledTimes(1);
+    expect(among.vote).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it("castAiVote는 완료 후(finally) in-flight 표시를 해제해 다음 호출은 다시 실행된다", async () => {
-  const state = votingStateWith();
-  among.current.mockResolvedValue(state);
-  among.vote.mockResolvedValue(state);
-  among.bumpLlmCalls.mockResolvedValue(undefined);
-  among.project.mockReturnValue(fakeSnapshot);
+  jest.useFakeTimers();
+  try {
+    const state = votingStateWith();
+    among.current.mockResolvedValue(state);
+    among.vote.mockResolvedValue(state);
+    among.bumpLlmCalls.mockResolvedValue(undefined);
+    among.project.mockReturnValue(fakeSnapshot);
 
-  const gw = gatewayWith();
-  const pickVote = jest.fn().mockResolvedValue("pf1");
-  (gw as any).aiChat = { enabled: true, pickVote, say: jest.fn() };
+    const gw = gatewayWith();
+    const pickVote = jest.fn().mockResolvedValue("pf1");
+    (gw as any).aiChat = { enabled: true, pickVote, say: jest.fn() };
 
-  await (gw as any).castAiVote("pt1", "ai-1");
-  await (gw as any).castAiVote("pt1", "ai-1");
+    const p1 = (gw as any).castAiVote("pt1", "ai-1");
+    await jest.advanceTimersByTimeAsync(10000);
+    await p1;
 
-  expect(pickVote).toHaveBeenCalledTimes(2);
-  expect(among.vote).toHaveBeenCalledTimes(2);
+    const p2 = (gw as any).castAiVote("pt1", "ai-1");
+    await jest.advanceTimersByTimeAsync(10000);
+    await p2;
+
+    expect(pickVote).toHaveBeenCalledTimes(2);
+    expect(among.vote).toHaveBeenCalledTimes(2);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it("party:leave가 마지막 멤버면 chatBuf를 정리한다", async () => {
@@ -875,6 +892,104 @@ it("sayAsAi는 재검증을 통과하면 party:message를 방송한다", async (
       "party:message",
       expect.objectContaining({ partyId: "pt1", profileId: "ai-1" }),
     );
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// C1 — 회의 소집 시 AI 발화 파견 (스펙 §4)
+// ---------------------------------------------------------------------------
+
+function meetingStateWithMixedAis(): any {
+  return {
+    sessionId: "ag1",
+    phase: "meeting" as const,
+    players: [
+      {
+        profileId: "ai-1",
+        name: "AI1",
+        role: "impostor" as const,
+        alive: true,
+        isBot: true,
+        isAi: true,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+      {
+        profileId: "ai-2",
+        name: "AI2",
+        role: "impostor" as const,
+        alive: true,
+        isBot: true,
+        isAi: true,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+      {
+        // 이미 죽은 AI는 발화 대상이 아니다.
+        profileId: "ai-3",
+        name: "AI3",
+        role: "impostor" as const,
+        alive: false,
+        isBot: true,
+        isAi: true,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+      {
+        profileId: "p1",
+        name: "P1",
+        role: "crew" as const,
+        alive: true,
+        isBot: false,
+        isAi: false,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+    ],
+    tasks: [],
+    bodies: [{ profileId: "p2", x: 0.5, y: 0.5, reported: true }],
+    meeting: {
+      reason: "report" as const,
+      calledBy: "p1",
+      bodyProfileId: "p2",
+      discussionEndsAt: 555000,
+      voteEndsAt: 585000,
+      votes: {},
+    },
+    lastEjected: null,
+    result: null,
+    nextAutoMeetingAt: 0,
+    ai: { llmCalls: 0, bots: {} },
+  };
+}
+
+it("among:report로 회의가 소집되면(리브로드캐스트 시점) 생존 AI 수만큼 sayAsAi 발화가 스케줄된다", async () => {
+  jest.useFakeTimers();
+  try {
+    party.assertParticipant.mockResolvedValueOnce("p1");
+    const state = meetingStateWithMixedAis();
+    among.report.mockResolvedValueOnce(state);
+    among.project.mockReturnValue(fakeSnapshot);
+
+    const gw = gatewayWith();
+    const sayAsAiSpy = jest.spyOn(gw as any, "sayAsAi").mockResolvedValue(undefined);
+    const client = clientWith("u1");
+
+    await gw.handleAmongReport(client, { partyId: "pt1", bodyProfileId: "p2" });
+    // 랜덤 지연 상한(8s)까지 흘려보내면 생존 AI(ai-1, ai-2) 각각 1회씩만 스케줄되어야 한다
+    // — 죽은 ai-3과 인간 p1은 대상이 아니다.
+    await jest.advanceTimersByTimeAsync(8000);
+
+    expect(sayAsAiSpy).toHaveBeenCalledTimes(2);
+    expect(sayAsAiSpy).toHaveBeenCalledWith("pt1", "ai-1", "meeting");
+    expect(sayAsAiSpy).toHaveBeenCalledWith("pt1", "ai-2", "meeting");
+
+    // 같은 회의(discussionEndsAt 동일)를 다시 리브로드캐스트해도 중복 파견하지 않는다.
+    (gw as any).dispatchMeetingAiSpeech("pt1", state);
+    await jest.advanceTimersByTimeAsync(8000);
+    expect(sayAsAiSpy).toHaveBeenCalledTimes(2);
   } finally {
     jest.useRealTimers();
   }
