@@ -1,12 +1,21 @@
 /**
- * among-bots.mjs — AI bot runner for MingleAI "Among Us" party minigame (Phase 6d).
+ * among-bots.mjs — human-crew bot runner for MingleAI "AI를 찾아라" party minigame.
  *
  * Usage:
- *   node tools/among-bots.mjs <count> [--start] [--party <id>] [--token-file <path>]
+ *   node tools/among-bots.mjs <count> [--start] [--hunt] [--party <id>] [--token-file <path>]
+ *
+ * 2026-07-20 rule change: every human (including these bots) plays crew — the
+ * impostors are 2 AI personas (profileId prefixed "ai-", never party members) driven
+ * entirely server-side by the AiImpostorBrain sweep. These bots never kill; they only
+ * do tasks and vote in meetings.
  *
  * Default: registers <count> bots, queues them for matchmaking, waits for a party,
- * then connects them all via Socket.IO and plays a full Among Us game.
+ * then connects them all via Socket.IO and plays a full game as crew.
  * --start: first bot emits among:start once enough players are in the party.
+ * --hunt: in meetings, vote for an alive player who isn't one of this run's known
+ *   bot/human profileIds (i.e. an AI impostor) — convenient for manually testing that
+ *   ejecting the AI actually wins the game. Without --hunt, voting stays random/skip
+ *   (unchanged behavior).
  * --party <id>: skip matchmaking, use a known partyId (bots still register/login).
  * --token-file <path>: JSON array of {email,token,profileId} to skip registration.
  */
@@ -27,18 +36,26 @@ const { io: socketIo } = await import(SIO_PATH);
 // ─── CLI args ──────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
 const count = parseInt(argv[0] ?? "4", 10);
-if (isNaN(count) || count < 1) { console.error("Usage: node among-bots.mjs <count> [--start] [--party <id>]"); process.exit(1); }
+if (isNaN(count) || count < 1) {
+  console.error("Usage: node among-bots.mjs <count> [--start] [--hunt] [--party <id>]");
+  process.exit(1);
+}
 
 let flagStart = false;
 let flagPartyId = null;
 let flagTokenFile = null;
 let flagPassive = false;
+let flagHunt = false;
 
 for (let i = 1; i < argv.length; i++) {
   if (argv[i] === "--start") flagStart = true;
   else if (argv[i] === "--passive") flagPassive = true;
-  else if (argv[i] === "--party" && argv[i + 1]) { flagPartyId = argv[++i]; }
-  else if (argv[i] === "--token-file" && argv[i + 1]) { flagTokenFile = argv[++i]; }
+  else if (argv[i] === "--hunt") flagHunt = true;
+  else if (argv[i] === "--party" && argv[i + 1]) {
+    flagPartyId = argv[++i];
+  } else if (argv[i] === "--token-file" && argv[i + 1]) {
+    flagTokenFile = argv[++i];
+  }
 }
 
 const BASE = process.env.BASE ?? "http://localhost:3000";
@@ -52,8 +69,13 @@ async function apiFetch(path, opts = {}) {
   const res = await fetch(`${BASE}${path}`, opts);
   const text = await res.text();
   let body;
-  try { body = JSON.parse(text); } catch { body = text; }
-  if (!res.ok) throw new Error(`${opts.method ?? "GET"} ${path} → ${res.status}: ${JSON.stringify(body)}`);
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = text;
+  }
+  if (!res.ok)
+    throw new Error(`${opts.method ?? "GET"} ${path} → ${res.status}: ${JSON.stringify(body)}`);
   return body;
 }
 
@@ -90,11 +112,13 @@ function spawnFor(profileId) {
   return clampToRoom({ x: 0.15 + gx * 0.7, y: 0.15 + gy * 0.7 });
 }
 
-function dist2(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function dist2(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
 
 // ─── Bot registration / matchmaking ────────────────────────────────────────
 const NAMES = ["지민", "서준", "하윤", "도현", "수아", "예은", "민재", "지우"];
-const JOBS  = ["디자이너", "개발자", "마케터", "교사", "간호사", "바리스타", "PD", "요리사"];
+const JOBS = ["디자이너", "개발자", "마케터", "교사", "간호사", "바리스타", "PD", "요리사"];
 const GENDERS = ["male", "female"];
 
 const rid = Date.now().toString(36);
@@ -158,9 +182,8 @@ async function pollStatus(bot, i, maxWaitMs = 60_000) {
 
 // ─── Per-bot Socket.IO game player ─────────────────────────────────────────
 
-function createBotPlayer({ bot, botIndex, partyId, isFirstBot }) {
+function createBotPlayer({ bot, botIndex, partyId, isFirstBot, knownProfileIds }) {
   let myPos = spawnFor(bot.profileId);
-  const others = new Map(); // profileId → {x, y}
 
   let snapshot = null; // latest AmongSnapshot
   let lastMoveAt = 0;
@@ -191,7 +214,7 @@ function createBotPlayer({ bot, botIndex, partyId, isFirstBot }) {
 
   function tick() {
     if (!snapshot || !joined) return;
-    const { phase, myRole, myProfileId, players, myTasks, bodies, killCooldownUntil, meeting, result } = snapshot;
+    const { phase, myProfileId, players, myTasks, meeting, result } = snapshot;
 
     // Log and exit on result
     if (result && !resultLogged) {
@@ -203,86 +226,46 @@ function createBotPlayer({ bot, botIndex, partyId, isFirstBot }) {
     const mePlayer = players.find((p) => p.profileId === myProfileId);
     const amAlive = mePlayer?.alive ?? false;
 
-    // Passive mode: bots idle (never task/kill/vote) so the game stays in "playing" —
+    // Passive mode: bots idle (never task/vote) so the game stays in "playing" —
     // used to hold a game open for manual/browser inspection of the in-game UI.
     if (flagPassive) return;
 
+    // Every human (these bots included) plays crew — the 2 AI impostor personas are
+    // driven entirely server-side (AiImpostorBrain sweep), so there is no kill branch
+    // here anymore. The only playing-phase action left is doing tasks.
     if (phase === "playing" && amAlive) {
-      if (myRole === "crew") {
-        // Find nearest undone task
-        const undone = myTasks.filter((t) => !t.done && !doneTaskIds.has(t.taskId));
-        if (undone.length === 0) return; // all tasks done
+      const undone = myTasks.filter((t) => !t.done && !doneTaskIds.has(t.taskId));
+      if (undone.length === 0) return; // all tasks done
 
-        undone.sort((a, b) => dist2(myPos, a) - dist2(myPos, b));
-        const target = undone[0];
-        myPos = stepToward(myPos, target, 150);
-        emitMove();
+      undone.sort((a, b) => dist2(myPos, a) - dist2(myPos, b));
+      const target = undone[0];
+      myPos = stepToward(myPos, target, 150);
+      emitMove();
 
-        // If within task range, complete it (400ms debounce per task)
-        if (dist2(myPos, target) < 0.10) {
-          if (!doneTaskIds.has(target.taskId + "_pending")) {
-            doneTaskIds.add(target.taskId + "_pending");
-            const capturedTaskId = target.taskId;
-            const capturedKind = target.kind;
-            const capturedX = target.x;
-            const capturedY = target.y;
-            setTimeout(() => {
+      // If within task range, complete it (400ms debounce per task)
+      if (dist2(myPos, target) < 0.1) {
+        if (!doneTaskIds.has(target.taskId + "_pending")) {
+          doneTaskIds.add(target.taskId + "_pending");
+          const capturedTaskId = target.taskId;
+          const capturedKind = target.kind;
+          const capturedX = target.x;
+          const capturedY = target.y;
+          setTimeout(
+            () => {
               if (doneTaskIds.has(capturedTaskId)) return; // already done
               // Guard: only emit if still in playing phase
               if (!snapshot || snapshot.phase !== "playing" || snapshot.result) return;
               doneTaskIds.add(capturedTaskId);
-              socket.emit("among:task", { partyId, taskId: capturedTaskId, x: capturedX, y: capturedY });
+              socket.emit("among:task", {
+                partyId,
+                taskId: capturedTaskId,
+                x: capturedX,
+                y: capturedY,
+              });
               log(tag, `task complete: ${capturedTaskId} (kind=${capturedKind})`);
-            }, 400 + Math.random() * 200);
-          }
-        }
-
-      } else if (myRole === "impostor") {
-        // Find nearest alive crew (not myself)
-        const aliveCrew = players.filter(
-          (p) => p.alive && p.profileId !== myProfileId && p.role !== "impostor"
-        );
-
-        if (aliveCrew.length === 0) return;
-
-        // Get positions (from party:moved events, fallback to spawnFor)
-        aliveCrew.sort((a, b) => {
-          const posA = others.get(a.profileId) ?? spawnFor(a.profileId);
-          const posB = others.get(b.profileId) ?? spawnFor(b.profileId);
-          return dist2(myPos, posA) - dist2(myPos, posB);
-        });
-
-        const targetPlayer = aliveCrew[0];
-        const targetPos = others.get(targetPlayer.profileId) ?? spawnFor(targetPlayer.profileId);
-
-        myPos = stepToward(myPos, targetPos, 150);
-        emitMove();
-
-        const killRange = 0.12;
-        const now = Date.now();
-        const canKill = killCooldownUntil === null || killCooldownUntil <= now;
-
-        if (dist2(myPos, targetPos) < killRange && canKill) {
-          socket.emit("among:kill", {
-            partyId,
-            targetProfileId: targetPlayer.profileId,
-            x: targetPos.x,
-            y: targetPos.y,
-          });
-          log(tag, `KILL → ${targetPlayer.profileId.slice(-6)} (${targetPlayer.name})`);
-        }
-
-        // Report nearby unreported body
-        for (const body of bodies) {
-          if (dist2(myPos, body) < killRange) {
-            // Impostor can also report (makes them look innocent)
-            // Only report occasionally to seem natural
-            if (Math.random() < 0.1) {
-              socket.emit("among:report", { partyId, bodyProfileId: body.profileId });
-              log(tag, `report body: ${body.profileId.slice(-6)}`);
-              break;
-            }
-          }
+            },
+            400 + Math.random() * 200,
+          );
         }
       }
     }
@@ -295,20 +278,35 @@ function createBotPlayer({ bot, botIndex, partyId, isFirstBot }) {
         }
         if (!hasVoted) {
           hasVoted = true;
-          // Pick a random alive player to vote, or skip 30% of the time
           const alivePlayers = players.filter((p) => p.alive && p.profileId !== myProfileId);
-          setTimeout(() => {
-            // Guard: only emit if still in voting phase and game not ended
-            if (!snapshot || snapshot.phase !== "voting" || snapshot.result) return;
-            let target;
-            if (Math.random() < 0.3 || alivePlayers.length === 0) {
-              target = "skip";
-            } else {
-              target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)].profileId;
-            }
-            socket.emit("among:vote", { partyId, targetProfileId: target });
-            log(tag, `vote → ${target === "skip" ? "skip" : target.slice(-6)}`);
-          }, 500 + Math.random() * 2000);
+          setTimeout(
+            () => {
+              // Guard: only emit if still in voting phase and game not ended
+              if (!snapshot || snapshot.phase !== "voting" || snapshot.result) return;
+              let target;
+              if (flagHunt) {
+                // --hunt: AI impostor personas never go through party:join, so they're
+                // never part of this run's known bot/human roster — vote for one of
+                // those if any are still alive, otherwise fall back to random/skip.
+                const aiSuspects = alivePlayers.filter((p) => !knownProfileIds.has(p.profileId));
+                if (aiSuspects.length > 0) {
+                  target = aiSuspects[Math.floor(Math.random() * aiSuspects.length)].profileId;
+                } else if (Math.random() < 0.3 || alivePlayers.length === 0) {
+                  target = "skip";
+                } else {
+                  target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)].profileId;
+                }
+              } else if (Math.random() < 0.3 || alivePlayers.length === 0) {
+                // Pick a random alive player to vote, or skip 30% of the time
+                target = "skip";
+              } else {
+                target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)].profileId;
+              }
+              socket.emit("among:vote", { partyId, targetProfileId: target });
+              log(tag, `vote → ${target === "skip" ? "skip" : target.slice(-6)}`);
+            },
+            500 + Math.random() * 2000,
+          );
         }
       }
     }
@@ -353,12 +351,6 @@ function createBotPlayer({ bot, botIndex, partyId, isFirstBot }) {
 
   socket.on("party:presence", (data) => {
     log(tag, `presence → ${data.members?.length ?? 0} members`);
-  });
-
-  socket.on("party:moved", (data) => {
-    if (data?.profileId && data.profileId !== bot.profileId) {
-      others.set(data.profileId, { x: data.x, y: data.y });
-    }
   });
 
   socket.on("among:state", (data) => {
@@ -416,8 +408,12 @@ function createBotPlayer({ bot, botIndex, partyId, isFirstBot }) {
       if (tickInterval) clearInterval(tickInterval);
       socket.disconnect();
     },
-    getSnapshot() { return snapshot; },
-    isResultLogged() { return resultLogged; },
+    getSnapshot() {
+      return snapshot;
+    },
+    isResultLogged() {
+      return resultLogged;
+    },
   };
 }
 
@@ -460,7 +456,10 @@ async function main() {
     let bestParty = null;
     let bestCount = 0;
     for (const [pid, cnt] of tally) {
-      if (cnt > bestCount) { bestParty = pid; bestCount = cnt; }
+      if (cnt > bestCount) {
+        bestParty = pid;
+        bestCount = cnt;
+      }
     }
 
     if (!bestParty) {
@@ -482,13 +481,16 @@ async function main() {
 
   // Step 3: Connect all bots via Socket.IO
   log("main", `connecting ${bots.length} bots to party ${partyId}...`);
+  // AI impostor personas never register/party:join — anything not in this set is AI.
+  const knownProfileIds = new Set(bots.map((b) => b.profileId));
   const players = bots.map((bot, i) =>
     createBotPlayer({
       bot,
       botIndex: i,
       partyId,
       isFirstBot: i === 0,
-    })
+      knownProfileIds,
+    }),
   );
 
   // Step 4: Wait for game result or timeout
@@ -508,7 +510,10 @@ async function main() {
         log("main", `reason: ${withResult.result.reason}`);
         log("main", `players:`);
         for (const p of withResult.players) {
-          log("main", `  ${p.name} (${p.profileId.slice(-6)}) alive=${p.alive} role=${p.role ?? "hidden"}`);
+          log(
+            "main",
+            `  ${p.name} (${p.profileId.slice(-6)}) alive=${p.alive} role=${p.role ?? "hidden"}`,
+          );
         }
         clearInterval(check);
         resolve();
@@ -520,7 +525,10 @@ async function main() {
         for (let i = 0; i < players.length; i++) {
           const s = players[i].getSnapshot();
           if (s) {
-            log(`bot${i}`, `phase=${s.phase} role=${s.myRole} alive=${s.players.find(p=>p.profileId===s.myProfileId)?.alive} tasks=${s.progress.done}/${s.progress.total}`);
+            log(
+              `bot${i}`,
+              `phase=${s.phase} role=${s.myRole} alive=${s.players.find((p) => p.profileId === s.myProfileId)?.alive} tasks=${s.progress.done}/${s.progress.total}`,
+            );
           } else {
             log(`bot${i}`, "no snapshot received");
           }

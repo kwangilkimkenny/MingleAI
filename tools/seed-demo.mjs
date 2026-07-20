@@ -109,7 +109,6 @@ const get = (p, token) =>
 const ROOM_MARGIN = 0.06;
 const MOVE_SPEED = 0.35; // normalized units/sec
 const TASK_RANGE = 0.1;
-const KILL_RANGE = 0.12;
 
 function clampToRoom(p) {
   const clamp = (v) => Math.min(Math.max(v, ROOM_MARGIN), 1 - ROOM_MARGIN);
@@ -228,8 +227,6 @@ async function createBot(seed) {
     gameState: null,
     amongState: null,
     lastSessionId: undefined,
-    gameStartedAt: null,
-    hasKilledOnce: false,
     lastTaskAt: 0,
     doneTaskIds: new Set(),
     votedThisMeeting: false,
@@ -430,12 +427,9 @@ function connectBotSocket(bot) {
 
     if (snap.sessionId !== prevSession) {
       bot.doneTaskIds = new Set();
-      bot.hasKilledOnce = false;
-      bot.gameStartedAt = snap.phase === "playing" ? Date.now() : null;
       bot.votedThisMeeting = false;
       if (snap.myRole) log(bot.tag, `among role revealed: ${snap.myRole}`);
     }
-    if (snap.phase === "playing" && !bot.gameStartedAt) bot.gameStartedAt = Date.now();
 
     if (snap.phase === "voting" && prevPhase !== "voting") {
       bot.votedThisMeeting = false;
@@ -491,8 +485,9 @@ function scheduleWander(bot) {
   );
 }
 
-// Among Us pacing tick (global, runs every 2s): crew does one task every ~15s,
-// impostor waits until the game has run >90s before its single kill.
+// Among Us pacing tick (global, runs every 2s): every human bot plays crew and does
+// one task every ~15s. The 2 AI impostor personas are driven entirely server-side
+// (AiImpostorBrain sweep) — bots never kill.
 function amongPacingTick() {
   for (const bot of bots) {
     if (!bot.socket?.connected || !partyTags.includes(bot.tag)) continue;
@@ -502,52 +497,24 @@ function amongPacingTick() {
     if (!me?.alive) continue;
     const now = Date.now();
 
-    if (snap.myRole === "crew") {
-      if (now - bot.lastTaskAt < 15000) continue;
-      const undone = (snap.myTasks ?? []).filter((t) => !t.done && !bot.doneTaskIds.has(t.taskId));
-      if (!undone.length) continue;
-      undone.sort((a, b) => dist2(bot.pos, a) - dist2(bot.pos, b));
-      const target = undone[0];
-      bot.pos = clampToRoom(stepToward(bot.pos, target, 2000));
-      positions.set(bot.profileId, bot.pos);
-      bot.socket.emit("party:move", { partyId, x: bot.pos.x, y: bot.pos.y });
-      if (dist2(bot.pos, target) < TASK_RANGE) {
-        bot.doneTaskIds.add(target.taskId);
-        bot.lastTaskAt = now;
-        bot.socket.emit("among:task", {
-          partyId,
-          taskId: target.taskId,
-          x: target.x,
-          y: target.y,
-        });
-        log(bot.tag, `task complete: ${target.taskId}`);
-      }
-    } else if (snap.myRole === "impostor") {
-      if (bot.hasKilledOnce) continue;
-      const elapsed = bot.gameStartedAt ? now - bot.gameStartedAt : 0;
-      if (elapsed < 90000) continue; // slow-play: no kill before the game has run 90s
-      const aliveOthers = snap.players.filter((p) => p.alive && p.profileId !== bot.profileId);
-      if (!aliveOthers.length) continue;
-      aliveOthers.sort((a, b) => {
-        const posA = positions.get(a.profileId) ?? spawnFor(a.profileId);
-        const posB = positions.get(b.profileId) ?? spawnFor(b.profileId);
-        return dist2(bot.pos, posA) - dist2(bot.pos, posB);
+    if (now - bot.lastTaskAt < 15000) continue;
+    const undone = (snap.myTasks ?? []).filter((t) => !t.done && !bot.doneTaskIds.has(t.taskId));
+    if (!undone.length) continue;
+    undone.sort((a, b) => dist2(bot.pos, a) - dist2(bot.pos, b));
+    const target = undone[0];
+    bot.pos = clampToRoom(stepToward(bot.pos, target, 2000));
+    positions.set(bot.profileId, bot.pos);
+    bot.socket.emit("party:move", { partyId, x: bot.pos.x, y: bot.pos.y });
+    if (dist2(bot.pos, target) < TASK_RANGE) {
+      bot.doneTaskIds.add(target.taskId);
+      bot.lastTaskAt = now;
+      bot.socket.emit("among:task", {
+        partyId,
+        taskId: target.taskId,
+        x: target.x,
+        y: target.y,
       });
-      const target = aliveOthers[0];
-      const targetPos = positions.get(target.profileId) ?? spawnFor(target.profileId);
-      bot.pos = clampToRoom(stepToward(bot.pos, targetPos, 2000));
-      positions.set(bot.profileId, bot.pos);
-      bot.socket.emit("party:move", { partyId, x: bot.pos.x, y: bot.pos.y });
-      if (dist2(bot.pos, targetPos) < KILL_RANGE) {
-        bot.hasKilledOnce = true;
-        bot.socket.emit("among:kill", {
-          partyId,
-          targetProfileId: target.profileId,
-          x: bot.pos.x,
-          y: bot.pos.y,
-        });
-        log(bot.tag, `KILL → ${target.profileId.slice(-6)}`);
-      }
+      log(bot.tag, `task complete: ${target.taskId}`);
     }
   }
 }
@@ -685,11 +652,19 @@ function printChecklist() {
   console.log("");
   console.log("☐ 사람이 직접 UI에서 확인할 시나리오:");
   console.log("  1. 파티 입장 → 봇 3명(서연/도윤/하은)과 실시간 채팅/이동 확인");
-  console.log("     ⚠ 사람이 4번째로 입장하는 순간 어몽어스가 자동 시작됨(수동 시작 버튼 없음, 2a446fc)");
-  console.log("  2. (자동 시작된) 어몽어스 → 크루 태스크/임포스터 킬/신고/회의/투표 전 과정 진행");
-  console.log("     (봇: 크루는 ~15초마다 태스크 1개, 임포스터는 게임 90초 경과 후 1회만 킬)");
-  console.log("  3. 어몽어스가 끝난 뒤 밸런스 게임 시작 → 5라운드 전체 플레이 (봇이 자동으로 투표)");
-  console.log("     (파티당 ACTIVE 세션은 하나뿐 — 어몽 진행 중엔 밸런스 시작이 already-active로 거부됨)");
+  console.log(
+    "     ⚠ 사람이 4번째로 입장하는 순간 어몽어스가 자동 시작됨(수동 시작 버튼 없음, 2a446fc)",
+  );
+  console.log("  2. (자동 시작된) 어몽어스 → 태스크/AI 임포스터 킬/신고/회의/투표 전 과정 진행");
+  console.log(
+    "     (인간 4명은 전원 크루 — 봇은 ~15초마다 태스크 1개. 임포스터 2명은 AI 페르소나로 서버가 이동/킬/투표까지 자동 진행)",
+  );
+  console.log(
+    "  3. 어몽어스가 끝난 뒤 밸런스 게임 시작 → 5라운드 전체 플레이 (봇이 자동으로 투표)",
+  );
+  console.log(
+    "     (파티당 ACTIVE 세션은 하나뿐 — 어몽 진행 중엔 밸런스 시작이 already-active로 거부됨)",
+  );
   console.log("  4. 알림 탭에서 match/message 알림 확인");
   console.log("  5. 프로포즈 탭에서 도윤의 PENDING 프로포즈 수락");
   console.log("  6. 채팅 탭에서 서연과의 대화 열고 답장 보내기 (봇이 20초 내 1회 응답)");
