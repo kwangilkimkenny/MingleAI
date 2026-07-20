@@ -12,6 +12,12 @@ export interface AmongConfig {
   voteMs: number;
   emergencyPerPlayer: number;
   sweepMs: number;
+  aiCount: number;
+  autoMeetingMs: number;
+  aiRequireLlm: boolean;
+  aiLlmMaxCalls: number;
+  aiChatMinMs: number;
+  aiChatMaxMs: number;
 }
 
 function intOr(raw: string | undefined, def: number, { min = 1 } = {}): number {
@@ -22,6 +28,12 @@ function intOr(raw: string | undefined, def: number, { min = 1 } = {}): number {
 function floatUnit(raw: string | undefined, def: number): number {
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 && n <= 1 ? n : def;
+}
+
+function boolOr(raw: string | undefined, def: boolean): boolean {
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  return def;
 }
 
 @Injectable()
@@ -39,6 +51,12 @@ export class AmongConfigProvider {
       voteMs: intOr(config.get("AMONG_VOTE_MS"), 30000, { min: 3000 }),
       emergencyPerPlayer: intOr(config.get("AMONG_EMERGENCY_PER_PLAYER"), 1, { min: 0 }),
       sweepMs: intOr(config.get("AMONG_SWEEP_MS"), 1000, { min: 250 }),
+      aiCount: intOr(config.get("AMONG_AI_COUNT"), 2, { min: 1 }),
+      autoMeetingMs: intOr(config.get("AMONG_AUTO_MEETING_MS"), 120000, { min: 10000 }),
+      aiRequireLlm: boolOr(config.get("AMONG_AI_REQUIRE_LLM"), true),
+      aiLlmMaxCalls: intOr(config.get("AMONG_AI_LLM_MAX_CALLS"), 60, { min: 0 }),
+      aiChatMinMs: intOr(config.get("AMONG_AI_CHAT_MIN_MS"), 60000, { min: 1000 }),
+      aiChatMaxMs: intOr(config.get("AMONG_AI_CHAT_MAX_MS"), 90000, { min: 1000 }),
     };
   }
 }

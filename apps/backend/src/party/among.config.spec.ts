@@ -18,6 +18,12 @@ describe("AmongConfigProvider", () => {
       voteMs: 30000,
       emergencyPerPlayer: 1,
       sweepMs: 1000,
+      aiCount: 2,
+      autoMeetingMs: 120000,
+      aiRequireLlm: true,
+      aiLlmMaxCalls: 60,
+      aiChatMinMs: 60000,
+      aiChatMaxMs: 90000,
     });
   });
 
@@ -59,5 +65,24 @@ describe("AmongConfigProvider", () => {
   it("AMONG_KILL_RANGE='0.2' → 0.2 (valid override)", () => {
     const p = new AmongConfigProvider(makeConfig({ AMONG_KILL_RANGE: "0.2" }));
     expect(p.value.killRange).toBe(0.2);
+  });
+
+  it("AI 게임 기본값: aiCount=2, autoMeetingMs=120000, aiRequireLlm=true, maxCalls=60, chat 60~90s", () => {
+    const p = new AmongConfigProvider(makeConfig({}));
+    expect(p.value.aiCount).toBe(2);
+    expect(p.value.autoMeetingMs).toBe(120000);
+    expect(p.value.aiRequireLlm).toBe(true);
+    expect(p.value.aiLlmMaxCalls).toBe(60);
+    expect(p.value.aiChatMinMs).toBe(60000);
+    expect(p.value.aiChatMaxMs).toBe(90000);
+  });
+
+  it("AMONG_AI_REQUIRE_LLM='false'만 false, 그 외 문자열은 기본 true", () => {
+    expect(new AmongConfigProvider(makeConfig({ AMONG_AI_REQUIRE_LLM: "false" })).value.aiRequireLlm).toBe(false);
+    expect(new AmongConfigProvider(makeConfig({ AMONG_AI_REQUIRE_LLM: "no" })).value.aiRequireLlm).toBe(true);
+  });
+
+  it("AMONG_AI_COUNT 범위 밖('0')은 기본 2로 클램프", () => {
+    expect(new AmongConfigProvider(makeConfig({ AMONG_AI_COUNT: "0" })).value.aiCount).toBe(2);
   });
 });
