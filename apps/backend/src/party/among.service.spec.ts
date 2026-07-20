@@ -1280,6 +1280,71 @@ describe("sweepMeetings", () => {
 });
 
 // ---------------------------------------------------------------------------
+// sweepAutoMeetings
+// ---------------------------------------------------------------------------
+
+describe("sweepAutoMeetings", () => {
+  function seedRow(id: string, partyId: string, state: AmongState) {
+    const row = { id, partyId, gameType: "among", status: "active", state };
+    mockStore.push(row);
+    return row;
+  }
+
+  beforeEach(() => {
+    gameSession.update.mockResolvedValue({});
+    gameSession.findFirst.mockImplementation(({ where }: any) => {
+      const row = mockStore.find(
+        (r) =>
+          r.partyId === where.partyId &&
+          r.status === (where.status ?? r.status) &&
+          r.gameType === (where.gameType ?? r.gameType),
+      );
+      return Promise.resolve(row ?? null);
+    });
+  });
+
+  it("기한 도달한 playing 파티에 auto 회의를 소집한다", async () => {
+    const state = buildPlayingState({ nextAutoMeetingAt: Date.now() - 1000 });
+    seedRow("g1", "pt1", state);
+    gameSession.update.mockImplementation(async ({ data }: any) => data);
+
+    const advanced = await service.sweepAutoMeetings();
+    expect(advanced).toContain("pt1");
+    expect(state.phase).toBe("meeting");
+    expect(state.meeting?.reason).toBe("auto");
+  });
+
+  it("기한 전이면 건드리지 않는다", async () => {
+    const state = buildPlayingState({ nextAutoMeetingAt: Date.now() + 60000 });
+    seedRow("g1", "pt1", state);
+
+    const advanced = await service.sweepAutoMeetings();
+    expect(advanced).toHaveLength(0);
+    expect(state.phase).toBe("playing");
+  });
+
+  it("회의 해소 후 nextAutoMeetingAt이 미래로 리셋된다", async () => {
+    const state = buildPlayingState();
+    state.phase = "voting";
+    state.meeting = {
+      reason: "auto",
+      calledBy: "",
+      phase: "voting",
+      discussionEndsAt: Date.now() - 20000,
+      voteEndsAt: Date.now() - 1000,
+      votes: {},
+    } as any;
+    state.nextAutoMeetingAt = 0;
+    seedRow("g1", "pt1", state);
+    gameSession.update.mockImplementation(async ({ data }: any) => data);
+
+    await service.sweepMeetings();
+    expect(state.phase).toBe("playing");
+    expect(state.nextAutoMeetingAt).toBeGreaterThan(Date.now());
+  });
+});
+
+// ---------------------------------------------------------------------------
 // dead-crew task exclusion (QA ISSUE-002): dead players' pending tasks must not
 // block the crew task win, or the game can deadlock (dead crew can't act).
 // ---------------------------------------------------------------------------

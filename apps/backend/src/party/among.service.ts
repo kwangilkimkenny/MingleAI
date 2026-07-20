@@ -38,7 +38,7 @@ export interface AmongState {
   }[];
   bodies: { profileId: string; x: number; y: number; reported: boolean }[];
   meeting: {
-    reason: "report" | "emergency";
+    reason: "report" | "emergency" | "auto";
     calledBy: string;
     bodyProfileId?: string;
     discussionEndsAt: number;
@@ -426,6 +426,7 @@ export class AmongService {
         votes: {},
       };
       state.phase = "meeting";
+      state.nextAutoMeetingAt = now + this.config.value.autoMeetingMs;
 
       await tx.gameSession.update({
         where: { id: row.id },
@@ -468,6 +469,7 @@ export class AmongService {
         votes: {},
       };
       state.phase = "meeting";
+      state.nextAutoMeetingAt = now + this.config.value.autoMeetingMs;
 
       await tx.gameSession.update({
         where: { id: row.id },
@@ -600,6 +602,49 @@ export class AmongService {
       }
     }
 
+    return advanced;
+  }
+
+  // -------------------------------------------------------------------------
+  // sweepAutoMeetings
+  // -------------------------------------------------------------------------
+
+  /** 주기 자동 회의: playing && now >= nextAutoMeetingAt 인 파티에 reason "auto" 회의 소집. */
+  async sweepAutoMeetings(): Promise<string[]> {
+    const rows = await this.prisma.gameSession.findMany({
+      where: { status: "active", gameType: "among" },
+    });
+    const advanced: string[] = [];
+    for (const row of rows) {
+      const outer = row.state as unknown as AmongState;
+      if (outer.phase !== "playing" || Date.now() < outer.nextAutoMeetingAt) continue;
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          await this.lockParty(tx, row.partyId);
+          const fresh = await this.findActiveAmong(tx, row.partyId);
+          if (!fresh) return;
+          const state = fresh.state as unknown as AmongState;
+          const now = Date.now();
+          if (state.phase !== "playing" || now < state.nextAutoMeetingAt) return;
+          state.phase = "meeting";
+          state.meeting = {
+            reason: "auto",
+            calledBy: "",
+            discussionEndsAt: now + this.config.value.discussionMs,
+            voteEndsAt: now + this.config.value.discussionMs + this.config.value.voteMs,
+            votes: {},
+          };
+          state.nextAutoMeetingAt = now + this.config.value.autoMeetingMs;
+          await tx.gameSession.update({
+            where: { id: fresh.id },
+            data: { state: state as unknown as object },
+          });
+          advanced.push(row.partyId);
+        });
+      } catch {
+        // 스윕 실패는 다음 틱에 재시도 — 게임 진행 우선
+      }
+    }
     return advanced;
   }
 
@@ -765,6 +810,7 @@ export class AmongService {
     state.phase = "playing";
     state.meeting = null;
     const now = Date.now();
+    state.nextAutoMeetingAt = now + this.config.value.autoMeetingMs;
     for (const p of state.players) {
       if (p.role === "impostor" && p.alive) {
         p.killCooldownUntil = now;
