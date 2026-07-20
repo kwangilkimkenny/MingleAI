@@ -78,4 +78,20 @@ describe("AiChatClient", () => {
     mockFetchOnce("모르겠는데요");
     expect(await c.pickVote({ persona: PERSONA, recentChat: [], candidates })).toBeNull();
   });
+
+  it("pickVote — 접두 이름 충돌 시 최장 일치 후보를 고른다", async () => {
+    const c = new AiChatClient({
+      url: "http://llm",
+      chatPath: "/v1/chat/completions",
+      apiKey: "",
+      model: "m",
+      timeoutMs: 5000,
+    });
+    const candidates = [
+      { profileId: "p1", name: "박서" },
+      { profileId: "p2", name: "박서준" },
+    ];
+    mockFetchOnce("박서준이 수상해요");
+    expect(await c.pickVote({ persona: PERSONA, recentChat: [], candidates })).toBe("p2");
+  });
 });

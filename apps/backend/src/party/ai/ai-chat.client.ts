@@ -70,7 +70,9 @@ export class AiChatClient {
       { role: "user", content: user },
     ]);
     if (!content) return null;
-    const hit = ctx.candidates.find((c) => content.includes(c.name));
+    const hit = [...ctx.candidates]
+      .sort((a, b) => b.name.length - a.name.length)
+      .find((c) => content.includes(c.name));
     return hit?.profileId ?? null;
   }
 
@@ -103,7 +105,7 @@ export function createAiChatClient(config: ConfigService): AiChatClient {
   return new AiChatClient({
     url,
     chatPath: config.get<string>("LLM_CHAT_PATH") ?? "/v1/chat/completions",
-    apiKey: config.get<string>("LLM_API_KEY") ?? "",
+    apiKey: config.get<string>("LLM_API_KEY")?.trim() ?? "",
     model: config.get<string>("LLM_MODEL") ?? "gpt-4o-mini",
     timeoutMs:
       Number(config.get("LLM_TIMEOUT_MS")) > 0 ? Number(config.get("LLM_TIMEOUT_MS")) : 5000,
