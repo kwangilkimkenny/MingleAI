@@ -90,4 +90,4 @@ export {
   solidFurniture,
   worldDist,
 } from "./party-map/map.js";
-export type { FurnitureKind, FurnitureDef, StationDef, PartyMapDef } from "./party-map/map.js";
+export type { FurnitureKind, FurnitureDef, DecoKind, DecoDef, StationDef, PartyMapDef } from "./party-map/map.js";

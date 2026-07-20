@@ -27,6 +27,18 @@ export interface FurnitureDef {
   h: number;
 }
 
+export type DecoKind = "window" | "frame" | "stringlights" | "stain";
+
+/** 비충돌 장식 레이어 — 클라 렌더 전용(충돌/좌표 판정에 미포함). */
+export interface DecoDef {
+  id: string;
+  kind: DecoKind;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /** 태스크/상호작용 스테이션 앵커 — 통행 가능 지점(가구 인접). */
 export interface StationDef {
   id: string;
@@ -41,6 +53,8 @@ export interface PartyMapDef {
   stations: readonly StationDef[];
   /** 가구 없는 스폰 영역(댄스플로어) — 정규화 rect. */
   spawnZone: { x: number; y: number; w: number; h: number };
+  /** 비충돌 장식 요소(선택) — 클라 렌더 전용. */
+  deco?: readonly DecoDef[];
 }
 
 const WALKABLE_KINDS: ReadonlySet<FurnitureKind> = new Set(["rug", "stage"]);
@@ -84,6 +98,14 @@ export const PARTY_MAP: PartyMapDef = {
     { id: "st-plant-b", x: 0.84, y: 0.72, furnitureId: "plant-b" },
   ],
   spawnZone: { x: 0.4, y: 0.26, w: 0.2, h: 0.24 },
+  deco: [
+    { id: "win-1", kind: "window", x: 0.3, y: 0.03, w: 0.12, h: 0.08 },
+    { id: "win-2", kind: "window", x: 0.5, y: 0.03, w: 0.12, h: 0.08 },
+    { id: "frame-1", kind: "frame", x: 0.16, y: 0.05, w: 0.06, h: 0.06 },
+    { id: "lights", kind: "stringlights", x: 0.05, y: 0.02, w: 0.9, h: 0.05 },
+    { id: "stain-1", kind: "stain", x: 0.46, y: 0.5, w: 0.06, h: 0.04 },
+    { id: "stain-2", kind: "stain", x: 0.2, y: 0.6, w: 0.05, h: 0.03 },
+  ],
 };
 
 /** world 계량 거리 — 렌더 aspect-fit과 일치하는 등방 거리(모바일 판정·백엔드 AI 근접 공용). */

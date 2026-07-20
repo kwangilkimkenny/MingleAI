@@ -9,6 +9,7 @@ import {
   solidFurniture,
   worldDist,
   type FurnitureDef,
+  type DecoDef,
 } from "./map.js";
 
 /** world 좌표(x×aspect, y)에서 점→AABB 최단거리. */
@@ -96,6 +97,22 @@ describe("PARTY_MAP integrity", () => {
     for (const f of solids) {
       expect(rectsOverlap(expanded, f)).toBe(false);
     }
+  });
+
+  it("deco 레이어는 방(0..1) 안에 있고 충돌 데이터가 아니다", () => {
+    const deco = PARTY_MAP.deco ?? [];
+    expect(deco.length).toBeGreaterThan(0);
+    const ids = deco.map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const d of deco) {
+      expect(d.x).toBeGreaterThanOrEqual(0);
+      expect(d.y).toBeGreaterThanOrEqual(0);
+      expect(d.x + d.w).toBeLessThanOrEqual(1);
+      expect(d.y + d.h).toBeLessThanOrEqual(1);
+    }
+    // deco는 solidFurniture에 절대 섞이지 않는다(충돌 무관)
+    const solidIds = new Set(solidFurniture().map((f) => f.id));
+    for (const d of deco) expect(solidIds.has(d.id)).toBe(false);
   });
 });
 
