@@ -15,11 +15,11 @@ Writing tips:
 
 ## Layout
 
-- `apps/mobile` (`@mingle/mobile`) — ⭐ primary client. Expo SDK 56, Expo Router(file-based `app/`), expo-secure-store(JWT), expo-notifications+expo-device(push), expo-image-picker, expo-screen-orientation(파티 화면 가로 lock), lucide-react-native + react-native-svg, reanimated 4, `@expo-google-fonts/gaegu`.
+- `apps/mobile` (`@mingle/mobile`) — ⭐ primary client. Expo SDK 56, Expo Router(file-based `app/`), expo-secure-store(JWT), expo-notifications+expo-device(push), expo-image-picker, expo-screen-orientation(매칭~파티 가로 lock), lucide-react-native + react-native-svg, reanimated 4, `@expo-google-fonts/gaegu`.
   - **내비**: 비로그인 루트(`app/index.tsx`) → `/register`. 로그인+온보딩 후 = 하단 탭바(`app/(app)/(tabs)/_layout.tsx` — 홈·채팅·프로포즈·알림·설정, 커스텀 `DoodleTabBar`). 상세 화면(matching/blocks/chat/party/date-plan/report)은 `(app)` Stack이 탭 위로 push. **네이티브 헤더 전면 비표시**(루트 포함) — 뒤로가기는 `src/components/BackButton.tsx`, 브랜딩은 `DoodleHero`(라인아트 나무늘보 로고 `assets/images/logo.png`).
   - **href 규칙**: 탭 화면은 그룹 탈락형(`/home`, `/chats`, …), 상세 화면은 `(app)` 유지(`/(app)/party/[id]`, …). typed routes는 `expo start`가 재생성 — desync 시 tsc가 잡음.
-  - **파티 화면 = 게임 월드**(`party/[id].tsx`): 어몽 세션 활성/직후엔 `AmongGame` 전체화면, 그 외 로비 모드 — 둘 다 공용 `PartyWorld` 렌더러(+얇은 상단 바). 채팅=`PartyChatOverlay`(FAB→중앙 카드), 멤버시트 진입 = 근처 유저 액션패드 "프로필" 또는 상단 멤버 버튼(Users 아이콘, `MemberSheet` — 프로포즈/⋯모더레이션), 밸런스 게임 진입 = DJ 부스 앞 액션패드 "밸런스 게임"→모달. 어몽 내부는 `src/components/among/*`(missions ARE minigames).
-  - ⚠️ **이동 = 좌측 조이스틱**(PanResponder — 웹 포함 동작). 파티 화면은 expo-screen-orientation으로 가로 고정(루트는 세로 lock, app.json `orientation: "default"`). 거리·충돌은 world 계량(x×1.9) — 맵/스테이션 단일 진실은 `@mingle/shared` `PARTY_MAP`(백엔드 태스크 배치 공유).
+  - **파티 화면 = 게임 월드**(`party/[id].tsx`): 어몽 세션 활성/직후엔 `AmongGame` 전체화면, 그 외 로비 모드 — 둘 다 공용 `PartyWorld` 렌더러(+반투명 상단 바, 구분선 없음). **월드는 풀블리드**(테두리/라운딩 없음 — `PartyWorld` `floor` 스타일). 캐릭터 = 볼드 마커 치비 두들(헤어 6·상의 4·눈 3·입 3 시드 변주, `src/lib/character-look.ts` `lookFor`). 맵 = 일러스트 가구(`src/components/party/furniture/index.tsx`)+deco 레이어. 채팅=`PartyChatOverlay`(FAB→중앙 카드), 멤버시트 진입 = 근처 유저 액션패드 "프로필" 또는 상단 멤버 버튼(Users 아이콘, `MemberSheet` — 프로포즈/⋯모더레이션), 밸런스 게임 진입 = DJ 부스 앞 액션패드 "밸런스 게임"→모달. 어몽 내부는 `src/components/among/*`(missions ARE minigames).
+  - ⚠️ **이동 = 좌측 조이스틱**(PanResponder — 웹 포함 동작). **가로 lock은 매칭 대기 화면부터 파티까지 유지**(`useLandscapeLock`, `matching.tsx`+`party/[id].tsx` 둘 다 호출 — 루트는 세로 lock, app.json `orientation: "default"`). 거리·충돌은 world 계량(x×1.9) — 맵/스테이션 단일 진실은 `@mingle/shared` `PARTY_MAP`(백엔드 태스크 배치 공유).
   - **폰트**: Gaegu는 `app/_layout.tsx` `useFonts`로 로드(로드 전 렌더 게이트). `fonts.display`는 워드마크·타이틀·버튼 라벨용 — **긴 한글 본문은 시스템 산스**(Gaegu 14px 미만 금지). Pretendard 본문 폰트는 아직 미번들(백로그).
   - **RN `<Button>` 금지**(플랫폼 기본 파란색이 팔레트 밖) — 항상 `DoodleButton`.
 - `apps/backend` (`@mingle/backend`) — NestJS 10 REST + Socket.io gateways(`PartyGateway`/`MessengerGateway`, 기본 네임스페이스), Prisma/PostgreSQL.
@@ -44,7 +44,7 @@ Writing tips:
 Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **코랄 포인트 팔레트**(2026-07-15 교체). 귀여움은 삐뚤한 손선·흑백 대비에서, 강조는 포인트 컬러 1-2곳에서. 원리 문서 `docs/design/DESIGN.md`(§1 색은 역사적 — 헤더 경고 참조), 라이브 토큰 = `apps/mobile/src/lib/theme.ts`.
 
 - **Doodle primitives**: `src/components/Doodle.tsx`(`DoodleButton`/`DoodleCard`/`ShadowBox` — 워블 보더) + `DoodleSvg.tsx`(`WobbleBox`/`MatchGauge(미사용 — 궁합 표시 예약)`/`DoodleFace`/`DoodleChip`/`DashedLine`) + `DoodleTabBar.tsx`(플로팅 탭바; `TAB_BAR_ROW_HEIGHT`+`useTabBarClearance()` — 탭 화면 하단 패딩 필수) + `DoodleHero.tsx` + `Motion.tsx`(`Enter`/`EnterRow`/`EnterHero` — reanimated 등장 모션, `useReducedMotion` 존중; 게임 내부 미적용) + `src/lib/doodle-path.ts`(`wobbleRect`/`hatchSegments`/`mulberry` 시드 지터).
-- **파티 게임 월드 컴포넌트**: `src/components/party/`(`PartyWorld` 로비+어몽 공용 렌더러/`PartyMapArt`/`DoodleCharacter`/`Joystick`/`ActionPad`).
+- **파티 게임 월드 컴포넌트**: `src/components/party/`(`PartyWorld` 로비+어몽 공용 렌더러(풀블리드, 프레임 없음)/`PartyMapArt`/`DoodleCharacter`/`Joystick`/`ActionPad`/`furniture/index.tsx`(가구 디테일 일러스트)). 캐릭터 외형 결정은 `src/lib/character-look.ts`(`lookFor` — profileId 시드 → 헤어/상의/눈/입 결정적 선택).
 - **팔레트**: ink `#17150F` / paper `#FFFFFF` / grays `#8A857C`·`#D9D5CC` / fills `#F1EFE9`·`#E7E4DC` / **grayDark = 웜 토프 `#736357`**. 포인트: **`accent #FF5864`**(primary CTA·활성 탭·안읽음 배지), `accentDeep #E5424E`(눌림, 파생), `accentSoft #FF8276`(소형 하이라이트), `accentFill #FF9F9D`(연한 틴트), `onAccent #FFF`. **화면당 primary 1개** — 나머지는 잉크-온-화이트. 대형 강조는 잉크 반전 블록(홈 히어로).
 - **Hierarchy**: primary = 코랄 `DoodleButton variant="primary"`(잉크 보더 유지); secondary = paper+잉크 외곽. 아이콘 = Lucide outline. **UI에 이모지 금지**(2026-07-16 규칙 — 컬러 이모지는 SVG 아이콘으로; ✓·★ 등 모노크롬 기호는 허용). `DoodleButton`은 FLAT(그림자 없음) — 하드 오프셋 잉크 그림자는 카드류만.
 - **RN gotchas**:
@@ -89,7 +89,7 @@ Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **
 
 ## Status (요약 — 상세는 git log + docs/superpowers/plans/)
 
-- **현재 상태**: Phases 0–6d + 두들 디자인 이식 + 코랄 팔레트 + 파티=게임 월드 재구성 + "AI를 찾아라" 변형 + 출시 준비(rate limit·연령 게이트·CORS) 전부 origin/megahuni에 푸시. 마지막 풀 그린: backend jest **344/344**, client-core 73/73, mobile tsc+vitest 107/107, **mega-qa 59/59**, 웹/iOS/Android 번들 스모크.
+- **현재 상태**: Phases 0–6d + 두들 디자인 이식 + 코랄 팔레트 + 파티=게임 월드 재구성 + "AI를 찾아라" 변형 + 출시 준비(rate limit·연령 게이트·CORS) 전부 origin/megahuni에 푸시. 마지막 풀 그린: backend jest **344/344**, client-core 73/73, mobile tsc+vitest 111/111, **mega-qa 59/59**, 웹/iOS/Android 번들 스모크.
 - **완료 페이즈 한 줄 요약**: P0 스캐폴드+client-core · P1 데이터모델 v2 · P2 온보딩+AI 선호분석(LLM env 미설정 시 stub) · P3 매칭 큐+파티 결성 · P4 프로포즈→매칭→DM(첫 게이트웨이) · P5a push · P5b 데이트플랜 합의 · P5c 모더레이션 UI · P6a 파티 실시간 · P6b 2D 공간 · P6c 밸런스(5라운드, 공개 전 비노출 투표) · P6d 어몽어스 실게임 · 2026-07-14 두들 이식(9task SDD) · 2026-07-15 게임 월드 재구성 + /qa·/design-review 패스(매칭 막다른 화면·어몽 교착 수정, 모션 시스템, 탭 타깃 60px) · 2026-07-20 어몽 → "AI를 찾아라" 변형(인간 전원 crew, 임포스터는 LLM 페르소나 AI 전용, 주기 자동 회의).
 - **남은 출시 항목**: EAS projectId(사용자 `npx eas-cli init`), **실기기 네이티브 E2E**(`docs/qa/2026-07-14-native-e2e-runbook.md` — 두들 체크리스트 §5 포함), refresh token, 관리자 모더레이션 웹.
 - **백로그**(비차단): 어몽 추방 결과 미표시(`lastEjected` 미렌더)·긴급회의 소진 시 오류문구 미흡·종료 게임 결과 재입장 재노출 정책(제품 판단); push DTO `@ApiProperty` 부재·토글 read-back 없음·cold-start tap 미처리·안읽음 탭 배지; DatePlan `completed` 전이 미구현·결제 잔재 컬럼·레거시 웹 DatePlan 폼(v1 필드, broken); reportUser dedup 잔여 TOCTOU; MatchGauge 미사용(궁합 표시 예약); Pretendard 미번들; 온보딩 iOS KAV 부재·입력 accessibilityLabel 부재; AI게임 — 게임 중 presence 이벤트 시 AI 캐릭터 ≤1s 깜빡임·meetingSpokeFor 위생 정리·방치 파티 auto 회의가 빈 방에 LLM 발화 소모(세션 만료 정책과 묶어 처리)·Block에 ai- id 시 P2003 500(존재 검사 1개)·AI 이동 가구 충돌 무시.
