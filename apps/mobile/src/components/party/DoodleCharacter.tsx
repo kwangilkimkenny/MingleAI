@@ -87,7 +87,7 @@ export function DoodleCharacter({
           opacity: ghost ? 0.45 : 1,
         }}
       >
-        <Svg width={w} height={h}>
+        <Svg width={w} height={h} style={styles.svgOverflow}>
           {/* 다리 or 유령 치맛단 */}
           {ghost ? (
             <Path d={ghostHem} stroke={colors.ink} strokeWidth={inkW} fill="none" />
@@ -194,7 +194,7 @@ export function DoodleCorpse({ size = 40 }: { size?: number }) {
   const cy = size * 0.55;
   return (
     <View pointerEvents="none" style={{ transform: [{ rotate: "-8deg" }] }}>
-      <Svg width={size} height={size * 0.8}>
+      <Svg width={size} height={size * 0.8} style={styles.svgOverflow}>
         {/* 누운 몸통 */}
         <Line
           x1={headR * 2}
@@ -228,6 +228,8 @@ export function DoodleCorpse({ size = 40 }: { size?: number }) {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center" },
+  // 굵은 outlineW(머리/몸통 마커 외곽)가 렌더 박스 폭을 넘어서므로 클리핑 방지.
+  svgOverflow: { overflow: "visible" },
   tag: {
     maxWidth: 76,
     paddingHorizontal: 6,
