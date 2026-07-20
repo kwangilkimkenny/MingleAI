@@ -106,13 +106,13 @@ export function renderFurnitureDetail(kind: FurnitureKind, w: number, h: number)
           <Path
             d={`M${w * 0.06} ${h * 0.35} v${h * 0.35}`}
             stroke={ink}
-            strokeWidth={2}
+            strokeWidth={2.4}
             strokeLinecap="round"
           />
           <Path
             d={`M${w * 0.94} ${h * 0.35} v${h * 0.35}`}
             stroke={ink}
-            strokeWidth={2}
+            strokeWidth={2.4}
             strokeLinecap="round"
           />
         </>
