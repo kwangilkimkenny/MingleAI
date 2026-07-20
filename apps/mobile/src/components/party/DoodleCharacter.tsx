@@ -7,16 +7,11 @@
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path } from "react-native-svg";
 import { mulberry, wobbleRect } from "../../lib/doodle-path";
+import { lookFor } from "../../lib/character-look";
 import { colors } from "../../lib/theme";
 
 /** size 대비 렌더 박스 배율 — 부모가 중심 배치 계산에 사용. */
 export const CHAR_BOX = { w: 0.62, h: 1.3 } as const;
-
-function seedOf(name: string): number {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return (h % 97) + 1;
-}
 
 export function DoodleCharacter({
   name,
@@ -35,13 +30,24 @@ export function DoodleCharacter({
   ghost?: boolean;
   size?: number;
 }) {
+  const look = lookFor(name);
   const w = size * CHAR_BOX.w;
   const h = size;
-  const headR = size * 0.24;
+  const headR = size * 0.32; // 큰 머리(치비 2등신)
   const cx = w / 2;
   const headCy = headR + 2;
-  const hipY = size * 0.72;
-  const seed = seedOf(name);
+  const bodyTop = headCy + headR - 3;
+  const hipY = size * 0.86; // 짧은 몸통
+  const swing = walking ? Math.sin(phase / 110) : 0.3;
+  const bob = walking ? Math.sin(phase / 110) * 2.6 : Math.sin(phase / 600) * 0.8; // 걷기 통통 / 정지 숨쉬기
+  const limb = size * 0.18;
+  // 볼드 마커 두들(Chanoir풍 레퍼런스): 얇은 라인 금지 — 마커펜처럼 굵게.
+  const inkW = Math.max(3.5, size * 0.09); // 팔·다리·디테일 기본 굵기
+  const outlineW = Math.max(4.5, size * 0.11); // 머리·몸통 외곽(더 굵게)
+  const face = mine ? colors.ink : colors.paper;
+  const feat = mine ? colors.paper : colors.ink;
+  const rand = mulberry(look.seed);
+  const ghostHem = `M${cx - headR} ${hipY} q${headR / 2} ${4 + rand() * 3} ${headR} 0 q${headR / 2} ${-4 - rand() * 3} ${headR} 0`;
   const headPath = wobbleRect(
     headR * 2,
     headR * 2,
@@ -51,18 +57,22 @@ export function DoodleCharacter({
       borderBottomRightRadius: headR,
       borderBottomLeftRadius: headR,
     },
-    seed,
-    { amp: 0.9, step: 7 },
+    look.seed,
+    { amp: 0.8, step: 8 },
   );
-  // 걷기 스윙: sin 파형. 정지 시 살짝 벌린 기본 자세.
-  const swing = walking ? Math.sin(phase / 110) : 0.35;
-  const bob = walking ? Math.sin(phase / 110) * 2 : 0;
-  const limb = size * 0.22;
-  const face = mine ? colors.ink : colors.paper;
-  const feat = mine ? colors.paper : colors.ink;
-  // 유령 몸: 물결 치맛단 (다리 대신)
-  const rand = mulberry(seed);
-  const ghostHem = `M${cx - headR} ${hipY} q${headR / 2} ${4 + rand() * 3} ${headR} 0 q${headR / 2} ${-4 - rand() * 3} ${headR} 0`;
+  const bodyW = size * 0.42;
+  const bodyPath = wobbleRect(
+    bodyW,
+    hipY - bodyTop,
+    {
+      borderTopLeftRadius: 8,
+      borderTopRightRadius: 8,
+      borderBottomRightRadius: 5,
+      borderBottomLeftRadius: 5,
+    },
+    look.seed,
+    { amp: 0.7, step: 9 },
+  );
 
   return (
     <View style={styles.wrap} pointerEvents="none">
@@ -78,75 +88,97 @@ export function DoodleCharacter({
         }}
       >
         <Svg width={w} height={h}>
-          {/* 몸통 */}
-          <Line
-            x1={cx}
-            y1={headCy + headR - 2}
-            x2={cx}
-            y2={hipY}
-            stroke={colors.ink}
-            strokeWidth={2}
-          />
-          {/* 팔 */}
-          <Line
-            x1={cx}
-            y1={headCy + headR + 4}
-            x2={cx - limb * Math.cos(0.9 - swing * 0.5)}
-            y2={headCy + headR + 4 + limb * Math.sin(0.9 - swing * 0.5)}
-            stroke={colors.ink}
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-          <Line
-            x1={cx}
-            y1={headCy + headR + 4}
-            x2={cx + limb * Math.cos(0.9 + swing * 0.5)}
-            y2={headCy + headR + 4 + limb * Math.sin(0.9 + swing * 0.5)}
-            stroke={colors.ink}
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
           {/* 다리 or 유령 치맛단 */}
           {ghost ? (
-            <Path d={ghostHem} stroke={colors.ink} strokeWidth={2} fill="none" />
+            <Path d={ghostHem} stroke={colors.ink} strokeWidth={inkW} fill="none" />
           ) : (
             <>
               <Line
-                x1={cx}
+                x1={cx - 3}
                 y1={hipY}
-                x2={cx - limb * 0.7 * Math.sin(swing)}
+                x2={cx - 3 - limb * 0.6 * Math.sin(swing)}
                 y2={h - 2}
                 stroke={colors.ink}
-                strokeWidth={2}
+                strokeWidth={inkW}
                 strokeLinecap="round"
               />
               <Line
-                x1={cx}
+                x1={cx + 3}
                 y1={hipY}
-                x2={cx + limb * 0.7 * Math.sin(swing)}
+                x2={cx + 3 + limb * 0.6 * Math.sin(swing)}
                 y2={h - 2}
                 stroke={colors.ink}
-                strokeWidth={2}
+                strokeWidth={inkW}
                 strokeLinecap="round"
               />
             </>
           )}
-          {/* 머리 (몸 위에 그려 겹침 정리) */}
+          {/* 둥근 몸통(상의 실루엣 — Task 5에서 outfit별 교체) */}
+          <Path
+            d={bodyPath}
+            x={cx - bodyW / 2}
+            y={bodyTop}
+            fill={colors.paper}
+            stroke={colors.ink}
+            strokeWidth={outlineW}
+            strokeLinejoin="round"
+          />
+          {/* 팔(굵은 마커) */}
+          <Line
+            x1={cx}
+            y1={bodyTop + 4}
+            x2={cx - limb * Math.cos(0.8 - swing * 0.5)}
+            y2={bodyTop + 4 + limb * Math.sin(0.8 - swing * 0.5)}
+            stroke={colors.ink}
+            strokeWidth={inkW}
+            strokeLinecap="round"
+          />
+          <Line
+            x1={cx}
+            y1={bodyTop + 4}
+            x2={cx + limb * Math.cos(0.8 + swing * 0.5)}
+            y2={bodyTop + 4 + limb * Math.sin(0.8 + swing * 0.5)}
+            stroke={colors.ink}
+            strokeWidth={inkW}
+            strokeLinecap="round"
+          />
+          {/* 머리(굵은 외곽) */}
           <Path
             d={headPath}
             x={cx - headR}
             y={headCy - headR}
             fill={face}
             stroke={colors.ink}
-            strokeWidth={2}
+            strokeWidth={outlineW}
           />
-          {/* 눈 + 입 */}
-          <Circle cx={cx - headR * 0.35} cy={headCy - 1} r={1.6} fill={feat} />
-          <Circle cx={cx + headR * 0.35} cy={headCy - 1} r={1.6} fill={feat} />
+          {/* 볼터치(accentFill) — 유일한 코랄 포인트. 내 캐릭터는 잉크 머리라 생략 */}
+          {!mine && (
+            <>
+              <Circle
+                cx={cx - headR * 0.58}
+                cy={headCy + headR * 0.3}
+                r={headR * 0.18}
+                fill={colors.accentFill}
+                opacity={0.9}
+              />
+              <Circle
+                cx={cx + headR * 0.58}
+                cy={headCy + headR * 0.3}
+                r={headR * 0.18}
+                fill={colors.accentFill}
+                opacity={0.9}
+              />
+            </>
+          )}
+          {/* 큰 눈(굵은 점) + 하이라이트 + 입(미소) — 마커 두께 */}
+          <Circle cx={cx - headR * 0.34} cy={headCy - headR * 0.05} r={3} fill={feat} />
+          <Circle cx={cx + headR * 0.34} cy={headCy - headR * 0.05} r={3} fill={feat} />
+          <Circle cx={cx - headR * 0.34 + 1} cy={headCy - headR * 0.05 - 1} r={1} fill={face} />
+          <Circle cx={cx + headR * 0.34 + 1} cy={headCy - headR * 0.05 - 1} r={1} fill={face} />
           <Path
-            d={`M${cx - 3} ${headCy + headR * 0.35} q3 3 6 0`}
+            d={`M${cx - 4} ${headCy + headR * 0.42} q4 4 8 0`}
             stroke={feat}
-            strokeWidth={1.6}
+            strokeWidth={2.4}
             fill="none"
             strokeLinecap="round"
           />
