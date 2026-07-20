@@ -38,11 +38,7 @@ export type {
 } from "./types/social.js";
 export { normalizeMatchPair, blockPairKey } from "./social/pair.js";
 
-export type {
-  PartyMessage,
-  GameSessionStatus,
-  GameSession,
-} from "./types/messaging.js";
+export type { PartyMessage, GameSessionStatus, GameSession } from "./types/messaging.js";
 
 export type {
   SafetyContext,
@@ -92,5 +88,6 @@ export {
   BALANCE_STATION_ID,
   isSolid,
   solidFurniture,
+  worldDist,
 } from "./party-map/map.js";
 export type { FurnitureKind, FurnitureDef, StationDef, PartyMapDef } from "./party-map/map.js";

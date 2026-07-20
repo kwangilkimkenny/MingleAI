@@ -7,6 +7,7 @@ import {
   BALANCE_STATION_ID,
   isSolid,
   solidFurniture,
+  worldDist,
   type FurnitureDef,
 } from "./map.js";
 
@@ -95,5 +96,17 @@ describe("PARTY_MAP integrity", () => {
     for (const f of solids) {
       expect(rectsOverlap(expanded, f)).toBe(false);
     }
+  });
+});
+
+describe("worldDist", () => {
+  it("y축은 그대로, x축은 aspect 배로 잰다", () => {
+    expect(worldDist({ x: 0.5, y: 0.2 }, { x: 0.5, y: 0.3 })).toBeCloseTo(0.1, 10);
+    expect(worldDist({ x: 0.2, y: 0.5 }, { x: 0.3, y: 0.5 })).toBeCloseTo(0.1 * WORLD_ASPECT, 10);
+  });
+  it("대칭이다", () => {
+    const a = { x: 0.1, y: 0.2 };
+    const b = { x: 0.4, y: 0.7 };
+    expect(worldDist(a, b)).toBeCloseTo(worldDist(b, a), 10);
   });
 });

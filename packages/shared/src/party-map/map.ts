@@ -85,3 +85,8 @@ export const PARTY_MAP: PartyMapDef = {
   ],
   spawnZone: { x: 0.4, y: 0.26, w: 0.2, h: 0.24 },
 };
+
+/** world 계량 거리 — 렌더 aspect-fit과 일치하는 등방 거리(모바일 판정·백엔드 AI 근접 공용). */
+export function worldDist(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot((b.x - a.x) * WORLD_ASPECT, b.y - a.y);
+}

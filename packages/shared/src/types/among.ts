@@ -28,6 +28,8 @@ export interface AmongPlayerView {
   name: string;
   alive: boolean;
   role: AmongRole | null;
+  /** isAi는 게임 종료(ended) 스냅샷에서만 세팅된다(플레이 중 미노출 계약). */
+  isAi?: boolean;
 }
 
 /** A dead body on the map (position is server-stored from the kill payload). */
@@ -39,7 +41,7 @@ export interface AmongBodyView {
 
 /** Active meeting/vote — vote targets stay hidden (only who voted) until reveal. */
 export interface AmongMeetingView {
-  reason: "report" | "emergency";
+  reason: "report" | "emergency" | "auto";
   calledBy: string;
   bodyProfileId?: string;
   phase: "discussion" | "voting";
@@ -72,6 +74,8 @@ export interface AmongSnapshot {
   meeting: AmongMeetingView | null;
   lastEjected: { profileId: string; role: AmongRole; wasSkip: boolean } | null;
   result: AmongResultView | null;
+  /** 다음 자동(정기) 회의 예정 시각(epoch ms). 회의 중이거나 ended면 null. */
+  nextAutoMeetingAt: number | null;
 }
 
 /** among:state payload; snapshot null = no active among game (sync response). */
