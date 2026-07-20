@@ -4,10 +4,11 @@
  * rug/stage는 점선 아웃라인(통행 가능 티).
  */
 import { memo } from "react";
-import Svg, { Circle, G, Line, Path } from "react-native-svg";
+import Svg, { G, Path } from "react-native-svg";
 import { PARTY_MAP, isSolid, type FurnitureDef } from "@mingle/shared";
 import { wobbleRect } from "../../lib/doodle-path";
-import { colors } from "../../lib/theme";
+import { colors, doodle } from "../../lib/theme";
+import { renderFurnitureDetail } from "./furniture";
 
 function seedOf(id: string): number {
   let h = 0;
@@ -35,110 +36,23 @@ function FurniturePiece({ f, width, height }: { f: FurnitureDef; width: number; 
   );
   return (
     <G x={x} y={y}>
+      {solid && (
+        <Path
+          d={outline}
+          fill={colors.ink}
+          opacity={0.1}
+          transform={`translate(${doodle.shadow.x * 0.5}, ${doodle.shadow.y * 0.5})`}
+        />
+      )}
       <Path
         d={outline}
         fill={solid ? colors.paper : "none"}
         stroke={colors.ink}
-        strokeWidth={2}
+        strokeWidth={3.2}
         strokeDasharray={solid ? undefined : "6 5"}
         opacity={solid ? 1 : 0.55}
       />
-      {f.kind === "bar" && (
-        <>
-          <Line
-            x1={w * 0.2}
-            y1={h * 0.3}
-            x2={w * 0.2}
-            y2={h * 0.62}
-            stroke={colors.ink}
-            strokeWidth={2}
-          />
-          <Line
-            x1={w * 0.45}
-            y1={h * 0.24}
-            x2={w * 0.45}
-            y2={h * 0.62}
-            stroke={colors.ink}
-            strokeWidth={2}
-          />
-          <Line
-            x1={w * 0.7}
-            y1={h * 0.34}
-            x2={w * 0.7}
-            y2={h * 0.62}
-            stroke={colors.ink}
-            strokeWidth={2}
-          />
-          <Line
-            x1={w * 0.1}
-            y1={h * 0.72}
-            x2={w * 0.9}
-            y2={h * 0.72}
-            stroke={colors.ink}
-            strokeWidth={1.4}
-          />
-        </>
-      )}
-      {f.kind === "table" && (
-        <Circle
-          cx={w / 2}
-          cy={h / 2}
-          r={Math.min(w, h) * 0.22}
-          stroke={colors.ink}
-          strokeWidth={1.6}
-          fill="none"
-        />
-      )}
-      {f.kind === "sofa" && (
-        <Path
-          d={`M${w * 0.1} ${h * 0.45} h${w * 0.8}`}
-          stroke={colors.ink}
-          strokeWidth={1.6}
-          fill="none"
-        />
-      )}
-      {f.kind === "dj" && (
-        <>
-          <Circle
-            cx={w * 0.3}
-            cy={h * 0.5}
-            r={Math.min(w, h) * 0.2}
-            stroke={colors.ink}
-            strokeWidth={1.6}
-            fill="none"
-          />
-          <Circle
-            cx={w * 0.7}
-            cy={h * 0.5}
-            r={Math.min(w, h) * 0.2}
-            stroke={colors.ink}
-            strokeWidth={1.6}
-            fill="none"
-          />
-        </>
-      )}
-      {f.kind === "plant" && (
-        <>
-          <Path
-            d={`M${w / 2} ${h * 0.55} q${-w * 0.3} ${-h * 0.3} ${-w * 0.15} ${-h * 0.45}`}
-            stroke={colors.ink}
-            strokeWidth={1.6}
-            fill="none"
-          />
-          <Path
-            d={`M${w / 2} ${h * 0.55} q${w * 0.3} ${-h * 0.3} ${w * 0.15} ${-h * 0.45}`}
-            stroke={colors.ink}
-            strokeWidth={1.6}
-            fill="none"
-          />
-          <Path
-            d={`M${w / 2} ${h * 0.55} v${-h * 0.4}`}
-            stroke={colors.ink}
-            strokeWidth={1.6}
-            fill="none"
-          />
-        </>
-      )}
+      {renderFurnitureDetail(f.kind, w, h)}
     </G>
   );
 }
