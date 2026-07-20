@@ -1,4 +1,11 @@
-import { PARTY_MAP, WORLD_ASPECT, CHAR_R, ROOM_MARGIN, solidFurniture } from "@mingle/shared";
+import {
+  PARTY_MAP,
+  WORLD_ASPECT,
+  CHAR_R,
+  ROOM_MARGIN,
+  solidFurniture,
+  worldDist,
+} from "@mingle/shared";
 import type { FurnitureDef } from "@mingle/shared";
 
 export interface Vec2 {
@@ -6,7 +13,7 @@ export interface Vec2 {
   y: number;
 }
 
-export { ROOM_MARGIN, WORLD_ASPECT, CHAR_R };
+export { ROOM_MARGIN, WORLD_ASPECT, CHAR_R, worldDist };
 
 /**
  * 좌표는 정규화 [0,1]²로 저장/전송하되(프로토콜 불변), 거리·속도·충돌은
@@ -27,11 +34,6 @@ export const MAX_SIM_MS = 250;
 export function clampToRoom(p: Vec2): Vec2 {
   const clamp = (v: number) => Math.min(Math.max(v, ROOM_MARGIN), 1 - ROOM_MARGIN);
   return { x: clamp(p.x), y: clamp(p.y) };
-}
-
-/** world 계량 유클리드 거리 — 모든 근접 판정(RANGE)은 이걸 쓴다. */
-export function worldDist(a: Vec2, b: Vec2): number {
-  return Math.hypot((b.x - a.x) * WORLD_ASPECT, b.y - a.y);
 }
 
 /** world 좌표 AABB (CHAR_R 민코프스키 확장 포함). */
