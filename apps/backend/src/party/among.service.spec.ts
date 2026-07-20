@@ -853,6 +853,74 @@ describe("kill", () => {
 });
 
 // ---------------------------------------------------------------------------
+// runBotTick
+// ---------------------------------------------------------------------------
+
+describe("runBotTick", () => {
+  it("playing 파티: 봇 이동을 저장하고 step을 반환한다", async () => {
+    const state = buildPlayingState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockImplementation(async ({ data }: any) => data);
+    const out = await service.runBotTick("pt1", {});
+    expect(out).not.toBeNull();
+    expect(out!.step.moves.length).toBeGreaterThan(0);
+    expect(gameSession.update).toHaveBeenCalled(); // 봇 위치 저장
+  });
+
+  it("킬 결정 시 기존 kill 경로를 태워 시체·쿨다운·승패 판정이 일관된다", async () => {
+    const state = buildPlayingState();
+    const botId = state.players.find((p: any) => p.isAi)!.profileId;
+    state.ai.bots[botId].killHoldUntil = 0;
+    state.players.forEach((p: any) => {
+      if (p.isAi) p.killCooldownUntil = null;
+    });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockImplementation(async ({ data }: any) => data);
+    const bot = state.ai.bots[botId];
+    const out = await service.runBotTick("pt1", { p1: { x: bot.x, y: bot.y } }, () => 0.0);
+    expect(out!.state.bodies.some((b: any) => b.profileId === "p1")).toBe(true);
+    expect(out!.state.players.find((p: any) => p.profileId === "p1")!.alive).toBe(false);
+  });
+
+  it("meeting phase에서는 아무 것도 하지 않고 null을 반환한다", async () => {
+    const state = buildPlayingState({ phase: "meeting" });
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    const out = await service.runBotTick("pt1", {});
+    expect(out).toBeNull();
+    expect(gameSession.update).not.toHaveBeenCalled();
+  });
+
+  it("활성 세션이 없으면 null을 반환한다", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    const out = await service.runBotTick("pt1", {});
+    expect(out).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// bumpLlmCalls
+// ---------------------------------------------------------------------------
+
+describe("bumpLlmCalls", () => {
+  it("state.ai.llmCalls를 1 증가시켜 저장한다", async () => {
+    const state = buildPlayingState();
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockImplementation(async ({ data }: any) => data);
+
+    await service.bumpLlmCalls("pt1");
+
+    const updateData = gameSession.update.mock.calls[0][0].data;
+    expect(updateData.state.ai.llmCalls).toBe(1);
+  });
+
+  it("활성 세션이 없으면 조용히 아무것도 하지 않는다", async () => {
+    gameSession.findFirst.mockResolvedValue(null);
+    await expect(service.bumpLlmCalls("pt1")).resolves.toBeUndefined();
+    expect(gameSession.update).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // report
 // ---------------------------------------------------------------------------
 
@@ -1129,6 +1197,22 @@ describe("vote", () => {
     expect(result.phase).toBe("playing");
     expect(result.meeting).toBeNull();
     expect(result.result).toBeNull();
+  });
+
+  it("회의 해소 후 게임이 계속되면 AI 봇의 killHoldUntil이 유예된다", async () => {
+    // Same tie scenario as above — game continues, so the post-meeting hold should bump.
+    const state2 = buildVotingState({ p1: "ai-1", p2: "ai-1", p3: "p1" });
+    state2.ai.bots["ai-1"]!.killHoldUntil = 0;
+    state2.ai.bots["ai-2"]!.killHoldUntil = 0;
+    gameSession.findFirst.mockResolvedValue(activeRow(state2));
+    gameSession.update.mockResolvedValue({});
+
+    const before = Date.now();
+    const result = await service.vote("pt1", "ai-1", "p1");
+
+    expect(result.phase).toBe("playing");
+    expect(result.ai.bots["ai-1"]!.killHoldUntil).toBeGreaterThanOrEqual(before);
+    expect(result.ai.bots["ai-2"]!.killHoldUntil).toBeGreaterThanOrEqual(before);
   });
 
   it("skip majority → no eject, wasSkip true, game continues", async () => {

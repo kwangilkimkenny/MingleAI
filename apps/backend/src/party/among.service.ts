@@ -10,6 +10,8 @@ import { AmongConfigProvider } from "./among.config";
 import type { AmongRole, AmongTaskKind, AmongResultView, AmongSnapshot } from "@mingle/shared";
 import { PARTY_MAP } from "@mingle/shared";
 import { pickPersonas } from "./ai/personas";
+import { AiImpostorBrain, AI_POST_MEETING_HOLD_MS } from "./ai/ai-impostor.brain";
+import type { BotStep } from "./ai/ai-impostor.brain";
 
 // ---------------------------------------------------------------------------
 // Server-only authoritative state (stored in GameSession.state Json column)
@@ -360,23 +362,12 @@ export class AmongService {
         throw new BadRequestException("invalid");
       }
 
-      // Apply kill
-      target.alive = false;
-      state.bodies.push({ profileId: targetProfileId, x, y, reported: false });
-      caller.killCooldownUntil = now + this.config.value.killCooldownMs;
+      this.applyKill(state, profileId, targetProfileId, x, y);
 
-      // Win check: impostor parity, then crew-tasks (the victim's pending tasks no
-      // longer count, so a kill can complete the crew's task requirement).
-      let status: "active" | "ended" = "active";
-      if (this.impostorParity(state)) {
-        state.result = { winner: "impostor", reason: "kills" };
-        state.phase = "ended";
-        status = "ended";
-      } else if (this.crewTasksDone(state)) {
-        state.result = { winner: "crew", reason: "tasks" };
-        state.phase = "ended";
-        status = "ended";
-      }
+      // Cast: TS narrowed state.phase to "playing" from the guard above and can't see
+      // that applyKill (an opaque method call) may have flipped it to "ended".
+      const status: "active" | "ended" =
+        (state.phase as AmongState["phase"]) === "ended" ? "ended" : "active";
 
       await tx.gameSession.update({
         where: { id: row.id },
@@ -390,6 +381,67 @@ export class AmongService {
       });
 
       return state;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // runBotTick — gateway sweep entry point for AI impostor movement/kill
+  // -------------------------------------------------------------------------
+
+  /**
+   * 게이트웨이 스윕용 봇 틱 — advisory-lock tx에서 AiImpostorBrain을 실행하고 저장한다.
+   * playing/voting이 아니면(회의 중 등) 아무것도 하지 않고 null. 킬 결정은 kill()과 동일한
+   * `applyKill`을 태워 시체·쿨다운·승패 판정이 일관된다(인간 kill()의 호출자/쿨다운/대상 검증은
+   * 이미 브레인 안에서 동등하게 확인됨 — 여기서는 재검증하지 않는다).
+   */
+  async runBotTick(
+    partyId: string,
+    humanPos: Record<string, { x: number; y: number }>,
+    rand: () => number = Math.random,
+  ): Promise<{ state: AmongState; step: BotStep } | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+      const row = await this.findActiveAmong(tx, partyId);
+      if (!row) return null;
+      const state = row.state as unknown as AmongState;
+      if (state.phase !== "playing" && state.phase !== "voting") return null;
+
+      const step = AiImpostorBrain.tick(state, humanPos, this.config.value, Date.now(), rand);
+      if (step.kill) {
+        this.applyKill(state, step.kill.killerId, step.kill.targetId, step.kill.x, step.kill.y);
+      }
+
+      // Cast for the same reason as kill(): applyKill may have flipped the phase.
+      await tx.gameSession.update({
+        where: { id: row.id },
+        data: {
+          state: state as unknown as object,
+          ...((state.phase as AmongState["phase"]) === "ended"
+            ? { status: "ended", endedAt: new Date(), result: state.result as unknown as object }
+            : {}),
+        },
+      });
+
+      return { state, step };
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // bumpLlmCalls — LLM 호출 예산 카운터
+  // -------------------------------------------------------------------------
+
+  /** state.ai.llmCalls를 1 증가시켜 저장하는 가벼운 tx. 실패(세션 종료 경합 등)는 호출부가 삼킨다. */
+  async bumpLlmCalls(partyId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockParty(tx, partyId);
+      const row = await this.findActiveAmong(tx, partyId);
+      if (!row) return;
+      const state = row.state as unknown as AmongState;
+      state.ai.llmCalls += 1;
+      await tx.gameSession.update({
+        where: { id: row.id },
+        data: { state: state as unknown as object },
+      });
     });
   }
 
@@ -751,6 +803,38 @@ export class AmongService {
   }
 
   /**
+   * Mutates state for a kill: target dies, a body is dropped, killer's cooldown resets,
+   * then win conditions are checked (impostor parity, then crew-tasks — the victim's
+   * pending tasks no longer count, so a kill can complete the crew's task requirement).
+   * Shared by the human `kill()` mutation (after its caller/cooldown/target validation)
+   * and `runBotTick`'s AI-brain-driven kill (the brain already re-checks cooldown/range
+   * before deciding to kill, so no extra validation happens here). Does NOT touch the DB.
+   */
+  private applyKill(
+    state: AmongState,
+    killerId: string,
+    targetId: string,
+    x: number,
+    y: number,
+  ): void {
+    const target = state.players.find((p) => p.profileId === targetId);
+    if (target) target.alive = false;
+    state.bodies.push({ profileId: targetId, x, y, reported: false });
+
+    const now = Date.now();
+    const killer = state.players.find((p) => p.profileId === killerId);
+    if (killer) killer.killCooldownUntil = now + this.config.value.killCooldownMs;
+
+    if (this.impostorParity(state)) {
+      state.result = { winner: "impostor", reason: "kills" };
+      state.phase = "ended";
+    } else if (this.crewTasksDone(state)) {
+      state.result = { winner: "crew", reason: "tasks" };
+      state.phase = "ended";
+    }
+  }
+
+  /**
    * Mutates state: tallies votes, ejects the unique plurality non-skip target (if any),
    * then checks win conditions. If game continues, resets meeting and impostor cooldowns.
    * Does NOT touch the DB.
@@ -814,6 +898,14 @@ export class AmongService {
     for (const p of state.players) {
       if (p.role === "impostor" && p.alive) {
         p.killCooldownUntil = now;
+      }
+    }
+    // AI 임포스터도 회의 직후 유예(post-meeting hold) — 회의 종료 직후 바로 다시 킬하지 않도록.
+    // resolveMeeting은 vote()(정족수 충족)와 sweepMeetings()(타임아웃) 양쪽에서 호출되므로
+    // 회의 해소 경로 전부를 이 한 곳에서 커버한다. 구세션(ai 블록 없음) 방어.
+    if (state.ai?.bots) {
+      for (const bot of Object.values(state.ai.bots)) {
+        bot.killHoldUntil = now + AI_POST_MEETING_HOLD_MS;
       }
     }
   }

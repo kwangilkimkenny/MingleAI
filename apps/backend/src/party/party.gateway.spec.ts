@@ -40,10 +40,15 @@ const among = {
   project: jest.fn(),
 } as any;
 
-const amongConfig = { value: { sweepMs: 99999, minPlayers: 4 } } as any;
+const amongConfig = { value: { sweepMs: 99999, minPlayers: 4, aiLlmMaxCalls: 60 } } as any;
 
-function gatewayWith() {
-  const gw = new PartyGateway(jwt, party, game, among, amongConfig);
+/** Bare ConfigService stand-in — createAiChatClient only ever calls `.get(key)`. */
+function makeConfigService(overrides: Record<string, string | undefined> = {}) {
+  return { get: jest.fn((key: string) => overrides[key]) } as any;
+}
+
+function gatewayWith(configService = makeConfigService()) {
+  const gw = new PartyGateway(jwt, party, game, among, amongConfig, configService);
   (gw as any).server = {
     to: jest.fn().mockReturnValue({ emit: jest.fn() }),
   };
@@ -145,6 +150,33 @@ it("party:move from a socket that never joined is ignored", () => {
   const client = clientWith("u1");
   gw.handleMove(client, { partyId: "pt1", x: 1, y: 2 });
   expect(client.to).not.toHaveBeenCalled();
+});
+
+it("party:move가 humanPos 맵을 갱신하고 disconnect 시 정리된다", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleJoin(client, { partyId: "pt1" });
+
+  gw.handleMove(client, { partyId: "pt1", x: 0.4, y: 0.6 });
+  expect((gw as any).humanPos.get("pt1")?.get("pf1")).toEqual({ x: 0.4, y: 0.6 });
+
+  gw.handleDisconnect(client);
+  expect((gw as any).humanPos.get("pt1")?.get("pf1")).toBeUndefined();
+  expect((gw as any).humanPos.has("pt1")).toBe(false);
+});
+
+it("party:move가 humanPos 맵을 갱신하고 party:leave 시 정리된다", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleJoin(client, { partyId: "pt1" });
+
+  gw.handleMove(client, { partyId: "pt1", x: 0.1, y: 0.9 });
+  expect((gw as any).humanPos.get("pt1")?.get("pf1")).toEqual({ x: 0.1, y: 0.9 });
+
+  gw.handleLeave(client, { partyId: "pt1" });
+  expect((gw as any).humanPos.has("pt1")).toBe(false);
 });
 
 it("handleDisconnect removes presence and re-broadcasts the roster", async () => {
@@ -392,13 +424,14 @@ it("among:start calls among.start with presence roster and broadcasts personaliz
   party.assertParticipant.mockResolvedValueOnce("pf1");
   await gw.handleAmongStart(client1, { partyId: "pt1" });
 
-  // among.start called with the 2-player roster (both pf1 and pf2)
+  // among.start called with the 2-player roster (both pf1 and pf2) and the AI-enabled opts
   expect(among.start).toHaveBeenCalledWith(
     "pt1",
     expect.arrayContaining([
       { profileId: "pf1", isBot: false },
       { profileId: "pf2", isBot: false },
     ]),
+    { llmEnabled: false },
   );
   expect(among.start.mock.calls[0][1]).toHaveLength(2);
 
@@ -459,6 +492,66 @@ it("among:start maps a generic BadRequestException to 'invalid'", async () => {
   await gw.handleAmongStart(client, { partyId: "pt1" });
 
   expect(client.emit).toHaveBeenCalledWith("party:error", { message: "invalid" });
+});
+
+it("among:start maps BadRequestException('ai-unavailable') to the Korean readiness message", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  among.start.mockRejectedValueOnce(new BadRequestException("ai-unavailable"));
+
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleAmongStart(client, { partyId: "pt1" });
+
+  expect(client.emit).toHaveBeenCalledWith("party:error", {
+    message: "AI 게임 준비 중이에요",
+  });
+});
+
+// ---------------------------------------------------------------------------
+// llmEnabled passthrough — among.start's aiRequireLlm gate depends on this opt
+// reaching it on EVERY start path, or every start throws ai-unavailable once
+// AMONG_AI_REQUIRE_LLM is on.
+// ---------------------------------------------------------------------------
+
+it("among:start passes llmEnabled:false through when the AI chat client has no LLM configured", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  among.start.mockResolvedValueOnce(fakeAmongState);
+  among.project.mockReturnValue(fakeSnapshot);
+
+  const gw = gatewayWith(makeConfigService()); // no LLM_API_URL → disabled
+  const client = clientWith("u1");
+  await gw.handleAmongStart(client, { partyId: "pt1" });
+
+  expect(among.start).toHaveBeenCalledWith("pt1", [], { llmEnabled: false });
+});
+
+it("among:start passes llmEnabled:true through when the AI chat client has an LLM configured", async () => {
+  party.assertParticipant.mockResolvedValueOnce("pf1");
+  among.start.mockResolvedValueOnce(fakeAmongState);
+  among.project.mockReturnValue(fakeSnapshot);
+
+  const gw = gatewayWith(makeConfigService({ LLM_API_URL: "http://llm.local" }));
+  const client = clientWith("u1");
+  await gw.handleAmongStart(client, { partyId: "pt1" });
+
+  expect(among.start).toHaveBeenCalledWith("pt1", [], { llmEnabled: true });
+});
+
+it("party:join's auto-start also passes llmEnabled through", async () => {
+  party.findOne.mockResolvedValue({ participantCount: 4 });
+  among.latestAmong.mockResolvedValue(null);
+  among.start.mockResolvedValueOnce(fakeAmongState);
+  among.project.mockReturnValue(fakeSnapshot);
+
+  const gw = gatewayWith(makeConfigService({ LLM_API_URL: "http://llm.local" }));
+  for (let i = 1; i <= 4; i++) {
+    party.assertParticipant.mockResolvedValueOnce(`pf${i}`);
+    const client = clientWith(`u${i}`);
+    client.id = `sock-${i}`;
+    await gw.handleJoin(client, { partyId: "pt1" });
+  }
+
+  expect(among.start.mock.calls[0][2]).toEqual({ llmEnabled: true });
 });
 
 // ---------------------------------------------------------------------------
