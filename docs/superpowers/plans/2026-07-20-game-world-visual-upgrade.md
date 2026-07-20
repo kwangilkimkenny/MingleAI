@@ -278,7 +278,9 @@ git commit -m "feat(mobile): character-look — 시드 기반 캐릭터 파츠 �
   const swing = walking ? Math.sin(phase / 110) : 0.3;
   const bob = walking ? Math.sin(phase / 110) * 2.6 : Math.sin(phase / 600) * 0.8; // 걷기 통통 / 정지 숨쉬기
   const limb = size * 0.18;
-  const inkW = 2.6;
+  // 볼드 마커 두들(Chanoir풍 레퍼런스): 얇은 라인 금지 — 마커펜처럼 굵게.
+  const inkW = Math.max(3.5, size * 0.09); // 팔·다리·디테일 기본 굵기
+  const outlineW = Math.max(4.5, size * 0.11); // 머리·몸통 외곽(더 굵게)
   const face = mine ? colors.ink : colors.paper;
   const feat = mine ? colors.paper : colors.ink;
   const rand = mulberry(look.seed);
@@ -305,29 +307,33 @@ git commit -m "feat(mobile): character-look — 시드 기반 캐릭터 파츠 �
             </>
           )}
           {/* 둥근 몸통(상의 실루엣 — Task 5에서 outfit별 교체) */}
-          <Path d={bodyPath} fill={colors.paper} stroke={colors.ink} strokeWidth={inkW} strokeLinejoin="round" />
-          {/* 팔 */}
+          <Path d={bodyPath} fill={colors.paper} stroke={colors.ink} strokeWidth={outlineW} strokeLinejoin="round" />
+          {/* 팔(굵은 마커) */}
           <Line x1={cx} y1={bodyTop + 4} x2={cx - limb * Math.cos(0.8 - swing * 0.5)}
             y2={bodyTop + 4 + limb * Math.sin(0.8 - swing * 0.5)} stroke={colors.ink} strokeWidth={inkW} strokeLinecap="round" />
           <Line x1={cx} y1={bodyTop + 4} x2={cx + limb * Math.cos(0.8 + swing * 0.5)}
             y2={bodyTop + 4 + limb * Math.sin(0.8 + swing * 0.5)} stroke={colors.ink} strokeWidth={inkW} strokeLinecap="round" />
-          {/* 머리 */}
-          <Path d={headPath} x={cx - headR} y={headCy - headR} fill={face} stroke={colors.ink} strokeWidth={inkW} />
-          {/* 볼터치(accentFill) — 내 캐릭터는 잉크 머리라 생략 */}
+          {/* 머리(굵은 외곽) */}
+          <Path d={headPath} x={cx - headR} y={headCy - headR} fill={face} stroke={colors.ink} strokeWidth={outlineW} />
+          {/* 볼터치(accentFill) — 유일한 코랄 포인트. 내 캐릭터는 잉크 머리라 생략 */}
           {!mine && (
             <>
-              <Circle cx={cx - headR * 0.55} cy={headCy + headR * 0.28} r={headR * 0.16} fill={colors.accentFill} opacity={0.85} />
-              <Circle cx={cx + headR * 0.55} cy={headCy + headR * 0.28} r={headR * 0.16} fill={colors.accentFill} opacity={0.85} />
+              <Circle cx={cx - headR * 0.58} cy={headCy + headR * 0.3} r={headR * 0.18} fill={colors.accentFill} opacity={0.9} />
+              <Circle cx={cx + headR * 0.58} cy={headCy + headR * 0.3} r={headR * 0.18} fill={colors.accentFill} opacity={0.9} />
             </>
           )}
-          {/* 눈(점) + 하이라이트 + 입(미소) */}
-          <Circle cx={cx - headR * 0.34} cy={headCy - headR * 0.05} r={2.1} fill={feat} />
-          <Circle cx={cx + headR * 0.34} cy={headCy - headR * 0.05} r={2.1} fill={feat} />
-          <Circle cx={cx - headR * 0.34 + 0.8} cy={headCy - headR * 0.05 - 0.8} r={0.7} fill={face} />
-          <Circle cx={cx + headR * 0.34 + 0.8} cy={headCy - headR * 0.05 - 0.8} r={0.7} fill={face} />
-          <Path d={`M${cx - 3.5} ${headCy + headR * 0.42} q3.5 3.5 7 0`} stroke={feat} strokeWidth={1.8} fill="none" strokeLinecap="round" />
+          {/* 큰 눈(굵은 점) + 하이라이트 + 입(미소) — 마커 두께 */}
+          <Circle cx={cx - headR * 0.34} cy={headCy - headR * 0.05} r={3} fill={feat} />
+          <Circle cx={cx + headR * 0.34} cy={headCy - headR * 0.05} r={3} fill={feat} />
+          <Circle cx={cx - headR * 0.34 + 1} cy={headCy - headR * 0.05 - 1} r={1} fill={face} />
+          <Circle cx={cx + headR * 0.34 + 1} cy={headCy - headR * 0.05 - 1} r={1} fill={face} />
+          <Path d={`M${cx - 4} ${headCy + headR * 0.42} q4 4 8 0`} stroke={feat} strokeWidth={2.4} fill="none" strokeLinecap="round" />
         </Svg>
 ```
+
+**볼드 마커 원칙(이 태스크 전체 적용):** SVG stroke는 마커펜처럼 굵게 — 외곽 `outlineW`,
+디테일 `inkW`. 얇은(≤2) 라인 금지. `headPath`/`bodyPath` wobbleRect는 `amp: 1.0` 정도로
+손그림 워블 살리기. "나" 캐릭터의 솔리드 잉크 머리 대비를 유지(레퍼런스의 솔리드 실루엣 감).
 
 `bodyPath`는 함수 상단에서 둥근 사다리꼴/사각 실루엣으로 계산:
 
@@ -385,7 +391,7 @@ git commit -m "feat(mobile): DoodleCharacter 치비 리디자인 — 큰 머리�
 ```tsx
 function Hairstyle({ hair, cx, headCy, headR }: { hair: Hair; cx: number; headCy: number; headR: number }) {
   const top = headCy - headR;
-  const iw = 2.4;
+  const iw = 3.2; // 볼드 마커
   switch (hair) {
     case "short":
       return <Path d={`M${cx - headR} ${headCy - headR * 0.2} q${headR} ${-headR * 1.4} ${headR * 2} 0`} stroke={colors.ink} strokeWidth={iw} fill={colors.ink} />;
@@ -414,7 +420,7 @@ function Hairstyle({ hair, cx, headCy, headR }: { hair: Hair; cx: number; headCy
 }
 
 function OutfitDetail({ outfit, cx, bodyTop, bodyW, hipY }: { outfit: Outfit; cx: number; bodyTop: number; bodyW: number; hipY: number }) {
-  const iw = 1.6;
+  const iw = 2.4; // 볼드 마커
   const midY = (bodyTop + hipY) / 2;
   switch (outfit) {
     case "tee":
@@ -444,23 +450,23 @@ function FaceFeatures({ eyes, mouth, cx, headCy, headR, feat, face }: { eyes: Ey
   const ex = headR * 0.34;
   const ey = headCy - headR * 0.05;
   const eyeNode = (sign: number) => {
-    if (eyes === "half") return <Path key={sign} d={`M${cx + sign * ex - 2.2} ${ey} q2.2 2.4 4.4 0`} stroke={feat} strokeWidth={1.8} fill="none" strokeLinecap="round" />;
-    const r = eyes === "round" ? 2.7 : 2.1;
+    if (eyes === "half") return <Path key={sign} d={`M${cx + sign * ex - 2.6} ${ey} q2.6 3 5.2 0`} stroke={feat} strokeWidth={2.6} fill="none" strokeLinecap="round" />;
+    const r = eyes === "round" ? 3.4 : 3;
     return (
       <React.Fragment key={sign}>
         <Circle cx={cx + sign * ex} cy={ey} r={r} fill={feat} />
-        <Circle cx={cx + sign * ex + 0.8} cy={ey - 0.8} r={0.8} fill={face} />
+        <Circle cx={cx + sign * ex + 1} cy={ey - 1} r={1} fill={face} />
       </React.Fragment>
     );
   };
   const my = headCy + headR * 0.42;
   const mouthNode =
     mouth === "o" ? (
-      <Circle cx={cx} cy={my} r={1.8} fill="none" stroke={feat} strokeWidth={1.6} />
+      <Circle cx={cx} cy={my} r={2.2} fill="none" stroke={feat} strokeWidth={2.4} />
     ) : mouth === "line" ? (
-      <Line x1={cx - 3} y1={my} x2={cx + 3} y2={my} stroke={feat} strokeWidth={1.6} strokeLinecap="round" />
+      <Line x1={cx - 3.5} y1={my} x2={cx + 3.5} y2={my} stroke={feat} strokeWidth={2.4} strokeLinecap="round" />
     ) : (
-      <Path d={`M${cx - 3.5} ${my - 1} q3.5 3.5 7 0`} stroke={feat} strokeWidth={1.8} fill="none" strokeLinecap="round" />
+      <Path d={`M${cx - 4} ${my - 1} q4 4 8 0`} stroke={feat} strokeWidth={2.6} fill="none" strokeLinecap="round" />
     );
   return (
     <>
@@ -663,6 +669,8 @@ import type { FurnitureKind } from "@mingle/shared";
 import { colors } from "../../../lib/theme";
 
 const ink = colors.ink;
+// 볼드 마커 두들 원칙: 아래 코드의 디테일 strokeWidth(1.2~1.6으로 적힌 값)를 전부 **2.4로
+// 올려** 마커 감을 낸다(얇은 라인 금지). 구현 시 이 파일의 stroke 리터럴 1.2/1.3/1.4/1.6 → 2.4.
 
 /** kind별 가구 내부 디테일(아웃라인은 FurniturePiece가 그림). 좌표는 0..w, 0..h. */
 export function renderFurnitureDetail(kind: FurnitureKind, w: number, h: number): ReactNode {
@@ -752,12 +760,13 @@ import { doodle } from "../../lib/theme";
         <Path d={outline} fill={ink} opacity={0.1}
           transform={`translate(${doodle.shadow.x * 0.5}, ${doodle.shadow.y * 0.5})`} />
       )}
-      <Path d={outline} fill={solid ? colors.paper : "none"} stroke={colors.ink} strokeWidth={2}
+      <Path d={outline} fill={solid ? colors.paper : "none"} stroke={colors.ink} strokeWidth={3.2}
         strokeDasharray={solid ? undefined : "6 5"} opacity={solid ? 1 : 0.55} />
       {renderFurnitureDetail(f.kind, w, h)}
 ```
 
-(`doodle` import 추가. 그림자는 아웃라인 뒤에 먼저 그림 — G 안 첫 자식.)
+(`doodle` import 추가. 가구 아웃라인 `strokeWidth={3.2}`(볼드 마커 — 기존 2에서 상향). 그림자는
+아웃라인 뒤에 먼저 그림 — G 안 첫 자식. `renderFurnitureDetail` 내부 stroke는 위 파일에서 굵게.)
 
 - [ ] **Step 3: tsc + prettier + vitest + 노드 예산 육안**
 
