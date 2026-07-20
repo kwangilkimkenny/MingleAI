@@ -50,6 +50,9 @@ export class PartyGateway
    */
   private readonly chatBuf = new Map<string, string[]>();
 
+  /** `${partyId}:${aiProfileId}` — 투표 결정이 LLM 왕복 중인 봇(중복 파견 방지). */
+  private readonly votingInFlight = new Set<string>();
+
   private readonly aiChat: AiChatClient;
 
   private sweepTimer?: ReturnType<typeof setInterval>;
@@ -92,7 +95,10 @@ export class PartyGateway
     for (const [partyId, members] of this.presence) {
       const me = members.get(client.id);
       if (members.delete(client.id)) {
-        if (members.size === 0) this.presence.delete(partyId);
+        if (members.size === 0) {
+          this.presence.delete(partyId);
+          this.chatBuf.delete(partyId);
+        }
         this.broadcastPresence(partyId);
       }
       this.clearHumanPos(partyId, me);
@@ -123,7 +129,10 @@ export class PartyGateway
     const members = this.presence.get(body.partyId);
     const me = members?.get(client.id);
     if (members?.delete(client.id)) {
-      if (members.size === 0) this.presence.delete(body.partyId);
+      if (members.size === 0) {
+        this.presence.delete(body.partyId);
+        this.chatBuf.delete(body.partyId);
+      }
       this.broadcastPresence(body.partyId);
     }
     this.clearHumanPos(body.partyId, me);
@@ -335,8 +344,16 @@ export class PartyGateway
     }
   }
 
-  /** AI 임포스터의 투표 — LLM 가능하면 pickVote, 아니면 살아있는 인간 중 무작위. */
+  /**
+   * AI 임포스터의 투표 — LLM 가능하면 pickVote, 아니면 살아있는 인간 중 무작위.
+   * `pickVote`의 LLM 왕복이 스윕 1틱(≥AMONG_SWEEP_MS)보다 오래 걸리면 같은 봇에 대해
+   * 매 틱 새 호출이 파견될 수 있으므로, in-flight 세트로 봇당 1건만 허용한다(중복 시
+   * llmCalls 예산 조기 소진 방지).
+   */
   private async castAiVote(partyId: string, aiProfileId: string): Promise<void> {
+    const key = `${partyId}:${aiProfileId}`;
+    if (this.votingInFlight.has(key)) return;
+    this.votingInFlight.add(key);
     try {
       const state = await this.among.current(partyId);
       if (!state || state.phase !== "voting") return;
@@ -363,6 +380,8 @@ export class PartyGateway
       this.broadcastAmong(partyId, s);
     } catch {
       /* AI 투표 실패는 스킵 처리로 수렴 — 다음 스윕/타임아웃이 회의를 진행시킨다 */
+    } finally {
+      this.votingInFlight.delete(key);
     }
   }
 
@@ -391,7 +410,14 @@ export class PartyGateway
       }
       if (!text) text = fallbackLine(scene);
       // 타이핑 지연 리얼리즘(글자수 비례, 상한 4s) — 즉시 도착하면 봇 티가 난다.
-      await new Promise((r) => setTimeout(r, Math.min(text!.length * 80, 4000)));
+      await new Promise((r) => setTimeout(r, Math.min(text.length * 80, 4000)));
+      // 지연 동안 게임이 진행됐을 수 있다 — emit 직전 재검증(죽었거나, idle 잡담인데 회의/종료로
+      // 전환됐으면 뒷북이므로 버린다). 메시지 자체는 여전히 among.chat이 아니라 party:message라
+      // 채팅 로그엔 남지만, 최소한 상황과 어긋난 발화의 방송은 막는다.
+      const fresh = await this.among.current(partyId);
+      const stillAlive = fresh?.players.some((p) => p.profileId === aiProfileId && p.alive);
+      if (!fresh || !stillAlive) return;
+      if (scene === "idle" && fresh.phase !== "playing") return;
       this.server.to(partyId).emit("party:message", {
         id: `ai-${randomUUID()}`,
         partyId,

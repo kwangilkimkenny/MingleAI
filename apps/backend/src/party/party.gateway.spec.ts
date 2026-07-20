@@ -37,6 +37,9 @@ const among = {
   latestAmong: jest.fn(),
   end: jest.fn(),
   sweepMeetings: jest.fn(),
+  sweepAutoMeetings: jest.fn(),
+  runBotTick: jest.fn(),
+  bumpLlmCalls: jest.fn(),
   project: jest.fn(),
 } as any;
 
@@ -627,4 +630,252 @@ it("party:join swallows a Conflict thrown by the auto-start race without failing
   // join itself still succeeded — presence recorded, no error surfaced to the socket
   expect((gw as any).presence.get("pt1")?.get(lastClient.id)).toBe("pf4");
   expect(lastClient.emit).not.toHaveBeenCalledWith("party:error", expect.anything());
+});
+
+// ---------------------------------------------------------------------------
+// Reviewer fixes: castAiVote reentrancy guard, chatBuf cleanup, sayAsAi
+// post-delay re-validation.
+// ---------------------------------------------------------------------------
+
+const aiBotPersona = {
+  age: 27,
+  gender: "female" as const,
+  occupation: "마케터",
+  style: "무심한 말투",
+};
+
+function votingStateWith(aiAlive = true) {
+  return {
+    sessionId: "ag1",
+    phase: "voting" as const,
+    players: [
+      {
+        profileId: "ai-1",
+        name: "AI1",
+        role: "impostor" as const,
+        alive: aiAlive,
+        isBot: true,
+        isAi: true,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+      {
+        profileId: "pf1",
+        name: "P1",
+        role: "crew" as const,
+        alive: true,
+        isBot: false,
+        isAi: false,
+        killCooldownUntil: null,
+        emergencyUsed: 0,
+      },
+    ],
+    tasks: [],
+    bodies: [],
+    meeting: {
+      reason: "emergency" as const,
+      calledBy: "pf1",
+      discussionEndsAt: 0,
+      voteEndsAt: 0,
+      votes: {},
+    },
+    lastEjected: null,
+    result: null,
+    nextAutoMeetingAt: 0,
+    ai: {
+      llmCalls: 0,
+      bots: {
+        "ai-1": {
+          x: 0.5,
+          y: 0.5,
+          targetIdx: 0,
+          nextChatAt: 0,
+          killHoldUntil: 0,
+          persona: aiBotPersona,
+        },
+      },
+    },
+  };
+}
+
+it("castAiVote는 재진입하지 않는다 — pickVote가 pending인 동안 두 번째 호출은 즉시 반환한다", async () => {
+  const state = votingStateWith();
+  among.current.mockResolvedValue(state);
+  among.vote.mockResolvedValue(state);
+  among.bumpLlmCalls.mockResolvedValue(undefined);
+  among.project.mockReturnValue(fakeSnapshot);
+
+  const gw = gatewayWith();
+  let resolvePickVote!: (v: string | null) => void;
+  const pending = new Promise<string | null>((resolve) => {
+    resolvePickVote = resolve;
+  });
+  const pickVote = jest.fn().mockReturnValue(pending);
+  (gw as any).aiChat = { enabled: true, pickVote, say: jest.fn() };
+
+  const p1 = (gw as any).castAiVote("pt1", "ai-1");
+  // Dispatched again before the first pickVote round-trip resolved — must be a no-op.
+  const p2 = (gw as any).castAiVote("pt1", "ai-1");
+
+  resolvePickVote("pf1");
+  await p1;
+  await p2;
+
+  expect(pickVote).toHaveBeenCalledTimes(1);
+  expect(among.vote).toHaveBeenCalledTimes(1);
+});
+
+it("castAiVote는 완료 후(finally) in-flight 표시를 해제해 다음 호출은 다시 실행된다", async () => {
+  const state = votingStateWith();
+  among.current.mockResolvedValue(state);
+  among.vote.mockResolvedValue(state);
+  among.bumpLlmCalls.mockResolvedValue(undefined);
+  among.project.mockReturnValue(fakeSnapshot);
+
+  const gw = gatewayWith();
+  const pickVote = jest.fn().mockResolvedValue("pf1");
+  (gw as any).aiChat = { enabled: true, pickVote, say: jest.fn() };
+
+  await (gw as any).castAiVote("pt1", "ai-1");
+  await (gw as any).castAiVote("pt1", "ai-1");
+
+  expect(pickVote).toHaveBeenCalledTimes(2);
+  expect(among.vote).toHaveBeenCalledTimes(2);
+});
+
+it("party:leave가 마지막 멤버면 chatBuf를 정리한다", async () => {
+  party.assertParticipant.mockResolvedValue("pf1");
+  party.addPartyMessage.mockResolvedValueOnce({
+    id: "m1",
+    partyId: "pt1",
+    profileId: "pf1",
+    content: "hi",
+    createdAt: "t",
+  });
+
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleJoin(client, { partyId: "pt1" });
+  await gw.handleChat(client, { partyId: "pt1", content: "hi" });
+  expect((gw as any).chatBuf.get("pt1")).toEqual(["hi"]);
+
+  gw.handleLeave(client, { partyId: "pt1" });
+  expect((gw as any).chatBuf.has("pt1")).toBe(false);
+});
+
+it("handleDisconnect가 마지막 멤버면 chatBuf를 정리한다", async () => {
+  party.assertParticipant.mockResolvedValue("pf1");
+  party.addPartyMessage.mockResolvedValueOnce({
+    id: "m1",
+    partyId: "pt1",
+    profileId: "pf1",
+    content: "hi",
+    createdAt: "t",
+  });
+
+  const gw = gatewayWith();
+  const client = clientWith("u1");
+  await gw.handleJoin(client, { partyId: "pt1" });
+  await gw.handleChat(client, { partyId: "pt1", content: "hi" });
+  expect((gw as any).chatBuf.get("pt1")).toEqual(["hi"]);
+
+  gw.handleDisconnect(client);
+  expect((gw as any).chatBuf.has("pt1")).toBe(false);
+});
+
+it("party:leave가 마지막 멤버가 아니면 chatBuf를 유지한다", async () => {
+  party.assertParticipant.mockResolvedValue("pf1");
+  party.addPartyMessage.mockResolvedValueOnce({
+    id: "m1",
+    partyId: "pt1",
+    profileId: "pf1",
+    content: "hi",
+    createdAt: "t",
+  });
+
+  const gw = gatewayWith();
+  const client1 = clientWith("u1");
+  client1.id = "sock-1";
+  await gw.handleJoin(client1, { partyId: "pt1" });
+  party.assertParticipant.mockResolvedValueOnce("pf2");
+  const client2 = clientWith("u2");
+  client2.id = "sock-2";
+  await gw.handleJoin(client2, { partyId: "pt1" });
+
+  await gw.handleChat(client1, { partyId: "pt1", content: "hi" });
+  gw.handleLeave(client1, { partyId: "pt1" });
+
+  expect((gw as any).chatBuf.get("pt1")).toEqual(["hi"]);
+});
+
+it("sayAsAi는 타이핑 지연 동안 봇이 죽으면 발화를 폐기한다", async () => {
+  jest.useFakeTimers();
+  try {
+    const aliveState = votingStateWith();
+    aliveState.phase = "playing" as any;
+    const deadState = votingStateWith(false);
+    deadState.phase = "playing" as any;
+    among.current.mockResolvedValueOnce(aliveState).mockResolvedValueOnce(deadState);
+
+    const gw = gatewayWith();
+    (gw as any).aiChat = { enabled: false, pickVote: jest.fn(), say: jest.fn() };
+    const to = (gw as any).server.to as jest.Mock;
+
+    const p = (gw as any).sayAsAi("pt1", "ai-1", "idle");
+    await jest.advanceTimersByTimeAsync(4000);
+    await p;
+
+    expect(to).not.toHaveBeenCalledWith("pt1");
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it("sayAsAi는 idle 잡담이 지연 중 회의로 전환되면 발화를 폐기한다", async () => {
+  jest.useFakeTimers();
+  try {
+    const aliveState = votingStateWith();
+    aliveState.phase = "playing" as any;
+    const meetingState = votingStateWith();
+    meetingState.phase = "meeting" as any;
+    among.current.mockResolvedValueOnce(aliveState).mockResolvedValueOnce(meetingState);
+
+    const gw = gatewayWith();
+    (gw as any).aiChat = { enabled: false, pickVote: jest.fn(), say: jest.fn() };
+    const to = (gw as any).server.to as jest.Mock;
+
+    const p = (gw as any).sayAsAi("pt1", "ai-1", "idle");
+    await jest.advanceTimersByTimeAsync(4000);
+    await p;
+
+    expect(to).not.toHaveBeenCalledWith("pt1");
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it("sayAsAi는 재검증을 통과하면 party:message를 방송한다", async () => {
+  jest.useFakeTimers();
+  try {
+    const state = votingStateWith();
+    state.phase = "playing" as any;
+    among.current.mockResolvedValue(state);
+
+    const gw = gatewayWith();
+    (gw as any).aiChat = { enabled: false, pickVote: jest.fn(), say: jest.fn() };
+    const to = (gw as any).server.to as jest.Mock;
+
+    const p = (gw as any).sayAsAi("pt1", "ai-1", "idle");
+    await jest.advanceTimersByTimeAsync(4000);
+    await p;
+
+    expect(to).toHaveBeenCalledWith("pt1");
+    const emit = to.mock.results.at(-1)!.value.emit;
+    expect(emit).toHaveBeenCalledWith(
+      "party:message",
+      expect.objectContaining({ partyId: "pt1", profileId: "ai-1" }),
+    );
+  } finally {
+    jest.useRealTimers();
+  }
 });
