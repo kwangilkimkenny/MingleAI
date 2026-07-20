@@ -147,7 +147,7 @@ export default function PartyScreen() {
       },
       onError: (e) => {
         if (!alive) return;
-        setSocketDown(true);
+        // party:error는 앱 레벨(게임/모더레이션) 에러 — 연결 상태 신호가 아니다.
         const msg =
           e && typeof e === "object" && "message" in e
             ? (e as { message?: unknown }).message
