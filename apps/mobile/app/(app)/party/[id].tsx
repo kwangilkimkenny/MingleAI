@@ -587,8 +587,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     backgroundColor: "rgba(255,255,255,0.88)",
-    borderBottomWidth: doodle.border,
-    borderBottomColor: colors.ink,
     paddingBottom: 8,
   },
   topBarInfo: {

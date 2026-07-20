@@ -135,9 +135,6 @@ const styles = StyleSheet.create({
   floor: {
     position: "absolute",
     backgroundColor: colors.fill,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 12,
     overflow: "hidden",
   },
   taskMarker: {
