@@ -90,6 +90,14 @@ export function DoodleCharacter({
         }}
       >
         <Svg width={w} height={h} style={styles.svgOverflow}>
+          {/* 발밑 지면 그림자 타원(유령 제외) */}
+          {!ghost && (
+            <Path
+              d={`M${cx - size * 0.14} ${h - 2} a${size * 0.14} ${size * 0.045} 0 1 0 ${size * 0.28} 0 a${size * 0.14} ${size * 0.045} 0 1 0 ${-size * 0.28} 0`}
+              fill={colors.ink}
+              opacity={0.12}
+            />
+          )}
           {/* 다리 or 유령 치맛단 */}
           {ghost ? (
             <Path d={ghostHem} stroke={colors.ink} strokeWidth={inkW} fill="none" />
@@ -155,8 +163,8 @@ export function DoodleCharacter({
             strokeWidth={outlineW}
           />
           <Hairstyle hair={look.hair} cx={cx} headCy={headCy} headR={headR} />
-          {/* 볼터치(accentFill) — 유일한 코랄 포인트. 내 캐릭터는 잉크 머리라 생략, look.accent==="cheek"인 캐릭터만 */}
-          {!mine && look.accent === "cheek" && (
+          {/* 볼터치(accentFill) — 유일한 코랄 포인트. 내 캐릭터는 잉크 머리라 생략, look.accent==="cheek"인 캐릭터만. 유령은 제외 */}
+          {!mine && !ghost && look.accent === "cheek" && (
             <>
               <Circle
                 cx={cx - headR * 0.58}
@@ -197,6 +205,12 @@ export function DoodleCorpse({ size = 40 }: { size?: number }) {
   return (
     <View pointerEvents="none" style={{ transform: [{ rotate: "-8deg" }] }}>
       <Svg width={size} height={size * 0.8} style={styles.svgOverflow}>
+        {/* 머리 아래 잉크 얼룩 그림자 */}
+        <Path
+          d={`M${headR} ${cy + headR * 0.9} a${headR * 1.1} ${headR * 0.3} 0 1 0 ${headR * 2.2} 0 a${headR * 1.1} ${headR * 0.3} 0 1 0 ${-headR * 2.2} 0`}
+          fill={colors.ink}
+          opacity={0.12}
+        />
         {/* 누운 몸통 */}
         <Line
           x1={headR * 2}
