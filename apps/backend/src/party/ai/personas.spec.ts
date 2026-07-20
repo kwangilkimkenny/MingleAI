@@ -18,8 +18,18 @@ describe("pickPersonas", () => {
   });
 
   it("주입 rand로 결정적이다", () => {
-    const a = pickPersonas(2, new Set(), () => 0.3, () => "fixed");
-    const b = pickPersonas(2, new Set(), () => 0.3, () => "fixed");
+    const a = pickPersonas(
+      2,
+      new Set(),
+      () => 0.3,
+      () => "fixed",
+    );
+    const b = pickPersonas(
+      2,
+      new Set(),
+      () => 0.3,
+      () => "fixed",
+    );
     expect(a.map((p) => p.name)).toEqual(b.map((p) => p.name));
   });
 });

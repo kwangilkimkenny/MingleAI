@@ -17,14 +17,62 @@ export interface AiPersona {
 }
 
 const POOL: Omit<AiPersona, "profileId">[] = [
-  { name: "서지우", age: 27, gender: "female", occupation: "마케터", style: "말끝을 흐리며 ㅋㅋ를 자주 붙이는 무심한 말투" },
-  { name: "한도윤", age: 29, gender: "male", occupation: "개발자", style: "짧고 건조하게 답하지만 가끔 드립을 치는 말투" },
-  { name: "임채린", age: 26, gender: "female", occupation: "간호사", style: "리액션이 크고 이모티콘 없이도 텐션 높은 말투" },
-  { name: "정하람", age: 31, gender: "male", occupation: "요리사", style: "느긋하고 존댓말 반말을 섞는 말투" },
-  { name: "오세아", age: 28, gender: "female", occupation: "디자이너", style: "관찰평을 툭 던지는 시니컬한 말투" },
-  { name: "강이준", age: 30, gender: "male", occupation: "트레이너", style: "단답 위주에 가끔 진지해지는 말투" },
-  { name: "문가을", age: 25, gender: "female", occupation: "대학원생", style: "질문을 자주 던지는 호기심 많은 말투" },
-  { name: "백시헌", age: 32, gender: "male", occupation: "회계사", style: "정중하지만 은근히 남 의심하는 말투" },
+  {
+    name: "서지우",
+    age: 27,
+    gender: "female",
+    occupation: "마케터",
+    style: "말끝을 흐리며 ㅋㅋ를 자주 붙이는 무심한 말투",
+  },
+  {
+    name: "한도윤",
+    age: 29,
+    gender: "male",
+    occupation: "개발자",
+    style: "짧고 건조하게 답하지만 가끔 드립을 치는 말투",
+  },
+  {
+    name: "임채린",
+    age: 26,
+    gender: "female",
+    occupation: "간호사",
+    style: "리액션이 크고 이모티콘 없이도 텐션 높은 말투",
+  },
+  {
+    name: "정하람",
+    age: 31,
+    gender: "male",
+    occupation: "요리사",
+    style: "느긋하고 존댓말 반말을 섞는 말투",
+  },
+  {
+    name: "오세아",
+    age: 28,
+    gender: "female",
+    occupation: "디자이너",
+    style: "관찰평을 툭 던지는 시니컬한 말투",
+  },
+  {
+    name: "강이준",
+    age: 30,
+    gender: "male",
+    occupation: "트레이너",
+    style: "단답 위주에 가끔 진지해지는 말투",
+  },
+  {
+    name: "문가을",
+    age: 25,
+    gender: "female",
+    occupation: "대학원생",
+    style: "질문을 자주 던지는 호기심 많은 말투",
+  },
+  {
+    name: "백시헌",
+    age: 32,
+    gender: "male",
+    occupation: "회계사",
+    style: "정중하지만 은근히 남 의심하는 말투",
+  },
 ];
 
 /** count명 추출 — takenNames(참가 인간 이름)와 충돌 회피, rand/makeId 주입으로 테스트 결정성. */
@@ -40,7 +88,14 @@ export function pickPersonas(
     const j = Math.floor(rand() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
   }
-  return shuffled.slice(0, count).map((p) => ({ ...p, profileId: `${AI_PROFILE_PREFIX}${makeId()}` }));
+  const result = shuffled
+    .slice(0, count)
+    .map((p) => ({ ...p, profileId: `${AI_PROFILE_PREFIX}${makeId()}` }));
+  if (result.length < count) {
+    // eslint-disable-next-line no-console
+    console.warn(`[personas] pool exhausted: requested ${count}, returning ${result.length}`);
+  }
+  return result;
 }
 
 const FALLBACK: Record<"idle" | "meeting", string[]> = {
