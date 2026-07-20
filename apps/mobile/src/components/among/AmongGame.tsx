@@ -70,6 +70,17 @@ export function AmongGame({
     return () => clearInterval(t);
   }, [among?.killCooldownUntil]);
 
+  // among.nextAutoMeetingAt 기반 남은 초 — 진행 중에만 1s 틱.
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    if (!among?.nextAutoMeetingAt || among.phase !== "playing") return;
+    const t = setInterval(() => setClockTick((v) => v + 1), 1000);
+    return () => clearInterval(t);
+  }, [among?.nextAutoMeetingAt, among?.phase]);
+  const autoMeetingSec = among?.nextAutoMeetingAt
+    ? Math.max(0, Math.ceil((among.nextAutoMeetingAt - Date.now()) / 1000))
+    : null;
+
   const handleRoleRevealDone = useCallback(() => {
     if (among?.sessionId) {
       setRevealedSessionId(among.sessionId);
@@ -181,6 +192,9 @@ export function AmongGame({
         <Text style={styles.progressCount}>
           {among.progress.done}/{among.progress.total}
         </Text>
+        {autoMeetingSec !== null && (
+          <Text style={styles.autoMeetingText}>투표까지 {autoMeetingSec}s</Text>
+        )}
       </View>
 
       {iAmDead ? (
@@ -260,6 +274,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressCount: { fontSize: 12, color: colors.grayDark, minWidth: 28, textAlign: "right" },
+  autoMeetingText: { fontSize: 11, color: colors.grayDark, minWidth: 70, textAlign: "right" },
 
   spectatorBadge: {
     position: "absolute",

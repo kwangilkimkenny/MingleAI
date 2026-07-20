@@ -15,11 +15,12 @@ export function RoleReveal({ role, onDone }: { role: AmongRole; onDone: () => vo
     return () => clearTimeout(t);
   }, [onDone]);
 
+  // (임포스터 분기는 도달 불가 — 인간은 항상 crew, 임포스터는 AI 페르소나 전용 — 타입상 유지)
   const isImpostor = role === "impostor";
-  const label = isImpostor ? "당신은 임포스터" : "당신은 크루메이트";
+  const label = isImpostor ? "당신은 임포스터" : "AI를 찾아라";
   const sub = isImpostor
     ? "크루메이트를 처치하고 방해하세요!"
-    : "모든 미션을 완료하거나 임포스터를 찾아내세요!";
+    : "파티에 AI 2명이 숨어 있어요.\n채팅과 행동으로 찾아내 투표하세요!";
   const accent = isImpostor ? colors.accent : colors.ink;
 
   return (

@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Siren, Skull } from "lucide-react-native";
+import { Siren, Skull, Vote } from "lucide-react-native";
 import type { AmongSnapshot } from "@mingle/shared";
 import { colors, fonts } from "../../lib/theme";
 import { DoodleButton, DoodleCard } from "../Doodle";
@@ -34,7 +34,20 @@ export function MeetingScreen({
 
   const isVoting = meeting.phase === "voting";
   const alreadyVoted = meeting.votedProfileIds.includes(myProfileId);
-  const emergency = meeting.reason === "emergency";
+  const icon =
+    meeting.reason === "emergency" ? (
+      <Siren color={colors.accent} size={20} strokeWidth={2.2} />
+    ) : meeting.reason === "auto" ? (
+      <Vote color={colors.ink} size={20} strokeWidth={2.2} />
+    ) : (
+      <Skull color={colors.ink} size={20} strokeWidth={2.2} />
+    );
+  const reasonText =
+    meeting.reason === "emergency"
+      ? "긴급 회의"
+      : meeting.reason === "auto"
+        ? "정기 투표"
+        : "시체 신고";
 
   return (
     <View style={styles.container}>
@@ -42,12 +55,8 @@ export function MeetingScreen({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.reasonRow}>
-            {emergency ? (
-              <Siren color={colors.accent} size={20} strokeWidth={2.2} />
-            ) : (
-              <Skull color={colors.ink} size={20} strokeWidth={2.2} />
-            )}
-            <Text style={styles.reasonText}>{emergency ? "긴급 회의" : "시체 신고"}</Text>
+            {icon}
+            <Text style={styles.reasonText}>{reasonText}</Text>
           </View>
           <View style={styles.timerBadge}>
             <Text style={styles.timerText}>{secondsLeft}s</Text>

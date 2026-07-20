@@ -17,6 +17,7 @@ import { getPartyMessages } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { BackButton } from "../../../src/components/BackButton";
 import { openPartySocket } from "../../../src/lib/party-socket";
+import { resolveDisplayName } from "../../../src/lib/party-name";
 import { PartyChatOverlay } from "../../../src/components/PartyChatOverlay";
 import { MemberSheet } from "../../../src/components/MemberSheet";
 import { PARTY_MAP, BALANCE_STATION_ID, type AmongSnapshot } from "@mingle/shared";
@@ -54,6 +55,7 @@ export default function PartyScreen() {
   const [messages, setMessages] = useState<PartyMessageView[]>([]);
   const [presentCount, setPresentCount] = useState(0);
   const [socketDown, setSocketDown] = useState(false);
+  const [gameNotice, setGameNotice] = useState<string | null>(null);
   const socketRef = useRef<PartySocketHandle | null>(null);
 
   const [game, setGame] = useState<GameSnapshot | null>(null);
@@ -143,7 +145,19 @@ export default function PartyScreen() {
         if (!alive) return;
         if (e.partyId === id) setAmong(e.snapshot);
       },
-      onError: () => alive && setSocketDown(true),
+      onError: (e) => {
+        if (!alive) return;
+        setSocketDown(true);
+        const msg =
+          e && typeof e === "object" && "message" in e
+            ? (e as { message?: unknown }).message
+            : null;
+        if (typeof msg !== "string") return;
+        if (msg === "not-enough-players") setGameNotice("4명이 모여야 시작할 수 있어요");
+        else if (msg === "AI 게임 준비 중이에요")
+          setGameNotice("AI 게임 준비 중이에요 — 잠시 후 다시 시도해주세요");
+        else setGameNotice(msg);
+      },
       onReconnect: () => {
         if (!alive) return;
         setSocketDown(false);
@@ -168,6 +182,12 @@ export default function PartyScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token, party != null]);
+
+  useEffect(() => {
+    if (!gameNotice) return;
+    const t = setTimeout(() => setGameNotice(null), 3000);
+    return () => clearTimeout(t);
+  }, [gameNotice]);
 
   // Animation loop: 내 캐릭터 = 조이스틱 속도 적분(충돌 포함), 피어 = target lerp.
   useEffect(() => {
@@ -209,10 +229,8 @@ export default function PartyScreen() {
   const showAmong =
     among !== null && !(among.phase === "ended" && dismissedSessionId === among.sessionId);
   const amongEnded = showAmong && among !== null && among.phase === "ended";
-  const hideFab =
-    showAmong &&
-    among !== null &&
-    (among.phase === "meeting" || among.phase === "voting" || among.phase === "ended");
+  // 리빌 중 겹침은 리빌 카드가 zIndex 100 전체 오버레이라 FAB 가림 허용 — meeting/voting은 채팅 개방.
+  const hideFab = showAmong && among?.phase === "ended";
 
   // Backend enforces one active session per party at a time — never let a stale
   // balance-game/member sheet overlay linger once Among Us takes the screen.
@@ -280,7 +298,7 @@ export default function PartyScreen() {
       : worldDist(entry.pos, entry.target) > 0.002;
     return {
       profileId: pid,
-      name: mine ? "나" : (party.participants.find((p) => p.profileId === pid)?.name ?? "?"),
+      name: resolveDisplayName(pid, party.participants, among?.players, myProfileId),
       pos: entry.pos,
       mine,
       walking,
@@ -333,7 +351,7 @@ export default function PartyScreen() {
   const visibleParticipants = party.participants.filter((p) => !hidden[p.profileId]);
 
   function senderName(profileId: string) {
-    return party?.participants.find((p) => p.profileId === profileId)?.name ?? "??";
+    return resolveDisplayName(profileId, party?.participants ?? [], among?.players, myProfileId);
   }
 
   return (
@@ -372,6 +390,12 @@ export default function PartyScreen() {
       </View>
 
       <View style={styles.world}>
+        {gameNotice ? (
+          <View style={styles.noticeBanner} pointerEvents="none">
+            <Text style={styles.noticeText}>{gameNotice}</Text>
+          </View>
+        ) : null}
+
         {showAmong && among ? (
           <AmongGame
             among={among}
@@ -523,6 +547,21 @@ const styles = StyleSheet.create({
 
   joystick: { position: "absolute", zIndex: 20 },
   actionPad: { position: "absolute", zIndex: 20 },
+
+  noticeBanner: {
+    position: "absolute",
+    top: 8,
+    alignSelf: "center",
+    zIndex: 30,
+    maxWidth: "80%",
+    backgroundColor: colors.ink,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  noticeText: { color: colors.paper, fontSize: 13, fontWeight: "700", textAlign: "center" },
 
   topBar: {
     flexDirection: "row",

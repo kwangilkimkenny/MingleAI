@@ -3,7 +3,7 @@
  * Reveals winner + all players' roles. "다시하기" CTA.
  */
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Flag, PartyPopper, Skull, Wrench } from "lucide-react-native";
+import { Bot, Flag, PartyPopper, Skull, Wrench } from "lucide-react-native";
 import type { AmongPlayerView, AmongResultView } from "@mingle/shared";
 import { colors, fonts } from "../../lib/theme";
 import { DoodleButton, DoodleCard } from "../Doodle";
@@ -50,30 +50,24 @@ export function ResultScreen({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>플레이어 역할 공개</Text>
           <ScrollView showsVerticalScrollIndicator={false} style={styles.list}>
-            {players.map((p) => {
-              const isImpostor = p.role === "impostor";
-              return (
-                <View key={p.profileId} style={styles.playerRow}>
-                  {isImpostor ? (
-                    <Skull color={colors.accent} size={20} strokeWidth={2.2} />
-                  ) : (
-                    <Wrench color={colors.grayDark} size={20} strokeWidth={2.2} />
-                  )}
-                  <View style={styles.playerInfo}>
-                    <Text style={styles.playerName}>{p.name}</Text>
-                    <Text
-                      style={[
-                        styles.roleLabel,
-                        { color: isImpostor ? colors.accent : colors.grayMid },
-                      ]}
-                    >
-                      {isImpostor ? "임포스터" : "크루메이트"}
-                      {!p.alive ? " · 탈락" : ""}
-                    </Text>
-                  </View>
+            {players.map((p) => (
+              <View key={p.profileId} style={styles.playerRow}>
+                {p.isAi ? (
+                  <Bot color={colors.accent} size={20} strokeWidth={2.2} />
+                ) : (
+                  <Wrench color={colors.grayDark} size={20} strokeWidth={2.2} />
+                )}
+                <View style={styles.playerInfo}>
+                  <Text style={styles.playerName}>{p.name}</Text>
+                  <Text
+                    style={[styles.roleLabel, { color: p.isAi ? colors.accent : colors.grayMid }]}
+                  >
+                    {p.isAi ? "AI" : "크루메이트"}
+                    {!p.alive ? " · 탈락" : ""}
+                  </Text>
                 </View>
-              );
-            })}
+              </View>
+            ))}
           </ScrollView>
         </View>
 
