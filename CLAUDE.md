@@ -35,9 +35,9 @@ Writing tips:
 - `pnpm test` (`-r`; client-core=Vitest, backend=jest, mobile=순수 lib 전용 Vitest). `pnpm lint`.
 - Prisma (`apps/backend`): `pnpm prisma:migrate`, `pnpm prisma:generate`, `pnpm prisma:studio`.
 - **QA 도구**:
-  - `node tools/mega-qa.mjs` — 풀퍼널 라이브 전수검사 60체크(~20초, 백엔드 :3000 필요). **재실행 60초 간격**(register/login 10회/분/IP — 어기면 가입부터 429 연쇄). `/mega-qa` 스킬(`.claude/skills/mega-qa/`)이 절차·오탐 triage 문서.
+  - `node tools/mega-qa.mjs` — 풀퍼널 라이브 전수검사 59체크(~20초, 백엔드 :3000 필요). **재실행 60초 간격**(register/login 10회/분/IP — 어기면 가입부터 429 연쇄). `/mega-qa` 스킬(`.claude/skills/mega-qa/`)이 절차·오탐 triage 문서.
   - `node tools/seed-demo.mjs <email> <pw>` — 데모 데이터 시더+상주 봇 3명(파티·프로포즈·DM·데이트플랜 시드, 밸런스 자동투표·어몽 슬로우플레이). 매칭 큐는 실행 간 공유 — 잔재 waiting 엔트리가 파티에 섞일 수 있음(설계상 정상).
-  - `node tools/among-bots.mjs <count> [--start|--passive]` — 어몽 전용 봇(솔로 테스트).
+  - `node tools/among-bots.mjs <count> [--start|--passive] [--hunt]` — 어몽 전용 봇(솔로 테스트). 봇은 항상 crew(임포스터=AI 전용, 2026-07-20~) — `--hunt`는 회의에서 봇/인간이 아닌 프로필(=AI)에 투표.
 
 ## Design system — doodle line-art + coral points — enforce on ALL new UI
 
@@ -66,7 +66,9 @@ Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **
 - backend TS 에러 grep: ANSI 색코드 때문에 `error TS`가 0으로 나옴 — `"Found N error"`로.
 - 포트: backend dev 3000 / PM2 4000(`instances:1` 고정 — redis-adapter 전까지) / web 3100 / Metro 8081.
 - **매칭 env**(선택→검증 기본값): `MIN_PARTY_SIZE`(4)/`MAX_PARTY_SIZE`(8)/`MATCH_SWEEP_MS`(2500)/`MATCH_MAX_WAIT_MS`(120000)/`MATCH_BASE_THRESHOLD`(0.5). 스윕은 lifecycle `setInterval` — 단일 인스턴스 전용.
-- **어몽 env**(`party/among.config.ts` 검증 기본값): `AMONG_MIN_PLAYERS`(4)/`AMONG_IMPOSTORS`(1)/`AMONG_TASKS_PER_CREW`(3)/`AMONG_KILL_RANGE`(0.12)/`AMONG_TASK_RANGE`(0.10)/`AMONG_KILL_COOLDOWN_MS`(20000)/`AMONG_DISCUSSION_MS`(30000)/`AMONG_VOTE_MS`(30000)/`AMONG_EMERGENCY_PER_PLAYER`(1)/`AMONG_SWEEP_MS`(1000). 회의 타이머 스윕 = PartyGateway lifecycle `setInterval` — 단일 인스턴스 전용.
+- **어몽 = "AI를 찾아라"(2026-07-20 변형)**: 인간은 **전원 crew** — 임포스터는 **AI 페르소나 전용**(`AMONG_AI_COUNT`명, `ai-` 접두 profileId, 인간 임포스터 선출 로직 제거). AI는 LLM으로 채팅·투표·이동·킬(`AiImpostorBrain`, PartyGateway 1s 스윕에 편입) — `LLM_API_URL` 미설정 시 `AMONG_AI_REQUIRE_LLM=false`여야 시작 가능(그 외엔 템플릿 대사 폴백). `AMONG_AUTO_MEETING_MS` 경과 시 주기 자동 회의 소집(`reason:"auto"`). `isAi`/`isBot`은 플레이 중 리댁션, ended 스냅샷에만 노출.
+- **어몽 env**(`party/among.config.ts` 검증 기본값): `AMONG_MIN_PLAYERS`(4)/`AMONG_TASKS_PER_CREW`(3)/`AMONG_KILL_RANGE`(0.12)/`AMONG_TASK_RANGE`(0.10)/`AMONG_KILL_COOLDOWN_MS`(20000)/`AMONG_DISCUSSION_MS`(30000)/`AMONG_VOTE_MS`(30000)/`AMONG_EMERGENCY_PER_PLAYER`(1)/`AMONG_SWEEP_MS`(1000)/`AMONG_AI_COUNT`(2)/`AMONG_AUTO_MEETING_MS`(120000)/`AMONG_AI_REQUIRE_LLM`(true)/`AMONG_AI_LLM_MAX_CALLS`(60)/`AMONG_AI_CHAT_MIN_MS`(60000)/`AMONG_AI_CHAT_MAX_MS`(90000). 스윕(PartyGateway lifecycle `setInterval`, 단일 인스턴스 전용)이 회의 타이머·주기 자동 회의·AI 봇 틱(이동/킬/투표/채팅)을 전부 처리.
+- **게이트웨이 인메모리 상태**: `PartyGateway`의 `humanPos`(플레이어 좌표 맵)·`chatBuf`(파티별 최근 채팅 링버퍼, AI 발화 컨텍스트용)는 프로세스 메모리 — 단일 인스턴스 전용(redis-adapter 전까지 재시작 시 유실).
 - **어몽 자동 시작**: `party:join` 후 프레즌스 로스터==파티 정원 && 이 파티에 among 세션이 **한 번도 없었으면** 자동 시작(`maybeAutoStartAmong`; 밸런스 종료 시에도 구제 재시도). ended 파티는 자동 재시작 안 함(다시하기=수동 `among:start`). 실패는 삼킴 — advisory lock+partial unique가 최종 방어. **도구 영향**: 4소켓 파티 join 즉시 게임 시작 — `game:start`(밸런스)는 among ended 후에만(파티당 ACTIVE `GameSession` 1개, gameType 무관).
 - **어몽 승리 규칙(2026-07-15 변경)**: 태스크 승리는 **생존자 소유 태스크만** 요구(사망자 태스크 제외 — doTask/kill/회의해소 3곳 재검사 + 진행률 게이지 동일 기준). 사망 크루 태스크 포함하던 구버전은 교착 버그.
 - **CORS env**: `SOCKET_CORS_ORIGINS`(양 게이트웨이+REST 공용 allowlist). 미설정→모든 origin 반사(dev), production이면 부팅 WARN. 모듈 로드 시 읽힘 — 프로세스 시작 전에 설정.
@@ -87,8 +89,8 @@ Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **
 
 ## Status (요약 — 상세는 git log + docs/superpowers/plans/)
 
-- **현재 상태**: Phases 0–6d + 두들 디자인 이식 + 코랄 팔레트 + 파티=게임 월드 재구성 + 출시 준비(rate limit·연령 게이트·CORS) 전부 origin/megahuni에 푸시. 마지막 풀 그린: backend jest **296/296**, client-core 73/73, mobile tsc+vitest 103/103, **mega-qa 60/60**, 웹/iOS/Android 번들 스모크.
-- **완료 페이즈 한 줄 요약**: P0 스캐폴드+client-core · P1 데이터모델 v2 · P2 온보딩+AI 선호분석(LLM env 미설정 시 stub) · P3 매칭 큐+파티 결성 · P4 프로포즈→매칭→DM(첫 게이트웨이) · P5a push · P5b 데이트플랜 합의 · P5c 모더레이션 UI · P6a 파티 실시간 · P6b 2D 공간 · P6c 밸런스(5라운드, 공개 전 비노출 투표) · P6d 어몽어스 실게임 · 2026-07-14 두들 이식(9task SDD) · 2026-07-15 게임 월드 재구성 + /qa·/design-review 패스(매칭 막다른 화면·어몽 교착 수정, 모션 시스템, 탭 타깃 60px).
+- **현재 상태**: Phases 0–6d + 두들 디자인 이식 + 코랄 팔레트 + 파티=게임 월드 재구성 + "AI를 찾아라" 변형 + 출시 준비(rate limit·연령 게이트·CORS) 전부 origin/megahuni에 푸시. 마지막 풀 그린: backend jest **344/344**, client-core 73/73, mobile tsc+vitest 107/107, **mega-qa 59/59**, 웹/iOS/Android 번들 스모크.
+- **완료 페이즈 한 줄 요약**: P0 스캐폴드+client-core · P1 데이터모델 v2 · P2 온보딩+AI 선호분석(LLM env 미설정 시 stub) · P3 매칭 큐+파티 결성 · P4 프로포즈→매칭→DM(첫 게이트웨이) · P5a push · P5b 데이트플랜 합의 · P5c 모더레이션 UI · P6a 파티 실시간 · P6b 2D 공간 · P6c 밸런스(5라운드, 공개 전 비노출 투표) · P6d 어몽어스 실게임 · 2026-07-14 두들 이식(9task SDD) · 2026-07-15 게임 월드 재구성 + /qa·/design-review 패스(매칭 막다른 화면·어몽 교착 수정, 모션 시스템, 탭 타깃 60px) · 2026-07-20 어몽 → "AI를 찾아라" 변형(인간 전원 crew, 임포스터는 LLM 페르소나 AI 전용, 주기 자동 회의).
 - **남은 출시 항목**: EAS projectId(사용자 `npx eas-cli init`), **실기기 네이티브 E2E**(`docs/qa/2026-07-14-native-e2e-runbook.md` — 두들 체크리스트 §5 포함), refresh token, 관리자 모더레이션 웹.
 - **백로그**(비차단): 어몽 추방 결과 미표시(`lastEjected` 미렌더)·긴급회의 소진 시 오류문구 미흡·종료 게임 결과 재입장 재노출 정책(제품 판단); push DTO `@ApiProperty` 부재·토글 read-back 없음·cold-start tap 미처리·안읽음 탭 배지; DatePlan `completed` 전이 미구현·결제 잔재 컬럼·레거시 웹 DatePlan 폼(v1 필드, broken); reportUser dedup 잔여 TOCTOU; MatchGauge 미사용(궁합 표시 예약); Pretendard 미번들; 온보딩 iOS KAV 부재·입력 accessibilityLabel 부재; 결과 화면 emoji 아이콘→Lucide.
 
