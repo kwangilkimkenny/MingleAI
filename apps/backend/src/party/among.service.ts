@@ -617,7 +617,7 @@ export class AmongService {
     const advanced: string[] = [];
     for (const row of rows) {
       const outer = row.state as unknown as AmongState;
-      if (outer.phase !== "playing" || Date.now() < outer.nextAutoMeetingAt) continue;
+      if (outer.phase !== "playing" || Date.now() < (outer.nextAutoMeetingAt ?? Infinity)) continue;
       try {
         await this.prisma.$transaction(async (tx) => {
           await this.lockParty(tx, row.partyId);
@@ -625,7 +625,7 @@ export class AmongService {
           if (!fresh) return;
           const state = fresh.state as unknown as AmongState;
           const now = Date.now();
-          if (state.phase !== "playing" || now < state.nextAutoMeetingAt) return;
+          if (state.phase !== "playing" || now < (state.nextAutoMeetingAt ?? Infinity)) return;
           state.phase = "meeting";
           state.meeting = {
             reason: "auto",

@@ -1342,6 +1342,27 @@ describe("sweepAutoMeetings", () => {
     expect(state.phase).toBe("playing");
     expect(state.nextAutoMeetingAt).toBeGreaterThan(Date.now());
   });
+
+  it("구세션(nextAutoMeetingAt 없음)은 자동 회의를 소집하지 않는다", async () => {
+    const state = buildPlayingState();
+    delete (state as any).nextAutoMeetingAt;
+    seedRow("g1", "pt1", state);
+
+    const advanced = await service.sweepAutoMeetings();
+    expect(advanced).toHaveLength(0);
+    expect(state.phase).toBe("playing");
+  });
+
+  it("report 소집도 nextAutoMeetingAt을 리셋한다", async () => {
+    const state = buildPlayingState({ nextAutoMeetingAt: 1 });
+    state.bodies = [{ profileId: "p2", x: 0.5, y: 0.5, reported: false }];
+    state.players.find((p: any) => p.profileId === "p2")!.alive = false;
+    gameSession.findFirst.mockResolvedValue(activeRow(state));
+    gameSession.update.mockImplementation(async ({ data }: any) => data);
+
+    await service.report("pt1", "p1", "p2");
+    expect(state.nextAutoMeetingAt).toBeGreaterThan(Date.now());
+  });
 });
 
 // ---------------------------------------------------------------------------
