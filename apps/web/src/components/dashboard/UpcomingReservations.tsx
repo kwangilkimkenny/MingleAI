@@ -111,16 +111,10 @@ export default function UpcomingReservations() {
       <CardContent sx={{ pt: 0 }}>
         {reservations.length === 0 ? (
           <Box textAlign="center" py={3}>
+            {/* 파티 브라우징 라우트(v1)는 제거됨 — 참여는 모바일 앱에서 */}
             <Typography color="text.secondary">
               예정된 예약이 없습니다
             </Typography>
-            <Button
-              variant="contained"
-              sx={{ mt: 2 }}
-              onClick={() => router.push("/parties")}
-            >
-              파티 예약하기
-            </Button>
           </Box>
         ) : (
           <List disablePadding>

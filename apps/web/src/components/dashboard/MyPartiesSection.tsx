@@ -84,41 +84,19 @@ export default function MyPartiesSection() {
 
   return (
     <Card>
-      <CardHeader
-        title="내 파티"
-        action={
-          <Button size="small" onClick={() => router.push("/parties")}>
-            전체보기
-          </Button>
-        }
-      />
+      {/* 파티 브라우징 라우트(v1)는 제거됨 — 파티 참여는 모바일 앱에서. 위젯은 조회 전용. */}
+      <CardHeader title="내 파티" />
       <CardContent sx={{ pt: 0 }}>
         {parties.length === 0 ? (
           <Box textAlign="center" py={3}>
             <Typography color="text.secondary">
-              참여한 파티가 없습니다
+              참여한 파티가 없습니다 — 파티는 모바일 앱에서 참여할 수 있어요
             </Typography>
-            <Button
-              variant="contained"
-              sx={{ mt: 2 }}
-              onClick={() => router.push("/parties")}
-            >
-              파티 둘러보기
-            </Button>
           </Box>
         ) : (
           <List disablePadding>
             {parties.map((party) => (
-              <ListItem
-                key={party.id}
-                sx={{
-                  px: 0,
-                  cursor: "pointer",
-                  "&:hover": { bgcolor: "action.hover" },
-                  borderRadius: 1,
-                }}
-                onClick={() => router.push(`/parties/${party.id}`)}
-              >
+              <ListItem key={party.id} sx={{ px: 0, borderRadius: 1 }}>
                 <ListItemIcon>
                   <CelebrationIcon color="primary" />
                 </ListItemIcon>

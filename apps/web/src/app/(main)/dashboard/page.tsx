@@ -15,7 +15,6 @@ import Step from "@mui/material/Step";
 import StepLabel from "@mui/material/StepLabel";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import CelebrationIcon from "@mui/icons-material/Celebration";
-import AssessmentIcon from "@mui/icons-material/Assessment";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EventIcon from "@mui/icons-material/Event";
@@ -41,19 +40,7 @@ const QUICK_ACTIONS = [
     path: "/profile",
     requiresProfile: true,
   },
-  {
-    label: "파티 둘러보기",
-    description: "참가 가능한 파티를 찾아보세요",
-    icon: <CelebrationIcon sx={{ fontSize: 40 }} />,
-    path: "/parties",
-  },
-  {
-    label: "매칭 리포트",
-    description: "파티 결과를 바탕으로 매칭 리포트를 확인합니다",
-    icon: <AssessmentIcon sx={{ fontSize: 40 }} />,
-    path: "/reports",
-    requiresProfile: true,
-  },
+  // 파티 브라우징·매칭 리포트(v1 소비자 화면)는 2026-07-20 제거 — 파티 경험은 모바일 앱 전용.
   {
     label: "데이트 코스",
     description: "매칭된 상대와의 데이트 코스를 추천받습니다",

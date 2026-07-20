@@ -11,24 +11,19 @@ import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PersonIcon from "@mui/icons-material/Person";
-import CelebrationIcon from "@mui/icons-material/Celebration";
-import AssessmentIcon from "@mui/icons-material/Assessment";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import ShieldIcon from "@mui/icons-material/Shield";
 import LogoutIcon from "@mui/icons-material/Logout";
 import EventIcon from "@mui/icons-material/Event";
 import NotificationsIcon from "@mui/icons-material/Notifications";
-import ExploreIcon from "@mui/icons-material/Explore";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import { useAuthStore } from "@/lib/store/auth";
 
+// v1 소비자 화면(파티 브라우징·매칭 리포트)은 2026-07-20 제거 — 파티 경험은 모바일 전용.
 const NAV_ITEMS = [
   { label: "대시보드", icon: <DashboardIcon />, path: "/dashboard" },
   { label: "내 프로필", icon: <PersonIcon />, path: "/profile" },
-  { label: "파티 둘러보기", icon: <CelebrationIcon />, path: "/parties" },
-  { label: "파티 탐색", icon: <ExploreIcon />, path: "/parties/discover" },
   { label: "내 예약", icon: <EventIcon />, path: "/reservations" },
-  { label: "매칭 리포트", icon: <AssessmentIcon />, path: "/reports" },
   { label: "데이트 코스", icon: <FavoriteIcon />, path: "/date-plans/create" },
   { label: "알림", icon: <NotificationsIcon />, path: "/notifications" },
   { label: "안전 신고", icon: <ShieldIcon />, path: "/safety/report" },

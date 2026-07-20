@@ -9,7 +9,7 @@
     "dev:backend": "pnpm --filter @mingle/backend start:dev",
     "dev:web": "pnpm --filter @mingle/web dev",
     "dev:mobile": "pnpm --filter @mingle/mobile exec expo start",
-    "build": "pnpm -r build",
+    "build": "pnpm --filter \"!@mingle/mcp\" --filter \"!@mingle/mingleai-mcp\" -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r exec rm -rf dist"

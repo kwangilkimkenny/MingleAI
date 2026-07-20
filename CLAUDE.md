@@ -23,14 +23,14 @@ Writing tips:
   - **폰트**: Gaegu는 `app/_layout.tsx` `useFonts`로 로드(로드 전 렌더 게이트). `fonts.display`는 워드마크·타이틀·버튼 라벨용 — **긴 한글 본문은 시스템 산스**(Gaegu 14px 미만 금지). Pretendard 본문 폰트는 아직 미번들(백로그).
   - **RN `<Button>` 금지**(플랫폼 기본 파란색이 팔레트 밖) — 항상 `DoodleButton`.
 - `apps/backend` (`@mingle/backend`) — NestJS 10 REST + Socket.io gateways(`PartyGateway`/`MessengerGateway`, 기본 네임스페이스), Prisma/PostgreSQL.
-- `apps/web` (`@mingle/web`) — Next.js 15. **v2 역할 = 관리자 대시보드 + 최소 소비자 웹.** v1 3D 뷰어는 레거시.
+- `apps/web` (`@mingle/web`) — Next.js 15. **v2 역할 = 관리자 대시보드 + 최소 소비자 웹**(대시보드·프로필·예약·데이트플랜·알림·세이프티). v1 소비자 화면(파티 브라우징·3D 뷰어·매칭 리포트)은 2026-07-20 제거 — 파티 경험은 모바일 전용.
 - `packages/client-core` (`@mingle/client-core`) — 플랫폼 불문 데이터 계층(API·소켓·zustand auth). **mobile/web보다 먼저 빌드.**
 - `packages/shared` (`@mingle/shared`) — 공유 타입. **가장 먼저 빌드**(dual-package — 아래 gotcha).
-- `packages/mcp`, `packages/mingleai-mcp` — v1 MCP 서버, v2 제품 경로와 분리(선택적 dev 도구).
+- `packages/mcp`, `packages/mingleai-mcp` — v1 MCP 서버, v2 제품 경로와 분리(선택적 dev 도구; v1 타입 참조로 빌드 깨져 루트 `pnpm build` 필터에서 제외).
 
 ## Commands (repo root)
 
-- `pnpm install` → `pnpm build` (`-r`; 순서: shared → client-core → apps).
+- `pnpm install` → `pnpm build` (`-r`, v1 MCP 2종 제외 필터; 순서: shared → client-core → apps).
 - `pnpm dev:mobile` (`expo start`) / `pnpm dev:backend` / `pnpm dev:web`.
 - `pnpm test` (`-r`; client-core=Vitest, backend=jest, mobile=순수 lib 전용 Vitest). `pnpm lint`.
 - Prisma (`apps/backend`): `pnpm prisma:migrate`, `pnpm prisma:generate`, `pnpm prisma:studio`.

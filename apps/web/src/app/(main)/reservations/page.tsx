@@ -166,18 +166,10 @@ export default function ReservationsPage() {
       ) : displayReservations.length === 0 ? (
         <Box textAlign="center" py={8}>
           <EventIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
+          {/* 파티 브라우징 라우트(v1)는 제거됨 — 참여는 모바일 앱에서 */}
           <Typography variant="h6" color="text.secondary">
             {tab === 0 ? "예정된 예약이 없습니다" : "지난 예약이 없습니다"}
           </Typography>
-          {tab === 0 && (
-            <Button
-              variant="contained"
-              sx={{ mt: 2 }}
-              onClick={() => router.push("/parties/discover")}
-            >
-              파티 둘러보기
-            </Button>
-          )}
         </Box>
       ) : (
         <Card>
