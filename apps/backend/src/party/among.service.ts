@@ -9,6 +9,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AmongConfigProvider } from "./among.config";
 import type { AmongRole, AmongTaskKind, AmongResultView, AmongSnapshot } from "@mingle/shared";
 import { PARTY_MAP } from "@mingle/shared";
+import { pickPersonas } from "./ai/personas";
 
 // ---------------------------------------------------------------------------
 // Server-only authoritative state (stored in GameSession.state Json column)
@@ -22,6 +23,8 @@ export interface AmongState {
     role: AmongRole;
     alive: boolean;
     isBot: boolean;
+    /** 인간은 항상 false — 임포스터는 AI 페르소나 전용(2026-07-20 스펙). */
+    isAi: boolean;
     killCooldownUntil: number | null;
     emergencyUsed: number;
   }[];
@@ -45,6 +48,24 @@ export interface AmongState {
   lastEjected: { profileId: string; role: AmongRole; wasSkip: boolean } | null;
   phase: "playing" | "meeting" | "voting" | "ended";
   result: AmongResultView | null;
+  /** 다음 자동(정기) 회의 예정 시각(epoch ms). */
+  nextAutoMeetingAt: number;
+  /** AI 임포스터 봇 런타임 상태 — LLM 호출 예산 및 페르소나별 이동/발화/킬 타이밍. */
+  ai: {
+    llmCalls: number;
+    bots: Record<
+      string,
+      {
+        x: number;
+        y: number;
+        targetIdx: number;
+        nextChatAt: number;
+        killHoldUntil: number;
+        /** 페르소나 원본 — 이후 LLM 발화(sayAsAi/castAiVote)가 사용. */
+        persona: { age: number; gender: "male" | "female"; occupation: string; style: string };
+      }
+    >;
+  };
 }
 
 const KINDS: AmongTaskKind[] = ["wires", "sequence", "hold", "timing"];
@@ -67,7 +88,14 @@ export class AmongService {
   async start(
     partyId: string,
     roster: { profileId: string; isBot?: boolean }[],
+    opts: { llmEnabled?: boolean } = {},
   ): Promise<AmongState> {
+    // Gate before we ever enter the transaction — AI impostors need a working LLM
+    // (unless the deployment explicitly allows the no-LLM fallback via config).
+    if (this.config.value.aiRequireLlm && !opts.llmEnabled) {
+      throw new BadRequestException("ai-unavailable");
+    }
+
     try {
       return await this.prisma.$transaction(async (tx) => {
         await this.lockParty(tx, partyId);
@@ -80,36 +108,42 @@ export class AmongService {
           throw new BadRequestException("not-enough-players");
         }
 
-        // Clamp impostor count: at least 1, at most floor((n-1)/2)
-        const impostorCount = Math.max(
-          1,
-          Math.min(cfg.impostors, Math.floor((roster.length - 1) / 2)),
-        );
-
-        // Shuffle roster, first N = impostors
-        const shuffled = shuffle([...roster]);
-
         // Fetch player names
-        const rosterIds = shuffled.map((r) => r.profileId);
+        const rosterIds = roster.map((r) => r.profileId);
         const profiles = await tx.profile.findMany({
           where: { id: { in: rosterIds } },
           select: { id: true, name: true },
         });
         const nameById = new Map(profiles.map((p) => [p.id, p.name]));
 
-        // Build players
-        const players: AmongState["players"] = shuffled.map((r, idx) => ({
+        // 인간은 전원 crew — 임포스터는 AI 페르소나 전용(2026-07-20 스펙).
+        const humans: AmongState["players"] = roster.map((r) => ({
           profileId: r.profileId,
           name: nameById.get(r.profileId) ?? "익명",
-          role: idx < impostorCount ? "impostor" : "crew",
+          role: "crew",
           alive: true,
           isBot: r.isBot ?? false,
+          isAi: false,
           killCooldownUntil: null,
           emergencyUsed: 0,
         }));
+        const personas = pickPersonas(cfg.aiCount, new Set(humans.map((h) => h.name)));
+        const now = Date.now();
+        const ais: AmongState["players"] = personas.map((p) => ({
+          profileId: p.profileId,
+          name: p.name,
+          role: "impostor",
+          alive: true,
+          isBot: true,
+          isAi: true,
+          killCooldownUntil: now + cfg.killCooldownMs,
+          emergencyUsed: 0,
+        }));
+        const players = [...humans, ...ais];
 
-        // Build tasks: each crew player gets cfg.tasksPerCrew tasks,
+        // Build tasks: each crew player (human) gets cfg.tasksPerCrew tasks,
         // placed on shuffled PARTY_MAP station anchors (round-robin if tasks > stations).
+        // AI impostors are never crew, so they never receive tasks.
         const stationPool = shuffle([...PARTY_MAP.stations]);
         const tasks: AmongState["tasks"] = [];
         let taskCounter = 0;
@@ -138,6 +172,31 @@ export class AmongService {
           meeting: null,
           lastEjected: null,
           result: null,
+          nextAutoMeetingAt: now + cfg.autoMeetingMs,
+          ai: {
+            llmCalls: 0,
+            bots: Object.fromEntries(
+              personas.map((p, i) => {
+                const st = PARTY_MAP.stations[i % PARTY_MAP.stations.length]!;
+                return [
+                  p.profileId,
+                  {
+                    x: st.x,
+                    y: st.y,
+                    targetIdx: (i + 1) % PARTY_MAP.stations.length,
+                    nextChatAt: now + 15000 + i * 7000,
+                    killHoldUntil: now + 20000,
+                    persona: {
+                      age: p.age,
+                      gender: p.gender,
+                      occupation: p.occupation,
+                      style: p.style,
+                    },
+                  },
+                ];
+              }),
+            ),
+          },
         };
 
         const row = await tx.gameSession.create({
@@ -559,6 +618,8 @@ export class AmongService {
       name: p.name,
       alive: p.alive,
       role: isEnded || p.profileId === viewerProfileId ? p.role : null,
+      // isAi는 게임 종료 전까지 노출 금지(임포스터 정체 유추 방지) — ended에서만 세팅.
+      ...(isEnded && p.isAi ? { isAi: true } : {}),
     }));
 
     const myTasks = state.tasks
@@ -606,6 +667,8 @@ export class AmongService {
       meeting,
       lastEjected: state.lastEjected,
       result: state.result,
+      // 구 세션(마이그레이션 이전) 방어 — 필드 부재 시 undefined가 아닌 null로 정규화.
+      nextAutoMeetingAt: state.phase === "playing" ? (state.nextAutoMeetingAt ?? null) : null,
     };
   }
 
