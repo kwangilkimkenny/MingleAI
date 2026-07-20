@@ -4,6 +4,8 @@ import { View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { DoodleButton } from "../../src/components/Doodle";
 import { DoodleFace } from "../../src/components/DoodleSvg";
+import { useLandscapeLock } from "../../src/lib/use-landscape";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   enqueueMatchmaking,
   cancelMatchmaking,
@@ -14,6 +16,8 @@ import {
 const POLL_MS = 2500;
 
 export default function Matching() {
+  useLandscapeLock();
+  const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<"joining" | "waiting" | "failed" | "error">("joining");
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -95,7 +99,9 @@ export default function Matching() {
 
   if (phase === "failed") {
     return (
-      <View style={styles.center}>
+      <View
+        style={[styles.center, { paddingLeft: 24 + insets.left, paddingRight: 24 + insets.right }]}
+      >
         <Text style={styles.msg}>지금은 매칭이 어려워요. 잠시 후 다시 시도해 주세요.</Text>
         <DoodleButton title="다시 시도" onPress={onRetry} variant="primary" />
         <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
@@ -104,14 +110,18 @@ export default function Matching() {
   }
   if (phase === "error") {
     return (
-      <View style={styles.center}>
+      <View
+        style={[styles.center, { paddingLeft: 24 + insets.left, paddingRight: 24 + insets.right }]}
+      >
         <Text style={styles.error}>{error}</Text>
         <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
       </View>
     );
   }
   return (
-    <View style={styles.center}>
+    <View
+      style={[styles.center, { paddingLeft: 24 + insets.left, paddingRight: 24 + insets.right }]}
+    >
       <DoodleFace variant="open" size={72} />
       <Text style={styles.title}>매칭 중...</Text>
       {phase === "waiting" ? (
