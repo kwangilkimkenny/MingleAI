@@ -17,30 +17,34 @@ crew·AI 페르소나 2명만 임포스터인 **역할 계약** 검증 → **AI 
 ended여야 충돌 없이 시작됨이라 어몽 다음 순서) → 프로포즈→수락→Match(중복 수락 멱등) →
 메신저(REST+소켓+읽음) → 데이트 플랜(select/confirm 역할 분리) → 모더레이션(신고·차단) →
 대시보드 → **rate limit(마지막)**.
-59개 체크, 정상 ~20초, 실패 시 exit 1. (파티 정원 충족 시 어몽 자동 시작(2a446fc)에 맞춰 섹션
+전 섹션 체크, 정상 ~20초, 실패 시 exit 1. (파티 정원 충족 시 어몽 자동 시작(2a446fc)에 맞춰 섹션
 순서를 어몽→밸런스로 재배치했다 — 근거는 `tools/mega-qa.mjs` 파일 헤더 ORDERING NOTE 참고.)
 
 ## 실행 절차
 
 ```bash
 # 0) ⛔ 선행 조건: 직전 mega-qa(또는 auth 다량 호출) 실행 후 60초 경과 필수.
-#    register·login 모두 IP당 10회/분 — 하니스가 실행당 register 5회 + login 스팸을 소모한다.
+#    dev-login 30/min·social 20/min — 하니스가 실행당 dev-login 여러 회 + social 스팸을 소모한다.
 #    직전 실행이 1분 안이면: sleep 60
+#    ⚠️ 소셜 전용 인증: 백엔드 .env에 DEV_AUTH_ENABLED=true + IDENTITY_DEV_BYPASS=true 필수
+#       (하니스는 실 OAuth 불가 — dev-login + 본인인증 bypass로 VerifiedGuard 게이트 통과)
 # 1–3) 백엔드가 이미 :3000에서 /health 200이면 전부 스킵
 docker compose up -d                          # Postgres :5433 + Redis
 pnpm --filter @mingle/shared build            # 백엔드 runtime require 의존
-pnpm --filter @mingle/backend start:dev       # :3000 (apps/backend/.env: DATABASE_URL, JWT_SECRET 필수)
+pnpm --filter @mingle/backend start:dev       # :3000 (apps/backend/.env: DATABASE_URL, JWT_SECRET, DEV_AUTH_ENABLED, IDENTITY_DEV_BYPASS)
 # 4)
 node tools/mega-qa.mjs                        # 기본 대상 http://localhost:3000 (env MEGA_QA_API로 변경)
 ```
 
-성공 기준: `MEGA-QA: 59/59 PASS` + exit 0. 각 체크는 `[N] PASS/FAIL — 이름 (상세)` 형식.
+성공 기준: `MEGA-QA: N/N PASS`(전 체크) + exit 0. 각 체크는 `[N] PASS/FAIL — 이름 (상세)` 형식.
 
 ## 반드시 알아야 할 규칙
 
-- **60초 간격 규칙이 최다 오탐 원인.** 어기면 가입(register) 단계부터 429 → 해당 계정 의존
+- **60초 간격 규칙이 최다 오탐 원인.** 어기면 가입(dev-login) 단계부터 429 → 해당 계정 의존
   섹션(모더레이션 등)이 연쇄 중단된다. 이때 **체크 총수 자체가 줄어든다**(중단 섹션의 하위 체크
-  미등록 — 예: 51/55). 총수가 59 미만이면 가장 위의 FAIL이 근본 원인이고 나머지는 전파다.
+  미등록). 총수가 기대치 미만이면 가장 위의 FAIL이 근본 원인이고 나머지는 전파다.
+- **dev-login 404 / identity 503**: 백엔드에 `DEV_AUTH_ENABLED`/`IDENTITY_DEV_BYPASS`가 없으면
+  Signup 섹션 첫 체크에서 명시적 에러로 멈춘다 — .env 설정 후 재시작.
 - 실행마다 고유 run-id 계정을 새로 만든다 — **계정·프로필 등 데이터는 이전 실행 잔재와 충돌
   없음.** 단 **매칭 큐는 하니스 실행 간에 공유된다** — 이전(특히 중단된) 실행이 남긴 `status="waiting"`
   잔재 엔트리가 이번 실행의 파티에 섞여 들어가거나(presence가 4명을 넘음) 테스트 유저를 서로
@@ -77,7 +81,7 @@ node tools/mega-qa.mjs                        # 기본 대상 http://localhost:3
 ## 웹 UI 보완 패스 (선택)
 
 하니스는 API/소켓 계층 전수다. UI까지 볼 때: `pnpm dev:mobile` → `w` → Playwright로
-`/register`(연령 체크 전 가입 비활성 → 체크 → 활성), 로그인, 홈(코랄 CTA·탭바) 육안 확인.
+`/login`(소셜 버튼 + __DEV__ dev 로그인), 게이트 사다리(동의→권한→본인인증→온보딩), 홈(코랄 CTA·탭바) 육안 확인.
 파티 2D 탭 이동은 웹 no-op(네이티브 전용) — 실기기 항목은 `docs/qa/2026-07-14-native-e2e-runbook.md`.
 
 ## Common Mistakes

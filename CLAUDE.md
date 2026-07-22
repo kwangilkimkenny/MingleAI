@@ -35,7 +35,7 @@ Writing tips:
 - `pnpm test` (`-r`; client-core=Vitest, backend=jest, mobile=순수 lib 전용 Vitest). `pnpm lint`.
 - Prisma (`apps/backend`): `pnpm prisma:migrate`, `pnpm prisma:generate`, `pnpm prisma:studio`.
 - **QA 도구**:
-  - `node tools/mega-qa.mjs` — 풀퍼널 라이브 전수검사 59체크(~20초, 백엔드 :3000 필요). **재실행 60초 간격**(register/login 10회/분/IP — 어기면 가입부터 429 연쇄). `/mega-qa` 스킬(`.claude/skills/mega-qa/`)이 절차·오탐 triage 문서.
+  - `node tools/mega-qa.mjs` — 풀퍼널 라이브 전수검사(~20초, 백엔드 :3000 필요). **소셜 전용 전환 후: 백엔드에 `DEV_AUTH_ENABLED=true` + `IDENTITY_DEV_BYPASS=true` 필수**(하네스는 실 OAuth 불가 → dev-login + 본인인증 bypass로 VerifiedGuard 게이트 통과). **재실행 60초 간격**(dev-login 30/min·social 20/min — 어기면 429 연쇄). `/mega-qa` 스킬(`.claude/skills/mega-qa/`)이 절차·오탐 triage 문서.
   - `node tools/seed-demo.mjs <email> <pw>` — 데모 데이터 시더+상주 봇 3명(파티·프로포즈·DM·데이트플랜 시드, 밸런스 자동투표·어몽 슬로우플레이). 매칭 큐는 실행 간 공유 — 잔재 waiting 엔트리가 파티에 섞일 수 있음(설계상 정상).
   - `node tools/among-bots.mjs <count> [--start|--passive] [--hunt]` — 어몽 전용 봇(솔로 테스트). 봇은 항상 crew(임포스터=AI 전용, 2026-07-20~) — `--hunt`는 회의에서 봇/인간이 아닌 프로필(=AI)에 투표.
 
@@ -64,6 +64,7 @@ Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **
 - Mobile API base: `apps/mobile/.env` `EXPO_PUBLIC_API_URL`. iOS sim `localhost`, Android emu `10.0.2.2`, 실기기 = LAN IP. 릴리즈는 `https://` 필수.
 - **jest 30이 pretty-format@30을 루트로 호이스트하면 expo metro-runtime 웹 번들이 크래시** — `apps/mobile` devDep `pretty-format@29.7.0` 고정으로 해결(제거 금지).
 - **Postgres :5433**(`docker compose up -d`). DSN `postgresql://mingle:mingle_dev@localhost:5433/mingle`. backend `.env`: `DATABASE_URL`, `JWT_SECRET` 필수; `REDIS_URL` 선택(없으면 인메모리).
+- **Docker compose**: 기본 `docker compose up -d` = 인프라만(Postgres·Redis·LiveKit). **`docker compose --profile apps up -d --build`** = backend(:3000, 기동 시 migrate deploy 자동)+web(:3100)까지 컨테이너(dev 핫리로드, `apps/*/src` 마운트; packages 변경 시 재빌드). 모바일 제외. 컨테이너 backend는 `DEV_AUTH_ENABLED`/`IDENTITY_DEV_BYPASS=true`. 이미지 `docker/Dockerfile.dev`(backend·web 공용). 상세 `docker/README.md`. ⚠️ `.dockerignore`에 `**/*.tsbuildinfo` 필수(composite:true tsc가 stale info로 emit 스킵→dist 빈 이미지).
 - **`prisma migrate dev/reset/deploy`는 권한 분류기가 차단** — 사용자가 직접 실행(`!` prefix).
 - backend TS 에러 grep: ANSI 색코드 때문에 `error TS`가 0으로 나옴 — `"Found N error"`로.
 - 포트: backend dev 3000 / PM2 4000(`instances:1` 고정 — redis-adapter 전까지) / web 3100 / Metro 8081.
@@ -74,7 +75,7 @@ Concept: "hand-drawn sketchbook" — 잉크 라인아트 `#17150F` on WHITE + **
 - **어몽 자동 시작**: `party:join` 후 프레즌스 로스터==파티 정원 && 이 파티에 among 세션이 **한 번도 없었으면** 자동 시작(`maybeAutoStartAmong`; 밸런스 종료 시에도 구제 재시도). ended 파티는 자동 재시작 안 함(다시하기=수동 `among:start`). 실패는 삼킴 — advisory lock+partial unique가 최종 방어. **도구 영향**: 4소켓 파티 join 즉시 게임 시작 — `game:start`(밸런스)는 among ended 후에만(파티당 ACTIVE `GameSession` 1개, gameType 무관).
 - **어몽 승리 규칙(2026-07-15 변경)**: 태스크 승리는 **생존자 소유 태스크만** 요구(사망자 태스크 제외 — doTask/kill/회의해소 3곳 재검사 + 진행률 게이지 동일 기준). 사망 크루 태스크 포함하던 구버전은 교착 버그.
 - **CORS env**: `SOCKET_CORS_ORIGINS`(양 게이트웨이+REST 공용 allowlist). 미설정→모든 origin 반사(dev), production이면 부팅 WARN. 모듈 로드 시 읽힘 — 프로세스 시작 전에 설정.
-- **Rate limit env**: `RATE_LIMIT_TTL_MS`(60000)/`RATE_LIMIT_MAX`(120). 전역 `HttpThrottlerGuard`(ws 컨텍스트 bypass). 강화: auth register/login 10/min, reanalyze 5/min, safety/report 10/min; `/health` 제외. 저장 인메모리 — 단일 인스턴스 전제. **enqueue P2034 소진은 409로 매핑**(재시도 5회+백오프).
+- **Rate limit env**: `RATE_LIMIT_TTL_MS`(60000)/`RATE_LIMIT_MAX`(120). 전역 `HttpThrottlerGuard`(ws 컨텍스트 bypass). 강화: auth social 20/min·dev-login/refresh 30/min, reanalyze 5/min, safety/report 10/min; `/health` 제외. 저장 인메모리 — 단일 인스턴스 전제. **enqueue P2034 소진은 409로 매핑**(재시도 5회+백오프).
 - 게이트웨이 앱 에러 이벤트는 네임스페이스드: `party:error` / `messenger:error`(socket.io 예약 `error` 아님) — 개명 시 gateway+client-core+spec 동시 수정.
 - Phase-4 env: `PROPOSAL_WINDOW_HOURS`(24)/`PROPOSAL_MAX_PER_PARTY`(3)/`MESSAGE_MAX_LEN`(2000).
 - **`@mingle/shared` dual-package**: backend(CJS)가 `preferenceScore` 값을 runtime `require` — shared build가 ESM+CJS 동시 산출. shared 먼저 빌드 안 하면 backend 런타임 실패.

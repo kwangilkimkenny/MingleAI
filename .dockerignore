@@ -1,0 +1,17 @@
+# Build context excludes — keep the image lean and force fresh Linux installs.
+**/node_modules
+**/dist
+# Stale incremental build state (composite:true) makes tsc skip emit into a fresh dist — exclude it.
+**/*.tsbuildinfo
+**/.next
+**/.expo
+**/.turbo
+.git
+.gstack
+**/.env
+**/.env.*
+!**/.env.example
+*.log
+apps/backend/uploads
+scratchpad
+image.png

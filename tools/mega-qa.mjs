@@ -2,7 +2,8 @@
  * mega-qa.mjs — Full-funnel live E2E harness for MingleAI v2.
  *
  * Exercises the whole designed user journey against an ALREADY-RUNNING backend:
- *   health → signup×4 → onboarding → matchmaking → party realtime (chat/move/presence)
+ *   health → signup×4 (social-only: dev-login + consent + 본인인증 gate) → onboarding
+ *   → matchmaking → party realtime (chat/move/presence)
  *   → Among Us "AI를 찾아라" (AUTO-STARTED once the 4th socket joins — see ORDERING NOTE below;
  *   role contract — all 4 humans are crew, the only impostors are 2 server-driven AI personas —
  *   AI liveliness, two emergency-meeting ejections, identity reveal) → balance game → proposal
@@ -29,6 +30,9 @@
  * Usage:
  *   node tools/mega-qa.mjs
  *   MEGA_QA_API=http://localhost:3000 node tools/mega-qa.mjs
+ *   Requires the backend running with DEV_AUTH_ENABLED=true AND IDENTITY_DEV_BYPASS=true
+ *   (social-only auth: the harness cannot perform real OAuth, so it uses /auth/dev-login and the
+ *   dev identity bypass to clear the VerifiedGuard onboarding gate).
  *
  * Zero new deps: global fetch + socket.io-client (already installed in the monorepo root).
  */
@@ -45,9 +49,21 @@ const { io: socketIo } = await import(SIO_PATH);
 
 const BASE = process.env.MEGA_QA_API ?? "http://localhost:3000";
 const RID = Date.now().toString(36);
-const PASSWORD = "MegaQA123!pw";
 
 const email = (tag) => `megaqa_${RID}_${tag}@qa.test`;
+
+// Social-only auth (2026-07-22): the harness authenticates via POST /auth/dev-login and clears the
+// onboarding gate (consent + 본인인증) so VerifiedGuard-protected features work. Requires the backend
+// to run with DEV_AUTH_ENABLED=true AND IDENTITY_DEV_BYPASS=true.
+function digitsFrom(seed, n) {
+  let h = 0;
+  for (const c of String(seed)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return String(h).padStart(n, "0").slice(0, n);
+}
+// Unique-per-(run,tag) phone → the dev identity CI (hash of phone) is unique, satisfying 1인 1계정.
+const phoneFor = (tag) => "010" + digitsFrom(RID + ":" + tag, 8);
+// Birth date that yields the seed age (verified birth authoritatively sets profile age).
+const birthFor = (tag) => `${new Date().getFullYear() - PROFILE_SEEDS[tag].age}-01-01`;
 
 // ─── Tiny utilities ─────────────────────────────────────────────────────────
 
@@ -264,38 +280,69 @@ async function sectionHealth() {
   });
 }
 
-// ─── 2. Signup×4 ────────────────────────────────────────────────────────────
-// auth.controller.ts: POST /auth/register (10/min throttle), POST /auth/login (10/min throttle).
-// register() itself returns {accessToken, role} but we still call login() per-user to exercise
-// the real password-auth path end to end.
+// ─── 2. Signup×4 (social-only auth) ─────────────────────────────────────────
+// auth.controller.ts: POST /auth/dev-login (env DEV_AUTH_ENABLED) issues a session without OAuth.
+// Then each user clears the onboarding gate: POST /auth/consent + POST /auth/identity/complete
+// (env IDENTITY_DEV_BYPASS) so VerifiedGuard lets them into matchmaking/speed-date.
 
-async function registerAndLogin(tag) {
+async function setupUser(tag) {
   const em = email(tag.toLowerCase());
-  users[tag] = { email: em, password: PASSWORD };
-  await check(`Signup ${tag}: register`, async () => {
-    const r = await post("/auth/register", null, { email: em, password: PASSWORD });
-    assertStatus(r, 201, `register ${tag}`);
-    if (!r.body?.accessToken) throw new Error("no accessToken in register response");
+  const seed = PROFILE_SEEDS[tag];
+  users[tag] = { email: em };
+  await check(`Signup ${tag}: dev-login`, async () => {
+    const r = await post("/auth/dev-login", null, { email: em });
+    if (r.status === 404)
+      throw new Error("dev-login disabled — run the backend with DEV_AUTH_ENABLED=true");
+    assertStatus(r, [200, 201], `dev-login ${tag}`);
+    if (!r.body?.accessToken) throw new Error("no accessToken in dev-login response");
+    users[tag].token = r.body.accessToken;
     return `email=${em}`;
   });
-  await check(`Signup ${tag}: login`, async () => {
-    const r = await post("/auth/login", null, { email: em, password: PASSWORD });
-    assertStatus(r, [200, 201], `login ${tag}`);
-    if (!r.body?.accessToken) throw new Error("no accessToken in login response");
-    users[tag].token = r.body.accessToken;
-    return "JWT obtained";
+  await check(`Signup ${tag}: consent (terms/privacy/age19)`, async () => {
+    const r = await post("/auth/consent", users[tag].token, {
+      scopes: ["terms", "privacy", "age19"],
+    });
+    assertStatus(r, [200, 201, 204], `consent ${tag}`);
+    return "consented";
+  });
+  await check(`Signup ${tag}: 본인인증 (dev bypass)`, async () => {
+    const r = await post("/auth/identity/complete", users[tag].token, {
+      name: seed.name,
+      birth: birthFor(tag),
+      gender: seed.gender,
+      phone: phoneFor(tag),
+    });
+    if (r.status === 503)
+      throw new Error("identity bypass disabled — run the backend with IDENTITY_DEV_BYPASS=true");
+    assertStatus(r, [200, 201], `identity ${tag}`);
+    return `phone=${phoneFor(tag)}`;
   });
 }
 
 async function sectionSignup() {
-  for (const tag of ["A", "B", "C", "D"]) await registerAndLogin(tag);
+  for (const tag of ["A", "B", "C", "D"]) await setupUser(tag);
 
-  await check("Signup: duplicate email register → 4xx", async () => {
-    const r = await post("/auth/register", null, {
-      email: users.A.email,
-      password: "someotherpw123",
+  await check("Signup: account-status reports verified + consented", async () => {
+    const r = await get("/auth/account-status", users.A.token);
+    assertStatus(r, 200, "account-status");
+    if (!r.body?.phoneVerifiedAt) throw new Error("phoneVerifiedAt missing after identity");
+    if (!r.body?.consents?.privacy) throw new Error("privacy consent missing");
+    return "verified+consented";
+  });
+
+  await check("Signup: duplicate identity (same phone/CI) → 409 (1인 1계정)", async () => {
+    const dup = await post("/auth/dev-login", null, { email: email("dupci") });
+    const r = await post("/auth/identity/complete", dup.body.accessToken, {
+      name: "중복", birth: birthFor("A"), gender: "male", phone: phoneFor("A"),
     });
-    if (r.status < 400 || r.status >= 500) throw new Error(`expected 4xx, got ${describeErr(r)}`);
+    assertStatus(r, 409, "dup identity CI");
+    return describeErr(r);
+  });
+
+  await check("VerifiedGuard: unverified user blocked from matchmaking → 403", async () => {
+    const un = await post("/auth/dev-login", null, { email: email("unverif") });
+    const r = await post("/matchmaking/queue", un.body.accessToken, {});
+    assertStatus(r, 403, "unverified enqueue");
     return describeErr(r);
   });
 }
@@ -326,9 +373,8 @@ async function sectionOnboarding() {
   for (const tag of ["A", "B", "C", "D"]) await createProfile(tag);
 
   await check("Onboarding: age gate rejects age 18 → 400", async () => {
-    const em = email("agegate");
-    const reg = await post("/auth/register", null, { email: em, password: PASSWORD });
-    assertStatus(reg, 201, "register agegate probe");
+    const reg = await post("/auth/dev-login", null, { email: email("agegate") });
+    assertStatus(reg, [200, 201], "dev-login agegate probe");
     const r = await post("/profiles", reg.body.accessToken, {
       name: "언더에이지",
       age: 18,
@@ -463,11 +509,11 @@ async function sectionMatchmaking() {
 // rejection path via party.service.assertParticipant for non-participants.
 
 async function sectionPartyRealtime() {
-  await check("Setup: register 5th user E (non-participant)", async () => {
+  await check("Setup: dev-login 5th user E (non-participant)", async () => {
     const em = email("e");
-    users.E = { email: em, password: PASSWORD };
-    const reg = await post("/auth/register", null, { email: em, password: PASSWORD });
-    assertStatus(reg, 201, "register E");
+    users.E = { email: em };
+    const reg = await post("/auth/dev-login", null, { email: em });
+    assertStatus(reg, [200, 201], "dev-login E");
     users.E.token = reg.body.accessToken;
     const seed = PROFILE_SEEDS.E;
     const prof = await post("/profiles", users.E.token, {
@@ -1147,18 +1193,20 @@ async function sectionDashboard() {
 }
 
 // ─── 13. Rate limit (LAST) ──────────────────────────────────────────────────
-// auth.controller.ts: POST /auth/login is @Throttle({ttl:60000, limit:10}). health.controller.ts
+// auth.controller.ts: POST /auth/social is @Throttle({ttl:60000, limit:20}). health.controller.ts
 // is @SkipThrottle, so it must stay 200 throughout. Run last per the mission's rate-limit budget.
 
 async function sectionRateLimit() {
-  await check("Rate limit: spam POST /auth/login (wrong password) until 429", async () => {
+  await check("Rate limit: spam POST /auth/social until 429", async () => {
     let attempts = 0;
-    const maxAttempts = 15;
+    const maxAttempts = 30;
     let got429 = false;
     for (; attempts < maxAttempts; attempts++) {
-      const r = await post("/auth/login", null, {
-        email: users.A.email,
-        password: "definitely-wrong-pw",
+      // Valid DTO but unconfigured/invalid provider → 400/503; the throttler counts either way.
+      const r = await post("/auth/social", null, {
+        provider: "kakao",
+        code: `spam-${attempts}`,
+        redirectUri: "mingleai://auth",
       });
       if (r.status === 429) {
         got429 = true;
@@ -1169,7 +1217,7 @@ async function sectionRateLimit() {
     return `429 arrived after ${attempts + 1} attempt(s)`;
   });
 
-  await check("Rate limit: GET /health stays 200 despite login spam", async () => {
+  await check("Rate limit: GET /health stays 200 despite social spam", async () => {
     const r = await get("/health");
     assertStatus(r, 200, "GET /health post-spam");
     return "status=200";

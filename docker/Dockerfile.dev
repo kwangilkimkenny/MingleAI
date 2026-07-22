@@ -1,0 +1,26 @@
+# Dev image for the MingleAI monorepo — runs @mingle/backend (:3000) or @mingle/web (:3100)
+# with hot reload. Mobile (Expo/Metro) is intentionally NOT containerized (needs device/LAN/QR).
+# One image, two services (compose sets the command per service).
+FROM node:20-bookworm-slim
+
+# pnpm@10 to match the repo lockfile (host uses 10.x).
+RUN npm install -g pnpm@10
+
+WORKDIR /app
+
+# Copy the whole workspace (node_modules/.env excluded by .dockerignore) and install. A full
+# workspace install keeps the internal @mingle/* symlinks intact (a filtered install left
+# client-core unable to resolve @mingle/shared). Native build scripts (better-sqlite3 in the v1
+# mcp packages) are pnpm-ignored by default — harmless, those packages are never run here.
+COPY . .
+RUN pnpm install --no-frozen-lockfile
+
+# shared/client-core must be built (backend runtime-requires them); generate the Prisma client.
+RUN pnpm --filter @mingle/shared build \
+  && pnpm --filter @mingle/client-core build \
+  && pnpm --filter @mingle/backend prisma:generate
+
+EXPOSE 3000 3100
+
+# Default command; docker-compose overrides it per service.
+CMD ["pnpm", "dev:backend"]
