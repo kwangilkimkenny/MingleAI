@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardHeader from "@mui/material/CardHeader";
@@ -29,7 +29,7 @@ export default function UpcomingReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadReservations = async () => {
+  const loadReservations = useCallback(async () => {
     if (!profileId) return;
 
     try {
@@ -40,11 +40,11 @@ export default function UpcomingReservations() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profileId]);
 
   useEffect(() => {
     loadReservations();
-  }, [profileId]);
+  }, [loadReservations]);
 
   const handleCancel = async (id: string) => {
     if (!profileId) return;

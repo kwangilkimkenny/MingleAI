@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import type { Request } from "express";
+import * as fsp from "fs/promises";
 import { UploadController, detectImageMime, type UploadedImageFile } from "./upload.controller";
 
 jest.mock("fs/promises", () => ({
@@ -7,8 +8,7 @@ jest.mock("fs/promises", () => ({
   writeFile: jest.fn().mockResolvedValue(undefined),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const fsp = require("fs/promises") as { mkdir: jest.Mock; writeFile: jest.Mock };
+const mockedFsp = jest.mocked(fsp);
 
 const req = { protocol: "http", get: () => "localhost:3000" } as unknown as Request;
 
@@ -39,8 +39,8 @@ describe("UploadController", () => {
 
   beforeEach(() => {
     controller = new UploadController();
-    fsp.mkdir.mockClear();
-    fsp.writeFile.mockClear();
+    mockedFsp.mkdir.mockClear();
+    mockedFsp.writeFile.mockClear();
     delete process.env.PUBLIC_BASE_URL;
   });
 
@@ -48,7 +48,7 @@ describe("UploadController", () => {
     await expect(controller.uploadPhoto(undefined, req)).rejects.toBeInstanceOf(
       BadRequestException,
     );
-    expect(fsp.writeFile).not.toHaveBeenCalled();
+    expect(mockedFsp.writeFile).not.toHaveBeenCalled();
   });
 
   it("rejects an empty file", async () => {
@@ -64,14 +64,14 @@ describe("UploadController", () => {
   it("rejects a spoofed mimetype whose bytes are not an image", async () => {
     const spoof = fileOf([0x25, 0x50, 0x44, 0x46], "image/png"); // %PDF
     await expect(controller.uploadPhoto(spoof, req)).rejects.toBeInstanceOf(BadRequestException);
-    expect(fsp.writeFile).not.toHaveBeenCalled();
+    expect(mockedFsp.writeFile).not.toHaveBeenCalled();
   });
 
   it("accepts a valid PNG and returns a request-derived /uploads URL", async () => {
     const res = await controller.uploadPhoto(fileOf(PNG, "image/png"), req);
     expect(res.url).toMatch(/^http:\/\/localhost:3000\/uploads\/[0-9a-f-]{36}\.png$/);
-    expect(fsp.mkdir).toHaveBeenCalledTimes(1);
-    expect(fsp.writeFile).toHaveBeenCalledTimes(1);
+    expect(mockedFsp.mkdir).toHaveBeenCalledTimes(1);
+    expect(mockedFsp.writeFile).toHaveBeenCalledTimes(1);
   });
 
   it("maps JPEG and WEBP to their extensions", async () => {

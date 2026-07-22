@@ -39,6 +39,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       timestamp: new Date().toISOString(),
       path: request.url,
+      requestId: response.getHeader("x-request-id"),
     });
   }
 }

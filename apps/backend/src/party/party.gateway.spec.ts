@@ -1,11 +1,13 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import { PartyGateway } from "./party.gateway";
+import { partySpawnFor } from "@mingle/shared";
 
 const jwt = { verify: jest.fn() } as any;
 const party = {
   assertParticipant: jest.fn(),
   addPartyMessage: jest.fn(),
   findOne: jest.fn(),
+  monitorParticipants: jest.fn().mockResolvedValue([]),
 } as any;
 const game = {
   start: jest.fn(),
@@ -43,7 +45,10 @@ const among = {
   project: jest.fn(),
 } as any;
 
-const amongConfig = { value: { sweepMs: 99999, minPlayers: 4, aiLlmMaxCalls: 60 } } as any;
+const amongConfig = { value: { sweepMs: 99999, minPlayers: 4, aiLlmMaxCalls: 60, killRange: 0.12 } } as any;
+const accountAccess = {
+  findActive: jest.fn().mockResolvedValue({ userId: "u1", role: "user" }),
+} as any;
 
 /** Bare ConfigService stand-in — createAiChatClient only ever calls `.get(key)`. */
 function makeConfigService(overrides: Record<string, string | undefined> = {}) {
@@ -51,7 +56,7 @@ function makeConfigService(overrides: Record<string, string | undefined> = {}) {
 }
 
 function gatewayWith(configService = makeConfigService()) {
-  const gw = new PartyGateway(jwt, party, game, among, amongConfig, configService);
+  const gw = new PartyGateway(jwt, party, game, among, amongConfig, configService, accountAccess);
   (gw as any).server = {
     to: jest.fn().mockReturnValue({ emit: jest.fn() }),
   };
@@ -71,23 +76,27 @@ function clientWith(userId?: string) {
   } as any;
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.resetAllMocks();
+  party.monitorParticipants.mockResolvedValue([]);
+  accountAccess.findActive.mockResolvedValue({ userId: "u1", role: "user" });
+});
 
-it("handleConnection with no token disconnects", () => {
+it("handleConnection with no token disconnects", async () => {
   const gw = gatewayWith();
   const client = clientWith();
-  gw.handleConnection(client);
+  await gw.handleConnection(client);
   expect(client.disconnect).toHaveBeenCalled();
 });
 
-it("handleConnection with invalid token disconnects without throwing", () => {
+it("handleConnection with invalid token disconnects without throwing", async () => {
   jwt.verify.mockImplementationOnce(() => {
     throw new Error("bad");
   });
   const gw = gatewayWith();
   const client = clientWith();
   client.handshake.auth.token = "bad.token";
-  expect(() => gw.handleConnection(client)).not.toThrow();
+  await expect(gw.handleConnection(client)).resolves.toBeUndefined();
   expect(client.disconnect).toHaveBeenCalled();
 });
 
@@ -139,12 +148,14 @@ it("party:move broadcasts party:moved to others using join-time membership", asy
   const gw = gatewayWith();
   const client = clientWith("u1");
   await gw.handleJoin(client, { partyId: "pt1" });
-  gw.handleMove(client, { partyId: "pt1", x: 1, y: 2 });
+  const spawn = partySpawnFor("pf1");
+  const next = { x: spawn.x + 0.001, y: spawn.y };
+  await gw.handleMove(client, { partyId: "pt1", ...next });
   expect(client.to).toHaveBeenCalledWith("pt1");
   expect(client.to.mock.results[0].value.emit).toHaveBeenCalledWith("party:moved", {
     profileId: "pf1",
-    x: 1,
-    y: 2,
+    x: next.x,
+    y: next.y,
   });
 });
 
@@ -161,8 +172,11 @@ it("party:move가 humanPos 맵을 갱신하고 disconnect 시 정리된다", asy
   const client = clientWith("u1");
   await gw.handleJoin(client, { partyId: "pt1" });
 
-  gw.handleMove(client, { partyId: "pt1", x: 0.4, y: 0.6 });
-  expect((gw as any).humanPos.get("pt1")?.get("pf1")).toEqual({ x: 0.4, y: 0.6 });
+  const spawn = partySpawnFor("pf1");
+  await gw.handleMove(client, { partyId: "pt1", x: spawn.x + 0.001, y: spawn.y });
+  expect((gw as any).humanPos.get("pt1")?.get("pf1")).toEqual(
+    expect.objectContaining({ x: spawn.x + 0.001, y: spawn.y }),
+  );
 
   gw.handleDisconnect(client);
   expect((gw as any).humanPos.get("pt1")?.get("pf1")).toBeUndefined();
@@ -175,8 +189,11 @@ it("party:move가 humanPos 맵을 갱신하고 party:leave 시 정리된다", as
   const client = clientWith("u1");
   await gw.handleJoin(client, { partyId: "pt1" });
 
-  gw.handleMove(client, { partyId: "pt1", x: 0.1, y: 0.9 });
-  expect((gw as any).humanPos.get("pt1")?.get("pf1")).toEqual({ x: 0.1, y: 0.9 });
+  const spawn = partySpawnFor("pf1");
+  await gw.handleMove(client, { partyId: "pt1", x: spawn.x + 0.001, y: spawn.y });
+  expect((gw as any).humanPos.get("pt1")?.get("pf1")).toEqual(
+    expect.objectContaining({ x: spawn.x + 0.001, y: spawn.y }),
+  );
 
   gw.handleLeave(client, { partyId: "pt1" });
   expect((gw as any).humanPos.has("pt1")).toBe(false);
@@ -224,7 +241,6 @@ it("game:start broadcasts the snapshot to the room", async () => {
 
 it("game:start maps a Conflict to an already-active error emit", async () => {
   party.assertParticipant.mockResolvedValueOnce("pf1");
-  const { ConflictException } = require("@nestjs/common");
   game.start.mockRejectedValueOnce(new ConflictException("already-active"));
   const gw = gatewayWith();
   const client = clientWith("u1");
@@ -401,7 +417,6 @@ it("among:start calls among.start with presence roster and broadcasts personaliz
   // Two participants in the room
   party.assertParticipant.mockResolvedValue("pf1");
   const gw = gatewayWith();
-  const to = (gw as any).server.to;
 
   // Socket 1 joins
   const client1 = clientWith("u1");
@@ -837,6 +852,7 @@ it("sayAsAi는 타이핑 지연 동안 봇이 죽으면 발화를 폐기한다",
     const gw = gatewayWith();
     (gw as any).aiChat = { enabled: false, pickVote: jest.fn(), say: jest.fn() };
     const to = (gw as any).server.to as jest.Mock;
+    (gw as any).presence.set("pt1", new Map([["human-socket", "human-1"]]));
 
     const p = (gw as any).sayAsAi("pt1", "ai-1", "idle");
     await jest.advanceTimersByTimeAsync(4000);
@@ -860,6 +876,7 @@ it("sayAsAi는 idle 잡담이 지연 중 회의로 전환되면 발화를 폐기
     const gw = gatewayWith();
     (gw as any).aiChat = { enabled: false, pickVote: jest.fn(), say: jest.fn() };
     const to = (gw as any).server.to as jest.Mock;
+    (gw as any).presence.set("pt1", new Map([["human-socket", "human-1"]]));
 
     const p = (gw as any).sayAsAi("pt1", "ai-1", "idle");
     await jest.advanceTimersByTimeAsync(4000);
@@ -881,6 +898,7 @@ it("sayAsAi는 재검증을 통과하면 party:message를 방송한다", async (
     const gw = gatewayWith();
     (gw as any).aiChat = { enabled: false, pickVote: jest.fn(), say: jest.fn() };
     const to = (gw as any).server.to as jest.Mock;
+    (gw as any).presence.set("pt1", new Map([["human-socket", "human-1"]]));
 
     const p = (gw as any).sayAsAi("pt1", "ai-1", "idle");
     await jest.advanceTimersByTimeAsync(4000);
@@ -971,11 +989,14 @@ it("among:report로 회의가 소집되면(리브로드캐스트 시점) 생존 
     party.assertParticipant.mockResolvedValueOnce("p1");
     const state = meetingStateWithMixedAis();
     among.report.mockResolvedValueOnce(state);
+    among.current.mockResolvedValueOnce({ ...state, phase: "playing", bodies: [{ profileId: "p2", x: 0.5, y: 0.5, reported: false }] });
     among.project.mockReturnValue(fakeSnapshot);
 
     const gw = gatewayWith();
     const sayAsAiSpy = jest.spyOn(gw as any, "sayAsAi").mockResolvedValue(undefined);
     const client = clientWith("u1");
+    (gw as any).presence.set("pt1", new Map([[client.id, "p1"]]));
+    (gw as any).humanPos.set("pt1", new Map([["p1", { x: 0.5, y: 0.5, updatedAt: Date.now() }]]));
 
     await gw.handleAmongReport(client, { partyId: "pt1", bodyProfileId: "p2" });
     // 랜덤 지연 상한(8s)까지 흘려보내면 생존 AI(ai-1, ai-2) 각각 1회씩만 스케줄되어야 한다

@@ -4,8 +4,9 @@
  */
 import { useCallback, useState } from "react";
 import { StyleSheet, Text, View, Pressable } from "react-native";
-import { colors, doodle, fonts } from "../../../lib/theme";
+import { colors, control, doodle, fonts, type } from "../../../lib/theme";
 import { wiresSolved } from "../../../lib/minigame-logic";
+import { hapticError, hapticSelect, hapticSuccess } from "../../../lib/haptics";
 
 const SYMBOLS = ["★", "●", "▲", "■"] as const;
 
@@ -25,14 +26,20 @@ export function Wires({ onComplete }: { onComplete: () => void }) {
   // links: leftIndex → rightIndex
   const [links, setLinks] = useState<Record<number, number>>({});
   const [selectedLeft, setSelectedLeft] = useState<number | null>(null);
+  const linkedCount = Object.keys(links).length;
+  const wrongCount = Object.entries(links).filter(
+    ([left, right]) => leftSymbols[Number(left)] !== rightSymbols[right],
+  ).length;
 
   const handleLeftTap = useCallback(
     (li: number) => {
       // Already linked — deselect/reselect
       if (links[li] !== undefined) {
+        hapticSelect();
         setSelectedLeft(li);
         return;
       }
+      hapticSelect();
       setSelectedLeft(li);
     },
     [links],
@@ -47,7 +54,12 @@ export function Wires({ onComplete }: { onComplete: () => void }) {
       setSelectedLeft(null);
 
       if (wiresSolved(leftSymbols, rightSymbols, newLinks)) {
+        hapticSuccess();
         onComplete();
+      } else if (leftSymbols[selectedLeft] !== rightSymbols[ri]) {
+        hapticError();
+      } else {
+        hapticSelect();
       }
     },
     [selectedLeft, links, leftSymbols, rightSymbols, onComplete],
@@ -55,13 +67,23 @@ export function Wires({ onComplete }: { onComplete: () => void }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>선 잇기</Text>
-      <Text style={styles.hint}>같은 기호끼리 연결하세요</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.title}>선 잇기</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.hint}>
+          {selectedLeft === null
+            ? "왼쪽 기호부터 선택하세요"
+            : `${leftSymbols[selectedLeft]}와 같은 오른쪽 기호를 선택하세요`}
+        </Text>
+        <Text accessibilityLiveRegion="assertive" style={styles.statusText}>
+          {wrongCount > 0 ? `${wrongCount}개 다시` : `${linkedCount}/${SYMBOLS.length}`}
+        </Text>
+      </View>
       <View style={styles.columns}>
         {/* Left column */}
         <View style={styles.col}>
           {leftSymbols.map((sym, li) => {
             const linked = links[li] !== undefined;
+            const matched = linked && leftSymbols[li] === rightSymbols[links[li]];
             const active = selectedLeft === li;
             const bg = active
               ? colors.accent
@@ -79,10 +101,15 @@ export function Wires({ onComplete }: { onComplete: () => void }) {
                   pressed && { opacity: 0.75 },
                 ]}
                 accessibilityLabel={`왼쪽 ${sym}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active, checked: linked }}
+                accessibilityHint={linked ? "연결됨. 다시 선택해 연결을 바꿀 수 있어요" : "선택한 뒤 같은 오른쪽 기호를 누르세요"}
               >
                 <Text style={[styles.nodeSym, { color: textColor }]}>{sym}</Text>
                 {linked && (
-                  <Text style={styles.checkMark}>✓</Text>
+                  <Text style={[styles.checkMark, { color: matched ? colors.success : colors.danger }]}>
+                    {matched ? "✓" : "!"}
+                  </Text>
                 )}
               </Pressable>
             );
@@ -99,9 +126,12 @@ export function Wires({ onComplete }: { onComplete: () => void }) {
                 <View
                   style={[
                     styles.lineSeg,
-                    { backgroundColor: matched ? colors.accent : colors.grayLight },
+                    { backgroundColor: matched ? colors.success : colors.grayLight },
                   ]}
                 />
+                <Text style={[styles.matchLabel, matched ? styles.matchGood : styles.matchBad]}>
+                  {ri === undefined ? "" : matched ? "✓" : "다시"}
+                </Text>
               </View>
             );
           })}
@@ -117,12 +147,16 @@ export function Wires({ onComplete }: { onComplete: () => void }) {
               <Pressable
                 key={ri}
                 onPress={() => handleRightTap(ri)}
+                disabled={selectedLeft === null || linkedFromLeft}
                 style={({ pressed }) => [
                   styles.node,
                   { backgroundColor: bg, borderColor: colors.ink },
                   pressed && { opacity: 0.75 },
                 ]}
                 accessibilityLabel={`오른쪽 ${sym}`}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: selectedLeft === null || linkedFromLeft, checked: linkedFromLeft }}
+                accessibilityHint={linkedFromLeft ? "이미 연결됨" : selectedLeft === null ? "먼저 왼쪽 기호를 선택하세요" : "이 기호와 연결"}
               >
                 <Text style={[styles.nodeSym, { color: colors.ink }]}>{sym}</Text>
               </Pressable>
@@ -136,46 +170,68 @@ export function Wires({ onComplete }: { onComplete: () => void }) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     alignItems: "center",
   },
   title: {
     fontFamily: fonts.display,
     fontSize: 22,
     color: colors.ink,
+  },
+  headingRow: {
+    alignSelf: "stretch",
+    minHeight: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
     marginBottom: 4,
   },
   hint: {
-    fontSize: 13,
-    color: colors.grayMid,
-    marginBottom: 20,
+    ...type.caption,
+    color: colors.grayDark,
+    flexShrink: 1,
   },
   columns: {
+    width: "100%",
+    maxWidth: 280,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
   col: {
-    gap: 12,
+    gap: 4,
   },
   mid: {
-    gap: 12,
+    gap: 4,
     flex: 1,
     alignItems: "center",
   },
   lineRow: {
-    height: 52,
+    height: control.minTouch,
     justifyContent: "center",
     width: "100%",
+    alignItems: "center",
   },
   lineSeg: {
     height: 2,
     width: "80%",
     alignSelf: "center",
   },
+  matchLabel: { position: "absolute", fontSize: 12, fontWeight: "700", backgroundColor: colors.paper, paddingHorizontal: 3 },
+  matchGood: { color: colors.success },
+  matchBad: { color: colors.danger },
+  statusText: {
+    ...type.caption,
+    minWidth: 30,
+    color: colors.grayDark,
+    textAlign: "right",
+    fontFamily: fonts.bodySemibold,
+  },
   node: {
     width: 56,
-    height: 52,
+    height: control.minTouch,
     borderWidth: doodle.border,
     borderColor: colors.ink,
     borderTopLeftRadius: doodle.radius.chip.borderTopLeftRadius,
@@ -193,7 +249,6 @@ const styles = StyleSheet.create({
   },
   checkMark: {
     fontSize: 12,
-    color: colors.accent,
     fontWeight: "700",
   },
 });

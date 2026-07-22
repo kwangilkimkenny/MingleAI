@@ -80,15 +80,35 @@ export type {
   AmongStateEvent,
 } from "./types/among.js";
 
+export type {
+  SpeedDateStage,
+  SpeedDatePhase,
+  StageReveal,
+  PartnerView,
+  SpeedDateRoomInfo,
+  SpeedDateResultView,
+  SpeedDateSnapshot,
+  SpeedDateSnapshotEvent,
+  SpeedDateQueueStatus,
+  SpeedDateStatus,
+} from "./types/speed-date.js";
+export { buildRotationSchedule } from "./speed-date/schedule.js";
+export { stageReveal, projectPartner } from "./speed-date/projection.js";
+export type { PartnerIdentity } from "./speed-date/projection.js";
+
 export {
   PARTY_MAP,
   WORLD_ASPECT,
   CHAR_R,
   ROOM_MARGIN,
+  PARTY_MOVE_SPEED,
   BALANCE_STATION_ID,
   isSolid,
   solidFurniture,
   worldDist,
+  partySpawnFor,
+  isPartyPositionWalkable,
+  isPlausiblePartyMove,
 } from "./party-map/map.js";
 export type {
   FurnitureKind,
@@ -96,5 +116,7 @@ export type {
   DecoKind,
   DecoDef,
   StationDef,
+  RoomDef,
+  WallDef,
   PartyMapDef,
 } from "./party-map/map.js";

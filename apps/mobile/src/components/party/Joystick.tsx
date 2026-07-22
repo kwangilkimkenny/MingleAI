@@ -5,7 +5,16 @@
  * 이동은 onVector로만 나간다(부모 velRef → rAF 적분). 노브 상태는 로컬 렌더 전용.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  AccessibilityInfo,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { wobbleRect } from "../../lib/doodle-path";
 import { stickVector, knobOffset, STICK_RADIUS } from "../../lib/joystick";
@@ -31,11 +40,27 @@ export function Joystick({
   style?: StyleProp<ViewStyle>;
 }) {
   const [knob, setKnob] = useState<Vec2>({ x: 0, y: 0 });
+  const [screenReader, setScreenReader] = useState(false);
   const onVectorRef = useRef(onVector);
   onVectorRef.current = onVector;
 
   // 언마운트 시(회의 전환 등) 스틱을 놓은 것으로 처리 — velRef 잔류 방지
   useEffect(() => () => onVectorRef.current({ x: 0, y: 0 }), []);
+
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isScreenReaderEnabled().then((enabled) => active && setScreenReader(enabled));
+    const sub = AccessibilityInfo.addEventListener("screenReaderChanged", setScreenReader);
+    return () => {
+      active = false;
+      sub.remove();
+    };
+  }, []);
+
+  function nudge(vector: Vec2) {
+    onVectorRef.current(vector);
+    setTimeout(() => onVectorRef.current({ x: 0, y: 0 }), 180);
+  }
 
   const responder = useMemo(
     () =>
@@ -58,13 +83,57 @@ export function Joystick({
     [],
   );
 
+  if (screenReader) {
+    return (
+      <View style={[styles.accessiblePad, style]} accessibilityLabel="방향 이동 버튼">
+        <Pressable
+          style={[styles.directionButton, styles.up]}
+          onPress={() => nudge({ x: 0, y: -1 })}
+          accessibilityRole="button"
+          accessibilityLabel="위로 이동"
+        >
+          <Text style={styles.directionText}>↑</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.directionButton, styles.left]}
+          onPress={() => nudge({ x: -1, y: 0 })}
+          accessibilityRole="button"
+          accessibilityLabel="왼쪽으로 이동"
+        >
+          <Text style={styles.directionText}>←</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.directionButton, styles.right]}
+          onPress={() => nudge({ x: 1, y: 0 })}
+          accessibilityRole="button"
+          accessibilityLabel="오른쪽으로 이동"
+        >
+          <Text style={styles.directionText}>→</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.directionButton, styles.down]}
+          onPress={() => nudge({ x: 0, y: 1 })}
+          accessibilityRole="button"
+          accessibilityLabel="아래로 이동"
+        >
+          <Text style={styles.directionText}>↓</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View
       {...responder.panHandlers}
       style={[styles.base, style]}
       accessibilityLabel="이동 조이스틱"
+      accessible={false}
     >
-      <Svg width={BASE} height={BASE} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg
+        width={BASE}
+        height={BASE}
+        style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}
+      >
         <Path
           d={BASE_PATH}
           x={2}
@@ -77,8 +146,10 @@ export function Joystick({
         />
       </Svg>
       <View
-        pointerEvents="none"
-        style={[styles.knob, { transform: [{ translateX: knob.x }, { translateY: knob.y }] }]}
+        style={[
+          styles.knob,
+          { transform: [{ translateX: knob.x }, { translateY: knob.y }], pointerEvents: "none" },
+        ]}
       >
         <Svg width={KNOB} height={KNOB}>
           <Path d={KNOB_PATH} x={2} y={2} fill={colors.paper} stroke={colors.ink} strokeWidth={2} />
@@ -96,4 +167,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   knob: { width: KNOB, height: KNOB },
+  accessiblePad: { width: BASE, height: BASE, position: "relative" },
+  directionButton: {
+    position: "absolute",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.paper,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  up: { top: 0, left: (BASE - 44) / 2 },
+  left: { top: (BASE - 44) / 2, left: 0 },
+  right: { top: (BASE - 44) / 2, right: 0 },
+  down: { bottom: 0, left: (BASE - 44) / 2 },
+  directionText: { color: colors.ink, fontSize: 22, fontWeight: "800" },
 });

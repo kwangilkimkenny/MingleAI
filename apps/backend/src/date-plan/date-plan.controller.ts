@@ -42,4 +42,9 @@ export class DatePlanController {
   cancel(@CurrentUser() user: JwtPayload, @Param("id") id: string) {
     return this.datePlanService.cancel(user.userId, id);
   }
+
+  @Patch(":id/complete")
+  complete(@CurrentUser() user: JwtPayload, @Param("id") id: string) {
+    return this.datePlanService.complete(user.userId, id);
+  }
 }

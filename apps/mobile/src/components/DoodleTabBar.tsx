@@ -30,8 +30,10 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const insets = useSafeAreaInsets();
   return (
     <View
-      style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 12) }]}
-      pointerEvents="box-none"
+      style={[
+        styles.wrap,
+        { paddingBottom: Math.max(insets.bottom, 12), pointerEvents: "box-none" },
+      ]}
     >
       <WobbleBox radius={BAR_RADIUS} seed={11} shadow strokeWidth={2.4} contentStyle={styles.row}>
         {state.routes.map((route, i) => {
@@ -59,6 +61,11 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
             >
               {options.tabBarIcon ? options.tabBarIcon({ focused, color, size: 23 }) : null}
               <Text style={[styles.label, { color }]}>{label}</Text>
+              {options.tabBarBadge !== undefined ? (
+                <View style={styles.badge} accessibilityLabel={`읽지 않은 알림 ${options.tabBarBadge}개`}>
+                  <Text style={styles.badgeText}>{options.tabBarBadge}</Text>
+                </View>
+              ) : null}
             </Pressable>
           );
         })}
@@ -72,5 +79,18 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "stretch", height: TAB_BAR_ROW_HEIGHT },
   // 탭 터치 타깃이 라벨 높이(~39px)로 쪼그라들지 않게 행 전체(60px)를 채운다 — 44px 최소 기준.
   tab: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 2 },
-  label: { fontFamily: fonts.display, fontSize: 11 },
+  label: { fontFamily: fonts.bodySemibold, fontSize: 12, lineHeight: 16 },
+  badge: {
+    position: "absolute",
+    top: 5,
+    right: "22%",
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: { fontFamily: fonts.bodySemibold, fontSize: 10, lineHeight: 13, color: colors.onAccent },
 });

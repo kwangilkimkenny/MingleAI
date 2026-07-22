@@ -4,16 +4,16 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
+import { DashedLine } from "../../../src/components/DoodleSvg";
 import { EnterRow } from "../../../src/components/Motion";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
-import { colors, fonts } from "../../../src/lib/theme";
+import { colors, layout, space, type } from "../../../src/lib/theme";
+import { ContentColumn, PageHeader, StateView } from "../../../src/components/Foundation";
 
 const Separator = () => (
   <View style={styles.separatorWrap}>
@@ -51,24 +51,23 @@ export default function Chats() {
   useFocusEffect(load);
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.ink} />
-      </View>
-    );
+    return <StateView title="대화를 불러오고 있어요" loading />;
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.appbar}>
-        <Text style={styles.title}>채팅</Text>
-      </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {rooms.length === 0 ? (
-        <View style={styles.center}>
-          <DoodleFace variant="flat" size={64} />
-          <Text style={styles.empty}>아직 매칭된 상대가 없어요</Text>
-        </View>
+      <ContentColumn style={styles.headerColumn}>
+        <PageHeader title="채팅" description="서로 프로포즈를 수락한 상대와 안전하게 대화해요." />
+      </ContentColumn>
+      {error ? (
+        <StateView title="대화를 불러오지 못했어요" body={error} actionLabel="다시 시도" onAction={load} />
+      ) : rooms.length === 0 ? (
+        <StateView
+          title="아직 열린 대화가 없어요"
+          body="게임에서 서로를 알아보고 프로포즈가 수락되면 1:1 채팅이 여기에 열려요."
+          actionLabel="게임 파티 찾기"
+          onAction={() => router.push("/(app)/matching")}
+        />
       ) : (
         <FlatList
           data={rooms}
@@ -82,6 +81,8 @@ export default function Chats() {
                 onPress={() =>
                   router.push({ pathname: "/(app)/chat/[roomId]", params: { roomId: item.roomId } })
                 }
+                accessibilityRole="button"
+                accessibilityLabel={`${item.peer.name}님과의 채팅${item.unreadCount > 0 ? `, 읽지 않은 메시지 ${item.unreadCount}개` : ""}`}
               >
                 <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={46} />
                 <View style={styles.rowLeft}>
@@ -106,23 +107,27 @@ export default function Chats() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.paper },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 },
-  appbar: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 },
-  title: { fontFamily: fonts.display, fontSize: 26, color: colors.ink },
-  list: { paddingVertical: 8 },
+  headerColumn: { paddingHorizontal: layout.screenGutter },
+  list: {
+    width: "100%",
+    maxWidth: layout.contentMax,
+    alignSelf: "center",
+    paddingVertical: space.x2,
+  },
   // Old separator was full-bleed with no horizontal margin — the wrap keeps that (100% width
   // also gives the DashedLine Svg's percentage width a definite parent).
   separatorWrap: { width: "100%" },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    gap: space.x3,
+    minHeight: 72,
+    paddingVertical: space.x3,
+    paddingHorizontal: layout.screenGutter,
   },
   rowLeft: { flex: 1 },
-  peerName: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
-  lastMsg: { fontSize: 12.5, color: colors.grayMid, marginTop: 2 },
+  peerName: { ...type.heading, fontSize: 18, lineHeight: 23, color: colors.ink },
+  lastMsg: { ...type.caption, color: colors.grayDark, marginTop: space.x1 },
   badge: {
     backgroundColor: colors.accent,
     borderRadius: 10,
@@ -133,6 +138,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   badgeText: { color: colors.onAccent, fontSize: 11, fontWeight: "700" },
-  empty: { fontSize: 15, color: colors.grayMid },
-  error: { color: colors.ink, textAlign: "center", margin: 12 },
 });

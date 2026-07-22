@@ -34,5 +34,5 @@ const styles = StyleSheet.create({
   cardInner: { paddingVertical: 28, paddingHorizontal: 36 },
   face: { fontSize: 34, color: colors.ink, fontWeight: "700" },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.ink, textAlign: "center" },
-  subtitle: { fontSize: 14, color: colors.grayMid, textAlign: "center", marginBottom: 8 },
+  subtitle: { fontSize: 15, lineHeight: 22, color: colors.grayDark, textAlign: "center", marginBottom: 8 },
 });

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   ConflictException,
   Inject,
+  BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateProfileDto } from "./dto/create-profile.dto";
@@ -22,6 +23,7 @@ export class ProfileService {
   ) {}
 
   async create(userId: string, dto: CreateProfileDto) {
+    this.assertOwnedPhotoUrl(dto.photoUrl);
     const existing = await this.prisma.profile.findUnique({
       where: { userId },
     });
@@ -186,6 +188,7 @@ export class ProfileService {
   }
 
   async update(id: string, userId: string, dto: UpdateProfileDto) {
+    this.assertOwnedPhotoUrl(dto.photoUrl);
     const profile = await this.prisma.profile.findUnique({ where: { id } });
     if (!profile) {
       throw new NotFoundException("프로필을 찾을 수 없습니다");
@@ -219,5 +222,22 @@ export class ProfileService {
       return this.runAnalysis(updated, updated as any);
     }
     return updated;
+  }
+
+  private assertOwnedPhotoUrl(photoUrl: string | undefined): void {
+    if (!photoUrl) return;
+    let parsed: URL;
+    try {
+      parsed = new URL(photoUrl);
+    } catch {
+      throw new BadRequestException("올바른 프로필 사진 URL이 아닙니다");
+    }
+    if (!/^\/uploads\/[0-9a-f-]+\.(jpg|png|webp)$/i.test(parsed.pathname)) {
+      throw new BadRequestException("앱에서 업로드한 프로필 사진만 사용할 수 있습니다");
+    }
+    const publicBase = process.env.PUBLIC_BASE_URL?.trim();
+    if (publicBase && parsed.origin !== new URL(publicBase).origin) {
+      throw new BadRequestException("앱에서 업로드한 프로필 사진만 사용할 수 있습니다");
+    }
   }
 }

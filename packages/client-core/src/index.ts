@@ -14,7 +14,7 @@ export type { AuthState, UserRole } from "./auth-store.js";
 
 export { apiFetch, ApiError } from "./api/client.js";
 
-export { register, login } from "./api/auth.js";
+export { register, login, refreshSession, logoutSession, deleteAccount } from "./api/auth.js";
 export type { AuthResponse } from "./api/auth.js";
 
 export { getMyProfile, createProfile, updateProfile, uploadPhoto } from "./api/profiles.js";
@@ -46,7 +46,7 @@ export { createBlock, getBlocks, removeBlock } from "./api/blocks.js";
 export { reportUser, REPORT_REASONS } from "./api/reports.js";
 export type { ReportReason, ReportInput } from "./api/reports.js";
 
-export { registerDevice, unregisterDevice, setPushEnabled } from "./api/devices.js";
+export { registerDevice, unregisterDevice, setPushEnabled, getPushEnabled } from "./api/devices.js";
 export {
   getNotifications,
   getUnreadCount,
@@ -62,6 +62,7 @@ export {
   selectCourse,
   confirmDatePlan,
   cancelDatePlan,
+  completeDatePlan,
 } from "./api/date-plans.js";
 export type { CreateDatePlanInput } from "./api/date-plans.js";
 
@@ -74,6 +75,24 @@ export type {
 export { getPartyMessages } from "./api/party.js";
 export { connectPartySocket } from "./socket/party-socket.js";
 export type { PartySocketHandlers, PartySocketHandle } from "./socket/party-socket.js";
+
+export { enqueueSpeedDate, cancelSpeedDate, getSpeedDateStatus } from "./api/speed-date.js";
+export { connectSpeedDateSocket } from "./socket/speed-date-socket.js";
+export type {
+  SpeedDateSocketHandlers,
+  SpeedDateSocketHandle,
+} from "./socket/speed-date-socket.js";
+export type {
+  SpeedDateStage,
+  SpeedDatePhase,
+  PartnerView,
+  SpeedDateRoomInfo,
+  SpeedDateResultView,
+  SpeedDateSnapshot,
+  SpeedDateSnapshotEvent,
+  SpeedDateQueueStatus,
+  SpeedDateStatus,
+} from "@mingle/shared";
 
 export type {
   Proposal,

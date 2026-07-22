@@ -5,18 +5,25 @@ import {
   Pressable,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StyleSheet,
+  ScrollView,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { Ban, LogOut, ChevronRight } from "lucide-react-native";
-import { getMyProfile, updateProfile } from "@mingle/client-core";
+import { Ban, LogOut, ChevronRight, FileText, Trash2 } from "lucide-react-native";
+import { getMyProfile, logoutSession, updateProfile } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { DashedLine } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { pickAndUploadPhoto } from "../../../src/lib/photo";
-import { colors, fonts } from "../../../src/lib/theme";
+import { colors, layout, space, type } from "../../../src/lib/theme";
+import {
+  ConfirmDialog,
+  ContentColumn,
+  InlineNotice,
+  PageHeader,
+  StateView,
+} from "../../../src/components/Foundation";
 
 type MyProfile = NonNullable<Awaited<ReturnType<typeof getMyProfile>>>;
 
@@ -24,13 +31,18 @@ export default function SettingsScreen() {
   const clearance = useTabBarClearance();
   const logout = useAuthStore((s) => s.logout);
   const profileId = useAuthStore((s) => s.profileId);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const load = useCallback(() => {
     let alive = true;
     setLoading(true);
+    setLoadError(false);
     getMyProfile()
       .then((p) => {
         if (alive) {
@@ -39,7 +51,10 @@ export default function SettingsScreen() {
         }
       })
       .catch(() => {
-        if (alive) setLoading(false);
+        if (alive) {
+          setLoading(false);
+          setLoadError(true);
+        }
       });
     return () => {
       alive = false;
@@ -50,6 +65,7 @@ export default function SettingsScreen() {
 
   async function onChangePhoto() {
     if (photoBusy || !profileId) return;
+    setPhotoError(null);
     setPhotoBusy(true);
     const res = await pickAndUploadPhoto();
     if (res.status === "ok") {
@@ -57,22 +73,29 @@ export default function SettingsScreen() {
         const updated = await updateProfile(profileId, { photoUrl: res.url });
         setProfile((prev) => (prev ? { ...prev, photoUrl: updated.photoUrl } : prev));
       } catch (e) {
-        Alert.alert("사진 저장 실패", e instanceof Error ? e.message : "다시 시도해 주세요.");
+        setPhotoError(e instanceof Error ? e.message : "사진을 저장하지 못했어요. 다시 시도해 주세요.");
       }
     } else if (res.status === "denied") {
-      Alert.alert("사진 접근 권한 필요", "설정에서 사진 접근을 허용해 주세요.");
+      setPhotoError("사진을 변경하려면 기기 설정에서 사진 접근을 허용해 주세요.");
     } else if (res.status === "error") {
-      Alert.alert("사진 업로드 실패", res.message);
+      setPhotoError(res.message);
     }
     setPhotoBusy(false);
   }
 
+  if (loading) return <StateView title="설정을 불러오고 있어요" loading />;
+  if (loadError || !profile) {
+    return <StateView title="프로필을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />;
+  }
+
   return (
-    <View style={[styles.container, { paddingBottom: clearance }]}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.container, { paddingBottom: clearance }]}
+    >
+      <ContentColumn style={styles.column}>
+      <PageHeader title="설정" description="프로필과 안전 설정을 관리해요." />
       <View style={styles.summary}>
-        {loading ? (
-          <ActivityIndicator color={colors.ink} />
-        ) : profile ? (
           <>
             <TouchableOpacity
               onPress={onChangePhoto}
@@ -88,22 +111,30 @@ export default function SettingsScreen() {
                 </View>
               ) : null}
             </TouchableOpacity>
-            <Text style={styles.name}>
+            <Text accessibilityRole="header" style={styles.name}>
               {profile.name} · {profile.age}
             </Text>
             <Text style={styles.meta}>
               {[profile.occupation, profile.location].filter(Boolean).join(" · ")}
             </Text>
-            <Text style={styles.photoLink} onPress={onChangePhoto}>
-              {profile.photoUrl ? "사진 변경" : "사진 추가"}
-            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={profile.photoUrl ? "프로필 사진 변경" : "프로필 사진 추가"}
+              onPress={onChangePhoto}
+              style={styles.photoLinkButton}
+            >
+              <Text style={styles.photoLink}>{profile.photoUrl ? "사진 변경" : "사진 추가"}</Text>
+            </Pressable>
+            {photoError ? (
+              <View style={styles.photoNotice}>
+                <InlineNotice tone="error">{photoError}</InlineNotice>
+              </View>
+            ) : null}
           </>
-        ) : (
-          <Text style={styles.meta}>프로필을 불러오지 못했어요.</Text>
-        )}
       </View>
 
       <View style={styles.rows}>
+        <Text style={styles.sectionLabel}>안전</Text>
         <View style={styles.separatorWrap}>
           <DashedLine />
         </View>
@@ -120,16 +151,51 @@ export default function SettingsScreen() {
         <View style={styles.separatorWrap}>
           <DashedLine />
         </View>
+        <Text style={styles.sectionLabel}>계정</Text>
         <Row
-          icon={<LogOut color={colors.ink} size={20} strokeWidth={2} />}
+          icon={<FileText color={colors.ink} size={20} strokeWidth={2} />}
+          label="이용약관"
+          chevron
+          onPress={() => router.push("/terms")}
+        />
+        <Row
+          icon={<FileText color={colors.ink} size={20} strokeWidth={2} />}
+          label="개인정보 처리 안내"
+          chevron
+          onPress={() => router.push("/privacy")}
+        />
+        <Row
+          icon={<LogOut color={colors.danger} size={20} strokeWidth={2} />}
           label="로그아웃"
-          onPress={logout}
+          danger
+          onPress={() => setLogoutOpen(true)}
+        />
+        <Row
+          icon={<Trash2 color={colors.danger} size={20} strokeWidth={2} />}
+          label="계정 삭제"
+          danger
+          chevron
+          onPress={() => router.push("/(app)/delete-account")}
         />
         <View style={styles.separatorWrap}>
           <DashedLine />
         </View>
       </View>
-    </View>
+      </ContentColumn>
+      <ConfirmDialog
+        visible={logoutOpen}
+        title="로그아웃할까요?"
+        body="다시 로그인하면 채팅과 프로포즈를 이어서 확인할 수 있어요."
+        confirmLabel="로그아웃"
+        destructive
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={() => {
+          setLogoutOpen(false);
+          if (refreshToken) void logoutSession(refreshToken).catch(() => undefined);
+          logout();
+        }}
+      />
+    </ScrollView>
   );
 }
 
@@ -138,17 +204,19 @@ function Row({
   label,
   onPress,
   chevron = false,
+  danger = false,
 }: {
   icon: ReactNode;
   label: string;
   onPress: () => void;
   chevron?: boolean;
+  danger?: boolean;
 }) {
   return (
     <Pressable style={styles.row} onPress={onPress} accessibilityRole="button">
       <View style={styles.rowLeft}>
         {icon}
-        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
       </View>
       {chevron ? <ChevronRight color={colors.grayMid} size={20} strokeWidth={2} /> : null}
     </Pressable>
@@ -156,13 +224,17 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper, padding: 20, gap: 28 },
+  screen: { flex: 1, backgroundColor: colors.paper },
+  container: { flexGrow: 1, backgroundColor: colors.paper, paddingHorizontal: layout.screenGutter },
+  column: { gap: space.x6, paddingTop: space.x2 },
   summary: {
     alignItems: "center",
-    gap: 4,
-    paddingVertical: 8,
-    minHeight: 96,
+    gap: space.x1,
+    paddingVertical: space.x4,
+    minHeight: 180,
     justifyContent: "center",
+    backgroundColor: colors.fill,
+    borderRadius: 18,
   },
   photoBusy: {
     position: "absolute",
@@ -175,23 +247,30 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.55)",
     borderRadius: 46,
   },
-  name: { fontFamily: fonts.display, fontSize: 26, color: colors.ink, marginTop: 10 },
-  meta: { fontSize: 14, color: colors.grayMid },
+  name: { ...type.title, color: colors.ink, marginTop: space.x2 },
+  meta: { ...type.body, color: colors.grayDark },
   photoLink: {
-    fontSize: 13,
-    fontWeight: "700",
+    ...type.label,
     color: colors.ink,
     textDecorationLine: "underline",
-    marginTop: 2,
   },
-  rows: {},
+  photoLinkButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  photoNotice: { alignSelf: "stretch", marginHorizontal: space.x4, marginTop: space.x1 },
+  rows: { gap: space.x1 },
+  sectionLabel: { ...type.label, color: colors.grayDark, marginTop: space.x2 },
   separatorWrap: { width: "100%" },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 16,
+    minHeight: 56,
+    paddingVertical: space.x3,
   },
   rowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  rowLabel: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
+  rowLabel: { ...type.body, color: colors.ink },
+  rowLabelDanger: { color: colors.danger },
 });

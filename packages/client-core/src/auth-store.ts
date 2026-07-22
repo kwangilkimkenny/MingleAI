@@ -6,9 +6,10 @@ export type UserRole = "user" | "admin" | "super_admin";
 
 export interface AuthState {
   token: string | null;
+  refreshToken: string | null;
   profileId: string | null;
   role: UserRole | null;
-  setAuth: (data: { token: string; profileId?: string; role?: UserRole }) => void;
+  setAuth: (data: { token: string; refreshToken?: string; profileId?: string; role?: UserRole }) => void;
   logout: () => void;
   isAdmin: () => boolean;
 }
@@ -32,15 +33,17 @@ export function createAuthStore(
     persist(
       (set, get) => ({
         token: null,
+        refreshToken: null,
         profileId: null,
         role: null,
-        setAuth: ({ token, profileId, role }) =>
+        setAuth: ({ token, refreshToken, profileId, role }) =>
           set({
             token,
+            refreshToken: refreshToken ?? get().refreshToken,
             profileId: profileId ?? get().profileId,
             role: role ?? get().role,
           }),
-        logout: () => set({ token: null, profileId: null, role: null }),
+        logout: () => set({ token: null, refreshToken: null, profileId: null, role: null }),
         isAdmin: () => {
           const role = get().role;
           return role === "admin" || role === "super_admin";
@@ -51,6 +54,7 @@ export function createAuthStore(
         storage: createJSONStorage(() => storage),
         partialize: (state) => ({
           token: state.token,
+          refreshToken: state.refreshToken,
           profileId: state.profileId,
           role: state.role,
         }),

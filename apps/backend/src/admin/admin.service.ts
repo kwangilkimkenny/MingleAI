@@ -138,9 +138,26 @@ export class AdminService {
   async getUserDetail(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
         profile: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            age: true,
+            gender: true,
+            occupation: true,
+            bio: true,
+            location: true,
+            photoUrl: true,
+            status: true,
+            riskScore: true,
+            createdAt: true,
+            updatedAt: true,
             partyParticipants: {
               include: { party: true },
               orderBy: { joinedAt: "desc" },
@@ -157,6 +174,15 @@ export class AdminService {
           },
         },
         notifications: {
+          select: {
+            id: true,
+            type: true,
+            title: true,
+            message: true,
+            data: true,
+            read: true,
+            createdAt: true,
+          },
           orderBy: { createdAt: "desc" },
           take: 10,
         },
@@ -184,9 +210,18 @@ export class AdminService {
       throw new BadRequestException("프로필이 없는 사용자입니다");
     }
 
-    return this.prisma.profile.update({
-      where: { id: user.profile.id },
-      data: { status },
+    return this.prisma.$transaction(async (tx) => {
+      const profile = await tx.profile.update({
+        where: { id: user.profile!.id },
+        data: { status },
+      });
+      if (status !== "active") {
+        await tx.refreshToken.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+      return profile;
     });
   }
 
@@ -200,10 +235,16 @@ export class AdminService {
     }
 
     // 프로필 상태를 deleted로 변경 (소프트 삭제)
-    await this.prisma.profile.updateMany({
-      where: { userId },
-      data: { status: "deleted" },
-    });
+    await this.prisma.$transaction([
+      this.prisma.profile.updateMany({
+        where: { userId },
+        data: { status: "deleted" },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
 
     return { success: true };
   }
@@ -375,10 +416,16 @@ export class AdminService {
       }
 
       if (profileStatus !== "active") {
-        await this.prisma.profile.update({
-          where: { id: report.reportedProfileId },
-          data: { status: profileStatus },
-        });
+        await this.prisma.$transaction([
+          this.prisma.profile.update({
+            where: { id: report.reportedProfileId },
+            data: { status: profileStatus },
+          }),
+          this.prisma.refreshToken.updateMany({
+            where: { userId: report.reported.userId, revokedAt: null },
+            data: { revokedAt: new Date() },
+          }),
+        ]);
       }
     }
 

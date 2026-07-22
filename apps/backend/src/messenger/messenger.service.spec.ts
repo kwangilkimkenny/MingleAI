@@ -9,7 +9,7 @@ const emitter = { emitNewMessage: jest.fn(), emitRead: jest.fn() };
 const room = { id: "r1", match: { profileId1: "pa", profileId2: "pb" } };
 function prismaWith(over: any = {}) {
   return {
-    profile: { findUnique: jest.fn().mockResolvedValue({ id: "pa", userId: "ua" }) },
+    profile: { findUnique: jest.fn().mockResolvedValue({ id: "pa", userId: "ua", status: "active" }) },
     directMessageRoom: { findUnique: jest.fn().mockResolvedValue(room) },
     directMessage: { create: jest.fn().mockResolvedValue({ id: "m1", roomId: "r1", senderProfileId: "pa", content: "hi", readAt: null, createdAt: new Date() }), updateMany: jest.fn().mockResolvedValue({ count: 2 }), findMany: jest.fn().mockResolvedValue([]) },
     ...over,

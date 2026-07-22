@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
@@ -33,7 +33,7 @@ export default function ReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(0);
 
-  const loadReservations = async () => {
+  const loadReservations = useCallback(async () => {
     if (!profileId) return;
     setLoading(true);
     try {
@@ -44,11 +44,11 @@ export default function ReservationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profileId]);
 
   useEffect(() => {
     loadReservations();
-  }, [profileId]);
+  }, [loadReservations]);
 
   const handleCancel = async (id: string) => {
     if (!profileId) return;

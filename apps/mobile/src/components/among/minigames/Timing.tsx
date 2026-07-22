@@ -6,6 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, doodle, fonts } from "../../../lib/theme";
 import { inTargetZone } from "../../../lib/minigame-logic";
+import { DoodleButton } from "../../Doodle";
+import { useReducedMotion } from "react-native-reanimated";
+import { hapticError, hapticSelect, hapticSuccess } from "../../../lib/haptics";
 
 const TARGET_LO = 0.4;
 const TARGET_HI = 0.6;
@@ -14,9 +17,15 @@ const TICK_MS = 16; // ~60fps
 const HITS_NEEDED = 3;
 
 export function Timing({ onComplete }: { onComplete: () => void }) {
+  const reducedMotion = useReducedMotion();
   const [hits, setHits] = useState(0);
   const [lastResult, setLastResult] = useState<"hit" | "miss" | null>(null);
   const [done, setDone] = useState(false);
+  const [staticMode, setStaticMode] = useState(reducedMotion);
+
+  useEffect(() => {
+    if (reducedMotion) setStaticMode(true);
+  }, [reducedMotion]);
 
   const posRef = useRef(0); // 0..1, current marker position
   const dirRef = useRef(1); // 1 = moving right, -1 = moving left
@@ -33,7 +42,7 @@ export function Timing({ onComplete }: { onComplete: () => void }) {
   };
 
   useEffect(() => {
-    if (done) {
+    if (done || staticMode) {
       clearSweep();
       return;
     }
@@ -51,12 +60,14 @@ export function Timing({ onComplete }: { onComplete: () => void }) {
       animX.setValue(next);
     }, TICK_MS);
     return () => clearSweep();
-  }, [done, animX]);
+  }, [done, staticMode, animX]);
 
   const handleStop = useCallback(() => {
     if (doneRef.current) return;
     const pos = posRef.current;
     if (inTargetZone(pos, TARGET_LO, TARGET_HI)) {
+      if (hits + 1 >= HITS_NEEDED) hapticSuccess();
+      else hapticSelect();
       setHits((h) => {
         const nextHits = h + 1;
         if (nextHits >= HITS_NEEDED && !doneRef.current) {
@@ -68,12 +79,37 @@ export function Timing({ onComplete }: { onComplete: () => void }) {
       });
       setLastResult("hit");
     } else {
+      hapticError();
       setLastResult("miss");
     }
     // Clear result flash after 600ms (tracked so it can't fire after unmount)
     if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = setTimeout(() => setLastResult(null), 600);
-  }, [onComplete]);
+  }, [hits, onComplete]);
+
+  const handleStaticChoice = useCallback(
+    (choice: "left" | "center" | "right") => {
+      if (doneRef.current) return;
+      if (choice !== "center") {
+        hapticError();
+        setLastResult("miss");
+        return;
+      }
+      if (hits + 1 >= HITS_NEEDED) hapticSuccess();
+      else hapticSelect();
+      setHits((value) => {
+        const next = value + 1;
+        if (next >= HITS_NEEDED && !doneRef.current) {
+          doneRef.current = true;
+          setDone(true);
+          onComplete();
+        }
+        return next;
+      });
+      setLastResult("hit");
+    },
+    [hits, onComplete],
+  );
 
   // Clear the flash timer on unmount (the sweep interval is cleared by its own effect).
   useEffect(() => {
@@ -83,15 +119,30 @@ export function Timing({ onComplete }: { onComplete: () => void }) {
   }, []);
 
   const resultColor =
-    lastResult === "hit" ? colors.accent : lastResult === "miss" ? colors.grayMid : "transparent";
+    lastResult === "hit" ? colors.success : lastResult === "miss" ? colors.danger : "transparent";
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>타이밍 멈춤</Text>
-      <Text style={styles.hint}>
-        막대가 분홍 구간에 있을 때 STOP! — {hits}/{HITS_NEEDED} 히트
+      <Text accessibilityLiveRegion="polite" style={styles.hint}>
+        {staticMode ? "가운데 안전 구간을 선택하세요" : "막대가 분홍 구간에 있을 때 멈추세요"} — {hits}/{HITS_NEEDED} 성공
       </Text>
 
+      {staticMode ? (
+        <View style={styles.staticChoices} accessibilityRole="radiogroup">
+          {(["left", "center", "right"] as const).map((choice) => (
+            <Pressable
+              key={choice}
+              accessibilityRole="button"
+              accessibilityLabel={choice === "left" ? "왼쪽 구간" : choice === "center" ? "가운데 안전 구간" : "오른쪽 구간"}
+              onPress={() => handleStaticChoice(choice)}
+              style={({ pressed }) => [styles.staticChoice, choice === "center" && styles.staticTarget, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.staticChoiceText}>{choice === "left" ? "왼쪽" : choice === "center" ? "가운데" : "오른쪽"}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : <>
       {/* Track */}
       <View style={styles.trackOuter}>
         {/* Target zone highlight */}
@@ -130,7 +181,7 @@ export function Timing({ onComplete }: { onComplete: () => void }) {
             key={i}
             style={[
               styles.pip,
-              { backgroundColor: i < hits ? colors.accent : colors.grayLight },
+              { backgroundColor: i < hits ? colors.success : colors.grayLight },
             ]}
           />
         ))}
@@ -152,11 +203,21 @@ export function Timing({ onComplete }: { onComplete: () => void }) {
           },
         ]}
         accessibilityLabel="STOP 버튼"
+        accessibilityRole="button"
+        accessibilityState={{ disabled: done }}
       >
         <Text style={[styles.stopLabel, { color: done ? colors.grayMid : colors.onAccent }]}>
           {done ? "완료 ✓" : "STOP"}
         </Text>
       </Pressable>
+      </>}
+      <View style={styles.modeAction}>
+        <DoodleButton
+          title={staticMode ? "움직이는 모드로 전환" : "움직임 없는 선택 모드"}
+          onPress={() => setStaticMode((value) => !value)}
+          disabled={done}
+        />
+      </View>
     </View>
   );
 }
@@ -174,7 +235,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 13,
-    color: colors.grayMid,
+    color: colors.grayDark,
     marginBottom: 20,
     textAlign: "center",
   },
@@ -244,4 +305,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     letterSpacing: 2,
   },
+  staticChoices: { alignSelf: "stretch", flexDirection: "row", gap: 8, marginBottom: 16 },
+  staticChoice: {
+    flex: 1,
+    minHeight: 64,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.paper,
+  },
+  staticTarget: { backgroundColor: colors.accentFill, borderColor: colors.accentDeep },
+  staticChoiceText: { fontSize: 15, fontWeight: "700", color: colors.ink },
+  modeAction: { alignSelf: "stretch", marginTop: 12 },
 });

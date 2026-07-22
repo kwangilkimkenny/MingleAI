@@ -1,11 +1,11 @@
 import { colors, doodleHeaderOptions } from "../../src/lib/theme";
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "../../src/lib/client";
 import { useAuthHydrated } from "../../src/lib/use-hydrated";
 import { getMyProfile } from "@mingle/client-core";
 import { usePushRegistration } from "../../src/lib/push";
+import { StateView } from "../../src/components/Foundation";
 
 type ProfileState = "loading" | "none" | "ok" | "error";
 
@@ -43,19 +43,12 @@ export default function AppLayout() {
 
   usePushRegistration(profileState === "ok");
 
-  if (!hydrated) return null;
+  if (!hydrated) return <StateView title="계정을 확인하고 있어요" loading />;
   if (!token) return <Redirect href="/login" />;
-  if (profileState === "loading") return null;
+  if (profileState === "loading") return <StateView title="프로필을 불러오고 있어요" loading />;
   if (profileState === "none") return <Redirect href="/onboarding" />;
   if (profileState === "error") {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>연결에 문제가 생겼습니다.</Text>
-        <Pressable style={styles.retryButton} onPress={fetchProfile}>
-          <Text style={styles.retryText}>다시 시도</Text>
-        </Pressable>
-      </View>
-    );
+    return <StateView title="연결에 문제가 생겼어요" body="네트워크 상태를 확인한 뒤 다시 시도해 주세요." actionLabel="다시 시도" onAction={fetchProfile} />;
   }
   return (
     <Stack
@@ -70,7 +63,10 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       {/* Detail screens push OVER the tabs with a back button */}
       <Stack.Screen name="matching" options={{ title: "매칭" }} />
+      <Stack.Screen name="speed-date/index" options={{ title: "블라인드 데이트" }} />
+      <Stack.Screen name="speed-date/[id]" options={{ title: "블라인드 데이트" }} />
       <Stack.Screen name="blocks" options={{ title: "차단 목록" }} />
+      <Stack.Screen name="delete-account" options={{ title: "계정 삭제" }} />
       <Stack.Screen name="chat/[roomId]" options={{ title: "채팅" }} />
       <Stack.Screen name="party/[id]" options={{ title: "파티" }} />
       <Stack.Screen name="date-plan/[matchId]" options={{ title: "데이트 플랜" }} />
@@ -78,16 +74,3 @@ export default function AppLayout() {
     </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
-  errorText: { fontSize: 16, color: colors.grayDark },
-  retryButton: {
-    borderWidth: 1,
-    borderColor: colors.ink,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-  },
-  retryText: { color: colors.ink, fontSize: 15 },
-});

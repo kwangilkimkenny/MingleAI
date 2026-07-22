@@ -2,9 +2,10 @@ import { MessengerGateway } from "./messenger.gateway";
 
 const jwt = { verify: jest.fn() } as any;
 const messenger = { assertMember: jest.fn() } as any;
+const accountAccess = { findActive: jest.fn().mockResolvedValue({ userId: "ua", role: "user" }) } as any;
 
 function gatewayWith() {
-  const gw = new MessengerGateway(jwt, messenger);
+  const gw = new MessengerGateway(jwt, messenger, accountAccess);
   (gw as any).server = { to: jest.fn().mockReturnValue({ emit: jest.fn() }) };
   return gw;
 }
@@ -32,18 +33,18 @@ it("handleJoin refuses when not a member", async () => {
   expect(client.join).not.toHaveBeenCalled();
 });
 
-it("handleConnection with no token disconnects the client", () => {
+it("handleConnection with no token disconnects the client", async () => {
   const gw = gatewayWith();
   const client = { handshake: { auth: {} }, disconnect: jest.fn(), data: {} } as any;
-  gw.handleConnection(client);
+  await gw.handleConnection(client);
   expect(client.disconnect).toHaveBeenCalled();
   expect(client.data.userId).toBeUndefined();
 });
 
-it("handleConnection with invalid token disconnects without throwing", () => {
+it("handleConnection with invalid token disconnects without throwing", async () => {
   jwt.verify.mockImplementationOnce(() => { throw new Error("bad"); });
   const gw = gatewayWith();
   const client = { handshake: { auth: { token: "bad.token" } }, disconnect: jest.fn(), data: {} } as any;
-  expect(() => gw.handleConnection(client)).not.toThrow();
+  await expect(gw.handleConnection(client)).resolves.toBeUndefined();
   expect(client.disconnect).toHaveBeenCalled();
 });

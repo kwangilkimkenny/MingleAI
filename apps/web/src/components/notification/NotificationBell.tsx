@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Badge from "@mui/material/Badge";
 import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
@@ -39,6 +39,15 @@ export default function NotificationBell() {
 
   const open = Boolean(anchorEl);
 
+  const loadUnreadCount = useCallback(async () => {
+    try {
+      const { unreadCount } = await getUnreadCount();
+      setUnreadCount(unreadCount);
+    } catch (error) {
+      console.error("Failed to load unread count:", error);
+    }
+  }, [setUnreadCount]);
+
   useEffect(() => {
     // 초기 로드
     loadUnreadCount();
@@ -46,16 +55,7 @@ export default function NotificationBell() {
     // 30초마다 갱신
     const interval = setInterval(loadUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, []);
-
-  const loadUnreadCount = async () => {
-    try {
-      const { unreadCount } = await getUnreadCount();
-      setUnreadCount(unreadCount);
-    } catch (error) {
-      console.error("Failed to load unread count:", error);
-    }
-  };
+  }, [loadUnreadCount]);
 
   const loadNotifications = async () => {
     setLoading(true);

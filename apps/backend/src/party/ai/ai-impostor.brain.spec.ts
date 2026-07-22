@@ -1,5 +1,5 @@
 import { AiImpostorBrain, AI_WITNESS_RADIUS } from "./ai-impostor.brain";
-import { PARTY_MAP } from "@mingle/shared";
+import { PARTY_MAP, WORLD_ASPECT } from "@mingle/shared";
 
 const CFG = {
   minPlayers: 4,
@@ -91,8 +91,8 @@ describe("AiImpostorBrain.tick", () => {
     const moved = step.moves.find((m) => m.profileId === "ai-a")!;
     expect(moved).toBeDefined();
     const target = PARTY_MAP.stations[before.targetIdx]!;
-    const dBefore = Math.hypot((target.x - before.x) * 1.9, target.y - before.y);
-    const dAfter = Math.hypot((target.x - moved.x) * 1.9, target.y - moved.y);
+    const dBefore = Math.hypot((target.x - before.x) * WORLD_ASPECT, target.y - before.y);
+    const dAfter = Math.hypot((target.x - moved.x) * WORLD_ASPECT, target.y - moved.y);
     expect(dAfter).toBeLessThan(dBefore);
   });
 
@@ -116,7 +116,7 @@ describe("AiImpostorBrain.tick", () => {
       state,
       {
         h1: { x: bot.x + 0.01, y: bot.y },
-        h2: { x: bot.x + AI_WITNESS_RADIUS / 2 / 1.9, y: bot.y }, // 목격 반경 내
+        h2: { x: bot.x + AI_WITNESS_RADIUS / 2 / WORLD_ASPECT, y: bot.y }, // 목격 반경 내
       },
       CFG,
       Date.now(),

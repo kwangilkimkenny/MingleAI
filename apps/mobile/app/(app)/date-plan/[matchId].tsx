@@ -4,10 +4,7 @@ import {
   Text,
   ScrollView,
   Pressable,
-  TextInput,
   StyleSheet,
-  ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
@@ -16,12 +13,20 @@ import {
   selectCourse,
   confirmDatePlan,
   cancelDatePlan,
+  completeDatePlan,
 } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
-import { BackButton } from "../../../src/components/BackButton";
-import { DoodleCard, doodleInputStyle } from "../../../src/components/Doodle";
+import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
-import { colors, doodle, fonts } from "../../../src/lib/theme";
+import { colors, layout, space, type } from "../../../src/lib/theme";
+import {
+  ConfirmDialog,
+  ContentColumn,
+  InlineNotice,
+  LabeledInput,
+  PageHeader,
+  StateView,
+} from "../../../src/components/Foundation";
 
 // Derive types from function return signatures — avoids importing @mingle/shared directly
 // (shared is not a direct dep of the mobile app; types flow through client-core).
@@ -38,6 +43,9 @@ export default function DatePlanScreen() {
   const [budget, setBudget] = useState("100000");
   const [city, setCity] = useState("서울");
   const [date, setDate] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
 
   const load = useCallback(() => {
     let alive = true;
@@ -58,18 +66,32 @@ export default function DatePlanScreen() {
   useFocusEffect(load);
 
   async function onCreate() {
+    const amount = Number(budget);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("예산을 1원 이상 숫자로 입력해 주세요.");
+      return;
+    }
+    if (!city.trim()) {
+      setError("만날 지역을 입력해 주세요.");
+      return;
+    }
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setError("날짜를 YYYY-MM-DD 형식으로 입력해 주세요.");
+      return;
+    }
+    setError(null);
     setBusy(true);
     try {
       const created = await createDatePlan({
         matchId,
-        budget: { total: Number(budget) || 0 },
-        location: { city },
+        budget: { total: amount },
+        location: { city: city.trim() },
         dateTime: { preferredDate: date || new Date().toISOString().slice(0, 10) },
       });
       setPlan(created);
       setPhase("ready");
     } catch {
-      Alert.alert("오류", "플랜 생성에 실패했어요.");
+      setError("플랜을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
       setBusy(false);
     }
@@ -77,53 +99,48 @@ export default function DatePlanScreen() {
 
   async function run(fn: () => Promise<DatePlanView>) {
     setBusy(true);
+    setError(null);
     try {
       setPlan(await fn());
     } catch {
-      Alert.alert("오류", "요청을 처리하지 못했어요.");
+      setError("요청을 처리하지 못했어요. 다시 시도해 주세요.");
     } finally {
       setBusy(false);
     }
   }
 
   if (phase === "loading")
-    return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color={colors.ink} />
-      </View>
-    );
+    return <StateView title="만남 계획을 불러오고 있어요" loading />;
   if (phase === "error")
-    return (
-      <View style={s.center}>
-        <Text style={s.ink}>플랜을 불러오지 못했어요.</Text>
-      </View>
-    );
+    return <StateView title="만남 계획을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />;
 
   if (phase === "form") {
     return (
-      <ScrollView contentContainerStyle={s.container}>
-        <BackButton />
-        <Text style={s.title}>데이트 플랜 만들기</Text>
-        <Text style={s.label}>예산(원)</Text>
-        <TextInput
-          style={s.input}
+      <ScrollView style={s.screen} contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
+        <ContentColumn style={s.column}>
+        <PageHeader
+          back
+          title="만남 계획 만들기"
+          description="두 사람 모두 확인할 수 있는 코스를 추천해요. 확정 전에는 언제든 취소할 수 있어요."
+        />
+        <LabeledInput
+          label="전체 예산"
           value={budget}
           onChangeText={setBudget}
           keyboardType="number-pad"
+          hint="두 사람의 예상 총비용을 원 단위로 입력해 주세요."
         />
-        <Text style={s.label}>지역</Text>
-        <TextInput style={s.input} value={city} onChangeText={setCity} />
-        <Text style={s.label}>날짜 (YYYY-MM-DD)</Text>
-        <TextInput
-          style={s.input}
+        <LabeledInput label="만날 지역" value={city} onChangeText={setCity} placeholder="예: 서울 성수동" />
+        <LabeledInput
+          label="희망 날짜"
           value={date}
           onChangeText={setDate}
           placeholder="2026-08-01"
-          placeholderTextColor={colors.grayMid}
+          hint="비워두면 오늘을 기준으로 코스를 추천해요."
         />
-        <Pressable style={[s.btn, busy && s.btnDisabled]} disabled={busy} onPress={onCreate}>
-          <Text style={s.btnText}>{busy ? "생성 중..." : "코스 추천 받기"}</Text>
-        </Pressable>
+        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        <DoodleButton title={busy ? "추천 중..." : "함께 볼 코스 추천 받기"} disabled={busy} onPress={onCreate} variant="primary" />
+        </ContentColumn>
       </ScrollView>
     );
   }
@@ -134,12 +151,14 @@ export default function DatePlanScreen() {
   const selected = p.courses.find((c) => c.courseId === p.selectedCourseId) ?? null;
 
   return (
-    <ScrollView contentContainerStyle={s.container}>
-      <Text style={s.title}>데이트 플랜</Text>
+    <ScrollView style={s.screen} contentContainerStyle={s.container}>
+      <ContentColumn style={s.column}>
+      <PageHeader back title="만남 계획" description="상대와 함께 확인하고 확정하는 코스예요." />
       <View style={s.statusRow}>
         <DoodleChip label={statusLabel(p.status)} on={p.status === "confirmed"} />
       </View>
 
+      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
       {p.status === "draft" && !p.selectedCourseId && isCreator && (
         <>
           <Text style={s.hint}>마음에 드는 코스를 선택하세요.</Text>
@@ -148,13 +167,12 @@ export default function DatePlanScreen() {
               key={c.courseId}
               course={c}
               action={
-                <Pressable
-                  style={s.btn}
+                <DoodleButton
+                  title="이 코스로 선택"
+                  variant="primary"
                   disabled={busy}
                   onPress={() => run(() => selectCourse(p.id, c.courseId))}
-                >
-                  <Text style={s.btnText}>이 코스로 선택</Text>
-                </Pressable>
+                />
               }
             />
           ))}
@@ -177,13 +195,12 @@ export default function DatePlanScreen() {
           </Text>
           {selected && <CourseCard course={selected} />}
           {!isCreator && (
-            <Pressable
-              style={[s.btn, busy && s.btnDisabled]}
+            <DoodleButton
+              title={busy ? "확정 중..." : "이 계획 확정하기"}
+              variant="primary"
               disabled={busy}
               onPress={() => run(() => confirmDatePlan(p.id))}
-            >
-              <Text style={s.btnText}>확정하기</Text>
-            </Pressable>
+            />
           )}
         </>
       )}
@@ -192,23 +209,52 @@ export default function DatePlanScreen() {
         <>
           <Text style={s.hint}>데이트 플랜이 확정되었어요!</Text>
           {selected && <CourseCard course={selected} />}
+          <DoodleButton
+            title="만남 완료로 표시"
+            disabled={busy}
+            onPress={() => setCompleteOpen(true)}
+          />
+        </>
+      )}
+
+      {p.status === "completed" && (
+        <>
+          <Text style={s.hint}>완료된 만남이에요. 함께한 시간을 존중하며 안전하게 대화를 이어가세요.</Text>
+          {selected && <CourseCard course={selected} />}
         </>
       )}
 
       {p.status !== "cancelled" && p.status !== "confirmed" && (
-        <Pressable
-          style={s.cancel}
-          disabled={busy}
-          onPress={() =>
-            Alert.alert("취소", "정말 취소할까요?", [
-              { text: "아니요" },
-              { text: "취소하기", onPress: () => run(() => cancelDatePlan(p.id)) },
-            ])
-          }
-        >
+        <Pressable style={s.cancel} disabled={busy} onPress={() => setCancelOpen(true)} accessibilityRole="button">
           <Text style={s.cancelText}>플랜 취소</Text>
         </Pressable>
       )}
+      <ConfirmDialog
+        visible={cancelOpen}
+        title="이 계획을 취소할까요?"
+        body="선택한 코스와 상대의 확인 상태가 모두 종료돼요."
+        confirmLabel="계획 취소"
+        destructive
+        busy={busy}
+        onCancel={() => setCancelOpen(false)}
+        onConfirm={() => {
+          setCancelOpen(false);
+          void run(() => cancelDatePlan(p.id));
+        }}
+      />
+      <ConfirmDialog
+        visible={completeOpen}
+        title="만남을 완료했나요?"
+        body="완료로 표시하면 이 계획은 더 이상 변경하거나 취소할 수 없어요."
+        confirmLabel="완료로 표시"
+        busy={busy}
+        onCancel={() => setCompleteOpen(false)}
+        onConfirm={() => {
+          setCompleteOpen(false);
+          void run(() => completeDatePlan(p.id));
+        }}
+      />
+      </ContentColumn>
     </ScrollView>
   );
 }
@@ -218,6 +264,8 @@ function statusLabel(status: string) {
     ? "진행 중"
     : status === "confirmed"
       ? "확정됨"
+      : status === "completed"
+        ? "완료됨"
       : status === "cancelled"
         ? "취소됨"
         : status;
@@ -247,36 +295,19 @@ function CourseCard({ course, action }: { course: DateCourse; action?: React.Rea
 }
 
 const s = StyleSheet.create({
-  container: { padding: 16, backgroundColor: colors.paper },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.paper,
-  },
-  ink: { color: colors.ink },
-  title: { fontFamily: fonts.display, fontSize: 22, color: colors.ink, marginBottom: 4 },
-  statusRow: { flexDirection: "row", marginBottom: 12 },
-  hint: { color: colors.ink, marginBottom: 12 },
-  label: { color: colors.ink, fontSize: 13, marginTop: 10, marginBottom: 4 },
-  input: doodleInputStyle,
-  btn: {
-    backgroundColor: colors.ink,
-    ...doodle.radius.button,
-    padding: 12,
-    alignItems: "center",
-    marginTop: 12,
-  },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: colors.paper, fontWeight: "700" },
-  cancel: { padding: 12, alignItems: "center", marginTop: 16 },
-  cancelText: { color: colors.grayMid },
-  card: { marginTop: 12 },
-  cardInner: { padding: 12 },
-  cardTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
-  cardMeta: { color: colors.grayMid, marginBottom: 8 },
-  stop: { marginTop: 8 },
-  stopName: { color: colors.ink, fontWeight: "600" },
-  stopMeta: { color: colors.grayMid, fontSize: 12 },
-  stopWhy: { color: colors.grayDark, fontSize: 12 },
+  screen: { flex: 1, backgroundColor: colors.paper },
+  container: { flexGrow: 1, paddingHorizontal: layout.screenGutter, paddingBottom: space.x8 },
+  column: { gap: space.x4 },
+  statusRow: { flexDirection: "row" },
+  hint: { ...type.body, color: colors.ink },
+  cancel: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: space.x2 },
+  cancelText: { ...type.label, color: colors.danger },
+  card: { marginTop: space.x1 },
+  cardInner: { padding: space.x4, gap: space.x2 },
+  cardTitle: { ...type.heading, color: colors.ink },
+  cardMeta: { ...type.caption, color: colors.grayDark, marginBottom: space.x1 },
+  stop: { marginTop: space.x2, gap: space.x1 },
+  stopName: { ...type.label, color: colors.ink },
+  stopMeta: { ...type.caption, color: colors.grayDark },
+  stopWhy: { ...type.caption, color: colors.grayDark },
 });

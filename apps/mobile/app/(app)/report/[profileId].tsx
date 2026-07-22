@@ -2,11 +2,7 @@ import { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
-  Pressable,
   ScrollView,
-  ActivityIndicator,
-  Alert,
   StyleSheet,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -18,10 +14,17 @@ import {
   type ReportReason,
 } from "@mingle/client-core";
 import { REASON_LABELS } from "../../../src/lib/moderation";
-import { BackButton } from "../../../src/components/BackButton";
-import { doodleInputStyle } from "../../../src/components/Doodle";
+import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
-import { colors, fonts } from "../../../src/lib/theme";
+import { colors, layout, space, type } from "../../../src/lib/theme";
+import {
+  ConfirmDialog,
+  ContentColumn,
+  InlineNotice,
+  LabeledInput,
+  PageHeader,
+} from "../../../src/components/Foundation";
+import { CheckCircle2, Shield } from "lucide-react-native";
 
 const MAX_DETAILS = 1000;
 
@@ -33,10 +36,20 @@ export default function ReportScreen() {
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [blocking, setBlocking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function closeScreen() {
+    if (router.canGoBack()) router.back();
+    else router.replace("/home");
+  }
 
   async function onSubmit() {
     if (!reason || submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
       await reportUser({
         reportedProfileId: profileId,
@@ -44,34 +57,63 @@ export default function ReportScreen() {
         details: details.trim() || undefined,
         evidencePartyId: evidencePartyId || undefined,
       });
-      Alert.alert("신고가 접수되었습니다", "이 사용자를 차단할까요?", [
-        { text: "아니요", style: "cancel", onPress: () => router.back() },
-        {
-          text: "이 사용자도 차단",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await createBlock(profileId);
-            } catch {
-              // block failure is non-fatal to the already-submitted report
-            }
-            router.back();
-          },
-        },
-      ]);
+      setSubmitted(true);
     } catch (e) {
       setSubmitting(false);
-      Alert.alert("신고 실패", e instanceof ApiError ? e.message : "신고를 접수하지 못했어요");
+      setError(e instanceof ApiError ? e.message : "신고를 접수하지 못했어요.");
     }
   }
 
+  async function onBlock() {
+    setBlocking(true);
+    try {
+      await createBlock(profileId);
+      setBlockOpen(false);
+      closeScreen();
+    } catch (e) {
+      setBlockOpen(false);
+      setError(e instanceof ApiError ? e.message : "차단하지 못했어요.");
+    } finally {
+      setBlocking(false);
+    }
+  }
+
+  if (submitted) {
+    return (
+      <View style={styles.successScreen}>
+        <ContentColumn style={styles.successContent}>
+          <CheckCircle2 color={colors.success} size={58} />
+          <Text accessibilityRole="header" style={styles.successTitle}>신고가 접수됐어요</Text>
+          <Text style={styles.successBody}>검토에 필요한 내용을 안전하게 전달했어요. 상대에게 신고 사실이나 상세 내용은 공개되지 않아요.</Text>
+          {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+          <DoodleButton title="이 사용자도 차단" variant="danger" onPress={() => setBlockOpen(true)} />
+          <DoodleButton title="완료" onPress={closeScreen} />
+        </ContentColumn>
+        <ConfirmDialog
+          visible={blockOpen}
+          title="이 사용자도 차단할까요?"
+          body="서로의 프로필과 대화가 보이지 않게 됩니다. 설정에서 나중에 해제할 수 있어요."
+          confirmLabel="차단하기"
+          destructive
+          busy={blocking}
+          onCancel={() => setBlockOpen(false)}
+          onConfirm={onBlock}
+        />
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <BackButton />
-      <Text style={styles.title}>신고하기</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ContentColumn style={styles.column}>
+      <PageHeader
+        back
+        title="신고하기"
+        description="긴급한 위험이 있다면 먼저 현지 긴급기관에 도움을 요청하세요. 신고 내용은 안전 검토에만 사용해요."
+      />
 
       <Text style={styles.section}>신고 사유</Text>
-      <View style={styles.reasonWrap}>
+      <View style={styles.reasonWrap} accessibilityRole="radiogroup">
         {REPORT_REASONS.map((r) => (
           <DoodleChip
             key={r}
@@ -82,50 +124,46 @@ export default function ReportScreen() {
         ))}
       </View>
 
-      <Text style={styles.section}>상세 내용 (선택)</Text>
-      <TextInput
-        style={styles.input}
+      <LabeledInput
+        label="상세 내용 (선택)"
         value={details}
         onChangeText={setDetails}
         multiline
         maxLength={MAX_DETAILS}
         placeholder="자세한 상황을 적어주세요"
-        placeholderTextColor={colors.grayMid}
+        hint="시간, 장소, 상대의 행동처럼 사실을 중심으로 적어주면 검토에 도움이 돼요."
       />
       <Text style={styles.counter}>
         {details.length}/{MAX_DETAILS}
       </Text>
 
-      <Pressable
-        style={[styles.submit, (!reason || submitting) && styles.submitDisabled]}
+      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+      <View style={styles.safetyNote}>
+        <Shield color={colors.success} size={19} />
+        <Text style={styles.safetyNoteText}>제출 후 바로 차단할지 선택할 수 있어요.</Text>
+      </View>
+      <DoodleButton
+        title={submitting ? "신고 제출 중..." : "신고 제출"}
+        variant="dangerSolid"
         disabled={!reason || submitting}
         onPress={onSubmit}
-      >
-        {submitting ? (
-          <ActivityIndicator color={colors.paper} />
-        ) : (
-          <Text style={styles.submitText}>신고 제출</Text>
-        )}
-      </Pressable>
+      />
+      </ContentColumn>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.paper },
-  content: { padding: 20, gap: 10 },
-  title: { fontFamily: fonts.display, fontSize: 24, color: colors.ink, marginBottom: 4 },
-  section: { fontSize: 13, fontWeight: "700", color: colors.grayMid, marginTop: 10 },
-  reasonWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
-  input: { ...doodleInputStyle, minHeight: 96, textAlignVertical: "top" },
-  counter: { alignSelf: "flex-end", fontSize: 12, color: colors.grayMid },
-  submit: {
-    marginTop: 12,
-    backgroundColor: colors.ink,
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  submitDisabled: { backgroundColor: colors.grayLight },
-  submitText: { color: colors.paper, fontWeight: "700", fontSize: 15 },
+  content: { flexGrow: 1, paddingHorizontal: layout.screenGutter, paddingBottom: space.x8 },
+  column: { gap: space.x4 },
+  section: { ...type.label, color: colors.ink },
+  reasonWrap: { flexDirection: "row", flexWrap: "wrap", gap: space.x2 },
+  counter: { alignSelf: "flex-end", ...type.caption, color: colors.grayDark },
+  safetyNote: { flexDirection: "row", alignItems: "center", gap: space.x2 },
+  safetyNoteText: { ...type.caption, color: colors.grayDark, flex: 1 },
+  successScreen: { flex: 1, justifyContent: "center", backgroundColor: colors.paper, padding: layout.screenGutter },
+  successContent: { alignItems: "center", gap: space.x4 },
+  successTitle: { ...type.title, color: colors.ink, textAlign: "center" },
+  successBody: { ...type.body, color: colors.grayDark, textAlign: "center", maxWidth: 420 },
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AmongTaskView, AmongPlayerView, AmongBodyView } from "@mingle/shared";
+import { WORLD_ASPECT } from "@mingle/shared";
 import { dist, nearestTask, nearestKillTarget, nearbyBody, RANGE } from "../among";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -24,7 +25,10 @@ describe("dist", () => {
   });
 
   it("world 계량이다 — x는 aspect 배, y는 그대로", () => {
-    expect(dist({ x: 0, y: 0 }, { x: 0.3, y: 0.4 })).toBeCloseTo(Math.hypot(0.3 * 1.9, 0.4), 10);
+    expect(dist({ x: 0, y: 0 }, { x: 0.3, y: 0.4 })).toBeCloseTo(
+      Math.hypot(0.3 * WORLD_ASPECT, 0.4),
+      10,
+    );
     expect(dist({ x: 0.5, y: 0.5 }, { x: 0.5, y: 0.6 })).toBeCloseTo(0.1, 10);
   });
 
@@ -74,12 +78,12 @@ describe("nearestTask", () => {
   it("returns first when two tasks are equidistant (deterministic)", () => {
     // Use myPos={x:0,y:0} so dx-only and dy-only deltas produce identical hypot values.
     const origin = { x: 0, y: 0 };
-    const t1 = task("t1", 0.04 / 1.9, 0); // east, world 0.04 away
+    const t1 = task("t1", 0.04 / WORLD_ASPECT, 0); // east, world 0.04 away
     const t2 = task("t2", 0, 0.04); // south, world 0.04 away
     expect(nearestTask(origin, [t1, t2], RANGE.task)).toEqual(t1);
   });
 
-  it("x 오프셋은 world 계량으로 재서 판정한다 (정규화 0.06 = world 0.114 > range)", () => {
+  it("x 오프셋은 world 계량으로 재서 판정한다 (정규화 0.06 = world 0.06·aspect > range)", () => {
     const tasks = [task("tx", 0.06, 0)];
     expect(nearestTask({ x: 0, y: 0 }, tasks, RANGE.task)).toBeNull();
   });
@@ -139,7 +143,7 @@ describe("nearestKillTarget", () => {
     const p1 = player("p1", true);
     const p2 = player("p2", true);
     const positions = {
-      p1: { x: 0.04 / 1.9, y: 0 }, // east, world 0.04 away
+      p1: { x: 0.04 / WORLD_ASPECT, y: 0 }, // east, world 0.04 away
       p2: { x: 0, y: 0.04 }, // south, world 0.04 away
     };
     expect(nearestKillTarget(origin, [p1, p2], positions, RANGE.kill, myId)).toEqual(p1);
@@ -173,7 +177,7 @@ describe("nearbyBody", () => {
 
   it("returns first equidistant body (deterministic)", () => {
     const origin = { x: 0, y: 0 };
-    const b1 = body("b1", 0.04 / 1.9, 0); // east, world 0.04 away
+    const b1 = body("b1", 0.04 / WORLD_ASPECT, 0); // east, world 0.04 away
     const b2 = body("b2", 0, 0.04); // south, world 0.04 away
     expect(nearbyBody(origin, [b1, b2], RANGE.task)).toEqual(b1);
   });

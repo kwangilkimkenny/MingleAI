@@ -11,3 +11,7 @@ export function unregisterDevice(token: string): Promise<void> {
 export function setPushEnabled(pushEnabled: boolean): Promise<void> {
   return apiFetch<void>("/users/me/push", { method: "PATCH", body: JSON.stringify({ pushEnabled }) });
 }
+
+export function getPushEnabled(): Promise<{ pushEnabled: boolean }> {
+  return apiFetch("/users/me/push");
+}

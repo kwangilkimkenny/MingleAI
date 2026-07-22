@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
@@ -28,7 +28,7 @@ export default function NotificationsPage() {
 
   const limit = 20;
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getNotifications(limit, (page - 1) * limit);
@@ -39,11 +39,11 @@ export default function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
     loadNotifications();
-  }, [page]);
+  }, [loadNotifications]);
 
   const handleMarkAsRead = async (id: string) => {
     try {

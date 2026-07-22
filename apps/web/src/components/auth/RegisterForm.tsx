@@ -9,17 +9,20 @@ import Alert from "@mui/material/Alert";
 import Typography from "@mui/material/Typography";
 import Link from "@mui/material/Link";
 import NextLink from "next/link";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import { register } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/store/auth";
 
 export default function RegisterForm() {
   const router = useRouter();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +40,7 @@ export default function RegisterForm() {
     setLoading(true);
     try {
       const res = await register(email, password);
-      setToken(res.accessToken);
+      setAuth({ token: res.accessToken, refreshToken: res.refreshToken, role: res.role });
       router.push("/dashboard");
     } catch (err) {
       setError(
@@ -86,12 +89,17 @@ export default function RegisterForm() {
         onChange={(e) => setConfirmPassword(e.target.value)}
         sx={{ mb: 3 }}
       />
+      <FormControlLabel
+        sx={{ alignItems: "flex-start", mb: 2 }}
+        control={<Checkbox checked={legalAccepted} onChange={(event) => setLegalAccepted(event.target.checked)} />}
+        label={<Typography variant="body2"><Link component={NextLink} href="/terms">이용약관</Link>과 <Link component={NextLink} href="/privacy">개인정보 처리 안내</Link>에 동의합니다.</Typography>}
+      />
       <Button
         type="submit"
         variant="contained"
         fullWidth
         size="large"
-        disabled={loading}
+        disabled={loading || !legalAccepted}
       >
         {loading ? "가입 중..." : "회원가입"}
       </Button>

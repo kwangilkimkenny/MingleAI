@@ -21,7 +21,7 @@ const ROW = {
 
 describe("assertParticipant", () => {
   it("returns the profileId for a participant", async () => {
-    prisma.profile.findUnique.mockResolvedValue({ id: "pf1" });
+    prisma.profile.findUnique.mockResolvedValue({ id: "pf1", status: "active" });
     prisma.partyParticipant.findUnique.mockResolvedValue({ partyId: "pt1", profileId: "pf1" });
     await expect(service.assertParticipant("u1", "pt1")).resolves.toBe("pf1");
     expect(prisma.partyParticipant.findUnique).toHaveBeenCalledWith({
@@ -29,7 +29,7 @@ describe("assertParticipant", () => {
     });
   });
   it("returns null for a non-participant", async () => {
-    prisma.profile.findUnique.mockResolvedValue({ id: "pf1" });
+    prisma.profile.findUnique.mockResolvedValue({ id: "pf1", status: "active" });
     prisma.partyParticipant.findUnique.mockResolvedValue(null);
     await expect(service.assertParticipant("u1", "pt1")).resolves.toBeNull();
   });

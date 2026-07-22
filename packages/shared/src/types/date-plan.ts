@@ -47,10 +47,7 @@ export interface DatePlan {
   status: DatePlanStatus;
   selectedCourseId?: string;
   confirmedAt?: string | null;
-  merchantPayKey?: string;
-  paymentId?: string;
-  paymentStatus?: string;
-  paymentAmount?: number;
+  completedAt?: string | null;
   createdAt: string;
 }
 
@@ -64,5 +61,6 @@ export interface DatePlanView {
   status: DatePlanStatus;
   selectedCourseId: string | null;
   confirmedAt: string | null;
+  completedAt: string | null;
   createdAt: string;
 }

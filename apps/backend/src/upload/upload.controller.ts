@@ -84,8 +84,8 @@ export class UploadController {
   /**
    * Accept a single image (multipart field `file`), validate it by magic bytes,
    * persist it under uploads/ with a random name, and return its public URL.
-   * The URL host is derived from the request (so a device that reached the
-   * backend can reach the asset) unless PUBLIC_BASE_URL pins a CDN/base origin.
+   * Production always uses the validated PUBLIC_BASE_URL. Development may derive
+   * the host from the request so a LAN device can reach the local backend.
    */
   @Post("photo")
   @ApiConsumes("multipart/form-data")
@@ -115,7 +115,11 @@ export class UploadController {
     await mkdir(UPLOADS_DIR, { recursive: true });
     await writeFile(join(UPLOADS_DIR, filename), file.buffer);
 
-    const base = process.env.PUBLIC_BASE_URL?.trim() || `${req.protocol}://${req.get("host")}`;
+    const configuredBase = process.env.PUBLIC_BASE_URL?.trim();
+    if (process.env.NODE_ENV === "production" && !configuredBase) {
+      throw new Error("PUBLIC_BASE_URL is required in production");
+    }
+    const base = configuredBase || `${req.protocol}://${req.get("host")}`;
     return { url: `${base}/uploads/${filename}` };
   }
 }

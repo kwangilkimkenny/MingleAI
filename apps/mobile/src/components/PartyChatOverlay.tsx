@@ -7,13 +7,16 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -22,7 +25,10 @@ import { MessageCircle } from "lucide-react-native";
 import type { PartyMessageView } from "@mingle/client-core";
 import { WobbleBox, DashedLine } from "./DoodleSvg";
 import { doodleInputStyle } from "./Doodle";
-import { colors, doodle, fonts } from "../lib/theme";
+import { colors, control, doodle, fonts, space, type } from "../lib/theme";
+import { useReducedMotion } from "react-native-reanimated";
+import { useInitialAccessibilityFocus } from "../lib/accessibility";
+import { hapticSelect } from "../lib/haptics";
 
 export function PartyChatOverlay({
   messages,
@@ -45,10 +51,13 @@ export function PartyChatOverlay({
   fabStyle?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
+  const { height, width } = useWindowDimensions();
+  const reducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [seenCount, setSeenCount] = useState(messages.length);
   const historySeededRef = useRef(false);
+  const focusRef = useInitialAccessibilityFocus(open);
 
   const hasUnread = !open && messages.length > seenCount;
 
@@ -78,9 +87,13 @@ export function PartyChatOverlay({
   function handleSend() {
     const content = input.trim();
     if (!content) return;
+    hapticSelect();
     onSend(content);
     setInput("");
   }
+
+  const panelHeight = Math.min(500, Math.max(260, height - insets.top - insets.bottom - 32));
+  const panelWidth = Math.min(520, Math.max(280, width - insets.left - insets.right - 32));
 
   return (
     <>
@@ -90,35 +103,48 @@ export function PartyChatOverlay({
           style={[styles.fab, { bottom: 24 + insets.bottom }, fabStyle]}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel="채팅 열기"
+          accessibilityLabel={hasUnread ? "채팅 열기, 읽지 않은 메시지 있음" : "채팅 열기"}
         >
           <MessageCircle color={colors.ink} size={24} strokeWidth={2.2} />
           {hasUnread ? <View style={styles.fabDot} /> : null}
         </Pressable>
       ) : null}
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setOpen(false)}
-            accessibilityLabel="채팅 패널 닫기"
-          />
+      <Modal visible={open} transparent animationType={reducedMotion ? "none" : "slide"} onRequestClose={() => setOpen(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalRoot}
+          accessibilityViewIsModal
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={insets.top}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
           <WobbleBox
             radius={doodle.radius.card}
-            bg="rgba(255,255,255,0.94)"
-            style={styles.panel}
+            bg="rgba(255,255,255,0.97)"
+            style={[styles.panel, { width: panelWidth, height: panelHeight }]}
             contentStyle={styles.panelInner}
           >
             <View style={styles.header}>
-              <Text style={styles.title}>파티 채팅</Text>
-              <Pressable onPress={() => setOpen(false)} hitSlop={8} accessibilityLabel="채팅 닫기">
+              <View ref={focusRef} accessible accessibilityRole="header" accessibilityLabel="파티 채팅">
+                <Text style={styles.title}>파티 채팅</Text>
+              </View>
+              <Pressable
+                onPress={() => setOpen(false)}
+                style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="채팅 닫기"
+              >
                 <Text style={styles.closeText}>닫기</Text>
               </Pressable>
             </View>
             <DashedLine />
             {socketDown ? <Text style={styles.notice}>실시간 연결이 불안정해요</Text> : null}
-            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.list}
+              contentContainerStyle={messages.length === 0 ? styles.emptyList : undefined}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {messages.length === 0 ? (
                 <Text style={styles.empty}>첫 메시지를 보내보세요</Text>
               ) : (
@@ -144,13 +170,21 @@ export function PartyChatOverlay({
                 maxLength={2000}
                 onSubmitEditing={handleSend}
                 returnKeyType="send"
+                accessibilityLabel="파티 채팅 메시지"
               />
-              <Pressable style={styles.sendBtn} onPress={handleSend} hitSlop={6}>
-                <Text style={styles.sendText}>전송</Text>
+              <Pressable
+                style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
+                onPress={handleSend}
+                disabled={!input.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="메시지 전송"
+                accessibilityState={{ disabled: !input.trim() }}
+              >
+                <Text style={[styles.sendText, !input.trim() && styles.sendTextDisabled]}>전송</Text>
               </Pressable>
             </View>
           </WobbleBox>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -160,8 +194,8 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: 20,
-    width: 56,
-    height: 56,
+    width: 52,
+    height: 52,
     borderRadius: 28,
     borderWidth: doodle.border,
     borderColor: colors.ink,
@@ -181,27 +215,40 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.paper,
   },
-  modalRoot: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-  panel: { width: "100%", maxWidth: 480, height: 300 },
-  panelInner: { flex: 1, padding: 16, gap: 10 },
+  modalRoot: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: space.x4,
+    backgroundColor: "rgba(23,21,15,0.64)",
+  },
+  panel: { maxWidth: 520, maxHeight: 500 },
+  panelInner: { flex: 1, padding: space.x4, gap: space.x2 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { fontFamily: fonts.display, fontSize: 18, color: colors.ink },
-  closeText: { fontSize: 13, color: colors.grayMid, fontWeight: "600" },
-  notice: { fontSize: 12, color: colors.grayMid },
+  closeButton: { minWidth: control.minTouch, minHeight: control.minTouch, alignItems: "center", justifyContent: "center" },
+  buttonPressed: { transform: [{ translateY: 2 }, { scale: 0.985 }], opacity: 0.9 },
+  closeText: { ...type.label, color: colors.grayDark },
+  notice: { ...type.caption, color: colors.danger },
   list: { flex: 1 },
-  empty: { fontSize: 13, color: colors.grayMid, textAlign: "center", paddingVertical: 8 },
+  emptyList: { flexGrow: 1, justifyContent: "center" },
+  empty: { ...type.body, color: colors.grayDark, textAlign: "center", paddingVertical: 8 },
   row: { gap: 2, paddingVertical: 4 },
   rowMine: { alignItems: "flex-end" },
-  sender: { fontSize: 11, color: colors.grayMid },
-  content: { fontSize: 14, color: colors.ink },
+  sender: { ...type.caption, color: colors.grayDark },
+  content: { ...type.body, color: colors.ink },
   inputRow: { flexDirection: "row", gap: 8, alignItems: "center" },
   input: { flex: 1, paddingVertical: 10 },
   sendBtn: {
-    backgroundColor: colors.ink,
+    backgroundColor: colors.accent,
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    minHeight: control.buttonHeight,
+    minWidth: 64,
+    paddingHorizontal: 14,
     justifyContent: "center",
+    alignItems: "center",
   },
-  sendText: { color: colors.paper, fontWeight: "700", fontSize: 13 },
+  sendBtnDisabled: { backgroundColor: colors.fillDeep },
+  sendText: { ...type.label, color: colors.onAccent },
+  sendTextDisabled: { color: colors.grayDark },
 });

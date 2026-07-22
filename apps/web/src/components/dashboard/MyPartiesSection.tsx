@@ -10,16 +10,13 @@ import ListItemText from "@mui/material/ListItemText";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
 import Skeleton from "@mui/material/Skeleton";
 import Box from "@mui/material/Box";
 import CelebrationIcon from "@mui/icons-material/Celebration";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import { getMyParties, type MyParty } from "@/lib/api/dashboard";
 
 export default function MyPartiesSection() {
-  const router = useRouter();
   const profileId = useAuthStore((s) => s.profileId);
   const [parties, setParties] = useState<MyParty[]>([]);
   const [loading, setLoading] = useState(true);

@@ -5,8 +5,9 @@ import {
   ROOM_MARGIN,
   solidFurniture,
   worldDist,
+  PARTY_MOVE_SPEED,
+  partySpawnFor,
 } from "@mingle/shared";
-import type { FurnitureDef } from "@mingle/shared";
 
 export interface Vec2 {
   x: number;
@@ -20,7 +21,7 @@ export { ROOM_MARGIN, WORLD_ASPECT, CHAR_R, worldDist };
  * world 계량으로 계산한다: world = (x × WORLD_ASPECT, y). 높이가 1 world 단위.
  * 화면은 WORLD_ASPECT로 aspect-fit 렌더되므로 world 계량 = 시각적 등방 거리.
  */
-export const MOVE_SPEED = 0.45; // world units per second, 조이스틱 풀틸트 기준
+export const MOVE_SPEED = PARTY_MOVE_SPEED; // world units per second, 조이스틱 풀틸트 기준
 export const EMIT_MIN_INTERVAL_MS = 100; // ≤10Hz network emits
 export const EMIT_MIN_DELTA = 0.005; // normalized min movement to emit
 /** 로비 상호작용(프로필/스테이션) 근접 반경, world 단위. */
@@ -44,9 +45,11 @@ export interface WorldRect {
   y2: number;
 }
 
-/** 정규화 가구 AABB → CHAR_R 확장 world rect. */
-export function toWorldRects(furniture: readonly FurnitureDef[]): WorldRect[] {
-  return furniture.map((f) => ({
+/** 정규화 AABB(가구/벽) → CHAR_R 확장 world rect. */
+export function toWorldRects(
+  rects: readonly { x: number; y: number; w: number; h: number }[],
+): WorldRect[] {
+  return rects.map((f) => ({
     x1: f.x * WORLD_ASPECT - CHAR_R,
     y1: f.y - CHAR_R,
     x2: (f.x + f.w) * WORLD_ASPECT + CHAR_R,
@@ -54,7 +57,11 @@ export function toWorldRects(furniture: readonly FurnitureDef[]): WorldRect[] {
   }));
 }
 
-const SOLID_WORLD: readonly WorldRect[] = toWorldRects(solidFurniture());
+// solid 가구 + 룸 벽(문 gap 제외) 모두 충돌 대상. 벽은 클라 전용(백엔드 AI는 벽 무시).
+const SOLID_WORLD: readonly WorldRect[] = toWorldRects([
+  ...solidFurniture(),
+  ...(PARTY_MAP.walls ?? []),
+]);
 
 /**
  * 조이스틱 속도 적분 + 축분리 충돌 해소(x 이동→해소, y 이동→해소 = 벽 슬라이딩).
@@ -124,14 +131,7 @@ export function shouldEmit(
 
 /** Deterministic spawn point from a profileId — 가구 없는 spawnZone 안에 뿌린다. */
 export function spawnFor(profileId: string): Vec2 {
-  let h = 5381;
-  for (let i = 0; i < profileId.length; i++) {
-    h = ((h << 5) + h + profileId.charCodeAt(i)) >>> 0;
-  }
-  const gx = (h % 1000) / 1000;
-  const gy = (Math.floor(h / 1000) % 1000) / 1000;
-  const z = PARTY_MAP.spawnZone;
-  return { x: z.x + gx * z.w, y: z.y + gy * z.h };
+  return partySpawnFor(profileId);
 }
 
 /** First grapheme-ish initial for the avatar label. */

@@ -15,6 +15,7 @@ export interface PadAction {
   accent?: boolean;
   cooldownRatio?: number;
   sub?: string;
+  accessibilityLabel?: string;
 }
 
 const MAIN = 76;
@@ -40,19 +41,23 @@ function PadButton({ action, size }: { action: PadAction; size: number }) {
     step: 9,
   });
   const cooling = action.cooldownRatio !== undefined && action.cooldownRatio > 0;
+  const inactive = Boolean(action.disabled || cooling);
   const r = d / 2 - 3;
   const circumference = 2 * Math.PI * r;
   return (
     <Pressable
       onPress={action.onPress}
-      disabled={action.disabled || cooling}
+      disabled={inactive}
       hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel={action.label}
-      style={[
+      accessibilityLabel={
+        action.accessibilityLabel ?? `${action.label}${action.sub ? ` ${action.sub}` : ""}`
+      }
+      accessibilityState={{ disabled: Boolean(action.disabled || cooling) }}
+      style={({ pressed }) => [
         styles.btn,
         { width: size, height: size },
-        (action.disabled || cooling) && styles.dim,
+        pressed && styles.pressed,
       ]}
     >
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
@@ -60,8 +65,8 @@ function PadButton({ action, size }: { action: PadAction; size: number }) {
           d={path}
           x={2}
           y={2}
-          fill={action.accent ? colors.accent : colors.paper}
-          fillOpacity={action.accent ? 1 : 0.92}
+          fill={action.accent ? colors.danger : inactive ? colors.fillDeep : colors.paper}
+          fillOpacity={1}
           stroke={colors.ink}
           strokeWidth={2}
         />
@@ -70,7 +75,7 @@ function PadButton({ action, size }: { action: PadAction; size: number }) {
             cx={size / 2}
             cy={size / 2}
             r={r}
-            stroke={colors.accentDeep}
+            stroke={action.accent ? colors.onAccent : colors.accentDeep}
             strokeWidth={3}
             fill="none"
             strokeDasharray={`${circumference}`}
@@ -82,8 +87,9 @@ function PadButton({ action, size }: { action: PadAction; size: number }) {
       <Text
         style={[
           styles.label,
-          { fontSize: size >= MAIN ? 17 : 14 },
+          { fontSize: size >= MAIN ? 15 : 13 },
           action.accent && styles.labelAccent,
+          inactive && !action.accent && styles.labelInactive,
         ]}
         numberOfLines={1}
       >
@@ -106,7 +112,7 @@ export function ActionPad({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.pad, style]} pointerEvents="box-none">
+    <View style={[styles.pad, style, { pointerEvents: "box-none" }]}>
       {secondaries.length > 0 ? (
         <View style={styles.row}>
           {secondaries.map((a) => (
@@ -123,8 +129,9 @@ const styles = StyleSheet.create({
   pad: { alignItems: "flex-end", gap: 10 },
   row: { flexDirection: "row", gap: 8 },
   btn: { alignItems: "center", justifyContent: "center" },
-  dim: { opacity: 0.35 },
-  label: { fontFamily: fonts.display, color: colors.ink },
+  pressed: { transform: [{ translateY: 2 }, { scale: 0.98 }] },
+  label: { fontFamily: fonts.bodySemibold, color: colors.ink },
   labelAccent: { color: colors.onAccent },
-  sub: { fontSize: 10, fontWeight: "700", color: colors.grayDark, marginTop: -2 },
+  labelInactive: { color: colors.grayDark },
+  sub: { fontFamily: fonts.bodySemibold, fontSize: 13, lineHeight: 16, color: colors.grayDark, marginTop: -1 },
 });

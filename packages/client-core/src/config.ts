@@ -1,6 +1,7 @@
 export interface ClientConfig {
   baseUrl: string;
   onUnauthorized?: () => void;
+  refreshAccessToken?: () => Promise<string | null>;
 }
 
 let config: ClientConfig = { baseUrl: "" };

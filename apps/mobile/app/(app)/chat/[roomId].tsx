@@ -4,13 +4,10 @@ import {
   Text,
   FlatList,
   TextInput,
-  TouchableOpacity,
   Pressable,
-  ActivityIndicator,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
@@ -27,19 +24,25 @@ import { useAuthStore } from "../../../src/lib/client";
 import { openMessengerSocket } from "../../../src/lib/messenger-socket";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { BackButton } from "../../../src/components/BackButton";
-import { colors, doodle } from "../../../src/lib/theme";
+import { colors, control, doodle, fonts, layout, space, type } from "../../../src/lib/theme";
+import { InlineNotice, StateView } from "../../../src/components/Foundation";
+import { CalendarDays, ChevronLeft, Send } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ChatRoom() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
   const myProfileId = useAuthStore((s) => s.profileId);
   const token = useAuthStore((s) => s.token);
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [match, setMatch] = useState<MatchSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
   const [peerTyping, setPeerTyping] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   const alive = useRef(true);
   const socketRef = useRef<MessengerSocketHandle | null>(null);
@@ -50,6 +53,7 @@ export default function ChatRoom() {
   useEffect(() => {
     if (!roomId) return;
     alive.current = true;
+    setLoadError(null);
 
     Promise.all([getRoomMessages(roomId), getMatches()])
       .then(([msgs, rooms]) => {
@@ -58,8 +62,9 @@ export default function ChatRoom() {
         setMatch(rooms.find((r) => r.roomId === roomId) ?? null);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((e) => {
         if (!alive.current) return;
+        setLoadError(e instanceof ApiError ? e.message : "대화를 불러오지 못했어요.");
         setLoading(false);
       });
 
@@ -153,8 +158,9 @@ export default function ChatRoom() {
 
   async function onSend() {
     const content = text.trim();
-    if (!content || !roomId) return;
-    setText("");
+    if (!content || !roomId || sending) return;
+    setSending(true);
+    setSendError(null);
     stopTyping();
     try {
       const msg = await sendMessage(roomId, content);
@@ -162,16 +168,31 @@ export default function ChatRoom() {
       // guard absorbs the duplicate regardless of which arrives first.
       if (alive.current)
         setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [msg, ...prev]));
+      setText("");
     } catch (e) {
-      Alert.alert("전송 실패", e instanceof ApiError ? e.message : "메시지를 보내지 못했어요");
+      setSendError(e instanceof ApiError ? e.message : "메시지를 보내지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setSending(false);
     }
   }
 
+  function formatTime(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" });
+  }
+
   if (loading) {
+    return <StateView title="대화를 불러오고 있어요" loading />;
+  }
+  if (loadError) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.ink} />
-      </View>
+      <StateView
+        title="대화를 열지 못했어요"
+        body={loadError}
+        actionLabel="채팅 목록으로"
+        onAction={() => router.replace("/chats")}
+      />
     );
   }
 
@@ -179,16 +200,26 @@ export default function ChatRoom() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={90}
+      keyboardVerticalOffset={0}
     >
-      <BackButton onPress={() => router.replace("/chats")} />
-      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerPeer}>
+        <View style={styles.headerInner}>
+        <Pressable
+          onPress={() => router.replace("/chats")}
+          accessibilityRole="button"
+          accessibilityLabel="채팅 목록으로 돌아가기"
+          style={({ pressed }) => [styles.headerIcon, pressed && styles.pressed]}
+        >
+          <ChevronLeft color={colors.ink} size={24} strokeWidth={2.5} />
+        </Pressable>
+        <View style={styles.headerPeer} accessibilityLabel={`${match?.peer.name ?? "상대"}님과의 채팅`}>
           <DoodleAvatar uri={match?.peer.photoUrl} name={match?.peer.name} size={36} />
-          <Text style={styles.headerName} numberOfLines={1}>
-            {match?.peer.name ?? "채팅"}
-          </Text>
+          <View style={styles.headerText}>
+            <Text accessibilityRole="header" style={styles.headerName} numberOfLines={1}>
+              {match?.peer.name ?? "채팅"}
+            </Text>
+            <Text style={styles.headerStatus}>서로 수락한 안전한 대화</Text>
+          </View>
         </View>
         <View style={styles.headerActions}>
           {match != null && (
@@ -203,7 +234,8 @@ export default function ChatRoom() {
                 })
               }
             >
-              <Text style={styles.datePlanText}>데이트 플랜</Text>
+              <CalendarDays color={colors.ink} size={18} />
+              <Text style={styles.datePlanText}>만남 계획</Text>
             </Pressable>
           )}
           {match != null && (
@@ -213,6 +245,7 @@ export default function ChatRoom() {
             />
           )}
         </View>
+        </View>
       </View>
 
       {/* Messages (inverted = newest at bottom) */}
@@ -221,6 +254,12 @@ export default function ChatRoom() {
         data={messages}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messages}
+        ListEmptyComponent={
+          <View style={styles.emptyConversation}>
+            <Text style={styles.emptyTitle}>첫 인사를 건네보세요</Text>
+            <Text style={styles.emptyBody}>게임에서 기억에 남은 순간을 이야기하면 자연스럽게 대화를 이어갈 수 있어요.</Text>
+          </View>
+        }
         ListHeaderComponent={
           peerTyping ? (
             <View style={[styles.bubble, styles.bubblePeer]}>
@@ -231,32 +270,50 @@ export default function ChatRoom() {
         renderItem={({ item }) => {
           const isMe = item.senderProfileId === myProfileId;
           return (
-            <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubblePeer]}>
+            <View
+              style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubblePeer]}
+              accessibilityLabel={`${isMe ? "내 메시지" : `${match?.peer.name ?? "상대"}의 메시지`}, ${item.content}, ${formatTime(item.createdAt)}${isMe && item.readAt ? ", 읽음" : ""}`}
+            >
               <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextPeer]}>
                 {item.content}
               </Text>
-              {isMe && item.readAt ? <Text style={styles.readLabel}>읽음</Text> : null}
+              <Text style={styles.messageMeta}>
+                {formatTime(item.createdAt)}{isMe && item.readAt ? " · 읽음" : ""}
+              </Text>
             </View>
           );
         }}
       />
 
       {/* Compose bar */}
+      <View style={[styles.composeShell, { paddingBottom: Math.max(insets.bottom, space.x2) }]}>
       <View style={styles.compose}>
+        {sendError ? <InlineNotice tone="error">{sendError}</InlineNotice> : null}
+        <View style={styles.composeRow}>
         <TextInput
           style={styles.input}
           value={text}
           onChangeText={onChangeText}
-          placeholder="메시지 입력..."
+          placeholder="메시지를 입력하세요"
           placeholderTextColor={colors.grayMid}
           multiline
           returnKeyType="send"
           blurOnSubmit
           onSubmitEditing={onSend}
+          accessibilityLabel="메시지 입력"
         />
-        <TouchableOpacity style={styles.sendBtn} onPress={onSend}>
-          <Text style={styles.sendText}>전송</Text>
-        </TouchableOpacity>
+        <Pressable
+          style={({ pressed }) => [styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled, pressed && styles.pressed]}
+          onPress={onSend}
+          disabled={!text.trim() || sending}
+          accessibilityRole="button"
+          accessibilityLabel={sending ? "메시지 전송 중" : "메시지 전송"}
+          accessibilityState={{ disabled: !text.trim() || sending, busy: sending }}
+        >
+          <Send color={!text.trim() || sending ? colors.grayMid : colors.onAccent} size={20} />
+        </Pressable>
+        </View>
+      </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -264,80 +321,97 @@ export default function ChatRoom() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.paper },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     borderBottomWidth: 2,
     borderBottomColor: colors.ink,
+    alignItems: "center",
   },
-  headerPeer: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1, marginRight: 8 },
-  headerName: { fontSize: 17, fontWeight: "700", color: colors.ink, flexShrink: 1 },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerInner: {
+    width: "100%",
+    maxWidth: 760,
+    minHeight: 68,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: space.x2,
+  },
+  headerIcon: { width: control.minTouch, height: control.minTouch, alignItems: "center", justifyContent: "center" },
+  headerPeer: { flexDirection: "row", alignItems: "center", gap: space.x2, flex: 1, minWidth: 0 },
+  headerText: { flex: 1, minWidth: 0 },
+  headerName: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, color: colors.ink },
+  headerStatus: { ...type.caption, color: colors.grayDark },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: space.x1 },
   datePlanBtn: {
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    minHeight: control.minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.x1,
+    paddingHorizontal: space.x2,
   },
-  datePlanText: { fontSize: 13, fontWeight: "700", color: colors.ink },
-  messages: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  datePlanText: { ...type.label, color: colors.ink },
+  messages: {
+    width: "100%",
+    maxWidth: 760,
+    alignSelf: "center",
+    paddingHorizontal: layout.screenGutter,
+    paddingVertical: space.x4,
+    gap: space.x2,
+  },
+  emptyConversation: { alignItems: "center", gap: space.x2, paddingVertical: space.x10 },
+  emptyTitle: { ...type.heading, color: colors.ink },
+  emptyBody: { ...type.body, color: colors.grayDark, textAlign: "center", maxWidth: 360 },
   bubble: {
     maxWidth: "75%",
     ...doodle.radius.card,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginVertical: 2,
-    borderWidth: 1.5,
+    paddingHorizontal: space.x3,
+    paddingVertical: space.x2,
+    marginVertical: space.x1,
+    borderWidth: doodle.border,
     borderColor: colors.ink,
   },
   bubbleMe: {
     alignSelf: "flex-end",
     backgroundColor: colors.fillDeep,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 3,
   },
   bubblePeer: {
     alignSelf: "flex-start",
     backgroundColor: colors.paper,
   },
-  bubbleText: { fontSize: 14 },
+  bubbleText: { ...type.body },
   bubbleTextMe: { color: colors.ink },
   bubbleTextPeer: { color: colors.ink },
-  readLabel: { fontSize: 10, color: colors.grayMid, marginTop: 2, textAlign: "right" },
-  compose: {
-    flexDirection: "row",
-    alignItems: "flex-end",
+  messageMeta: { ...type.caption, color: colors.grayDark, marginTop: space.x1, textAlign: "right" },
+  composeShell: {
     borderTopWidth: 2,
     borderTopColor: colors.ink,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
+    paddingTop: space.x2,
+    paddingHorizontal: layout.screenGutter,
     backgroundColor: colors.paper,
+    alignItems: "center",
   },
+  compose: { width: "100%", maxWidth: 760, gap: space.x2 },
+  composeRow: { flexDirection: "row", alignItems: "flex-end", gap: space.x2 },
   input: {
     flex: 1,
-    borderWidth: 1.5,
+    minHeight: control.buttonHeight,
+    borderWidth: doodle.border,
     borderColor: colors.ink,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
+    ...doodle.radius.input,
+    paddingHorizontal: space.x3,
+    paddingVertical: space.x2,
+    ...type.body,
     color: colors.ink,
     maxHeight: 120,
   },
   sendBtn: {
-    backgroundColor: colors.ink,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    width: control.buttonHeight,
+    height: control.buttonHeight,
+    backgroundColor: colors.accent,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sendText: { color: colors.paper, fontWeight: "700", fontSize: 14 },
+  sendBtnDisabled: { backgroundColor: colors.fillDeep },
+  pressed: { opacity: 0.68 },
 });

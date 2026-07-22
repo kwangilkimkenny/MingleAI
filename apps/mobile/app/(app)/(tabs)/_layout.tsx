@@ -2,6 +2,8 @@ import { Tabs } from "expo-router";
 import { Home, MessageCircle, HeartHandshake, Bell, Settings } from "lucide-react-native";
 import { doodleHeaderOptions } from "../../../src/lib/theme";
 import { DoodleTabBar } from "../../../src/components/DoodleTabBar";
+import { useEffect, useState } from "react";
+import { getUnreadCount } from "@mingle/client-core";
 
 /**
  * Floating doodle tab bar (shown once the user is past onboarding). Rendering is
@@ -9,6 +11,24 @@ import { DoodleTabBar } from "../../../src/components/DoodleTabBar";
  * bottom edge; Lucide outline icons, active = colors.accent, inactive = colors.grayMid.
  */
 export default function TabsLayout() {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const refresh = () => {
+      getUnreadCount()
+        .then(({ unreadCount: count }) => {
+          if (mounted) setUnreadCount(count);
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
+  }, []);
   return (
     <Tabs
       tabBar={(props) => <DoodleTabBar {...props} />}
@@ -47,6 +67,7 @@ export default function TabsLayout() {
         name="notifications"
         options={{
           title: "알림",
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
           tabBarIcon: ({ color, size }) => <Bell color={color} size={size} strokeWidth={2} />,
         }}
       />

@@ -1,5 +1,16 @@
 import { getClientConfig, getToken } from "../config.js";
 
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshOnce(): Promise<string | null> {
+  const refresh = getClientConfig().refreshAccessToken;
+  if (!refresh) return null;
+  refreshInFlight ??= refresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -13,6 +24,7 @@ export class ApiError extends Error {
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit,
+  retried = false,
 ): Promise<T> {
   const { baseUrl, onUnauthorized } = getClientConfig();
   const token = getToken();
@@ -28,6 +40,10 @@ export async function apiFetch<T>(
   const res = await fetch(`${baseUrl}${path}`, { ...options, headers });
 
   if (res.status === 401 && token) {
+    if (!retried) {
+      const nextToken = await refreshOnce().catch(() => null);
+      if (nextToken) return apiFetch<T>(path, options, true);
+    }
     onUnauthorized?.();
     throw new ApiError(401, "인증이 만료되었습니다.");
   }

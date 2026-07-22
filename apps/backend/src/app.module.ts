@@ -18,12 +18,14 @@ import { AdminModule } from "./admin/admin.module";
 import { MatchmakingModule } from "./matchmaking/matchmaking.module";
 import { ProposalModule } from "./proposal/proposal.module";
 import { MatchModule } from "./match/match.module";
+import { SpeedDateModule } from "./speed-date/speed-date.module";
 import { MessengerModule } from "./messenger/messenger.module";
 import { UploadModule } from "./upload/upload.module";
+import { validateEnvironment } from "./common/env.validation";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
     ThrottlerModule.forRoot([throttleConfig(process.env)]),
     CacheConfigModule,
     PrismaModule,
@@ -39,6 +41,7 @@ import { UploadModule } from "./upload/upload.module";
     MatchmakingModule,
     ProposalModule,
     MatchModule,
+    SpeedDateModule,
     MessengerModule,
     UploadModule,
   ],

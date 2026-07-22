@@ -44,8 +44,13 @@ export function WobbleBox({
     >
       {size && d ? (
         <Svg
-          pointerEvents="none"
-          style={{ position: "absolute", left: -PAD, top: -PAD }}
+          style={{
+            position: "absolute",
+            left: -PAD,
+            top: -PAD,
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
           width={size.w + PAD * 2}
           height={size.h + PAD * 2}
           viewBox={`${-PAD} ${-PAD} ${size.w + PAD * 2} ${size.h + PAD * 2}`}
@@ -60,7 +65,7 @@ export function WobbleBox({
           <Path d={d} fill={bg} stroke={stroke} strokeWidth={strokeWidth} />
         </Svg>
       ) : null}
-      <View style={contentStyle}>{children}</View>
+      <View style={[styles.wobbleContent, contentStyle]}>{children}</View>
     </View>
   );
 }
@@ -205,7 +210,7 @@ export function DoodleChip({
       seed={label.length + (on ? 40 : 0)}
       bg={on ? colors.ink : colors.paper}
       strokeWidth={1.8}
-      contentStyle={tiny ? styles.chipTiny : styles.chipInner}
+      contentStyle={[tiny ? styles.chipTiny : styles.chipInner, onPress && styles.chipTouchable]}
     >
       <Text
         style={[
@@ -220,6 +225,7 @@ export function DoodleChip({
   return onPress ? (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ selected: on }}
       onPress={onPress}
       hitSlop={tiny ? 8 : 4}
@@ -232,13 +238,15 @@ export function DoodleChip({
 }
 
 const styles = StyleSheet.create({
+  wobbleContent: { position: "relative", zIndex: 1 },
   wobbleOuter: { position: "relative" },
   gauge: { marginVertical: 6 },
   gaugeLab: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
-  gaugeLabel: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  gaugeValue: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
+  gaugeLabel: { fontFamily: fonts.bodySemibold, fontSize: 15, color: colors.ink },
+  gaugeValue: { fontFamily: fonts.bodySemibold, fontSize: 15, color: colors.ink },
   chipInner: { paddingVertical: 5, paddingHorizontal: 13 },
   chipTiny: { paddingVertical: 2, paddingHorizontal: 9 },
-  chipText: { fontFamily: fonts.display, fontSize: 15 },
-  chipTextTiny: { fontFamily: fonts.display, fontSize: 12 },
+  chipTouchable: { minHeight: 44, justifyContent: "center" },
+  chipText: { fontFamily: fonts.bodySemibold, fontSize: 14 },
+  chipTextTiny: { fontFamily: fonts.bodySemibold, fontSize: 12 },
 });

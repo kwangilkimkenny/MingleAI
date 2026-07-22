@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 // do not have access to the DOM or browser APIs.
 export default function Root({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
@@ -32,8 +32,4 @@ const responsiveBackground = `
 body {
   background-color: #FFFFFF;
 }
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #17150F;
-  }
 }`;

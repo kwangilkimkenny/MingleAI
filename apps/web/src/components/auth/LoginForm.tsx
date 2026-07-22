@@ -14,7 +14,7 @@ import { useAuthStore } from "@/lib/store/auth";
 
 export default function LoginForm() {
   const router = useRouter();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,8 +26,8 @@ export default function LoginForm() {
     setLoading(true);
     try {
       const res = await login(email, password);
-      setToken(res.accessToken);
-      router.push("/dashboard");
+      setAuth({ token: res.accessToken, refreshToken: res.refreshToken, role: res.role });
+      router.push(res.role === "admin" || res.role === "super_admin" ? "/admin" : "/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "로그인에 실패했습니다.");
     } finally {

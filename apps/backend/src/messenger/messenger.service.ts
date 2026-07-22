@@ -31,7 +31,7 @@ export class MessengerService {
   /** Resolves the caller's profile, asserts membership, returns { me, peer } profile ids. */
   private async memberContext(userId: string, roomId: string): Promise<{ me: string; peer: string }> {
     const me = await this.prisma.profile.findUnique({ where: { userId } });
-    if (!me) throw new NotFoundException("프로필이 없습니다");
+    if (!me || me.status !== "active") throw new NotFoundException("사용할 수 있는 프로필이 없습니다");
     const room = await this.prisma.directMessageRoom.findUnique({
       where: { id: roomId },
       include: { match: true },

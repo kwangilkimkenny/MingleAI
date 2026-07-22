@@ -6,19 +6,19 @@ import { blockPairKey } from "@mingle/shared";
 
 describe("SafetyService", () => {
   let service: SafetyService;
-  let prisma: {
-    safetyReport: { create: jest.Mock; findFirst: jest.Mock };
-    profile: { findUnique: jest.Mock; update: jest.Mock };
-  };
+  let prisma: any;
 
   beforeEach(async () => {
     prisma = {
-      safetyReport: { create: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
+      safetyReport: { create: jest.fn() },
       profile: {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
+      partyParticipant: { count: jest.fn().mockResolvedValue(2) },
+      $queryRaw: jest.fn().mockResolvedValue([{ id: "contribution-1" }]),
     };
+    prisma.$transaction = jest.fn(async (run: (tx: typeof prisma) => unknown) => run(prisma));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -64,10 +64,8 @@ describe("SafetyService", () => {
 
   describe("reportUser", () => {
     it("should create a safety report and increment risk score", async () => {
-      prisma.profile.findUnique
-        .mockResolvedValueOnce({ id: "reported-1", riskScore: 0 })   // initial check
-        .mockResolvedValueOnce({ id: "reported-1", riskScore: 0.2 }); // after increment
-      prisma.profile.update.mockResolvedValue({ id: "reported-1", riskScore: 0.2 });
+      prisma.profile.findUnique.mockResolvedValueOnce({ id: "reported-1", riskScore: 0 });
+      prisma.profile.update.mockResolvedValue({ id: "reported-1", riskScore: 0.2, status: "active" });
       prisma.safetyReport.create.mockResolvedValue({ id: "report-1" });
 
       await service.reportUser("reporter-1", "reported-1", "harassment", "상세 내용");
@@ -82,10 +80,10 @@ describe("SafetyService", () => {
     });
 
     it("should auto-suspend when risk score reaches threshold", async () => {
-      prisma.profile.findUnique
-        .mockResolvedValueOnce({ id: "reported-1", riskScore: 0.9 })  // initial check
-        .mockResolvedValueOnce({ id: "reported-1", riskScore: 1.1 }); // after increment, >= 1.0
-      prisma.profile.update.mockResolvedValue({});
+      prisma.profile.findUnique.mockResolvedValueOnce({ id: "reported-1", riskScore: 0.9 });
+      prisma.profile.update
+        .mockResolvedValueOnce({ id: "reported-1", riskScore: 1.1, status: "active" })
+        .mockResolvedValueOnce({ id: "reported-1", riskScore: 1.1, status: "suspended" });
       prisma.safetyReport.create.mockResolvedValue({ id: "report-2" });
 
       await service.reportUser("reporter-1", "reported-1", "fraud");
@@ -100,7 +98,7 @@ describe("SafetyService", () => {
 
     it("should NOT increment riskScore when the same reporter already reported the same target", async () => {
       prisma.profile.findUnique.mockResolvedValueOnce({ id: "reported-1", riskScore: 0.2 });
-      prisma.safetyReport.findFirst.mockResolvedValueOnce({ id: "existing-report" });
+      prisma.$queryRaw.mockResolvedValueOnce([]);
       prisma.safetyReport.create.mockResolvedValue({ id: "report-dup" });
 
       await service.reportUser("reporter-1", "reported-1", "harassment");
@@ -120,7 +118,10 @@ describe("SafetyService", () => {
 
 describe("SafetyService — Block", () => {
   it("creates a block between two profiles", async () => {
-    const prisma = { block: { upsert: jest.fn().mockResolvedValue({ id: "b1" }) } } as any;
+    const prisma = {
+      block: { upsert: jest.fn().mockResolvedValue({ id: "b1" }) },
+      profile: { findUnique: jest.fn().mockResolvedValue({ id: "blocked-2" }) },
+    } as any;
     const service = new SafetyService(prisma);
     await service.createBlock("blocker-1", "blocked-2");
     expect(prisma.block.upsert).toHaveBeenCalledWith({
@@ -131,7 +132,10 @@ describe("SafetyService — Block", () => {
   });
 
   it("createBlock is idempotent — second call does not throw", async () => {
-    const prisma = { block: { upsert: jest.fn().mockResolvedValue({ id: "b1" }) } } as any;
+    const prisma = {
+      block: { upsert: jest.fn().mockResolvedValue({ id: "b1" }) },
+      profile: { findUnique: jest.fn().mockResolvedValue({ id: "blocked-2" }) },
+    } as any;
     const service = new SafetyService(prisma);
     await service.createBlock("blocker-1", "blocked-2");
     await service.createBlock("blocker-1", "blocked-2");

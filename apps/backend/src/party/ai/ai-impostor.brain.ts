@@ -1,4 +1,4 @@
-import { PARTY_MAP, WORLD_ASPECT, worldDist } from "@mingle/shared";
+import { PARTY_MAP, WORLD_ASPECT, isPlausiblePartyMove, worldDist } from "@mingle/shared";
 import type { AmongConfig } from "../among.config";
 import type { AmongState } from "../among.service";
 
@@ -85,8 +85,27 @@ export class AiImpostorBrain {
         const stepLen = Math.min(AI_BOT_SPEED * dtSec, d);
         const wdx = (target.x - bot.x) * WORLD_ASPECT;
         const wdy = target.y - bot.y;
-        bot.x += ((wdx / d) * stepLen) / WORLD_ASPECT;
-        bot.y += (wdy / d) * stepLen;
+        const desired = Math.atan2(wdy, wdx);
+        const offsets = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8].map(
+          (unit) => (unit * Math.PI) / 8,
+        );
+        let best: { x: number; y: number; score: number } | null = null;
+        for (const offset of offsets) {
+          const angle = desired + offset;
+          const candidate = {
+            x: bot.x + (Math.cos(angle) * stepLen) / WORLD_ASPECT,
+            y: bot.y + Math.sin(angle) * stepLen,
+          };
+          if (!isPlausiblePartyMove(bot, candidate, cfg.sweepMs)) continue;
+          const score = worldDist(candidate, target) + Math.abs(offset) * 0.002;
+          if (!best || score < best.score) best = { ...candidate, score };
+        }
+        if (best) {
+          bot.x = best.x;
+          bot.y = best.y;
+        } else {
+          bot.targetIdx = (bot.targetIdx + 1) % PARTY_MAP.stations.length;
+        }
       }
       step.moves.push({ profileId: ai.profileId, x: bot.x, y: bot.y });
 

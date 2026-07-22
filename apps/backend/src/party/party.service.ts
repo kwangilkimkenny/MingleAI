@@ -60,10 +60,18 @@ export class PartyService {
     };
   }
 
+  async monitorParticipants(partyId: string) {
+    return this.prisma.partyParticipant.findMany({
+      where: { partyId },
+      select: { profile: { select: { id: true, name: true } } },
+      orderBy: { joinedAt: "asc" },
+    });
+  }
+
   /** Resolve the caller's profileId iff they are a participant of the party; else null. */
   async assertParticipant(userId: string, partyId: string): Promise<string | null> {
     const me = await this.prisma.profile.findUnique({ where: { userId } });
-    if (!me) return null;
+    if (!me || me.status !== "active") return null;
     const participant = await this.prisma.partyParticipant.findUnique({
       where: { partyId_profileId: { partyId, profileId: me.id } },
     });

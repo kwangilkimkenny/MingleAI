@@ -1,7 +1,12 @@
-import { colors } from "../lib/theme";
-import { Alert, Pressable, StyleSheet, Text } from "react-native";
+import { useState } from "react";
+import { colors, control, doodle, layout, space, type } from "../lib/theme";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { createBlock, ApiError } from "@mingle/client-core";
+import { MoreHorizontal } from "lucide-react-native";
+import { DoodleButton } from "./Doodle";
+import { ConfirmDialog, InlineNotice } from "./Foundation";
+import { useReducedMotion } from "react-native-reanimated";
 
 export interface PeerModerationMenuProps {
   peer: { profileId: string; name: string };
@@ -10,7 +15,14 @@ export interface PeerModerationMenuProps {
 }
 
 export function PeerModerationMenu({ peer, evidencePartyId, onBlocked }: PeerModerationMenuProps) {
+  const reducedMotion = useReducedMotion();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   function openReport() {
+    setMenuOpen(false);
     router.push({
       // new route — Expo Router typegen updates on next `expo start`
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,46 +33,104 @@ export function PeerModerationMenu({ peer, evidencePartyId, onBlocked }: PeerMod
     });
   }
 
-  function confirmBlock() {
-    Alert.alert("차단", `${peer.name}님을 차단하시겠어요?`, [
-      { text: "취소", style: "cancel" },
-      {
-        text: "차단",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await createBlock(peer.profileId);
-            onBlocked?.();
-          } catch (e) {
-            Alert.alert("오류", e instanceof ApiError ? e.message : "차단 실패");
-          }
-        },
-      },
-    ]);
+  async function onConfirmBlock() {
+    setBusy(true);
+    setError(null);
+    try {
+      await createBlock(peer.profileId);
+      setConfirmOpen(false);
+      onBlocked?.();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "차단하지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function openMenu() {
-    Alert.alert(peer.name, undefined, [
-      { text: "신고하기", onPress: openReport },
-      { text: "차단하기", style: "destructive", onPress: confirmBlock },
-      { text: "취소", style: "cancel" },
-    ]);
+    setError(null);
+    setMenuOpen(true);
   }
 
   return (
+    <>
     <Pressable
-      accessibilityLabel="더보기"
-      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`${peer.name}님 신고 및 차단 메뉴`}
       style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
       onPress={openMenu}
     >
-      <Text style={styles.glyph}>⋯</Text>
+      <MoreHorizontal color={colors.ink} size={22} />
     </Pressable>
+    <Modal
+      visible={menuOpen}
+      transparent
+      animationType={reducedMotion ? "none" : "fade"}
+      onRequestClose={() => setMenuOpen(false)}
+    >
+        <View style={styles.modalRoot} accessibilityViewIsModal>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setMenuOpen(false)}
+            accessibilityLabel="안전 메뉴 닫기"
+          />
+          <View style={styles.sheet}>
+            <Text accessibilityRole="header" style={styles.sheetTitle}>{peer.name}님 안전 메뉴</Text>
+            <Text style={styles.sheetBody}>불편한 상황이라면 신고하거나 이 사용자를 보이지 않게 할 수 있어요.</Text>
+            {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+            <DoodleButton title="신고하기" onPress={openReport} />
+            <DoodleButton
+              title="차단하기"
+              variant="danger"
+              onPress={() => {
+                setMenuOpen(false);
+                setConfirmOpen(true);
+              }}
+            />
+            <DoodleButton title="취소" onPress={() => setMenuOpen(false)} />
+          </View>
+        </View>
+    </Modal>
+    <ConfirmDialog
+        visible={confirmOpen}
+        title={`${peer.name}님을 차단할까요?`}
+        body="서로의 프로필과 대화가 보이지 않게 됩니다. 설정의 차단 목록에서 나중에 해제할 수 있어요."
+        confirmLabel="차단하기"
+        destructive
+        busy={busy}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={onConfirmBlock}
+    />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  button: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  button: {
+    width: control.minTouch,
+    height: control.minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+  },
   buttonPressed: { backgroundColor: colors.fill },
-  glyph: { fontSize: 20, fontWeight: "700", color: colors.ink },
+  modalRoot: {
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "center",
+    padding: layout.screenGutter,
+    backgroundColor: "rgba(23,21,15,0.64)",
+  },
+  sheet: {
+    width: "100%",
+    maxWidth: layout.modalMax,
+    gap: space.x3,
+    padding: space.x5,
+    backgroundColor: colors.paper,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    ...doodle.radius.card,
+  },
+  sheetTitle: { ...type.title, color: colors.ink },
+  sheetBody: { ...type.body, color: colors.grayDark },
 });

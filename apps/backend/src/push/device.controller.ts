@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -42,5 +43,14 @@ export class DeviceController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async setPush(@CurrentUser() user: JwtPayload, @Body() dto: SetPushEnabledDto) {
     await this.prisma.user.update({ where: { id: user.userId }, data: { pushEnabled: dto.pushEnabled } });
+  }
+
+  @Get("users/me/push")
+  async getPush(@CurrentUser() user: JwtPayload) {
+    const account = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { pushEnabled: true },
+    });
+    return { pushEnabled: account?.pushEnabled ?? false };
   }
 }

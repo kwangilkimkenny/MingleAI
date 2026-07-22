@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { blockPairKey } from "@mingle/shared";
 import type {
@@ -94,48 +96,72 @@ export class SafetyService {
       where: { id: reportedProfileId },
     });
     if (!reported) {
-      throw new NotFoundException(`프로필을 찾을 수 없습니다: ${reportedProfileId}`);
+      throw new NotFoundException("신고할 프로필을 찾을 수 없습니다");
     }
 
-    // Dedup: one reporter can raise riskScore at most once per target
-    const existingReport = await this.prisma.safetyReport.findFirst({
-      where: { reporterProfileId, reportedProfileId },
-    });
-
-    const report = await this.prisma.safetyReport.create({
-      data: {
-        reporterProfileId,
-        reportedProfileId,
-        reason,
-        details,
-        evidencePartyId,
-      },
-    });
-
-    if (!existingReport) {
-      await this.prisma.profile.update({
-        where: { id: reportedProfileId },
-        data: { riskScore: { increment: 0.2 } },
+    if (evidencePartyId) {
+      const sharedPartyMembers = await this.prisma.partyParticipant.count({
+        where: {
+          partyId: evidencePartyId,
+          profileId: { in: [reporterProfileId, reportedProfileId] },
+        },
       });
-
-      const updated = await this.prisma.profile.findUnique({
-        where: { id: reportedProfileId },
-      });
-      if (updated && updated.riskScore >= 1.0) {
-        await this.prisma.profile.update({
-          where: { id: reportedProfileId },
-          data: { status: "suspended" },
-        });
+      if (sharedPartyMembers !== 2) {
+        throw new BadRequestException("함께 참여한 파티만 신고 근거로 연결할 수 있습니다");
       }
     }
 
-    return report;
+    return this.prisma.$transaction(async (tx) => {
+      const report = await tx.safetyReport.create({
+        data: {
+          reporterProfileId,
+          reportedProfileId,
+          reason,
+          details,
+          evidencePartyId,
+        },
+      });
+
+      // The unique contribution row makes concurrent duplicate reports harmless while
+      // preserving every incident report for moderator review.
+      const inserted = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        INSERT INTO "safety_risk_contributions"
+          ("id", "reporter_profile_id", "reported_profile_id", "created_at")
+        VALUES
+          (${randomUUID()}, ${reporterProfileId}, ${reportedProfileId}, NOW())
+        ON CONFLICT ("reporter_profile_id", "reported_profile_id") DO NOTHING
+        RETURNING "id"
+      `);
+
+      if (inserted.length > 0) {
+        const updated = await tx.profile.update({
+          where: { id: reportedProfileId },
+          data: { riskScore: { increment: 0.2 } },
+        });
+        if (updated.riskScore >= 1.0 && updated.status === "active") {
+          await tx.profile.update({
+            where: { id: reportedProfileId },
+            data: { status: "suspended" },
+          });
+        }
+      }
+
+      return report;
+    });
   }
 
   async createBlock(blockerProfileId: string, blockedProfileId: string) {
     if (blockerProfileId === blockedProfileId) {
       throw new BadRequestException("자신을 차단할 수 없습니다");
     }
+    if (blockedProfileId.startsWith("ai-")) {
+      throw new BadRequestException("게임 AI는 차단 대상이 아닙니다");
+    }
+    const target = await this.prisma.profile.findUnique({
+      where: { id: blockedProfileId },
+      select: { id: true },
+    });
+    if (!target) throw new NotFoundException("차단할 프로필을 찾을 수 없습니다");
     return this.prisma.block.upsert({
       where: { blockerProfileId_blockedProfileId: { blockerProfileId, blockedProfileId } },
       create: { blockerProfileId, blockedProfileId },

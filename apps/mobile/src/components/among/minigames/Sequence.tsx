@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { colors, doodle, fonts } from "../../../lib/theme";
 import { sequenceStep } from "../../../lib/minigame-logic";
+import { hapticError, hapticSelect, hapticSuccess } from "../../../lib/haptics";
 
 const MAX = 6;
 
@@ -19,6 +20,7 @@ export function Sequence({ onComplete }: { onComplete: () => void }) {
   const [expected, setExpected] = useState(1);
   // Set of numbers already tapped correctly
   const [done, setDone] = useState<Set<number>>(new Set());
+  const [feedback, setFeedback] = useState("1부터 차례대로 시작하세요.");
 
   const handleTap = useCallback(
     (num: number) => {
@@ -27,15 +29,21 @@ export function Sequence({ onComplete }: { onComplete: () => void }) {
         const nextDone = new Set(done).add(num);
         setDone(nextDone);
         setExpected(result.expected);
+        setFeedback("미션을 완료했어요.");
+        hapticSuccess();
         onComplete();
       } else if (result.expected !== expected) {
         // Correct tap, advance
         setDone((prev) => new Set(prev).add(num));
         setExpected(result.expected);
+        setFeedback(`${num} 정답. 다음은 ${result.expected}이에요.`);
+        hapticSelect();
       } else {
         // Wrong tap — reset
         setDone(new Set());
         setExpected(1);
+        setFeedback("순서가 달라 처음부터 다시 시작해요.");
+        hapticError();
       }
     },
     [expected, done, onComplete],
@@ -44,10 +52,11 @@ export function Sequence({ onComplete }: { onComplete: () => void }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>순서 누르기</Text>
-      <Text style={styles.hint}>
+      <Text accessibilityLiveRegion="polite" style={styles.hint}>
         1부터 {MAX}까지 순서대로 누르세요 — 다음:{" "}
         <Text style={styles.expectedNum}>{expected}</Text>
       </Text>
+      <Text accessibilityLiveRegion="assertive" style={styles.feedback}>{feedback}</Text>
       <View style={styles.grid}>
         {GRID_ORDER.map((num) => {
           const isDone = done.has(num);
@@ -66,6 +75,9 @@ export function Sequence({ onComplete }: { onComplete: () => void }) {
                 pressed && !isDone && { opacity: 0.75 },
               ]}
               accessibilityLabel={`숫자 ${num}`}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isDone, selected: isNext && !isDone }}
+              accessibilityHint={isDone ? "완료됨" : isNext ? "다음에 누를 숫자" : `현재는 ${expected}을 누를 차례예요`}
             >
               <Text style={[styles.cellNum, { color: textColor }]}>
                 {isDone ? "✓" : num}
@@ -81,7 +93,7 @@ export function Sequence({ onComplete }: { onComplete: () => void }) {
             key={n}
             style={[
               styles.pip,
-              { backgroundColor: done.has(n) ? colors.accent : colors.grayLight },
+              { backgroundColor: done.has(n) ? colors.success : colors.grayLight },
             ]}
           />
         ))}
@@ -103,14 +115,15 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 13,
-    color: colors.grayMid,
-    marginBottom: 20,
+    color: colors.grayDark,
+    marginBottom: 4,
     textAlign: "center",
   },
   expectedNum: {
     color: colors.accent,
     fontWeight: "700",
   },
+  feedback: { fontSize: 13, lineHeight: 19, color: colors.grayDark, marginBottom: 12, textAlign: "center" },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

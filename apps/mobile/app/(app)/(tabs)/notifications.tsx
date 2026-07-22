@@ -7,11 +7,11 @@ import {
   Pressable,
   Switch,
   StyleSheet,
-  ActivityIndicator,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import {
   getNotifications,
+  getPushEnabled,
   markNotificationRead,
   markAllNotificationsRead,
   setPushEnabled,
@@ -21,10 +21,11 @@ import {
   routeForNotification,
   type NotificationData,
 } from "../../../src/lib/route-for-notification";
-import { DashedLine, DoodleFace } from "../../../src/components/DoodleSvg";
+import { DashedLine } from "../../../src/components/DoodleSvg";
 import { EnterRow } from "../../../src/components/Motion";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
-import { colors, fonts } from "../../../src/lib/theme";
+import { colors, control, layout, space, type } from "../../../src/lib/theme";
+import { ContentColumn, PageHeader, StateView } from "../../../src/components/Foundation";
 
 const Separator = () => (
   <View style={styles.separatorWrap}>
@@ -41,10 +42,11 @@ export default function Notifications() {
   const load = useCallback(() => {
     let alive = true;
     setPhase("loading");
-    getNotifications(50, 0)
-      .then((res) => {
+    Promise.all([getNotifications(50, 0), getPushEnabled()])
+      .then(([res, push]) => {
         if (alive) {
           setItems(res.notifications);
+          setPushOn(push.pushEnabled);
           setPhase("ready");
         }
       })
@@ -82,27 +84,24 @@ export default function Notifications() {
   }
 
   if (phase === "loading")
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.ink} />
-      </View>
-    );
+    return <StateView title="알림을 불러오고 있어요" loading />;
   if (phase === "error")
-    return (
-      <View style={styles.center}>
-        <Text style={styles.err}>알림을 불러오지 못했어요.</Text>
-      </View>
-    );
+    return <StateView title="알림을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>알림</Text>
-        <View style={styles.toggle}>
-          <Text style={styles.toggleLabel}>푸시</Text>
+      <ContentColumn style={styles.headerColumn}>
+        <PageHeader title="알림" description="프로포즈와 새로운 대화 소식을 한곳에서 확인해요." />
+        <View style={styles.preferenceRow}>
+          <View style={styles.preferenceText}>
+            <Text style={styles.preferenceTitle}>푸시 알림</Text>
+            <Text style={styles.toggleLabel}>새로운 소식을 기기에서 받아요.</Text>
+          </View>
           <Switch
             value={pushOn}
             onValueChange={onTogglePush}
+            accessibilityLabel="푸시 알림"
+            accessibilityState={{ checked: pushOn }}
             trackColor={{ false: colors.grayLight, true: colors.accent }}
             thumbColor={colors.paper}
             ios_backgroundColor={colors.grayLight}
@@ -112,27 +111,40 @@ export default function Notifications() {
               : {})}
           />
         </View>
-      </View>
-      <Pressable onPress={onMarkAll}>
-        <Text style={styles.markAll}>모두 읽음</Text>
-      </Pressable>
+        <Pressable
+          onPress={onMarkAll}
+          accessibilityRole="button"
+          accessibilityLabel="모든 알림 읽음 처리"
+          disabled={items.length === 0 || items.every((item) => item.read)}
+          style={({ pressed }) => [styles.markAllButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.markAll}>모두 읽음으로 표시</Text>
+        </Pressable>
+      </ContentColumn>
       <FlatList
         data={items}
         keyExtractor={(n) => n.id}
-        contentContainerStyle={{ paddingBottom: clearance }}
+        contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
         ItemSeparatorComponent={Separator}
         ListEmptyComponent={
-          <View style={styles.center}>
-            <DoodleFace variant="flat" size={64} />
-            <Text style={styles.empty}>아직 알림이 없어요.</Text>
-          </View>
+          <StateView title="아직 알림이 없어요" body="새로운 프로포즈나 대화 소식이 오면 여기에 알려드릴게요." />
         }
         renderItem={({ item, index }) => (
           <EnterRow index={index}>
-            <Pressable style={styles.row} onPress={() => onTapItem(item)}>
+            <Pressable
+              style={({ pressed }) => [styles.row, !item.read && styles.rowUnread, pressed && styles.pressed]}
+              onPress={() => onTapItem(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.read ? "" : "읽지 않음, "}${item.title}. ${item.message}`}
+            >
               <View style={styles.rowHead}>
                 <Text style={styles.rowTitle}>{item.title}</Text>
-                {!item.read ? <View style={styles.dot} /> : null}
+                {!item.read ? (
+                  <View style={styles.unreadBadge}>
+                    <View style={styles.dot} />
+                    <Text style={styles.unreadText}>새 알림</Text>
+                  </View>
+                ) : null}
               </View>
               <Text style={styles.rowMsg}>{item.message}</Text>
             </Pressable>
@@ -144,26 +156,45 @@ export default function Notifications() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: colors.paper },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 },
-  header: {
+  container: { flex: 1, backgroundColor: colors.paper },
+  headerColumn: { paddingHorizontal: layout.screenGutter },
+  preferenceRow: {
+    minHeight: 56,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    justifyContent: "space-between",
+    gap: space.x3,
+    paddingVertical: space.x2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.grayLight,
   },
-  title: { fontFamily: fonts.display, fontSize: 26, color: colors.ink },
-  toggle: { flexDirection: "row", alignItems: "center", gap: 8 },
-  toggleLabel: { color: colors.ink, fontSize: 14 },
-  markAll: { color: colors.grayMid, fontSize: 13, marginBottom: 8 },
+  preferenceText: { flex: 1 },
+  preferenceTitle: { ...type.label, color: colors.ink },
+  toggleLabel: { ...type.caption, color: colors.grayDark },
+  markAllButton: {
+    minHeight: control.minTouch,
+    alignSelf: "flex-end",
+    justifyContent: "center",
+    paddingHorizontal: space.x2,
+    marginBottom: space.x1,
+  },
+  markAll: { ...type.label, color: colors.ink },
+  list: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center" },
   // Old separator was full-bleed inside the padded container — the wrap keeps that (100% width
   // also gives the DashedLine Svg's percentage width a definite parent).
   separatorWrap: { width: "100%" },
-  row: { paddingVertical: 12 },
+  row: {
+    minHeight: 76,
+    paddingVertical: space.x3,
+    paddingHorizontal: layout.screenGutter,
+    justifyContent: "center",
+  },
+  rowUnread: { backgroundColor: colors.fill },
   rowHead: { flexDirection: "row", alignItems: "center", gap: 6 },
+  unreadBadge: { flexDirection: "row", alignItems: "center", gap: space.x1 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
-  rowTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
-  rowMsg: { fontSize: 12.5, color: colors.grayMid, marginTop: 2 },
-  empty: { textAlign: "center", color: colors.grayMid, marginTop: 40 },
-  err: { color: colors.ink },
+  unreadText: { ...type.caption, color: colors.accentDeep },
+  rowTitle: { ...type.heading, fontSize: 18, lineHeight: 23, color: colors.ink, flex: 1 },
+  rowMsg: { ...type.caption, color: colors.grayDark, marginTop: space.x1 },
+  pressed: { opacity: 0.68 },
 });

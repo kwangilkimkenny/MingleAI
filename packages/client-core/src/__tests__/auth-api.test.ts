@@ -43,7 +43,7 @@ describe("auth api", () => {
       "http://api.test/auth/register",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ email: "c@d.com", password: "pw2" }),
+        body: JSON.stringify({ email: "c@d.com", password: "pw2", legalAccepted: true }),
       }),
     );
   });

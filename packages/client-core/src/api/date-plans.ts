@@ -35,3 +35,7 @@ export function confirmDatePlan(id: string): Promise<DatePlanView> {
 export function cancelDatePlan(id: string): Promise<DatePlanView> {
   return apiFetch<DatePlanView>(`/date-plans/${id}/cancel`, { method: "PATCH" });
 }
+
+export function completeDatePlan(id: string): Promise<DatePlanView> {
+  return apiFetch<DatePlanView>(`/date-plans/${id}/complete`, { method: "PATCH" });
+}

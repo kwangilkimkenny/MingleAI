@@ -5,7 +5,8 @@
  * grapheme as a Gaegu initial. The ink ring keeps it on-brand whether or not a photo
  * exists. Pure B&W + the shared theme tokens; no color, no new deps.
  */
-import { View, Text, Image, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, View, Text, Image, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { colors, fonts } from "../lib/theme";
 import { initialOf } from "../lib/photo-util";
 
@@ -20,6 +21,13 @@ export function DoodleAvatar({
   size?: number;
   style?: StyleProp<ViewStyle>;
 }) {
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+    setLoading(Boolean(uri));
+  }, [uri]);
+
   const ring = Math.max(2, Math.round(size * 0.045));
   const frame: ViewStyle = {
     width: size,
@@ -35,11 +43,17 @@ export function DoodleAvatar({
 
   return (
     <View style={[frame, style]}>
-      {uri ? (
+      {uri && !failed ? (
         <Image
           source={{ uri }}
           style={{ width: "100%", height: "100%" }}
           resizeMode="cover"
+          onLoadStart={() => setLoading(true)}
+          onLoadEnd={() => setLoading(false)}
+          onError={() => {
+            setLoading(false);
+            setFailed(true);
+          }}
           accessibilityLabel={name ? `${name}님의 프로필 사진` : "프로필 사진"}
         />
       ) : (
@@ -47,10 +61,21 @@ export function DoodleAvatar({
           {initialOf(name)}
         </Text>
       )}
+      {loading ? (
+        <View pointerEvents="none" style={styles.loading}>
+          <ActivityIndicator size="small" color={colors.grayDark} />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   initial: { fontFamily: fonts.display, color: colors.ink, includeFontPadding: false },
+  loading: {
+    ...StyleSheet.absoluteFill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.fill,
+  },
 });

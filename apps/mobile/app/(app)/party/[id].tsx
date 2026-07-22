@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, ActivityIndicator, Pressable, StyleSheet, Modal } from "react-native";
+import { View, Text, ActivityIndicator, Pressable, ScrollView, StyleSheet, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Users } from "lucide-react-native";
+import { Check, CircleHelp, ShieldCheck, Users } from "lucide-react-native";
 import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { getMatchmakingStatus, sendProposal, ApiError } from "@mingle/client-core";
@@ -36,9 +36,17 @@ import { PartyWorld, type WorldCharacter } from "../../../src/components/party/P
 import { Joystick } from "../../../src/components/party/Joystick";
 import { ActionPad, type PadAction } from "../../../src/components/party/ActionPad";
 import { AmongGame } from "../../../src/components/among/AmongGame";
-import { colors, doodle, fonts } from "../../../src/lib/theme";
+import { colors, control, doodle, fonts, layout, space, type } from "../../../src/lib/theme";
+import { secureStorage } from "../../../src/lib/secure-storage";
+import { useReducedMotion } from "react-native-reanimated";
+import { hapticImpact, hapticSelect } from "../../../src/lib/haptics";
+
+// SecureStore native keys allow alphanumeric characters plus `.`, `-`, and `_`.
+const PARTY_GUIDE_KEY = "mingle.party-guide-v1";
+const WORLD_RENDER_INTERVAL_MS = 1000 / 30;
 
 export default function PartyScreen() {
+  const reducedMotion = useReducedMotion();
   useLandscapeLock();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -68,6 +76,7 @@ export default function PartyScreen() {
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [memberSheetOpen, setMemberSheetOpen] = useState(false);
   const [memberSheetTarget, setMemberSheetTarget] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   // 2D room positions — ref-driven; a tick state re-renders only when something moved.
   const posRef = useRef<Record<string, { pos: Vec2; target: Vec2 }>>({});
@@ -76,6 +85,16 @@ export default function PartyScreen() {
   const [, setFrame] = useState(0);
   const velRef = useRef<Vec2>({ x: 0, y: 0 });
   const facingRef = useRef<Record<string, 1 | -1>>({});
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve(secureStorage.getItem(PARTY_GUIDE_KEY)).then((seen) => {
+      if (active && seen !== "seen") setGuideOpen(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     alive.current = true;
@@ -196,6 +215,7 @@ export default function PartyScreen() {
     if (!id || !party) return;
     let raf = 0;
     let last = 0;
+    let lastRenderedAt = 0;
     const loop = (now: number) => {
       const dt = last ? now - last : 16;
       last = now;
@@ -218,7 +238,10 @@ export default function PartyScreen() {
           }
         }
       }
-      if (moved) setFrame((f) => f + 1);
+      if (moved && now - lastRenderedAt >= WORLD_RENDER_INTERVAL_MS) {
+        lastRenderedAt = now;
+        setFrame((f) => f + 1);
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -295,9 +318,11 @@ export default function PartyScreen() {
   }
 
   function onStartGame() {
+    hapticImpact();
     socketRef.current?.startGame(partyId!);
   }
   function onVote(choice: GameChoice) {
+    hapticSelect();
     setMyVote(choice);
     socketRef.current?.voteGame(partyId!, choice);
   }
@@ -308,6 +333,11 @@ export default function PartyScreen() {
   function openMemberSheet(profileId: string | null) {
     setMemberSheetTarget(profileId);
     setMemberSheetOpen(true);
+  }
+
+  function dismissGuide() {
+    setGuideOpen(false);
+    void secureStorage.setItem(PARTY_GUIDE_KEY, "seen");
   }
 
   const clock = Date.now();
@@ -357,6 +387,21 @@ export default function PartyScreen() {
       ? { key: "profile", label: "프로필", onPress: () => openMemberSheet(nearPeer!.profileId) }
       : { key: "idle", label: "사용", onPress: () => {}, disabled: true };
 
+  const objective = nearBalance
+    ? {
+        title: "밸런스 게임을 열어보세요",
+        detail: "오른쪽 아래 ‘밸런스’ 버튼을 누르면 모두가 답할 질문을 시작할 수 있어요.",
+      }
+    : nearPeer
+      ? {
+          title: `${nearPeer.name}님과 가까워졌어요`,
+          detail: "오른쪽 아래 ‘프로필’을 눌러 소개를 보고, 충분히 알아본 뒤 프로포즈하세요.",
+        }
+      : {
+          title: "먼저 월드를 둘러보세요",
+          detail: "왼쪽 조이스틱으로 이동해 멤버나 밸런스 게임 스테이션에 가까이 가보세요.",
+        };
+
   const amongHandlers = {
     start: () => socketRef.current?.startAmong(partyId!),
     doTask: (taskId: string, x: number, y: number) =>
@@ -382,22 +427,29 @@ export default function PartyScreen() {
         <BackButton label="나가기" onPress={() => router.replace("/home")} />
         <View style={[styles.topBarInfo, { marginTop: insets.top }]}>
           <Text style={styles.partyName} numberOfLines={1}>
-            {party.name}
+            오늘의 게임 파티
           </Text>
         </View>
         <View style={[styles.topBarActions, { marginTop: insets.top }]}>
           <Pressable
-            style={styles.membersBtn}
+            style={({ pressed }) => [styles.membersBtn, pressed && styles.buttonPressed]}
+            onPress={() => setGuideOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="게임 이용 방법"
+          >
+            <CircleHelp color={colors.ink} size={19} strokeWidth={2.2} />
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.membersBtn, pressed && styles.buttonPressed]}
             onPress={() => openMemberSheet(null)}
             accessibilityRole="button"
-            accessibilityLabel="멤버 목록 보기"
-            hitSlop={6}
+            accessibilityLabel="멤버 목록과 안전 메뉴 보기"
           >
-            <Users color={colors.ink} size={16} strokeWidth={2.2} />
+            <Users color={colors.ink} size={19} strokeWidth={2.2} />
           </Pressable>
           {amongEnded ? (
             <Pressable
-              style={styles.lobbyBtn}
+              style={({ pressed }) => [styles.lobbyBtn, pressed && styles.buttonPressed]}
               onPress={() => setDismissedSessionId(among!.sessionId)}
               accessibilityRole="button"
               accessibilityLabel="로비로 돌아가기"
@@ -410,8 +462,29 @@ export default function PartyScreen() {
       </View>
 
       <View style={styles.world}>
+        {!showAmong ? (
+          <View
+            style={[styles.objectiveHud, { left: layout.hudEdge + insets.left, pointerEvents: "none" }]}
+            accessible
+            accessibilityLabel={`지금 할 일. ${objective.title}. ${objective.detail}`}
+          >
+            <View style={styles.objectiveLabelRow}>
+              <Text style={styles.objectiveEyebrow}>지금 할 일</Text>
+              <View style={styles.safeStatus}>
+                <ShieldCheck size={12} color={colors.success} strokeWidth={2.5} />
+                <Text style={styles.safeStatusText}>신고·차단 가능</Text>
+              </View>
+            </View>
+            <Text style={styles.objectiveTitle} numberOfLines={2}>
+              {objective.title}
+            </Text>
+            <Text style={styles.objectiveDetail} numberOfLines={3}>
+              {objective.detail}
+            </Text>
+          </View>
+        ) : null}
         {gameNotice ? (
-          <View style={styles.noticeBanner} pointerEvents="none">
+          <View style={[styles.noticeBanner, { pointerEvents: "none" }]}>
             <Text style={styles.noticeText}>{gameNotice}</Text>
           </View>
         ) : null}
@@ -425,9 +498,16 @@ export default function PartyScreen() {
             characters={characters}
             clock={clock}
             handlers={amongHandlers}
+            balanceReveals={game?.reveals ?? []}
+            onReturnToLobby={() => setDismissedSessionId(among.sessionId)}
           />
         ) : (
-          <PartyWorld characters={characters} showBalanceStation clock={clock} />
+          <PartyWorld
+            characters={characters}
+            showBalanceStation
+            safeInsets={insets}
+            clock={clock}
+          />
         )}
 
         <PartyChatOverlay
@@ -437,7 +517,7 @@ export default function PartyScreen() {
           senderName={senderName}
           onSend={onSendChat}
           hideFab={hideFab}
-          fabStyle={{ bottom: undefined, top: 8, right: 12 + insets.right }}
+          fabStyle={{ bottom: undefined, top: layout.hudGap, right: layout.hudEdge + insets.right }}
         />
 
         {(!showAmong || among?.phase === "playing") && (
@@ -447,14 +527,20 @@ export default function PartyScreen() {
               velRef.current = v;
               if (wasMoving && v.x === 0 && v.y === 0) setFrame((f) => f + 1);
             }}
-            style={[styles.joystick, { left: 16 + insets.left, bottom: 20 + insets.bottom }]}
+            style={[
+              styles.joystick,
+              { left: layout.hudEdge + insets.left, bottom: layout.hudBottom + insets.bottom },
+            ]}
           />
         )}
 
         {!showAmong && (
           <ActionPad
             main={lobbyMain}
-            style={[styles.actionPad, { right: 16 + insets.right, bottom: 20 + insets.bottom }]}
+            style={[
+              styles.actionPad,
+              { right: layout.hudEdge + insets.right, bottom: layout.hudBottom + insets.bottom },
+            ]}
           />
         )}
       </View>
@@ -473,33 +559,107 @@ export default function PartyScreen() {
       />
 
       <Modal
+        visible={guideOpen}
+        transparent
+        animationType={reducedMotion ? "none" : "fade"}
+        onRequestClose={dismissGuide}
+      >
+        <View style={styles.modalRoot} accessibilityViewIsModal>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={dismissGuide}
+            accessibilityRole="button"
+            accessibilityLabel="게임 안내 닫기"
+          />
+          <View style={styles.guideCard}>
+            <ScrollView
+              style={styles.guideScroll}
+              contentContainerStyle={styles.guideScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.guideEyebrow}>GAME GUIDE</Text>
+              <Text style={styles.guideTitle}>게임은 대화를 시작하는 방법이에요</Text>
+              <Text style={styles.guideLead}>
+                점수를 겨루기보다 움직이고, 답하고, 이야기하며 서로의 분위기를 알아보세요.
+              </Text>
+              <View style={styles.guideSteps}>
+                <View style={styles.guideStep}>
+                  <Text style={styles.guideNumber}>1</Text>
+                  <View style={styles.guideStepText}>
+                    <Text style={styles.guideStepTitle}>이동</Text>
+                    <Text style={styles.guideStepBody}>왼쪽 조이스틱으로 멤버나 게임 장소에 다가가요.</Text>
+                  </View>
+                </View>
+                <View style={styles.guideStep}>
+                  <Text style={styles.guideNumber}>2</Text>
+                  <View style={styles.guideStepText}>
+                    <Text style={styles.guideStepTitle}>상호작용</Text>
+                    <Text style={styles.guideStepBody}>오른쪽 버튼은 가까운 대상에 맞춰 ‘프로필’ 또는 ‘밸런스’로 바뀌어요.</Text>
+                  </View>
+                </View>
+                <View style={styles.guideStep}>
+                  <Text style={styles.guideNumber}>3</Text>
+                  <View style={styles.guideStepText}>
+                    <Text style={styles.guideStepTitle}>대화와 안전</Text>
+                    <Text style={styles.guideStepBody}>우상단 채팅과 멤버 메뉴에서 대화하거나 신고·차단할 수 있어요.</Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+            <View style={styles.guideAction}>
+              <DoodleButton title="둘러보기 시작" onPress={dismissGuide} variant="primary" />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={balanceOpen}
         transparent
-        animationType="slide"
+        animationType={reducedMotion ? "none" : "slide"}
         onRequestClose={() => setBalanceOpen(false)}
       >
-        <View style={styles.modalRoot}>
+        <View style={styles.modalRoot} accessibilityViewIsModal>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => setBalanceOpen(false)}
+            accessibilityRole="button"
             accessibilityLabel="밸런스 게임 닫기"
           />
-          <View style={styles.balanceSheet}>
+          <ScrollView
+            style={styles.balanceSheet}
+            contentContainerStyle={styles.balanceSheetContent}
+            showsVerticalScrollIndicator
+          >
             <View style={styles.gameHeader}>
               <Text style={styles.gameTitle}>밸런스 게임</Text>
               <View style={styles.gameHeaderActions}>
                 {game?.status === "active" ? (
-                  <Pressable onPress={onEndGame} hitSlop={8}>
+                  <Pressable
+                    onPress={onEndGame}
+                    style={({ pressed }) => [styles.gameHeaderButton, pressed && styles.buttonPressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel="밸런스 게임 종료"
+                  >
                     <Text style={styles.gameEnd}>게임 종료</Text>
                   </Pressable>
                 ) : null}
-                <Pressable onPress={() => setBalanceOpen(false)} hitSlop={8}>
+                <Pressable
+                  onPress={() => setBalanceOpen(false)}
+                  style={({ pressed }) => [styles.gameHeaderButton, pressed && styles.buttonPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="밸런스 게임 닫기"
+                >
                   <Text style={styles.closeText}>닫기</Text>
                 </Pressable>
               </View>
             </View>
             {!game ? (
-              <Pressable style={styles.gameStartBtn} onPress={onStartGame}>
+              <Pressable
+                style={({ pressed }) => [styles.gameStartBtn, pressed && styles.buttonPressed]}
+                onPress={onStartGame}
+                accessibilityRole="button"
+              >
                 <Text style={styles.gameStartText}>밸런스 게임 시작</Text>
               </Pressable>
             ) : game.status === "active" && game.question ? (
@@ -510,9 +670,19 @@ export default function PartyScreen() {
                 </Text>
                 <View style={styles.gameChoices}>
                   <Pressable
-                    style={[styles.gameChoice, myVote === "a" && styles.gameChoiceMine]}
+                    style={({ pressed }) => [
+                      styles.gameChoice,
+                      myVote === "a" && styles.gameChoiceMine,
+                      myVote !== null && myVote !== "a" && styles.gameChoiceNotMine,
+                      pressed && styles.buttonPressed,
+                    ]}
                     onPress={() => onVote("a")}
+                    disabled={myVote !== null}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: myVote === "a", disabled: myVote !== null }}
+                    accessibilityLabel={game.question.a}
                   >
+                    {myVote === "a" ? <Check size={18} color={colors.onAccent} strokeWidth={3} /> : null}
                     <Text
                       style={[styles.gameChoiceText, myVote === "a" && styles.gameChoiceTextMine]}
                     >
@@ -520,9 +690,19 @@ export default function PartyScreen() {
                     </Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.gameChoice, myVote === "b" && styles.gameChoiceMine]}
+                    style={({ pressed }) => [
+                      styles.gameChoice,
+                      myVote === "b" && styles.gameChoiceMine,
+                      myVote !== null && myVote !== "b" && styles.gameChoiceNotMine,
+                      pressed && styles.buttonPressed,
+                    ]}
                     onPress={() => onVote("b")}
+                    disabled={myVote !== null}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: myVote === "b", disabled: myVote !== null }}
+                    accessibilityLabel={game.question.b}
                   >
+                    {myVote === "b" ? <Check size={18} color={colors.onAccent} strokeWidth={3} /> : null}
                     <Text
                       style={[styles.gameChoiceText, myVote === "b" && styles.gameChoiceTextMine]}
                     >
@@ -530,6 +710,9 @@ export default function PartyScreen() {
                     </Text>
                   </Pressable>
                 </View>
+                <Text accessibilityLiveRegion="polite" style={styles.answerStatus}>
+                  {myVote ? "답을 보냈어요. 다른 멤버를 기다리는 중이에요." : "둘 중 내 취향에 가까운 답을 하나 선택하세요."}
+                </Text>
                 {game.reveals.length > 0 ? (
                   <Text style={styles.gameReveal}>
                     지난 라운드: {game.reveals.at(-1)!.question.a}{" "}
@@ -546,12 +729,16 @@ export default function PartyScreen() {
                     {r.question.a} {r.aVoters.length}표 vs {r.question.b} {r.bVoters.length}표
                   </Text>
                 ))}
-                <Pressable style={styles.gameStartBtn} onPress={onStartGame}>
+                <Pressable
+                  style={({ pressed }) => [styles.gameStartBtn, pressed && styles.buttonPressed]}
+                  onPress={onStartGame}
+                  accessibilityRole="button"
+                >
                   <Text style={styles.gameStartText}>다시 하기</Text>
                 </Pressable>
               </>
             )}
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -583,6 +770,28 @@ const styles = StyleSheet.create({
   },
   noticeText: { color: colors.paper, fontSize: 13, fontWeight: "700", textAlign: "center" },
 
+  objectiveHud: {
+    position: "absolute",
+    top: 8,
+    zIndex: 18,
+    width: "42%",
+    maxWidth: 360,
+    minWidth: 250,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    borderRadius: 12,
+    paddingHorizontal: space.x3,
+    paddingVertical: space.x2,
+    gap: space.x1,
+  },
+  objectiveLabelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  objectiveEyebrow: { ...type.caption, color: colors.accentDeep, fontFamily: fonts.bodySemibold },
+  safeStatus: { flexDirection: "row", alignItems: "center", gap: 3 },
+  safeStatusText: { ...type.caption, color: colors.grayDark, fontFamily: fonts.bodySemibold },
+  objectiveTitle: { fontFamily: fonts.display, fontSize: 19, lineHeight: 23, color: colors.ink },
+  objectiveDetail: { ...type.caption, color: colors.grayDark },
+
   topBar: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -605,26 +814,68 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   membersBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1.5,
     borderColor: colors.ink,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.paper,
   },
+  buttonPressed: { transform: [{ translateY: 2 }, { scale: 0.985 }], opacity: 0.9 },
   lobbyBtn: {
+    minHeight: control.minTouch,
     borderWidth: 1.5,
     borderColor: colors.ink,
     borderRadius: 8,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: space.x2,
+    justifyContent: "center",
     backgroundColor: colors.ink,
   },
-  lobbyBtnText: { color: colors.paper, fontSize: 12, fontWeight: "700" },
+  lobbyBtnText: { ...type.label, color: colors.paper },
 
-  modalRoot: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  modalRoot: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: space.x5,
+    backgroundColor: "rgba(23,21,15,0.64)",
+  },
+  guideCard: {
+    width: "100%",
+    maxWidth: 520,
+    maxHeight: "92%",
+    backgroundColor: colors.paper,
+    borderWidth: doodle.border,
+    borderColor: colors.ink,
+    ...doodle.radius.card,
+    padding: 20,
+    gap: 10,
+  },
+  guideScroll: { flexShrink: 1, minHeight: 0 },
+  guideScrollContent: { gap: 10, paddingBottom: 4 },
+  guideAction: { flexShrink: 0 },
+  guideEyebrow: { ...type.caption, color: colors.accentDeep, fontFamily: fonts.bodySemibold },
+  guideTitle: { fontFamily: fonts.display, fontSize: 24, lineHeight: 29, color: colors.ink },
+  guideLead: { ...type.body, color: colors.grayDark },
+  guideSteps: { gap: 10, marginVertical: 4 },
+  guideStep: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
+  guideNumber: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    overflow: "hidden",
+    backgroundColor: colors.ink,
+    color: colors.paper,
+    textAlign: "center",
+    lineHeight: 26,
+    fontWeight: "800",
+  },
+  guideStepText: { flex: 1 },
+  guideStepTitle: { ...type.label, color: colors.ink },
+  guideStepBody: { ...type.caption, color: colors.grayDark, marginTop: 1 },
   balanceSheet: {
     backgroundColor: colors.paper,
     ...doodle.radius.card,
@@ -632,35 +883,45 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     width: "100%",
     maxWidth: 480,
+    maxHeight: "92%",
+  },
+  balanceSheetContent: {
     padding: 16,
     gap: 10,
   },
   gameHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   gameHeaderActions: { flexDirection: "row", alignItems: "center", gap: 14 },
+  gameHeaderButton: { minWidth: control.minTouch, minHeight: control.minTouch, alignItems: "center", justifyContent: "center" },
   gameTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.ink },
-  gameEnd: { fontSize: 12, color: colors.grayMid, textDecorationLine: "underline" },
-  closeText: { fontSize: 13, color: colors.grayMid, fontWeight: "600" },
-  gameRound: { fontSize: 12, color: colors.grayDark },
+  gameEnd: { ...type.caption, color: colors.danger, textDecorationLine: "underline" },
+  closeText: { ...type.label, color: colors.ink },
+  gameRound: { ...type.caption, color: colors.grayDark },
   gameChoices: { flexDirection: "row", gap: 8 },
   gameChoice: {
     flex: 1,
     borderWidth: doodle.border,
     borderColor: colors.ink,
     borderRadius: 8,
-    paddingVertical: 12,
+    minHeight: 64,
+    paddingVertical: space.x3,
     paddingHorizontal: 8,
     alignItems: "center",
   },
-  gameChoiceMine: { backgroundColor: colors.ink },
-  gameChoiceText: { color: colors.ink, fontWeight: "700", fontSize: 13, textAlign: "center" },
+  gameChoiceMine: { backgroundColor: colors.accent },
+  gameChoiceNotMine: { backgroundColor: colors.fillDeep, borderColor: colors.grayLight },
+  gameChoiceText: { ...type.label, color: colors.ink, textAlign: "center" },
   gameChoiceTextMine: { color: colors.paper },
+  answerStatus: { ...type.caption, color: colors.grayDark, textAlign: "center" },
   gameStartBtn: {
     borderWidth: doodle.border,
     borderColor: colors.ink,
     borderRadius: 8,
-    paddingVertical: 10,
+    minHeight: control.buttonHeight,
+    paddingVertical: space.x2,
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.accent,
   },
-  gameStartText: { color: colors.ink, fontWeight: "700", fontSize: 14 },
-  gameReveal: { fontSize: 12, color: colors.grayMid },
+  gameStartText: { ...type.label, color: colors.onAccent },
+  gameReveal: { ...type.caption, color: colors.grayDark },
 });

@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { colors } from "../lib/theme";
+import { control, fonts } from "../lib/theme";
 
 /**
  * Small B&W back affordance for detail screens whose Stack header is hidden.
@@ -27,6 +28,7 @@ export function BackButton({ label = "뒤로", onPress }: { label?: string; onPr
 
 const styles = StyleSheet.create({
   btn: {
+    minHeight: control.minTouch,
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
@@ -34,5 +36,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignSelf: "flex-start",
   },
-  label: { fontSize: 15, color: colors.ink, fontWeight: "600" },
+  label: { fontFamily: fonts.bodySemibold, fontSize: 15, lineHeight: 21, color: colors.ink },
 });

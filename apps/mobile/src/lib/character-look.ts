@@ -19,7 +19,11 @@ export interface CharacterLook {
   mouth: Mouth;
   accent: "cheek" | "string";
   seed: number;
+  /** 4×3 production doodle atlas cell. Stable for the same profile id. */
+  avatarIndex: number;
 }
+
+export const DOODLE_AVATAR_COUNT = 12;
 
 /** djb2 계열 해시 — key당 결정적 uint32. */
 function hash(key: string): number {
@@ -38,5 +42,6 @@ export function lookFor(key: string): CharacterLook {
     mouth: MOUTHS[(h >>> 9) % MOUTHS.length]!,
     accent: (h >>> 12) % 2 === 0 ? "cheek" : "string",
     seed: (h % 97) + 1,
+    avatarIndex: h % DOODLE_AVATAR_COUNT,
   };
 }

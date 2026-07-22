@@ -33,9 +33,9 @@ describe("PARTY_MAP integrity", () => {
   const solids = solidFurniture();
 
   it("aspect/CHAR_R/margin 상수가 계약값이다", () => {
-    expect(WORLD_ASPECT).toBe(1.9);
+    expect(WORLD_ASPECT).toBe(3.0);
     expect(CHAR_R).toBe(0.035);
-    expect(ROOM_MARGIN).toBe(0.06);
+    expect(ROOM_MARGIN).toBe(0.03);
   });
 
   it("가구 id는 유일하고 AABB는 방(0..1) 안에 있다", () => {

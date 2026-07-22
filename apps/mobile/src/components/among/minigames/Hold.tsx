@@ -5,15 +5,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, doodle, fonts } from "../../../lib/theme";
+import { DoodleButton } from "../../Doodle";
+import { hapticImpact, hapticSelect, hapticSuccess } from "../../../lib/haptics";
+import { useReducedMotion } from "react-native-reanimated";
 
 const FILL_DURATION_MS = 2000;
 const TICK_MS = 50;
-const INCREMENT = TICK_MS / FILL_DURATION_MS;
 
 export function Hold({ onComplete }: { onComplete: () => void }) {
+  const reducedMotion = useReducedMotion();
   const [progress, setProgress] = useState(0);
   const [pressing, setPressing] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [autoCharging, setAutoCharging] = useState(false);
 
   // Animated width for the fill bar (avoids re-renders during tick)
   const animWidth = useRef(new Animated.Value(0)).current;
@@ -29,29 +33,48 @@ export function Hold({ onComplete }: { onComplete: () => void }) {
 
   const startTick = useCallback(() => {
     clearTick();
+    const tickMs = reducedMotion ? 250 : TICK_MS;
     intervalRef.current = setInterval(() => {
-      const next = Math.min(progressRef.current + INCREMENT, 1);
+      const next = Math.min(progressRef.current + tickMs / FILL_DURATION_MS, 1);
       progressRef.current = next;
       animWidth.setValue(next);
       setProgress(next); // for text display (low-frequency re-render is fine)
       if (next >= 1) {
         clearTick();
         setCompleted(true);
+        setAutoCharging(false);
+        hapticSuccess();
         onComplete();
       }
-    }, TICK_MS);
-  }, [animWidth, onComplete]);
+    }, tickMs);
+  }, [animWidth, onComplete, reducedMotion]);
 
   const handlePressIn = useCallback(() => {
     if (completed) return;
+    hapticImpact();
     setPressing(true);
     startTick();
   }, [completed, startTick]);
 
   const handlePressOut = useCallback(() => {
     setPressing(false);
-    clearTick();
-  }, []);
+    if (!autoCharging) clearTick();
+  }, [autoCharging]);
+
+  const toggleAutoCharge = useCallback(() => {
+    if (completed) return;
+    if (autoCharging) {
+      hapticSelect();
+      setAutoCharging(false);
+      setPressing(false);
+      clearTick();
+    } else {
+      hapticImpact();
+      setAutoCharging(true);
+      setPressing(true);
+      startTick();
+    }
+  }, [autoCharging, completed, startTick]);
 
   // Cleanup on unmount
   useEffect(() => () => clearTick(), []);
@@ -64,7 +87,12 @@ export function Hold({ onComplete }: { onComplete: () => void }) {
       <Text style={styles.hint}>{completed ? "완충 완료!" : "버튼을 꾹 누르고 있으세요"}</Text>
 
       {/* Progress track */}
-      <View style={styles.track}>
+      <View
+        style={styles.track}
+        accessibilityRole="progressbar"
+        accessibilityLabel="충전 진행률"
+        accessibilityValue={{ min: 0, max: 100, now: pct, text: `${pct}퍼센트` }}
+      >
         <Animated.View
           style={[
             styles.fill,
@@ -74,14 +102,15 @@ export function Hold({ onComplete }: { onComplete: () => void }) {
                 outputRange: ["0%", "100%"],
               }),
               backgroundColor: completed
-                ? colors.accent
+                ? colors.success
                 : pressing
                   ? colors.accent
                   : colors.grayMid,
+              opacity: reducedMotion ? 0 : 1,
             },
           ]}
         />
-        <Text style={styles.pctLabel}>{pct}%</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.pctLabel}>{pct}%</Text>
       </View>
 
       {/* Hold button */}
@@ -98,6 +127,8 @@ export function Hold({ onComplete }: { onComplete: () => void }) {
         ]}
         accessibilityLabel="꾹 눌러 충전 버튼"
         accessibilityHint="누르고 있는 동안 충전됩니다"
+        accessibilityRole="button"
+        accessibilityState={{ disabled: completed }}
       >
         <Text
           style={[
@@ -108,6 +139,14 @@ export function Hold({ onComplete }: { onComplete: () => void }) {
           {completed ? "완료" : "꾹 눌러 충전"}
         </Text>
       </Pressable>
+      <View style={styles.autoAction}>
+        <DoodleButton
+          title={autoCharging ? "자동 충전 일시정지" : "한 번 눌러 자동 충전"}
+          onPress={toggleAutoCharge}
+          disabled={completed}
+        />
+      </View>
+      <Text style={styles.accessHint}>길게 누르기 어려우면 자동 충전을 이용하세요.</Text>
     </View>
   );
 }
@@ -125,7 +164,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 13,
-    color: colors.grayMid,
+    color: colors.grayDark,
     marginBottom: 24,
   },
   track: {
@@ -170,4 +209,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 22,
   },
+  autoAction: { alignSelf: "stretch", marginTop: 12 },
+  accessHint: { fontSize: 13, lineHeight: 19, color: colors.grayDark, marginTop: 8, textAlign: "center" },
 });

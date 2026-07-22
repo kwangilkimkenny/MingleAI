@@ -9,7 +9,7 @@
     "dev:backend": "pnpm --filter @mingle/backend start:dev",
     "dev:web": "pnpm --filter @mingle/web dev",
     "dev:mobile": "pnpm --filter @mingle/mobile exec expo start",
-    "build": "pnpm --filter \"!@mingle/mcp\" --filter \"!@mingle/mingleai-mcp\" -r build",
+    "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r exec rm -rf dist"
@@ -18,7 +18,33 @@
     "node": ">=18",
     "pnpm": ">=8"
   },
+  "devDependencies": {
+    "@babel/core": "7.29.7"
+  },
   "pnpm": {
+    "overrides": {
+      "@babel/core": ">=7.29.6 <8.0.0",
+      "@modelcontextprotocol/sdk>@hono/node-server": ">=2.0.5",
+      "body-parser": ">=2.3.0",
+      "defu": ">=6.1.5",
+      "effect": ">=3.20.0",
+      "engine.io": ">=6.6.7",
+      "form-data": ">=4.0.6",
+      "js-yaml": ">=4.2.0",
+      "picomatch": ">=2.3.2",
+      "tinyglobby>picomatch": ">=4.0.4",
+      "postcss": ">=8.5.10",
+      "qs": ">=6.14.2",
+      "sharp": ">=0.35.0",
+      "socket.io-parser": ">=4.2.6",
+      "ws": ">=8.20.1",
+      "minimatch@3.1.2>brace-expansion": "1.1.12",
+      "minimatch@3.1.5>brace-expansion": "1.1.12",
+      "minimatch@9.0.5>brace-expansion": "2.0.2",
+      "minimatch@10.2.5>brace-expansion": "5.0.7",
+      "xcode>uuid": ">=11.1.1",
+      "yaml": ">=1.10.3"
+    },
     "onlyBuiltDependencies": [
       "@nestjs/core",
       "@prisma/client",

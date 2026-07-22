@@ -92,7 +92,6 @@ export function pickPersonas(
     .slice(0, count)
     .map((p) => ({ ...p, profileId: `${AI_PROFILE_PREFIX}${makeId()}` }));
   if (result.length < count) {
-    // eslint-disable-next-line no-console
     console.warn(`[personas] pool exhausted: requested ${count}, returning ${result.length}`);
   }
   return result;

@@ -18,7 +18,12 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import type { GameChoice } from "@mingle/shared";
+import {
+  isPlausiblePartyMove,
+  partySpawnFor,
+  worldDist,
+  type GameChoice,
+} from "@mingle/shared";
 import { PartyService } from "./party.service";
 import { GameService } from "./game.service";
 import { AmongService, AmongState } from "./among.service";
@@ -26,8 +31,9 @@ import { AmongConfigProvider } from "./among.config";
 import { AiChatClient, createAiChatClient } from "./ai/ai-chat.client";
 import { fallbackLine } from "./ai/personas";
 import { socketCorsOrigin } from "../common/socket-cors";
+import { AccountAccessService } from "../auth/account-access.service";
 
-@WebSocketGateway({ cors: { origin: socketCorsOrigin() } })
+@WebSocketGateway({ cors: { origin: socketCorsOrigin() }, maxHttpBufferSize: 16 * 1024 })
 export class PartyGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
 {
@@ -41,7 +47,10 @@ export class PartyGateway
    * Feeds the AI bot sweep's kill/witness checks. In-memory, single-instance-only —
    * same lifetime assumption as `presence`.
    */
-  private readonly humanPos = new Map<string, Map<string, { x: number; y: number }>>();
+  private readonly humanPos = new Map<
+    string,
+    Map<string, { x: number; y: number; updatedAt: number }>
+  >();
 
   /**
    * partyId → recent chat lines (cap 30), pushed on every successful `party:chat`.
@@ -70,6 +79,7 @@ export class PartyGateway
     private readonly among: AmongService,
     private readonly amongConfig: AmongConfigProvider,
     configService: ConfigService,
+    private readonly accountAccess: AccountAccessService,
   ) {
     this.aiChat = createAiChatClient(configService);
   }
@@ -86,12 +96,15 @@ export class PartyGateway
     }
   }
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     try {
       const token = client.handshake.auth?.token as string | undefined;
       if (!token) return client.disconnect();
       const payload = this.jwt.verify(token) as { sub: string };
-      client.data.userId = payload.sub;
+      const account = await this.accountAccess.findActive(payload.sub);
+      if (!account) return client.disconnect();
+      client.data.userId = account.userId;
+      client.data.role = account.role;
     } catch {
       client.disconnect();
     }
@@ -105,6 +118,7 @@ export class PartyGateway
           this.presence.delete(partyId);
           this.chatBuf.delete(partyId);
           this.aiUnavailableNotified.delete(partyId);
+          this.clearPartyEphemeralState(partyId);
         }
         this.broadcastPresence(partyId);
       }
@@ -123,8 +137,36 @@ export class PartyGateway
       this.presence.set(body.partyId, members);
     }
     members.set(client.id, me);
+    let positions = this.humanPos.get(body.partyId);
+    if (!positions) {
+      positions = new Map();
+      this.humanPos.set(body.partyId, positions);
+    }
+    if (!positions.has(me)) {
+      positions.set(me, { ...partySpawnFor(me), updatedAt: Date.now() });
+    }
     this.broadcastPresence(body.partyId);
     await this.maybeAutoStartAmong(body.partyId);
+  }
+
+  @SubscribeMessage("admin:party:join")
+  async handleAdminJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { partyId: string },
+  ) {
+    if (!client.data.userId || !body?.partyId) return;
+    const account = await this.accountAccess.findActive(client.data.userId);
+    if (!account || (account.role !== "admin" && account.role !== "super_admin")) {
+      client.emit("party:error", { message: "forbidden" });
+      return;
+    }
+    try {
+      await this.party.findOne(body.partyId);
+      await client.join(`admin:${body.partyId}`);
+      await this.emitAdminState(body.partyId, client);
+    } catch {
+      client.emit("party:error", { message: "not-found" });
+    }
   }
 
   @SubscribeMessage("party:leave")
@@ -140,6 +182,7 @@ export class PartyGateway
         this.presence.delete(body.partyId);
         this.chatBuf.delete(body.partyId);
         this.aiUnavailableNotified.delete(body.partyId);
+        this.clearPartyEphemeralState(body.partyId);
       }
       this.broadcastPresence(body.partyId);
     }
@@ -151,6 +194,10 @@ export class PartyGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() body: { partyId: string; content: string },
   ) {
+    if (!this.allowSocketEvent(client, "chat", 8, 10_000)) {
+      client.emit("party:error", { message: "rate-limited" });
+      return;
+    }
     const me = await this.authorize(client, body?.partyId);
     if (!me) return;
     try {
@@ -169,20 +216,33 @@ export class PartyGateway
   }
 
   @SubscribeMessage("party:move")
-  handleMove(
+  async handleMove(
     @ConnectedSocket() client: Socket,
     @MessageBody() body: { partyId: string; x: number; y: number },
   ) {
-    // Membership was proven at party:join — the presence map is the (cheap) authority here.
+    if (!this.allowSocketEvent(client, "move", 15, 1000)) return;
     const me = this.presence.get(body?.partyId)?.get(client.id);
     if (!me || typeof body.x !== "number" || typeof body.y !== "number") return;
+    // Movement is high-frequency, so revalidate account state on a short cache instead of
+    // turning every 10 Hz packet into a database query. A suspension takes effect within 5s.
+    const now = Date.now();
+    const lastAccessCheck = Number(client.data.lastAccessCheckAt ?? 0);
+    if (now - lastAccessCheck >= 5000) {
+      if (!(await this.accountAccess.findActive(client.data.userId))) {
+        client.disconnect();
+        return;
+      }
+      client.data.lastAccessCheckAt = now;
+    }
     let posMap = this.humanPos.get(body.partyId);
     if (!posMap) {
       posMap = new Map();
       this.humanPos.set(body.partyId, posMap);
     }
-    // Stored as-is (no clamping) — the AI brain does its own world-metric distance checks.
-    posMap.set(me, { x: body.x, y: body.y });
+    const previous = posMap.get(me) ?? { ...partySpawnFor(me), updatedAt: now };
+    const next = { x: body.x, y: body.y };
+    if (!isPlausiblePartyMove(previous, next, now - previous.updatedAt)) return;
+    posMap.set(me, { ...next, updatedAt: now });
     client.to(body.partyId).emit("party:moved", { profileId: me, x: body.x, y: body.y });
   }
 
@@ -273,6 +333,7 @@ export class PartyGateway
         snapshot: this.among.project(state, viewerId),
       });
     }
+    void this.broadcastAdminState(partyId);
   }
 
   /** Re-fetches the latest state (active, or ended-fallback) and re-broadcasts it. */
@@ -297,6 +358,7 @@ export class PartyGateway
     for (const p of survivors) {
       const delay = 2000 + Math.random() * 6000;
       setTimeout(() => {
+        if (!this.presence.has(partyId)) return;
         void this.sayAsAi(partyId, p.profileId, "meeting");
       }, delay);
     }
@@ -307,6 +369,16 @@ export class PartyGateway
     if (!profileId) return;
     const pos = this.humanPos.get(partyId);
     if (pos?.delete(profileId) && pos.size === 0) this.humanPos.delete(partyId);
+  }
+
+  private clearPartyEphemeralState(partyId: string): void {
+    this.humanPos.delete(partyId);
+    for (const key of this.votingInFlight) {
+      if (key.startsWith(`${partyId}:`)) this.votingInFlight.delete(key);
+    }
+    for (const key of this.meetingSpokeFor) {
+      if (key.startsWith(`${partyId}:`)) this.meetingSpokeFor.delete(key);
+    }
   }
 
   /**
@@ -434,6 +506,7 @@ export class PartyGateway
     scene: "idle" | "meeting",
   ): Promise<void> {
     try {
+      if (!this.presence.has(partyId)) return;
       const state = await this.among.current(partyId);
       if (!state) return;
       const me = state.players.find((p) => p.profileId === aiProfileId && p.alive);
@@ -504,6 +577,15 @@ export class PartyGateway
     const me = await this.authorize(client, body?.partyId);
     if (!me) return;
     try {
+      const position = this.humanPos.get(body.partyId)?.get(me);
+      const current = await this.among.current(body.partyId);
+      const task = current?.tasks.find(
+        (candidate) =>
+          candidate.taskId === body.taskId && candidate.profileId === me && !candidate.done,
+      );
+      if (!position || !task || worldDist(position, task) > 0.14) {
+        throw new BadRequestException("invalid");
+      }
       const s = await this.among.doTask(body.partyId, me, body.taskId);
       this.broadcastAmong(body.partyId, s);
     } catch (e) {
@@ -519,7 +601,19 @@ export class PartyGateway
     const me = await this.authorize(client, body?.partyId);
     if (!me) return;
     try {
-      const s = await this.among.kill(body.partyId, me, body.targetProfileId, body.x, body.y);
+      const positions = this.humanPos.get(body.partyId);
+      const caller = positions?.get(me);
+      const target = positions?.get(body.targetProfileId);
+      if (!caller || !target || worldDist(caller, target) > this.amongConfig.value.killRange) {
+        throw new BadRequestException("invalid");
+      }
+      const s = await this.among.kill(
+        body.partyId,
+        me,
+        body.targetProfileId,
+        caller.x,
+        caller.y,
+      );
       this.broadcastAmong(body.partyId, s);
     } catch (e) {
       client.emit("party:error", { message: this.gameErrorMessage(e) });
@@ -534,6 +628,14 @@ export class PartyGateway
     const me = await this.authorize(client, body?.partyId);
     if (!me) return;
     try {
+      const caller = this.humanPos.get(body.partyId)?.get(me);
+      const current = await this.among.current(body.partyId);
+      const reportedBody = current?.bodies.find(
+        (candidate) => candidate.profileId === body.bodyProfileId && !candidate.reported,
+      );
+      if (!caller || !reportedBody || worldDist(caller, reportedBody) > 0.14) {
+        throw new BadRequestException("invalid");
+      }
       const s = await this.among.report(body.partyId, me, body.bodyProfileId);
       this.broadcastAmong(body.partyId, s);
       this.dispatchMeetingAiSpeech(body.partyId, s); // 회의 시작(신고 소집) — AI 발화 파견
@@ -608,6 +710,15 @@ export class PartyGateway
       client.emit("party:error", { message: "forbidden" });
       return null;
     }
+    if (!this.allowSocketEvent(client, "action", 30, 10_000)) {
+      client.emit("party:error", { message: "rate-limited" });
+      return null;
+    }
+    if (!(await this.accountAccess.findActive(client.data.userId))) {
+      client.disconnect();
+      return null;
+    }
+    client.data.lastAccessCheckAt = Date.now();
     const me = await this.party.assertParticipant(client.data.userId, partyId);
     if (!me) {
       client.emit("party:error", { message: "forbidden" });
@@ -616,8 +727,58 @@ export class PartyGateway
     return me;
   }
 
+  private allowSocketEvent(client: Socket, key: string, limit: number, windowMs: number): boolean {
+    const now = Date.now();
+    const buckets = (client.data.rateBuckets ??= {}) as Record<
+      string,
+      { startedAt: number; count: number }
+    >;
+    const bucket = buckets[key];
+    if (!bucket || now - bucket.startedAt >= windowMs) {
+      buckets[key] = { startedAt: now, count: 1 };
+      return true;
+    }
+    bucket.count += 1;
+    return bucket.count <= limit;
+  }
+
   private broadcastPresence(partyId: string) {
     const members = [...new Set(this.presence.get(partyId)?.values() ?? [])];
     this.server.to(partyId).emit("party:presence", { partyId, members });
+    void this.broadcastAdminState(partyId);
+  }
+
+  private async monitorSnapshot(partyId: string) {
+    const active = new Set(this.presence.get(partyId)?.values() ?? []);
+    const rows = await this.party.monitorParticipants(partyId);
+    const game = (await this.among.current(partyId)) ?? (await this.among.latestAmong(partyId));
+    return {
+      partyId,
+      participants: rows.map(({ profile }) => ({
+        id: profile.id,
+        name: profile.name,
+        status: active.has(profile.id) ? "active" : "offline",
+        alive: game?.players.find((player) => player.profileId === profile.id)?.alive ?? null,
+      })),
+      game: game
+        ? {
+            phase: game.phase,
+            progress: {
+              done: game.tasks.filter((task) => task.done).length,
+              total: game.tasks.length,
+            },
+            started: true,
+          }
+        : { phase: "lobby", progress: { done: 0, total: 0 }, started: false },
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  private async emitAdminState(partyId: string, client: Socket): Promise<void> {
+    client.emit("admin:party:state", await this.monitorSnapshot(partyId));
+  }
+
+  private async broadcastAdminState(partyId: string): Promise<void> {
+    this.server.to(`admin:${partyId}`).emit("admin:party:state", await this.monitorSnapshot(partyId));
   }
 }

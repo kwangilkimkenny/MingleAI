@@ -59,6 +59,7 @@ export class DatePlanService {
     status: string;
     selectedCourseId: string | null;
     confirmedAt: Date | null;
+    completedAt?: Date | null;
     createdAt: Date;
   }): DatePlanView {
     return {
@@ -70,6 +71,7 @@ export class DatePlanService {
       status: plan.status as DatePlanView["status"],
       selectedCourseId: plan.selectedCourseId ?? null,
       confirmedAt: plan.confirmedAt ? plan.confirmedAt.toISOString() : null,
+      completedAt: plan.completedAt ? plan.completedAt.toISOString() : null,
       createdAt: plan.createdAt.toISOString(),
     };
   }
@@ -221,6 +223,29 @@ export class DatePlanService {
       throw new ConflictException("이미 취소되었거나 완료된 플랜입니다");
     }
     const updated = await this.prisma.datePlan.update({ where: { id }, data: { status: "cancelled" } });
+    return this.toView(updated);
+  }
+
+  async complete(userId: string, id: string): Promise<DatePlanView> {
+    const { plan, peerProfileId } = await this.memberContext(userId, id);
+    if (plan.status !== "confirmed") {
+      throw new ConflictException("확정된 플랜만 완료할 수 있습니다");
+    }
+    const preferredDate = (plan.constraints as unknown as DateConstraints).dateTime?.preferredDate;
+    if (preferredDate) {
+      const plannedDay = new Date(`${preferredDate}T00:00:00+09:00`);
+      if (!Number.isNaN(plannedDay.getTime()) && plannedDay.getTime() > Date.now()) {
+        throw new ConflictException("만남 날짜 전에는 완료할 수 없습니다");
+      }
+    }
+    const result = await this.prisma.datePlan.updateMany({
+      where: { id, status: "confirmed" },
+      data: { status: "completed", completedAt: new Date() },
+    });
+    if (result.count === 0) throw new ConflictException("완료할 수 없는 상태입니다");
+    const updated = await this.prisma.datePlan.findUnique({ where: { id } });
+    if (!updated) throw new NotFoundException("데이트 플랜을 찾을 수 없습니다");
+    await this.notify(peerProfileId, id, plan.matchId, "만남 완료", "상대가 만남을 완료로 표시했어요.");
     return this.toView(updated);
   }
 
