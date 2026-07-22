@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException } from "@nestjs/common";
+import { Injectable, ConflictException, ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { createHash, randomBytes } from "node:crypto";
@@ -134,7 +134,7 @@ export class AuthService {
       include: { profile: { select: { id: true, photoUrl: true } } },
     });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new UnauthorizedException("비밀번호가 올바르지 않습니다");
+      throw new ForbiddenException("비밀번호가 올바르지 않습니다");
     }
 
     const profileId = user.profile?.id;
