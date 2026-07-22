@@ -3,18 +3,25 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-nat
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ShieldCheck, Mic, Video } from "lucide-react-native";
-import { enqueueSpeedDate, cancelSpeedDate, getSpeedDateStatus, ApiError } from "@mingle/client-core";
+import {
+  enqueueSpeedDate,
+  cancelSpeedDate,
+  getSpeedDateStatus,
+  getMyProfile,
+  ApiError,
+} from "@mingle/client-core";
 import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { BackButton } from "../../../src/components/BackButton";
+import { isSpeedDateEligibleGender } from "../../../src/lib/speed-date-eligibility";
 import { colors, layout, space, type } from "../../../src/lib/theme";
 
 const POLL_MS = 2500;
-type Phase = "consent" | "joining" | "waiting" | "error";
+type Phase = "checking" | "consent" | "ineligible" | "joining" | "waiting" | "error";
 
 export default function SpeedDateMatching() {
   const insets = useSafeAreaInsets();
-  const [phase, setPhase] = useState<Phase>("consent");
+  const [phase, setPhase] = useState<Phase>("checking");
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const alive = useRef(true);
@@ -23,11 +30,26 @@ export default function SpeedDateMatching() {
 
   useEffect(() => {
     alive.current = true;
+    loadEligibility();
     return () => {
       alive.current = false;
       clearTimeout(timer.current);
     };
   }, []);
+
+  async function loadEligibility() {
+    setPhase("checking");
+    setError(null);
+    try {
+      const profile = await getMyProfile();
+      if (!alive.current) return;
+      setPhase(profile && isSpeedDateEligibleGender(profile.gender) ? "consent" : "ineligible");
+    } catch (e) {
+      if (!alive.current) return;
+      setError(e instanceof ApiError ? e.message : "프로필을 확인하지 못했어요.");
+      setPhase("error");
+    }
+  }
 
   async function poll() {
     try {
@@ -90,6 +112,24 @@ export default function SpeedDateMatching() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: space.x8 + insets.bottom }]}
       >
+        {phase === "checking" ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={colors.accent} size="large" />
+            <Text style={styles.sub}>참여 가능 여부를 확인하고 있어요</Text>
+          </View>
+        ) : null}
+
+        {phase === "ineligible" ? (
+          <View style={styles.center}>
+            <Text style={styles.title}>현재 참여할 수 없어요</Text>
+            <Text style={styles.sub}>
+              블라인드 데이트는 현재 남성·여성 프로필 간 매칭만 지원해요. 더 다양한 매칭을 준비하고
+              있어요.
+            </Text>
+            <DoodleButton title="홈으로" onPress={() => router.replace("/home")} variant="primary" />
+          </View>
+        ) : null}
+
         {phase === "consent" ? (
           <>
             <Text style={styles.title}>얼굴보다 대화가 먼저</Text>
@@ -141,7 +181,7 @@ export default function SpeedDateMatching() {
         {phase === "error" ? (
           <View style={styles.center}>
             <Text style={styles.sub}>{error}</Text>
-            <DoodleButton title="다시 시도" onPress={() => setPhase("consent")} variant="primary" />
+            <DoodleButton title="다시 시도" onPress={loadEligibility} variant="primary" />
             <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
           </View>
         ) : null}
