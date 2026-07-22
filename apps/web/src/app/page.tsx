@@ -164,7 +164,7 @@ export default function Home() {
       {/* 푸터 */}
       <Box sx={{ py: 4, textAlign: "center" }}>
         <Typography variant="body2" color="text.secondary">
-          © 2025 MingleAI. AI-Powered Social Matching Platform.
+          © {new Date().getFullYear()} MingleAI. AI-Powered Social Matching Platform.
         </Typography>
       </Box>
     </Box>
