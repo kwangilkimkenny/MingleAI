@@ -9,7 +9,6 @@ import { ContentColumn, InlineNotice, LabeledInput, PageHeader } from "../../src
 
 export default function DeleteAccountScreen() {
   const logout = useAuthStore((state) => state.logout);
-  const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +18,7 @@ export default function DeleteAccountScreen() {
     setBusy(true);
     setError(null);
     try {
-      await deleteAccount(password);
+      await deleteAccount();
       logout();
       router.replace("/login");
     } catch (reason) {
@@ -38,10 +37,9 @@ export default function DeleteAccountScreen() {
             <Text style={styles.warningTitle}>삭제 후에는 복구할 수 없어요</Text>
             <Text style={styles.warningBody}>프로필, 매칭, 프로포즈, 채팅, 데이트 계획과 게임 참여 기록이 계정과 함께 삭제됩니다.</Text>
           </View>
-          <LabeledInput label="현재 비밀번호" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" />
           <LabeledInput label="확인 문구" hint="계속하려면 ‘탈퇴’를 입력하세요." value={confirmation} onChangeText={setConfirmation} autoCapitalize="none" />
           {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-          <DoodleButton title={busy ? "삭제 중..." : "계정 영구 삭제"} onPress={submit} disabled={busy || !password || confirmation.trim() !== "탈퇴"} variant="dangerSolid" serious />
+          <DoodleButton title={busy ? "삭제 중..." : "계정 영구 삭제"} onPress={submit} disabled={busy || confirmation.trim() !== "탈퇴"} variant="dangerSolid" serious />
         </ContentColumn>
       </ScrollView>
     </KeyboardAvoidingView>

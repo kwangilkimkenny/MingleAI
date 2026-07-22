@@ -1,6 +1,5 @@
-import { Injectable, ConflictException, ForbiddenException, UnauthorizedException } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
 import { createHash, randomBytes } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -9,8 +8,12 @@ import { AccountAccessService } from "./account-access.service";
 
 const ACCESS_TOKEN_SECONDS = 60 * 60;
 const DEFAULT_REFRESH_DAYS = 30;
-const LEGAL_VERSION = "2026-07-22";
 
+/**
+ * Session core: issues/refreshes/revokes tokens and deletes accounts. Consumer auth is
+ * social-only (see SocialAuthService) — there is no email/password path. `devLogin` is a
+ * dev/CI/admin bypass, gated by the controller on DEV_AUTH_ENABLED.
+ */
 @Injectable()
 export class AuthService {
   constructor(
@@ -19,47 +22,18 @@ export class AuthService {
     private readonly accountAccess: AccountAccessService,
   ) {}
 
-  async register(email: string, password: string) {
+  /** Dev/CI/admin login: find-or-create a user by email and issue a session. Never enabled in prod. */
+  async devLogin(email: string, role?: string) {
     const normalizedEmail = this.normalizeEmail(email);
-    const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (existing) {
-      throw new ConflictException("이미 등록된 이메일입니다");
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash,
-        termsAcceptedAt: new Date(),
-        termsVersion: LEGAL_VERSION,
-        privacyVersion: LEGAL_VERSION,
-      },
-    });
-
-    return this.createSession(user.id, user.email, user.role);
-  }
-
-  async login(email: string, password: string) {
-    const user = await this.validateUser(email, password);
+    let user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
-      throw new UnauthorizedException("이메일 또는 비밀번호가 올바르지 않습니다");
+      user = await this.prisma.user.create({
+        data: { email: normalizedEmail, authProvider: "dev", role: role ?? "user" },
+      });
+    } else if (role && user.role !== role) {
+      user = await this.prisma.user.update({ where: { id: user.id }, data: { role } });
     }
-    return this.createSession(user.id, user.email, user.role);
-  }
-
-  async validateUser(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: this.normalizeEmail(email) },
-      include: { profile: { select: { status: true } } },
-    });
-    if (!user) return null;
-
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) return null;
-    if (user.profile && user.profile.status !== "active") return null;
-
-    return { id: user.id, email: user.email, role: user.role };
+    return this.issueSession(user.id, user.email, user.role);
   }
 
   async refresh(rawToken: string) {
@@ -128,14 +102,14 @@ export class AuthService {
     });
   }
 
-  async deleteAccount(userId: string, password: string): Promise<void> {
+  /** Delete the account. Social-only accounts have no password — a valid session + the typed
+   *  "DELETE" confirmation (enforced by the DTO) is the authorization. */
+  async deleteAccount(userId: string): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { profile: { select: { id: true, photoUrl: true } } },
     });
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new ForbiddenException("비밀번호가 올바르지 않습니다");
-    }
+    if (!user) return;
 
     const profileId = user.profile?.id;
     await this.prisma.$transaction(async (tx) => {
@@ -156,6 +130,7 @@ export class AuthService {
         await tx.partyMessage.deleteMany({ where: { profileId } });
         await tx.partyParticipant.deleteMany({ where: { profileId } });
         await tx.matchmakingQueueEntry.deleteMany({ where: { profileId } });
+        await tx.speedDateQueueEntry.deleteMany({ where: { profileId } });
         await tx.match.deleteMany({
           where: { OR: [{ profileId1: profileId }, { profileId2: profileId }] },
         });
@@ -171,7 +146,8 @@ export class AuthService {
     }
   }
 
-  private async createSession(userId: string, email: string, role: string) {
+  /** Issue a fresh access + refresh token pair for an already-authenticated user. */
+  async issueSession(userId: string, email: string | null, role: string) {
     await this.accountAccess.requireActive(userId);
     const refreshToken = randomBytes(32).toString("base64url");
     await this.prisma.refreshToken.create({
@@ -184,8 +160,8 @@ export class AuthService {
     return { ...this.createAccessToken(userId, email, role), refreshToken };
   }
 
-  private createAccessToken(userId: string, email: string, role: string) {
-    const payload = { sub: userId, email, role };
+  private createAccessToken(userId: string, email: string | null, role: string) {
+    const payload = { sub: userId, email: email ?? "", role };
     return { accessToken: this.jwtService.sign(payload), expiresIn: ACCESS_TOKEN_SECONDS, role };
   }
 

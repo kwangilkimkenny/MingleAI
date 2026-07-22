@@ -5,8 +5,10 @@ import { PassportModule } from "@nestjs/passport";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./strategies/jwt.strategy";
-import { LocalStrategy } from "./strategies/local.strategy";
 import { AccountAccessService } from "./account-access.service";
+import { SocialAuthService } from "./social/social-auth.service";
+import { IdentityService } from "./identity/identity.service";
+import { ConsentService } from "./consent/consent.service";
 
 @Module({
   imports: [
@@ -21,7 +23,14 @@ import { AccountAccessService } from "./account-access.service";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AccountAccessService, JwtStrategy, LocalStrategy],
+  providers: [
+    AuthService,
+    AccountAccessService,
+    JwtStrategy,
+    SocialAuthService,
+    IdentityService,
+    ConsentService,
+  ],
   exports: [AuthService, AccountAccessService, JwtModule],
 })
 export class AuthModule {}

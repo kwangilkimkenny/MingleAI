@@ -6,6 +6,7 @@ export default function Index() {
   const hydrated = useAuthHydrated();
   const token = useAuthStore((s) => s.token);
   if (!hydrated) return null;
-  // First entry (no session) → sign-up. Existing users reach login via the register screen's link.
-  return <Redirect href={token ? "/home" : "/register"} />;
+  // Social-only auth: unauthenticated users go to the social login screen. The (app) gate ladder
+  // then walks them through consent → permissions → identity → profile.
+  return <Redirect href={token ? "/home" : "/login"} />;
 }

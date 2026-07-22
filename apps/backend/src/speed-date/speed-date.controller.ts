@@ -1,11 +1,12 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { VerifiedGuard } from "../common/guards/verified.guard";
 import { CurrentUser, JwtPayload } from "../common/decorators/current-user.decorator";
 import { SpeedDateQueueService } from "./speed-date-queue.service";
 import { EnqueueSpeedDateDto } from "./dto/enqueue-speed-date.dto";
 
 @Controller("speed-date")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VerifiedGuard)
 export class SpeedDateController {
   constructor(private readonly queue: SpeedDateQueueService) {}
 

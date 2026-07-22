@@ -3,65 +3,75 @@ import { useEffect, useState, useCallback } from "react";
 import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "../../src/lib/client";
 import { useAuthHydrated } from "../../src/lib/use-hydrated";
-import { getMyProfile } from "@mingle/client-core";
+import { getAccountStatus, getMyProfile, nextGate, type GateStep } from "@mingle/client-core";
+import { getCameraMicStatus } from "../../src/lib/permissions";
 import { usePushRegistration } from "../../src/lib/push";
 import { StateView } from "../../src/components/Foundation";
 
-type ProfileState = "loading" | "none" | "ok" | "error";
+type Phase = "loading" | "error" | GateStep;
 
 export default function AppLayout() {
   const hydrated = useAuthHydrated();
   const token = useAuthStore((s) => s.token);
   const setAuth = useAuthStore((s) => s.setAuth);
-  const [profileState, setProfileState] = useState<ProfileState>("loading");
+  const [phase, setPhase] = useState<Phase>("loading");
 
-  const fetchProfile = useCallback(() => {
+  // Onboarding gate ladder: consent → camera/mic permission → identity → profile → ready.
+  const resolveGate = useCallback(() => {
     if (!hydrated || !token) return;
     let alive = true;
-    setProfileState("loading");
-    getMyProfile()
-      .then((p) => {
+    setPhase("loading");
+    (async () => {
+      try {
+        const [status, perms] = await Promise.all([getAccountStatus(), getCameraMicStatus()]);
         if (!alive) return;
-        if (p) {
-          setAuth({ token: token!, profileId: p.id });
-          setProfileState("ok");
-        } else {
-          setProfileState("none");
+        const gate = nextGate(status, perms);
+        if (gate === "ready") {
+          const profile = await getMyProfile();
+          if (!alive) return;
+          if (profile) setAuth({ token, profileId: profile.id });
         }
-      })
-      .catch(() => {
-        if (alive) setProfileState("error");
-      });
+        if (alive) setPhase(gate);
+      } catch {
+        if (alive) setPhase("error");
+      }
+    })();
     return () => {
       alive = false;
     };
   }, [hydrated, token, setAuth]);
 
-  useEffect(() => {
-    return fetchProfile();
-  }, [fetchProfile]);
+  useEffect(() => resolveGate(), [resolveGate]);
 
-  usePushRegistration(profileState === "ok");
+  usePushRegistration(phase === "ready");
 
   if (!hydrated) return <StateView title="계정을 확인하고 있어요" loading />;
   if (!token) return <Redirect href="/login" />;
-  if (profileState === "loading") return <StateView title="프로필을 불러오고 있어요" loading />;
-  if (profileState === "none") return <Redirect href="/onboarding" />;
-  if (profileState === "error") {
-    return <StateView title="연결에 문제가 생겼어요" body="네트워크 상태를 확인한 뒤 다시 시도해 주세요." actionLabel="다시 시도" onAction={fetchProfile} />;
+  if (phase === "loading") return <StateView title="준비 상태를 확인하고 있어요" loading />;
+  if (phase === "error") {
+    return (
+      <StateView
+        title="연결에 문제가 생겼어요"
+        body="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+        actionLabel="다시 시도"
+        onAction={resolveGate}
+      />
+    );
   }
+  if (phase === "consent") return <Redirect href="/consent" />;
+  if (phase === "permissions") return <Redirect href="/permissions" />;
+  if (phase === "identity") return <Redirect href="/verify-identity" />;
+  if (phase === "profile") return <Redirect href="/onboarding" />;
+
   return (
     <Stack
       screenOptions={{
         ...doodleHeaderOptions,
         headerShown: false,
-        // 내비게이터 기본 배경(#F2F2F2)이 전환 틈에 비치지 않게 종이색으로 고정.
         contentStyle: { backgroundColor: colors.paper },
       }}
     >
-      {/* The fixed bottom-tab surface owns its own headers */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      {/* Detail screens push OVER the tabs with a back button */}
       <Stack.Screen name="matching" options={{ title: "매칭" }} />
       <Stack.Screen name="speed-date/index" options={{ title: "블라인드 데이트" }} />
       <Stack.Screen name="speed-date/[id]" options={{ title: "블라인드 데이트" }} />

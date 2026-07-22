@@ -14,8 +14,31 @@ export type { AuthState, UserRole } from "./auth-store.js";
 
 export { apiFetch, ApiError } from "./api/client.js";
 
-export { register, login, refreshSession, logoutSession, deleteAccount } from "./api/auth.js";
-export type { AuthResponse } from "./api/auth.js";
+export {
+  getSocialProviders,
+  socialLogin,
+  devLogin,
+  getAccountStatus,
+  submitConsents,
+  startIdentityVerification,
+  completeIdentityVerification,
+  refreshSession,
+  logoutSession,
+  deleteAccount,
+} from "./api/auth.js";
+export type { AuthResponse, IdentityPayload } from "./api/auth.js";
+export {
+  REQUIRED_CONSENTS,
+  CONSENT_VERSION,
+  nextGate,
+} from "@mingle/shared";
+export type {
+  AuthProvider,
+  ConsentScope,
+  AccountStatus,
+  PermissionState,
+  GateStep,
+} from "@mingle/shared";
 
 export { getMyProfile, createProfile, updateProfile, uploadPhoto } from "./api/profiles.js";
 export type { CreateProfileInput, UpdateProfileInput, UploadPhotoFile } from "./api/profiles.js";

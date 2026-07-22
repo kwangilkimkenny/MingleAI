@@ -23,7 +23,7 @@ export class AccountAccessService {
       },
     });
     if (!user || (user.profile && user.profile.status !== "active")) return null;
-    return { userId: user.id, email: user.email, role: user.role };
+    return { userId: user.id, email: user.email ?? "", role: user.role };
   }
 
   async requireActive(userId: string): Promise<ActiveAccount> {

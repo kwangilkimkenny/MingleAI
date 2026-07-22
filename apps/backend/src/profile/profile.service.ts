@@ -31,6 +31,14 @@ export class ProfileService {
       throw new ConflictException("이미 프로필이 존재합니다");
     }
 
+    // Verified real-name identity (본인인증) is authoritative — override self-reported gender/age.
+    const verified = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { verifiedGender: true, verifiedBirth: true },
+    });
+    const gender = verified?.verifiedGender ?? dto.gender;
+    const age = verified?.verifiedBirth ? this.ageFrom(verified.verifiedBirth) : dto.age;
+
     // I2: also catch a concurrent-duplicate P2002 that races past the pre-check
     let profile: { id: string } & Record<string, any>;
     try {
@@ -38,8 +46,8 @@ export class ProfileService {
         data: {
           userId,
           name: dto.name,
-          age: dto.age,
-          gender: dto.gender,
+          age,
+          gender,
           occupation: dto.occupation,
           partyPreferenceText: dto.partyPreferenceText,
           bio: dto.bio,
@@ -56,7 +64,15 @@ export class ProfileService {
       }
       throw e;
     }
-    return this.runAnalysis(profile, dto);
+    return this.runAnalysis(profile, { ...dto, gender, age });
+  }
+
+  private ageFrom(birth: Date): number {
+    const now = new Date();
+    let age = now.getFullYear() - birth.getFullYear();
+    const m = now.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+    return Math.max(0, age);
   }
 
   private async runAnalysis(

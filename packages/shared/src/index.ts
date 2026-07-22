@@ -92,6 +92,19 @@ export type {
   SpeedDateQueueStatus,
   SpeedDateStatus,
 } from "./types/speed-date.js";
+export {
+  REQUIRED_CONSENTS,
+  CONSENT_VERSION,
+  nextGate,
+} from "./auth/gate.js";
+export type {
+  AuthProvider,
+  ConsentScope,
+  AccountStatus,
+  PermissionState,
+  GateStep,
+} from "./auth/gate.js";
+
 export { buildRotationSchedule } from "./speed-date/schedule.js";
 export { stageReveal, projectPartner } from "./speed-date/projection.js";
 export type { PartnerIdentity } from "./speed-date/projection.js";

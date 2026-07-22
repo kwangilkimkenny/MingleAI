@@ -1,3 +1,4 @@
+import type { AccountStatus, ConsentScope } from "@mingle/shared";
 import { apiFetch, ApiError } from "./client.js";
 import { getClientConfig } from "../config.js";
 
@@ -8,17 +9,56 @@ export interface AuthResponse {
   role?: "user" | "admin" | "super_admin";
 }
 
-export function register(email: string, password: string): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>("/auth/register", {
+export interface IdentityPayload {
+  name: string;
+  birth: string; // YYYY-MM-DD
+  gender: "male" | "female";
+  phone: string;
+}
+
+/** Which social providers are usable (keys configured server-side) — used to show buttons. */
+export function getSocialProviders(): Promise<{ providers: string[] }> {
+  return apiFetch<{ providers: string[] }>("/auth/social/providers");
+}
+
+/** Exchange a provider authorization code for a session. */
+export function socialLogin(
+  provider: "kakao" | "naver" | "google",
+  code: string,
+  redirectUri: string,
+  codeVerifier?: string,
+): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>("/auth/social", {
     method: "POST",
-    body: JSON.stringify({ email, password, legalAccepted: true }),
+    body: JSON.stringify({ provider, code, redirectUri, codeVerifier }),
   });
 }
 
-export function login(email: string, password: string): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>("/auth/login", {
+/** Dev/CI/admin login (server rejects with 404 unless DEV_AUTH_ENABLED). */
+export function devLogin(email: string, role?: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>("/auth/dev-login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+/** Onboarding gate status (consents, phone verification, profile). */
+export function getAccountStatus(): Promise<AccountStatus> {
+  return apiFetch<AccountStatus>("/auth/account-status");
+}
+
+export function submitConsents(scopes: ConsentScope[]): Promise<void> {
+  return apiFetch<void>("/auth/consent", { method: "POST", body: JSON.stringify({ scopes }) });
+}
+
+export function startIdentityVerification(): Promise<{ mode: "dev" | "redirect"; redirectUrl?: string }> {
+  return apiFetch("/auth/identity/start", { method: "POST" });
+}
+
+export function completeIdentityVerification(payload: IdentityPayload): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>("/auth/identity/complete", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 
@@ -44,9 +84,10 @@ export function logoutSession(refreshToken: string): Promise<void> {
   });
 }
 
-export function deleteAccount(password: string): Promise<void> {
+/** Social-only accounts have no password — only the typed confirmation is required. */
+export function deleteAccount(): Promise<void> {
   return apiFetch<void>("/auth/account", {
     method: "DELETE",
-    body: JSON.stringify({ password, confirmation: "DELETE" }),
+    body: JSON.stringify({ confirmation: "DELETE" }),
   });
 }

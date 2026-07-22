@@ -1,11 +1,7 @@
-import { IsIn, IsString, MaxLength, MinLength } from "class-validator";
+import { IsIn } from "class-validator";
 
 export class DeleteAccountDto {
-  @IsString()
-  @MinLength(1)
-  @MaxLength(256)
-  password!: string;
-
+  // Social-only accounts have no password; a valid session + typed confirmation authorizes deletion.
   @IsIn(["DELETE"])
   confirmation!: "DELETE";
 }

@@ -35,6 +35,7 @@ describe("ProfileService (v2 shape)", () => {
         findUnique: jest.fn().mockResolvedValue(null),
         update: jest.fn().mockResolvedValue({ ...created, preferenceSignals: stubSignals }),
       },
+      user: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -72,6 +73,7 @@ describe("ProfileService", () => {
       create: jest.Mock;
       update: jest.Mock;
     };
+    user: { findUnique: jest.Mock };
   };
 
   beforeEach(async () => {
@@ -82,6 +84,7 @@ describe("ProfileService", () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      user: { findUnique: jest.fn().mockResolvedValue(null) },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -269,6 +272,7 @@ describe("ProfileService (analyzer integration)", () => {
         create: jest.fn().mockResolvedValue(created),
         update: jest.fn().mockImplementation(({ data }) => ({ ...created, ...data })),
       },
+      user: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     return { service: new ProfileService(prisma as any, analyzer), prisma };
   }

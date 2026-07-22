@@ -9,10 +9,19 @@ datasource db {
 
 model User {
   id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
+  email        String?  @unique // 소셜 전용 전환: 이메일은 선택(제공 안 하거나 충돌 시 null)
+  passwordHash String?  @map("password_hash") // 레거시(email/pw 제거) — 소셜/dev 계정은 null
   role         String   @default("user") // "user" | "admin" | "super_admin"
   pushEnabled  Boolean  @default(true) @map("push_enabled")
+  authProvider String   @default("local") @map("auth_provider") // kakao | naver | google | dev | local
+  providerId   String?  @map("provider_id") // provider 고유 유저 id
+  phoneNumber  String?  @map("phone_number")
+  phoneVerifiedAt DateTime? @map("phone_verified_at")
+  identityCi   String?  @unique @map("identity_ci") // 본인인증 연계정보(CI) — 1인 1계정 중복가입 방지
+  identityDi   String?  @map("identity_di")
+  verifiedName   String?   @map("verified_name")
+  verifiedBirth  DateTime? @map("verified_birth")
+  verifiedGender String?   @map("verified_gender")
   termsAcceptedAt DateTime? @map("terms_accepted_at")
   termsVersion    String?   @map("terms_version")
   privacyVersion  String?   @map("privacy_version")
@@ -23,8 +32,24 @@ model User {
   notifications Notification[]
   deviceTokens  DeviceToken[]
   refreshTokens RefreshToken[]
+  consentGrants ConsentGrant[]
 
+  @@unique([authProvider, providerId])
   @@map("users")
+}
+
+/// Granular consent record — one row per (user, scope), version-stamped. Re-consent updates in place.
+model ConsentGrant {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  scope     String // terms | privacy | age19
+  version   String
+  grantedAt DateTime @default(now()) @map("granted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scope])
+  @@map("consent_grants")
 }
 
 model Profile {

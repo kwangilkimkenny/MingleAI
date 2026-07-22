@@ -36,5 +36,11 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
   }
   for (const origin of origins) httpOrigin.parse(origin);
 
+  // Dev-only auth bypasses must never be enabled in production.
+  if (common.DEV_AUTH_ENABLED === "true")
+    throw new Error("DEV_AUTH_ENABLED must not be true in production");
+  if (common.IDENTITY_DEV_BYPASS === "true")
+    throw new Error("IDENTITY_DEV_BYPASS must not be true in production");
+
   return common;
 }

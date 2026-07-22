@@ -1,5 +1,6 @@
 import { Controller, Post, Delete, Get, HttpCode, HttpStatus, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { VerifiedGuard } from "../common/guards/verified.guard";
 import {
   CurrentUser,
   JwtPayload,
@@ -7,7 +8,7 @@ import {
 import { MatchmakingService } from "./matchmaking.service";
 
 @Controller("matchmaking")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VerifiedGuard)
 export class MatchmakingController {
   constructor(private readonly matchmaking: MatchmakingService) {}
 

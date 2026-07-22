@@ -1,101 +1,66 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { JwtService } from "@nestjs/jwt";
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import { AuthService } from "./auth.service";
-import { PrismaService } from "../prisma/prisma.service";
-import { AccountAccessService } from "./account-access.service";
-import * as bcrypt from "bcrypt";
 
-jest.mock("bcrypt");
+function makeService(prisma: any) {
+  const jwt = { sign: jest.fn().mockReturnValue("access-token") } as any;
+  const accountAccess = { requireActive: jest.fn().mockResolvedValue({ userId: "u1" }) } as any;
+  return new AuthService(prisma, jwt, accountAccess);
+}
 
-describe("AuthService", () => {
-  let service: AuthService;
-  let prisma: {
-    user: { findUnique: jest.Mock; create: jest.Mock };
-    refreshToken: { create: jest.Mock };
-  };
-  let jwt: { sign: jest.Mock };
-
-  beforeEach(async () => {
-    prisma = {
+describe("AuthService.devLogin", () => {
+  it("creates a dev user when none exists and issues a session", async () => {
+    const prisma = {
       user: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: "u1", email: "dev@test.com", role: "user" }),
       },
       refreshToken: { create: jest.fn().mockResolvedValue({}) },
+    } as any;
+    const res = await makeService(prisma).devLogin("Dev@Test.com");
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ email: "dev@test.com", authProvider: "dev", role: "user" }),
+    });
+    expect(res).toEqual(
+      expect.objectContaining({ accessToken: "access-token", refreshToken: expect.any(String), role: "user" }),
+    );
+  });
+
+  it("reuses an existing user and upgrades role when requested", async () => {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ id: "u1", email: "a@test.com", role: "user" }),
+        update: jest.fn().mockResolvedValue({ id: "u1", email: "a@test.com", role: "admin" }),
+      },
+      refreshToken: { create: jest.fn().mockResolvedValue({}) },
+    } as any;
+    await makeService(prisma).devLogin("a@test.com", "admin");
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "u1" }, data: { role: "admin" } });
+  });
+});
+
+describe("AuthService.deleteAccount", () => {
+  it("deletes without a password (social accounts have none)", async () => {
+    const tx = {
+      directMessage: { deleteMany: jest.fn() },
+      safetyRiskContribution: { deleteMany: jest.fn() },
+      safetyReport: { deleteMany: jest.fn() },
+      block: { deleteMany: jest.fn() },
+      proposal: { deleteMany: jest.fn() },
+      partyMessage: { deleteMany: jest.fn() },
+      partyParticipant: { deleteMany: jest.fn() },
+      matchmakingQueueEntry: { deleteMany: jest.fn() },
+      speedDateQueueEntry: { deleteMany: jest.fn() },
+      match: { deleteMany: jest.fn() },
+      profile: { delete: jest.fn() },
+      notification: { deleteMany: jest.fn() },
+      user: { delete: jest.fn() },
     };
-    jwt = { sign: jest.fn().mockReturnValue("mock-token") };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        { provide: PrismaService, useValue: prisma },
-        { provide: JwtService, useValue: jwt },
-        {
-          provide: AccountAccessService,
-          useValue: { requireActive: jest.fn().mockResolvedValue({ userId: "user-1" }) },
-        },
-      ],
-    }).compile();
-
-    service = module.get<AuthService>(AuthService);
-  });
-
-  describe("register", () => {
-    it("should create a new user and return access token", async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue({ id: "user-1", email: "test@test.com", role: "user" });
-      (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-pw");
-
-      const result = await service.register("test@test.com", "password123");
-
-      expect(prisma.user.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          email: "test@test.com",
-          passwordHash: "hashed-pw",
-          termsVersion: "2026-07-22",
-          privacyVersion: "2026-07-22",
-        }),
-      });
-      expect(result).toEqual(expect.objectContaining({
-        accessToken: "mock-token",
-        refreshToken: expect.any(String),
-        expiresIn: 3600,
-        role: "user",
-      }));
-    });
-
-    it("should throw ConflictException if email already exists", async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: "existing" });
-
-      await expect(service.register("test@test.com", "password123")).rejects.toThrow(
-        ConflictException,
-      );
-    });
-  });
-
-  describe("login", () => {
-    it("should return access token for valid credentials", async () => {
-      prisma.user.findUnique.mockResolvedValue({
-        id: "user-1",
-        email: "test@test.com",
-        passwordHash: "hashed",
-        role: "user",
-        profile: { status: "active" },
-      });
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-
-      const result = await service.login("test@test.com", "password123");
-
-      expect(result).toEqual(expect.objectContaining({ accessToken: "mock-token", role: "user" }));
-    });
-
-    it("should throw UnauthorizedException for invalid credentials", async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
-
-      await expect(service.login("test@test.com", "wrong")).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({ id: "u1", profile: { id: "p1", photoUrl: null } }) },
+      $transaction: jest.fn(async (fn: any) => fn(tx)),
+    } as any;
+    await makeService(prisma).deleteAccount("u1");
+    expect(tx.profile.delete).toHaveBeenCalledWith({ where: { id: "p1" } });
+    expect(tx.user.delete).toHaveBeenCalledWith({ where: { id: "u1" } });
+    expect(tx.speedDateQueueEntry.deleteMany).toHaveBeenCalled();
   });
 });
