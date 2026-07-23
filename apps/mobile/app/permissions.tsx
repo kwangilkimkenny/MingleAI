@@ -10,16 +10,25 @@ import { colors, layout, space, type } from "../src/lib/theme";
 export default function Permissions() {
   const [busy, setBusy] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const [missing, setMissing] = useState<string | null>(null);
 
   async function onRequest() {
     setBusy(true);
-    const state = await requestCameraMic();
-    if (state.camera && state.microphone) {
-      router.replace("/home");
-      return;
+    setMissing(null);
+    try {
+      const state = await requestCameraMic();
+      if (state.camera && state.microphone) {
+        router.replace("/home");
+        return;
+      }
+      const need = [!state.camera && "카메라", !state.microphone && "마이크"].filter(Boolean);
+      setMissing(need.length ? `${need.join("·")} 권한이 아직 허용되지 않았어요.` : null);
+      setBlocked(await isPermanentlyDenied());
+    } catch {
+      setBlocked(true);
+    } finally {
+      setBusy(false);
     }
-    setBlocked(await isPermanentlyDenied());
-    setBusy(false);
   }
 
   return (
@@ -45,12 +54,15 @@ export default function Permissions() {
             <DoodleButton title="다시 확인" onPress={onRequest} />
           </>
         ) : (
-          <DoodleButton
-            title={busy ? "요청 중…" : "권한 허용하기"}
-            onPress={onRequest}
-            disabled={busy}
-            variant="primary"
-          />
+          <>
+            {missing ? <InlineNotice tone="error">{missing}</InlineNotice> : null}
+            <DoodleButton
+              title={busy ? "요청 중…" : "권한 허용하기"}
+              onPress={onRequest}
+              disabled={busy}
+              variant="primary"
+            />
+          </>
         )}
         <Text style={styles.note}>권한 없이는 서비스를 이용할 수 없어요.</Text>
       </ContentColumn>
