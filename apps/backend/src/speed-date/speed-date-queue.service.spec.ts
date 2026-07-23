@@ -29,41 +29,36 @@ function makePrisma(over: { profile?: any; activeSessions?: any[]; waiting?: any
 }
 
 describe("SpeedDateQueueService.enqueue", () => {
-  it("requires explicit consent", async () => {
-    await expect(new SpeedDateQueueService(makePrisma()).enqueue("u1", false)).rejects.toThrow(
-      BadRequestException,
-    );
-  });
 
   it("requires preference analysis", async () => {
     const prisma = makePrisma({ profile: { ...baseProfile, preferenceSignals: null } });
-    await expect(new SpeedDateQueueService(prisma).enqueue("u1", true)).rejects.toThrow(BadRequestException);
+    await expect(new SpeedDateQueueService(prisma).enqueue("u1")).rejects.toThrow(BadRequestException);
   });
 
   it("blocks under-19 users", async () => {
     const prisma = makePrisma({ profile: { ...baseProfile, age: 18 } });
-    await expect(new SpeedDateQueueService(prisma).enqueue("u1", true)).rejects.toThrow(ForbiddenException);
+    await expect(new SpeedDateQueueService(prisma).enqueue("u1")).rejects.toThrow(ForbiddenException);
   });
 
   it("rejects ineligible gender for the v1 hetero 3x3 mode", async () => {
     const prisma = makePrisma({ profile: { ...baseProfile, gender: "nonbinary" } });
-    await expect(new SpeedDateQueueService(prisma).enqueue("u1", true)).rejects.toThrow(BadRequestException);
+    await expect(new SpeedDateQueueService(prisma).enqueue("u1")).rejects.toThrow(BadRequestException);
   });
 
   it("conflicts when already in an active session", async () => {
     const prisma = makePrisma({ activeSessions: [{ id: "s1", state: { participants: [{ profileId: "p1" }] } }] });
-    await expect(new SpeedDateQueueService(prisma).enqueue("u1", true)).rejects.toThrow(ConflictException);
+    await expect(new SpeedDateQueueService(prisma).enqueue("u1")).rejects.toThrow(ConflictException);
   });
 
   it("creates a waiting entry for an eligible profile", async () => {
     const prisma = makePrisma();
-    await expect(new SpeedDateQueueService(prisma).enqueue("u1", true)).resolves.toEqual({ status: "waiting" });
+    await expect(new SpeedDateQueueService(prisma).enqueue("u1")).resolves.toEqual({ status: "waiting" });
     expect(prisma._tx.speedDateQueueEntry.create).toHaveBeenCalled();
   });
 
   it("is idempotent when a waiting entry already exists", async () => {
     const prisma = makePrisma({ waiting: { id: "e0" } });
-    await new SpeedDateQueueService(prisma).enqueue("u1", true);
+    await new SpeedDateQueueService(prisma).enqueue("u1");
     expect(prisma._tx.speedDateQueueEntry.create).not.toHaveBeenCalled();
   });
 });

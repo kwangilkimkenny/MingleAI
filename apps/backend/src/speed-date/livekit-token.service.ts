@@ -26,7 +26,13 @@ export class LivekitTokenService {
   // Typed `any`/non-literal import: `livekit-server-sdk` is ESM-only AND may not be installed in
   // dev-without-media setups. A non-literal specifier keeps tsc from statically resolving it, so
   // the backend compiles either way; at runtime the real SDK loads once installed.
-  private sdk: { AccessToken: new (k: string, s: string, o: unknown) => AccessTokenLike } | null | undefined;
+  private sdk:
+    | {
+        AccessToken: new (k: string, s: string, o: unknown) => AccessTokenLike;
+        TrackSource: Record<string, number>;
+      }
+    | null
+    | undefined;
 
   constructor(private readonly configProvider: SpeedDateConfigProvider) {}
 
@@ -74,8 +80,11 @@ export class LivekitTokenService {
       canPublish: true,
       canSubscribe: true,
       canPublishData: true,
-      // Server-enforced media boundary: camera is only publishable at the FACE stage.
-      canPublishSources: opts.canPublishVideo ? ["camera", "microphone"] : ["microphone"],
+      // Server-enforced media boundary: camera is only publishable at the FACE stage. Must use the
+      // SDK's TrackSource enum values, not string literals (toJwt() rejects raw strings).
+      canPublishSources: opts.canPublishVideo
+        ? [sdk.TrackSource.CAMERA, sdk.TrackSource.MICROPHONE]
+        : [sdk.TrackSource.MICROPHONE],
     });
     return { url, token: await at.toJwt() };
   }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ShieldCheck, Mic, Video } from "lucide-react-native";
+import { Mic, Video } from "lucide-react-native";
 import {
   enqueueSpeedDate,
   cancelSpeedDate,
@@ -74,12 +74,12 @@ export default function SpeedDateMatching() {
     }
   }
 
-  async function onConsent() {
+  async function onStart() {
     setPhase("joining");
     setError(null);
     startedAt.current = Date.now();
     try {
-      await enqueueSpeedDate(true);
+      await enqueueSpeedDate();
       if (!alive.current) return;
       setPhase("waiting");
       poll();
@@ -144,24 +144,13 @@ export default function SpeedDateMatching() {
               <Step icon={<Video color={colors.ink} size={18} />} title="3. 얼굴 공개" body="카메라가 켜지고 마지막 대화를 나눠요." />
             </DoodleCard>
 
-            <DoodleCard contentStyle={styles.consentCard}>
-              <View style={styles.consentHead}>
-                <ShieldCheck color={colors.success} size={20} />
-                <Text style={styles.consentTitle}>참여 전 동의</Text>
-              </View>
-              <Text style={styles.consentBody}>
-                만 19세 이상이며, 마지막 단계에서 내 얼굴이 상대에게 공개되는 것에 동의해요.
-                언제든 나갈 수 있고, 통화는 저장되지 않아요. 선택은 비공개이며 서로 선택한 경우에만
-                채팅이 열려요.
-              </Text>
-              <View style={styles.chips}>
-                <DoodleChip label="19세 이상" tiny />
-                <DoodleChip label="녹화 없음" tiny />
-                <DoodleChip label="비공개 선택" tiny />
-              </View>
-            </DoodleCard>
+            <View style={styles.chips}>
+              <DoodleChip label="녹화 없음" tiny />
+              <DoodleChip label="비공개 선택" tiny />
+            </View>
 
-            <DoodleButton title="동의하고 시작" onPress={onConsent} variant="primary" />
+            <DoodleButton title="시작하기" onPress={onStart} variant="primary" />
+            <Text style={styles.footnote}>통화는 저장되지 않고, 선택은 비공개예요.</Text>
           </>
         ) : null}
 
@@ -242,5 +231,6 @@ const styles = StyleSheet.create({
   consentHead: { flexDirection: "row", alignItems: "center", gap: space.x2 },
   consentTitle: { ...type.heading, color: colors.ink },
   consentBody: { ...type.body, color: colors.grayDark },
-  chips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap" },
+  chips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
+  footnote: { ...type.caption, color: colors.grayDark, textAlign: "center" },
 });

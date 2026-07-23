@@ -16,9 +16,8 @@ const MIN_AGE = 19;
 export class SpeedDateQueueService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async enqueue(userId: string, consent: boolean): Promise<{ status: "waiting" }> {
-    if (consent !== true)
-      throw new BadRequestException("블라인드 데이트 참여에 동의해야 합니다");
+  async enqueue(userId: string): Promise<{ status: "waiting" }> {
+    // Consent is captured at signup (the onboarding gate) — no per-session consent required.
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     if (!profile) throw new NotFoundException("프로필이 없습니다");
     if (!profile.preferenceSignals) throw new BadRequestException("선호 분석이 필요합니다");

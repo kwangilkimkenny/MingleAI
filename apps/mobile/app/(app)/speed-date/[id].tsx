@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Mic, MicOff, Video, VideoOff, Heart } from "lucide-react-native";
+import { Mic, MicOff, Video, VideoOff } from "lucide-react-native";
 import type { SpeedDateSnapshot, SpeedDateStage, PartnerView } from "@mingle/client-core";
 import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
-import { BackButton } from "../../../src/components/BackButton";
 import { SpeedDateAvatar } from "../../../src/components/speed-date/SpeedDateAvatar";
 import { openSpeedDateSocket } from "../../../src/lib/speed-date-socket";
 import { useSpeedDateMedia } from "../../../src/lib/speed-date-media";
+import { VideoView } from "../../../src/components/speed-date/VideoView";
 import { useAuthStore } from "../../../src/lib/client";
 import { hapticSelect } from "../../../src/lib/haptics";
 import { colors, layout, space, type } from "../../../src/lib/theme";
@@ -24,6 +24,8 @@ const STAGE_HINT: Record<SpeedDateStage, string> = {
   VOICE: "이제 진짜 목소리가 들려요. 얼굴은 아직 가림.",
   FACE: "카메라가 켜지고 얼굴이 공개돼요.",
 };
+
+type Insets = ReturnType<typeof useSafeAreaInsets>;
 
 function genderLabel(g: string): string {
   return g === "male" ? "남성" : g === "female" ? "여성" : g;
@@ -72,10 +74,14 @@ export default function SpeedDateSession() {
 
   const chosen = useMemo(() => new Set(snapshot?.myChoices ?? []), [snapshot?.myChoices]);
 
-  function toggleChoice(targetId: string) {
-    if (!id) return;
+  // Final decision is single-pick: choosing one target clears any previous pick.
+  function pickOne(targetId: string) {
+    const socket = socketRef.current;
+    if (!socket || !id) return;
     hapticSelect();
-    socketRef.current?.choose(id, targetId, !chosen.has(targetId));
+    const wasSelected = chosen.has(targetId);
+    for (const cid of chosen) if (cid !== targetId) socket.choose(id, cid, false);
+    socket.choose(id, targetId, !wasSelected);
   }
 
   if (notFound) {
@@ -99,6 +105,30 @@ export default function SpeedDateSession() {
     );
   }
 
+  // Round = full-bleed video call. No header/back button — you can't leave mid-session.
+  if (snapshot.phase === "round" && snapshot.partner && snapshot.stage) {
+    return (
+      <View style={styles.fullScreen}>
+        <RoundView
+          stage={snapshot.stage}
+          partner={snapshot.partner}
+          roundIndex={snapshot.roundIndex}
+          roundCount={snapshot.roundCount}
+          seconds={remainSec}
+          hasRemoteVideo={media.hasRemoteVideo}
+          remoteTrack={media.remoteVideoTrack}
+          insets={insets}
+        />
+        {media.localVideoTrack ? (
+          <View style={[styles.selfView, { bottom: insets.bottom + 120 }]}>
+            <VideoView track={media.localVideoTrack} mirror />
+            <Text style={styles.selfLabel}>나</Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <Screen insets={insets}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -110,25 +140,12 @@ export default function SpeedDateSession() {
           <Waiting title="다음 상대와 연결 중…" sub="잠시만 기다려 주세요." seconds={remainSec} />
         ) : null}
 
-        {snapshot.phase === "round" && snapshot.partner && snapshot.stage ? (
-          <RoundView
-            stage={snapshot.stage}
-            partner={snapshot.partner}
-            roundIndex={snapshot.roundIndex}
-            roundCount={snapshot.roundCount}
-            seconds={remainSec}
-            chosen={chosen.has(snapshot.partner.profileId)}
-            hasRemoteVideo={media.hasRemoteVideo}
-            onToggle={() => snapshot.partner && toggleChoice(snapshot.partner.profileId)}
-          />
-        ) : null}
-
         {snapshot.phase === "decision" ? (
           <DecisionView
             partners={snapshot.metPartners}
             chosen={chosen}
             seconds={remainSec}
-            onToggle={toggleChoice}
+            onPick={pickOne}
           />
         ) : null}
 
@@ -138,17 +155,8 @@ export default function SpeedDateSession() {
   );
 }
 
-function Screen({ insets, children }: { insets: ReturnType<typeof useSafeAreaInsets>; children: React.ReactNode }) {
-  return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
-        <BackButton />
-        <Text style={styles.brand}>블라인드 데이트</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      {children}
-    </View>
-  );
+function Screen({ insets, children }: { insets: Insets; children: React.ReactNode }) {
+  return <View style={[styles.screen, { paddingTop: insets.top }]}>{children}</View>;
 }
 
 function Waiting({ title, sub, seconds }: { title: string; sub: string; seconds: number }) {
@@ -168,67 +176,68 @@ function RoundView({
   roundIndex,
   roundCount,
   seconds,
-  chosen,
   hasRemoteVideo,
-  onToggle,
+  remoteTrack,
+  insets,
 }: {
   stage: SpeedDateStage;
   partner: PartnerView;
   roundIndex: number;
   roundCount: number;
   seconds: number;
-  chosen: boolean;
   hasRemoteVideo: boolean;
-  onToggle: () => void;
+  remoteTrack: unknown | null;
+  insets: Insets;
 }) {
   return (
-    <View style={styles.roundWrap}>
-      <View style={styles.stageRow}>
+    <View style={styles.stageFull}>
+      {hasRemoteVideo ? (
+        <View style={StyleSheet.absoluteFill}>
+          <VideoView track={remoteTrack} />
+        </View>
+      ) : (
+        <View style={[StyleSheet.absoluteFill, styles.avatarStage]}>
+          <SpeedDateAvatar avatarId={partner.avatarId} size={220} />
+        </View>
+      )}
+
+      {/* Top overlay: stage · round · timer */}
+      <View style={[styles.topOverlay, { paddingTop: insets.top + space.x2 }]}>
         <DoodleChip label={STAGE_LABEL[stage]} />
-        <Text style={styles.roundMeta}>
-          라운드 {roundIndex + 1}/{roundCount}
-        </Text>
-        <Text style={styles.timer}>{seconds}s</Text>
+        <View style={styles.topRight}>
+          <Text style={styles.overlayMeta}>
+            라운드 {roundIndex + 1}/{roundCount}
+          </Text>
+          <View style={styles.timerPill}>
+            <Text style={styles.timerPillText}>{seconds}s</Text>
+          </View>
+        </View>
       </View>
 
-      <DoodleCard style={styles.partnerCard} contentStyle={styles.partnerInner}>
-        {hasRemoteVideo ? (
-          <View style={styles.videoBox}>
-            <Text style={styles.sub}>영상 연결됨</Text>
-          </View>
-        ) : (
-          <SpeedDateAvatar avatarId={partner.avatarId} size={140} />
-        )}
-        <Text style={styles.nickname}>{partner.nickname}</Text>
+      {/* Bottom overlay: nickname · badges · stage hint */}
+      <View style={[styles.bottomOverlay, { paddingBottom: insets.bottom + space.x4 }]}>
+        <Text style={styles.overlayNick}>{partner.nickname}</Text>
         <View style={styles.badgeRow}>
           <DoodleChip label={genderLabel(partner.gender)} tiny />
           <View style={styles.badge}>
             {partner.voiceMod ? (
-              <MicOff color={colors.grayDark} size={14} />
+              <MicOff color={colors.paper} size={14} />
             ) : (
-              <Mic color={colors.grayDark} size={14} />
+              <Mic color={colors.paper} size={14} />
             )}
-            <Text style={styles.badgeText}>{partner.voiceMod ? "음성 변조" : "실제 목소리"}</Text>
+            <Text style={styles.overlayBadgeText}>{partner.voiceMod ? "음성 변조" : "실제 목소리"}</Text>
           </View>
           <View style={styles.badge}>
             {partner.video ? (
-              <Video color={colors.grayDark} size={14} />
+              <Video color={colors.paper} size={14} />
             ) : (
-              <VideoOff color={colors.grayDark} size={14} />
+              <VideoOff color={colors.paper} size={14} />
             )}
-            <Text style={styles.badgeText}>{partner.video ? "얼굴 공개" : "얼굴 가림"}</Text>
+            <Text style={styles.overlayBadgeText}>{partner.video ? "얼굴 공개" : "얼굴 가림"}</Text>
           </View>
         </View>
-        <Text style={styles.hint}>{STAGE_HINT[stage]}</Text>
-      </DoodleCard>
-
-      <DoodleButton
-        title={chosen ? "다시 대화하고 싶어요 ✓" : "다시 대화하고 싶어요"}
-        onPress={onToggle}
-        variant={chosen ? "primary" : "secondary"}
-        icon={(color, size) => <Heart color={color} size={size} strokeWidth={2} />}
-      />
-      <Text style={styles.privacy}>선택은 비공개예요. 서로 선택했을 때만 채팅이 열려요.</Text>
+        <Text style={styles.overlayHint}>{STAGE_HINT[stage]}</Text>
+      </View>
     </View>
   );
 }
@@ -237,17 +246,19 @@ function DecisionView({
   partners,
   chosen,
   seconds,
-  onToggle,
+  onPick,
 }: {
   partners: PartnerView[];
   chosen: Set<string>;
   seconds: number;
-  onToggle: (id: string) => void;
+  onPick: (id: string) => void;
 }) {
   return (
     <View style={styles.roundWrap}>
-      <Text style={styles.title}>계속 대화하고 싶은 상대는?</Text>
-      <Text style={styles.sub}>시간이 끝나면 지금 선택이 제출돼요. 선택은 비공개예요.</Text>
+      <Text style={styles.title}>가장 마음에 든 한 명은?</Text>
+      <Text style={styles.sub}>
+        한 명만 고를 수 있어요. 시간이 끝나면 지금 선택이 제출돼요. 선택은 비공개예요.
+      </Text>
       <Text style={styles.timer}>{seconds}s</Text>
       <View style={styles.grid}>
         {partners.map((p) => {
@@ -264,7 +275,7 @@ function DecisionView({
               </Text>
               <DoodleButton
                 title={on ? "선택됨 ✓" : "선택"}
-                onPress={() => onToggle(p.profileId)}
+                onPress={() => onPick(p.profileId)}
                 variant={on ? "primary" : "secondary"}
               />
             </DoodleCard>
@@ -307,14 +318,9 @@ function ResultView({ result }: { result: SpeedDateSnapshot["result"] }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: layout.screenGutter,
-    paddingVertical: space.x2,
-  },
-  brand: { ...type.heading, color: colors.ink },
+  fullScreen: { flex: 1, backgroundColor: "#000" },
+  stageFull: { flex: 1, backgroundColor: "#000" },
+  avatarStage: { alignItems: "center", justifyContent: "center", backgroundColor: colors.ink },
   content: {
     flexGrow: 1,
     padding: layout.screenGutter,
@@ -325,27 +331,65 @@ const styles = StyleSheet.create({
   },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.x3, padding: space.x6 },
   roundWrap: { gap: space.x4, alignItems: "stretch" },
-  stageRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  roundMeta: { ...type.label, color: colors.grayDark },
-  timer: { ...type.title, color: colors.accent },
-  partnerCard: { width: "100%" },
-  partnerInner: { alignItems: "center", gap: space.x3, paddingVertical: space.x4 },
-  videoBox: {
-    width: 180,
-    height: 180,
-    borderRadius: 16,
-    backgroundColor: colors.fillDeep,
+  // Full-bleed round overlays
+  topOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    gap: space.x2,
+    paddingHorizontal: layout.screenGutter,
+    paddingBottom: space.x3,
+    backgroundColor: "rgba(20,17,15,0.45)",
+  },
+  topRight: { flexDirection: "row", alignItems: "center", gap: space.x2 },
+  overlayMeta: { ...type.label, color: colors.paper },
+  timerPill: {
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: space.x3,
+    paddingVertical: 4,
+  },
+  timerPillText: { ...type.label, color: colors.onAccent },
+  bottomOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    gap: space.x2,
+    paddingHorizontal: layout.screenGutter,
+    paddingTop: space.x4,
+    backgroundColor: "rgba(20,17,15,0.45)",
+  },
+  overlayNick: { ...type.title, color: colors.paper },
+  overlayBadgeText: { ...type.caption, color: colors.paper },
+  overlayHint: { ...type.caption, color: colors.paper, textAlign: "center", opacity: 0.85 },
+  selfView: {
+    position: "absolute",
+    right: 16,
+    width: 104,
+    height: 140,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#000",
     borderWidth: 2,
-    borderColor: colors.ink,
+    borderColor: colors.paper,
+  },
+  selfLabel: {
+    position: "absolute",
+    bottom: 4,
+    left: 6,
+    ...type.caption,
+    color: colors.paper,
   },
   nickname: { ...type.title, color: colors.ink },
   badgeRow: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
   badge: { flexDirection: "row", alignItems: "center", gap: 4 },
-  badgeText: { ...type.caption, color: colors.grayDark },
-  hint: { ...type.caption, color: colors.grayDark, textAlign: "center" },
-  privacy: { ...type.caption, color: colors.grayDark, textAlign: "center" },
+  timer: { ...type.title, color: colors.accent },
   title: { ...type.title, color: colors.ink, textAlign: "center" },
   sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
   msg: { ...type.heading, color: colors.ink, textAlign: "center" },

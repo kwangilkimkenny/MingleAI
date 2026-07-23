@@ -1,12 +1,10 @@
 import type { SpeedDateStatus } from "@mingle/shared";
 import { apiFetch } from "./client.js";
 
-/** Join the blind speed-date queue. `consent` must be an explicit user acknowledgement. */
-export function enqueueSpeedDate(consent: boolean): Promise<{ status: "waiting" }> {
-  return apiFetch<{ status: "waiting" }>("/speed-date/queue", {
-    method: "POST",
-    body: JSON.stringify({ consent }),
-  });
+/** Join the blind speed-date queue. Consent is captured at signup (the onboarding gate), so no
+ *  per-session consent is needed here. */
+export function enqueueSpeedDate(): Promise<{ status: "waiting" }> {
+  return apiFetch<{ status: "waiting" }>("/speed-date/queue", { method: "POST" });
 }
 
 export function cancelSpeedDate(): Promise<void> {

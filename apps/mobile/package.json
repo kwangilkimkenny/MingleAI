@@ -26,6 +26,7 @@
     "expo-status-bar": "~56.0.4",
     "expo-symbols": "~56.0.6",
     "expo-web-browser": "~56.0.5",
+    "livekit-client": "^2.20.2",
     "lucide-react-native": "^1.24.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
