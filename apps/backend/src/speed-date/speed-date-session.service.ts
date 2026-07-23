@@ -115,26 +115,47 @@ export class SpeedDateSessionService {
     targetId: string,
     on: boolean,
   ): Promise<SpeedDateState | null> {
-    const row = await this.prisma.speedDateSession.findFirst({
-      where: { id: sessionId, status: "active" },
-    });
-    if (!row) return null;
-    const state = row.state as unknown as SpeedDateState;
-    if (state.phase === "ended") return null;
-    if (!state.participants.some((p) => p.profileId === chooserId)) return null;
-    if (!state.participants.some((p) => p.profileId === targetId)) return null;
-    if (!isOppositeGender(state, chooserId, targetId)) return null;
+    // The whole session lives in one `state` JSON, so a plain read-modify-write loses updates
+    // when choices race — which they do constantly: 6 people picking in the decision window, and
+    // the single-pick UI firing choose(prev,off)+choose(new,on) back-to-back. Serialize the RMW in
+    // a Serializable tx with P2034 retry so concurrent choices are applied one-on-top-of-another.
+    const MAX_ATTEMPTS = 6;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const row = await tx.speedDateSession.findFirst({
+              where: { id: sessionId, status: "active" },
+            });
+            if (!row) return null;
+            const state = row.state as unknown as SpeedDateState;
+            if (state.phase === "ended") return null;
+            if (!state.participants.some((p) => p.profileId === chooserId)) return null;
+            if (!state.participants.some((p) => p.profileId === targetId)) return null;
+            if (!isOppositeGender(state, chooserId, targetId)) return null;
 
-    const current = new Set(state.choices[chooserId] ?? []);
-    if (on) current.add(targetId);
-    else current.delete(targetId);
-    state.choices[chooserId] = [...current];
+            const current = new Set(state.choices[chooserId] ?? []);
+            if (on) current.add(targetId);
+            else current.delete(targetId);
+            state.choices[chooserId] = [...current];
 
-    await this.prisma.speedDateSession.update({
-      where: { id: sessionId },
-      data: { state: state as unknown as Prisma.InputJsonValue },
-    });
-    return state;
+            await tx.speedDateSession.update({
+              where: { id: sessionId },
+              data: { state: state as unknown as Prisma.InputJsonValue },
+            });
+            return state;
+          },
+          { isolationLevel: "Serializable" },
+        );
+      } catch (e) {
+        const code = (e as { code?: string }).code;
+        if ((code === "P2034" || code === "P2002") && attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, 15 * attempt));
+          continue;
+        }
+        throw e;
+      }
+    }
   }
 
   /** Advance one active session if its phase deadline passed; resolves the decision on end. */

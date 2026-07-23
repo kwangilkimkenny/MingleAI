@@ -50,23 +50,30 @@ function makeSvc(prisma: any, match: any) {
   return new SpeedDateSessionService(prisma, { value: cfg() } as any, match);
 }
 
+/** choose() runs its read-modify-write inside a Serializable $transaction — mock it as pass-through. */
+function txPrisma(speedDateSession: any): any {
+  const p: any = { speedDateSession };
+  p.$transaction = (fn: any) => fn(p);
+  return p;
+}
+
 describe("SpeedDateSessionService.choose", () => {
   it("toggles a valid opposite-gender choice and persists", async () => {
     const st = state();
     const update = jest.fn().mockResolvedValue({});
-    const prisma = { speedDateSession: { findFirst: jest.fn().mockResolvedValue({ id: "s", state: st }), update } } as any;
+    const prisma = txPrisma({ findFirst: jest.fn().mockResolvedValue({ id: "s", state: st }), update });
     const out = await makeSvc(prisma, {}).choose("s", "m1", "f2", true);
     expect(out?.choices["m1"]).toEqual(["f2"]);
     expect(update).toHaveBeenCalled();
   });
 
   it("rejects a same-gender target", async () => {
-    const prisma = { speedDateSession: { findFirst: jest.fn().mockResolvedValue({ id: "s", state: state() }), update: jest.fn() } } as any;
+    const prisma = txPrisma({ findFirst: jest.fn().mockResolvedValue({ id: "s", state: state() }), update: jest.fn() });
     expect(await makeSvc(prisma, {}).choose("s", "m1", "m2", true)).toBeNull();
   });
 
   it("rejects a non-participant chooser", async () => {
-    const prisma = { speedDateSession: { findFirst: jest.fn().mockResolvedValue({ id: "s", state: state() }), update: jest.fn() } } as any;
+    const prisma = txPrisma({ findFirst: jest.fn().mockResolvedValue({ id: "s", state: state() }), update: jest.fn() });
     expect(await makeSvc(prisma, {}).choose("s", "stranger", "f1", true)).toBeNull();
   });
 });
