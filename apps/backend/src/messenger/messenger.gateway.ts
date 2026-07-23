@@ -5,6 +5,7 @@ import {
   MessageBody,
   ConnectedSocket,
   type OnGatewayConnection,
+  type OnGatewayInit,
 } from "@nestjs/websockets";
 import { forwardRef, Inject } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -13,11 +14,16 @@ import { MessengerService } from "./messenger.service";
 import type { MessengerEmitter } from "./messenger.emitter";
 import type { NewMessageEvent, ReadEvent } from "@mingle/shared";
 import { socketCorsOrigin } from "../common/socket-cors";
+import { applySocketAuth } from "../common/socket-auth";
 import { AccountAccessService } from "../auth/account-access.service";
 
 @WebSocketGateway({ cors: { origin: socketCorsOrigin() }, maxHttpBufferSize: 16 * 1024 })
-export class MessengerGateway implements MessengerEmitter, OnGatewayConnection {
+export class MessengerGateway implements MessengerEmitter, OnGatewayInit, OnGatewayConnection {
   @WebSocketServer() server!: Server;
+
+  afterInit(server: Server) {
+    applySocketAuth(server, this.jwt, this.accountAccess);
+  }
 
   constructor(
     private readonly jwt: JwtService,

@@ -3,6 +3,7 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -31,11 +32,12 @@ import { AmongConfigProvider } from "./among.config";
 import { AiChatClient, createAiChatClient } from "./ai/ai-chat.client";
 import { fallbackLine } from "./ai/personas";
 import { socketCorsOrigin } from "../common/socket-cors";
+import { applySocketAuth } from "../common/socket-auth";
 import { AccountAccessService } from "../auth/account-access.service";
 
 @WebSocketGateway({ cors: { origin: socketCorsOrigin() }, maxHttpBufferSize: 16 * 1024 })
 export class PartyGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
 {
   @WebSocketServer() server!: Server;
 
@@ -82,6 +84,11 @@ export class PartyGateway
     private readonly accountAccess: AccountAccessService,
   ) {
     this.aiChat = createAiChatClient(configService);
+  }
+
+  afterInit(server: Server) {
+    // Authenticate in handshake middleware (before any event) to avoid the connect→emit race.
+    applySocketAuth(server, this.jwt, this.accountAccess);
   }
 
   onModuleInit() {

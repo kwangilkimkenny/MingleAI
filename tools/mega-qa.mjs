@@ -44,6 +44,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 const SIO_PATH = path.join(REPO_ROOT, "node_modules/socket.io-client/build/esm/index.js");
 const { io: socketIo } = await import(SIO_PATH);
+// partySpawnFor: the party move check sends a small, walkable, plausible move from the sender's own
+// spawn — a fixed far target is now correctly rejected by anti-cheat + wall collision (WORLD_ASPECT 3.0).
+const { partySpawnFor } = await import(path.join(REPO_ROOT, "packages/shared/dist/index.js"));
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -61,7 +64,10 @@ function digitsFrom(seed, n) {
   return String(h).padStart(n, "0").slice(0, n);
 }
 // Unique-per-(run,tag) phone → the dev identity CI (hash of phone) is unique, satisfying 1인 1계정.
-const phoneFor = (tag) => "010" + digitsFrom(RID + ":" + tag, 8);
+// The tag must vary the LOW digits (a distinct 2-digit suffix) — hashing RID+tag and slicing the
+// high digits collides, because A-E seeds differ only in their last char (low hash bits).
+const phoneFor = (tag) =>
+  "010" + digitsFrom(RID, 6) + String(tag.toLowerCase().charCodeAt(0) - 97).padStart(2, "0");
 // Birth date that yields the seed age (verified birth authoritatively sets profile age).
 const birthFor = (tag) => `${new Date().getFullYear() - PROFILE_SEEDS[tag].age}-01-01`;
 
@@ -592,7 +598,13 @@ async function sectionPartyRealtime() {
       const beforeSender = sockets[senderTag].state.moved.length;
       const beforeReceiver = sockets[receiverTag].state.moved.length;
       const senderProfileId = users[senderTag].profileId;
-      sockets[senderTag].socket.emit("party:move", { partyId, x: 0.42, y: 0.58 });
+      // Tiny walkable step from the sender's own spawn. Among Us auto-starts on the 4th join and
+      // clears humanPos, so this move's `previous` may carry a just-now timestamp → the anti-cheat
+      // elapsed clamps to its 50ms floor (max plausible ~0.0575 world units). worldDist scales x by
+      // WORLD_ASPECT(3.0), so a 0.01 x-delta = 0.03 world units — safely under that floor for any dt.
+      const spawn = partySpawnFor(senderProfileId);
+      const target = { x: Math.min(0.95, Math.max(0.05, spawn.x + 0.01)), y: spawn.y };
+      sockets[senderTag].socket.emit("party:move", { partyId, ...target });
       const fromSender = (arr, from) =>
         arr.slice(from).find((m) => m.profileId === senderProfileId);
       await waitFor(
@@ -603,7 +615,7 @@ async function sectionPartyRealtime() {
       if (fromSender(sockets[senderTag].state.moved, beforeSender) !== undefined)
         throw new Error(`BUG: ${senderTag} received an echo of its own party:move`);
       const last = fromSender(sockets[receiverTag].state.moved, beforeReceiver);
-      if (last.x !== 0.42 || last.y !== 0.58) {
+      if (last.x !== target.x || last.y !== target.y) {
         throw new Error(`unexpected payload: ${JSON.stringify(last)}`);
       }
       return `${receiverTag} got {x:${last.x},y:${last.y}} from ${last.profileId.slice(-6)}, ${senderTag}: no echo`;

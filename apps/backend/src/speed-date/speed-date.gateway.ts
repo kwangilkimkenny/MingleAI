@@ -3,6 +3,7 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -15,13 +16,18 @@ import { SpeedDateSessionService } from "./speed-date-session.service";
 import { SpeedDateConfigProvider } from "./speed-date.config";
 import { LivekitTokenService } from "./livekit-token.service";
 import { socketCorsOrigin } from "../common/socket-cors";
+import { applySocketAuth } from "../common/socket-auth";
 import { AccountAccessService } from "../auth/account-access.service";
 
 @WebSocketGateway({ cors: { origin: socketCorsOrigin() }, maxHttpBufferSize: 16 * 1024 })
 export class SpeedDateGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
 {
   @WebSocketServer() server!: Server;
+
+  afterInit(server: Server) {
+    applySocketAuth(server, this.jwt, this.accountAccess);
+  }
 
   /** sessionId → (socketId → profileId). Ephemeral, single-instance-only. */
   private readonly presence = new Map<string, Map<string, string>>();
