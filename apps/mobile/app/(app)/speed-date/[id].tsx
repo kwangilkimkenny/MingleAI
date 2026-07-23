@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Mic, MicOff, Video, VideoOff } from "lucide-react-native";
+import { Mic, MicOff } from "lucide-react-native";
 import type { SpeedDateSnapshot, SpeedDateStage, PartnerView } from "@mingle/client-core";
 import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
@@ -14,11 +14,6 @@ import { useAuthStore } from "../../../src/lib/client";
 import { hapticSelect } from "../../../src/lib/haptics";
 import { colors, layout, space, type } from "../../../src/lib/theme";
 
-const STAGE_LABEL: Record<SpeedDateStage, string> = {
-  DISGUISED: "가면 라운드",
-  VOICE: "목소리 공개",
-  FACE: "얼굴 공개",
-};
 const STAGE_HINT: Record<SpeedDateStage, string> = {
   DISGUISED: "목소리는 변조되고 캐릭터 이미지만 보여요.",
   VOICE: "이제 진짜 목소리가 들려요. 얼굴은 아직 가림.",
@@ -201,9 +196,8 @@ function RoundView({
         </View>
       )}
 
-      {/* Top overlay: stage · round · timer */}
+      {/* Top overlay: round · timer (media is app-controlled per stage — no user toggles) */}
       <View style={[styles.topOverlay, { paddingTop: insets.top + space.x2 }]}>
-        <DoodleChip label={STAGE_LABEL[stage]} />
         <View style={styles.topRight}>
           <Text style={styles.overlayMeta}>
             라운드 {roundIndex + 1}/{roundCount}
@@ -226,14 +220,6 @@ function RoundView({
               <Mic color={colors.paper} size={14} />
             )}
             <Text style={styles.overlayBadgeText}>{partner.voiceMod ? "음성 변조" : "실제 목소리"}</Text>
-          </View>
-          <View style={styles.badge}>
-            {partner.video ? (
-              <Video color={colors.paper} size={14} />
-            ) : (
-              <VideoOff color={colors.paper} size={14} />
-            )}
-            <Text style={styles.overlayBadgeText}>{partner.video ? "얼굴 공개" : "얼굴 가림"}</Text>
           </View>
         </View>
         <Text style={styles.overlayHint}>{STAGE_HINT[stage]}</Text>
@@ -339,7 +325,7 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     gap: space.x2,
     paddingHorizontal: layout.screenGutter,
     paddingBottom: space.x3,
