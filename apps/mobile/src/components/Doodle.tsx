@@ -11,6 +11,7 @@ import {
   View,
   Text,
   Pressable,
+  ActivityIndicator,
   StyleSheet,
   type ViewStyle,
   type TextStyle,
@@ -32,7 +33,7 @@ type WonkyRadius = {
 export function ShadowBox({
   children,
   radius,
-  bg = colors.paper,
+  bg = colors.card,
   rotate,
   style,
   seed = 2,
@@ -45,14 +46,7 @@ export function ShadowBox({
   seed?: number;
 }) {
   return (
-    <WobbleBox
-      radius={radius}
-      seed={seed}
-      bg={bg}
-      shadow
-      rotate={rotate}
-      style={[styles.shadowOuter, style]}
-    >
+    <WobbleBox radius={radius} seed={seed} bg={bg} shadow rotate={rotate} style={[styles.shadowOuter, style]}>
       {children}
     </WobbleBox>
   );
@@ -63,7 +57,7 @@ export function DoodleButton({
   onPress,
   variant = "secondary",
   disabled = false,
-  rotate,
+  busy = false,
   icon,
   style,
   serious = false,
@@ -72,6 +66,8 @@ export function DoodleButton({
   onPress?: () => void;
   variant?: "primary" | "secondary" | "danger" | "dangerSolid";
   disabled?: boolean;
+  /** Show a spinner and block presses while an async action runs. */
+  busy?: boolean;
   rotate?: string;
   /** Optional leading icon (e.g. a Lucide line icon), tinted to match the label. */
   icon?: (color: string, size: number) => ReactNode;
@@ -82,32 +78,33 @@ export function DoodleButton({
   const primary = variant === "primary";
   const danger = variant === "danger";
   const dangerSolid = variant === "dangerSolid";
-  // Flat button — ink outline only, NO offset shadow. Primary = the accent (dark pink) block.
-  const bg = disabled
-    ? colors.fillDeep
+  const off = disabled || busy;
+  // Soft rounded button. Primary = rose fill; secondary = white + soft rose hairline.
+  const bg = off
+    ? colors.fill
     : dangerSolid
       ? colors.danger
       : primary
         ? colors.accent
-        : colors.paper;
-  const fg = disabled
+        : colors.card;
+  const fg = off
     ? colors.grayMid
     : danger
       ? colors.danger
       : primary || dangerSolid
         ? colors.onAccent
         : colors.ink;
-  const stroke = danger || dangerSolid ? colors.danger : colors.ink;
+  const stroke = danger || dangerSolid ? colors.danger : primary ? colors.accent : colors.border;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
-      accessibilityState={{ disabled }}
-      onPress={disabled ? undefined : onPress}
-      disabled={disabled}
+      accessibilityState={{ disabled: off, busy }}
+      onPress={off ? undefined : onPress}
+      disabled={off}
       style={({ pressed }) => [
         styles.pressable,
-        pressed && !disabled ? { opacity: 0.85 } : null,
+        off ? { opacity: 0.55 } : pressed ? { opacity: 0.9 } : null,
         style,
       ]}
     >
@@ -115,11 +112,14 @@ export function DoodleButton({
         radius={doodle.radius.button}
         bg={bg}
         stroke={stroke}
-        rotate={rotate}
         style={styles.flatButton}
         contentStyle={styles.btnInner}
       >
-        {icon ? icon(fg, 20) : null}
+        {busy ? (
+          <ActivityIndicator color={fg} size="small" />
+        ) : icon ? (
+          icon(fg, 20)
+        ) : null}
         <Text style={[styles.btnText, (serious || danger || dangerSolid) && styles.seriousBtnText, { color: fg }]}>{title}</Text>
       </WobbleBox>
     </Pressable>
@@ -142,13 +142,13 @@ export function DoodleCard({
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 }) {
-  const bg = tone === "fill" ? colors.fill : colors.paper;
+  const bg = tone === "fill" ? colors.fill : colors.card;
   if (!elevated) {
     return (
       <WobbleBox
         radius={doodle.radius.card}
         bg={bg}
-        stroke={colors.ink}
+        stroke={tone === "fill" ? colors.fillDeep : colors.border}
         rotate={rotate}
         style={style}
       >
@@ -166,8 +166,8 @@ export function DoodleCard({
 /** Doodle text input container styles (spread onto a TextInput's style). */
 export const doodleInputStyle: TextStyle = {
   borderWidth: doodle.border,
-  borderColor: colors.ink,
-  backgroundColor: colors.paper,
+  borderColor: colors.border,
+  backgroundColor: colors.card,
   color: colors.ink,
   paddingVertical: 12,
   paddingHorizontal: 14,

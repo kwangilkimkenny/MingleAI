@@ -21,6 +21,7 @@ import { MatchModule } from "./match/match.module";
 import { SpeedDateModule } from "./speed-date/speed-date.module";
 import { MessengerModule } from "./messenger/messenger.module";
 import { UploadModule } from "./upload/upload.module";
+import { NaverModule } from "./naver/naver.module";
 import { validateEnvironment } from "./common/env.validation";
 
 @Module({
@@ -44,6 +45,7 @@ import { validateEnvironment } from "./common/env.validation";
     SpeedDateModule,
     MessengerModule,
     UploadModule,
+    NaverModule,
   ],
   providers: [
     {

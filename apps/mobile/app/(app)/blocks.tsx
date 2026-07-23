@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { getBlocks, removeBlock, ApiError, type PeerProfile } from "@mingle/client-core";
-import { colors, control, doodle, layout, space, type } from "../../src/lib/theme";
+import { colors, control, doodle, layout, shadow, space, type } from "../../src/lib/theme";
 import { DoodleAvatar } from "../../src/components/DoodleAvatar";
 import {
   ConfirmDialog,
@@ -70,7 +70,7 @@ export default function BlocksScreen() {
     return (
       <View style={styles.container}>
         <ContentColumn style={styles.headerColumn}>
-          <PageHeader back title="차단 목록" description="차단한 사용자는 프로필과 대화에서 서로 보이지 않아요." />
+          <PageHeader back title="차단 목록" />
         </ContentColumn>
         <StateView title="차단한 사용자가 없어요" body="불편한 사용자를 차단하면 이 목록에서 관리할 수 있어요." />
       </View>
@@ -83,7 +83,7 @@ export default function BlocksScreen() {
       keyExtractor={(item) => item.profileId}
       contentContainerStyle={styles.list}
       ListHeaderComponent={
-        <PageHeader back title="차단 목록" description="차단한 사용자는 프로필과 대화에서 서로 보이지 않아요." />
+        <PageHeader back title="차단 목록" />
       }
       renderItem={({ item }) => (
         <View style={styles.row}>
@@ -135,18 +135,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderWidth: doodle.border,
-    borderColor: colors.ink,
-    backgroundColor: colors.paper,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     gap: space.x3,
     padding: space.x3,
     ...doodle.radius.card,
+    ...shadow.card,
   },
   info: { flex: 1, gap: space.x1 },
   name: { ...type.label, color: colors.ink },
   meta: { ...type.caption, color: colors.grayDark },
   unblock: {
     borderWidth: doodle.border,
-    borderColor: colors.ink,
+    borderColor: colors.border,
     borderRadius: 8,
     minHeight: control.minTouch,
     justifyContent: "center",

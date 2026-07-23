@@ -1,42 +1,18 @@
 import { Tabs } from "expo-router";
-import { Home, MessageCircle, HeartHandshake, Bell, Settings } from "lucide-react-native";
+import { Home, MessageCircle, MapPin, Settings } from "lucide-react-native";
 import { doodleHeaderOptions } from "../../../src/lib/theme";
 import { DoodleTabBar } from "../../../src/components/DoodleTabBar";
-import { useEffect, useState } from "react";
-import { getUnreadCount } from "@mingle/client-core";
 
 /**
- * Floating doodle tab bar (shown once the user is past onboarding). Rendering is
- * fully delegated to DoodleTabBar — a hand-drawn WobbleBox floating above the
- * bottom edge; Lucide outline icons, active = colors.accent, inactive = colors.grayMid.
+ * Bottom tab bar (icon-only), shown once the user is past onboarding. Four tabs:
+ * 홈 · 채팅 · 네이버예약 · 설정. Proposals and notifications keep their routes (reachable from the
+ * home hub) but are hidden from the bar via `href: null`.
  */
 export default function TabsLayout() {
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    let mounted = true;
-    const refresh = () => {
-      getUnreadCount()
-        .then(({ unreadCount: count }) => {
-          if (mounted) setUnreadCount(count);
-        })
-        .catch(() => undefined);
-    };
-    refresh();
-    const timer = setInterval(refresh, 30000);
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
-  }, []);
   return (
     <Tabs
       tabBar={(props) => <DoodleTabBar {...props} />}
-      screenOptions={{
-        ...doodleHeaderOptions,
-        // 상단 헤더 영역 제거 — 탭 화면은 하단 탭 바가 이미 각 화면을 라벨링한다.
-        headerShown: false,
-      }}
+      screenOptions={{ ...doodleHeaderOptions, headerShown: false }}
     >
       <Tabs.Screen
         name="home"
@@ -55,20 +31,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="proposals"
+        name="naver-reserve"
         options={{
-          title: "프로포즈",
-          tabBarIcon: ({ color, size }) => (
-            <HeartHandshake color={color} size={size} strokeWidth={2} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: "알림",
-          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
-          tabBarIcon: ({ color, size }) => <Bell color={color} size={size} strokeWidth={2} />,
+          title: "네이버 예약",
+          tabBarIcon: ({ color, size }) => <MapPin color={color} size={size} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
@@ -78,6 +44,9 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Settings color={color} size={size} strokeWidth={2} />,
         }}
       />
+      {/* Kept as routes (home hub links here) but hidden from the bar. */}
+      <Tabs.Screen name="proposals" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

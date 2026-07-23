@@ -1,11 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
@@ -56,17 +50,19 @@ export default function Chats() {
 
   return (
     <View style={styles.container}>
-      <ContentColumn style={styles.headerColumn}>
-        <PageHeader title="채팅" description="서로 프로포즈를 수락한 상대와 안전하게 대화해요." />
-      </ContentColumn>
       {error ? (
-        <StateView title="대화를 불러오지 못했어요" body={error} actionLabel="다시 시도" onAction={load} />
+        <StateView
+          title="대화를 불러오지 못했어요"
+          body={error}
+          actionLabel="다시 시도"
+          onAction={load}
+        />
       ) : rooms.length === 0 ? (
         <StateView
           title="아직 열린 대화가 없어요"
-          body="게임에서 서로를 알아보고 프로포즈가 수락되면 1:1 채팅이 여기에 열려요."
-          actionLabel="게임 파티 찾기"
-          onAction={() => router.push("/(app)/matching")}
+          body="블라인드 데이트에서 만나 서로 선택하면 1:1 채팅이 여기에 열려요."
+          actionLabel="블라인드 데이트 시작"
+          onAction={() => router.push("/(app)/speed-date")}
         />
       ) : (
         <FlatList

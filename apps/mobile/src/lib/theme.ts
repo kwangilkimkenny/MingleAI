@@ -1,43 +1,46 @@
 /**
- * Doodle palette — ink line-art on a white ground, with a contrast-safe action coral,
- * expressive coral highlights, and warm taupe. Single source of truth for mobile colors.
- * Hierarchy still comes from ink/contrast; color stays a sparing semantic accent.
+ * Romantic-soft palette — warm rose ground, crisp white cards, a love-red action rose, and warm
+ * charcoal ink. Single source of truth for mobile colors. 2026-07-23 the app moved from the
+ * hand-drawn doodle look (stark white + black wobble borders + Gaegu handwriting) to a
+ * dating-conventional soft system (warm ground, soft rose hairlines, rounded shapes, Pretendard).
+ * Token NAMES are kept stable so the ~48 consumers shift by value; the doodle-era names
+ * (ink/paper/accent/…) now carry soft-romantic values.
  */
 export const colors = {
-  ink: "#17150F", // primary text / ink; also inverted-block fills
-  paper: "#FFFFFF", // page background / text on inverted blocks
-  grayDark: "#736357", // warm taupe — strong secondary text (point-palette neutral)
-  grayMid: "#786F67", // muted text; 4.9:1 on paper, safe for normal-size supporting copy
-  grayLight: "#D9D5CC", // borders / dividers
-  fill: "#F1EFE9", // subtle surface fill
-  fillDeep: "#E7E4DC", // deeper surface fill
-  partyFloor: "#E9E2D6", // warm paper-board ground behind rooms
-  partyRoom: "#FFFDF8", // primary room paper
-  partyRoomWarm: "#F8F0E6", // quiet room distinction without new semantic color
-  partyRoomRose: "#F8ECEC", // restrained social-zone tint
-  // Point colors — used sparingly for emphasis only: the one primary CTA per screen,
-  // the active tab, unread badges, small highlights. Everything else stays ink-on-white.
-  // #FF5864 is retained as the expressive brand coral, while interactive fills use the
-  // darker, WCAG-safe action coral. White on accent is 4.6:1 (normal text AA).
-  accent: "#D13F4F", // action coral — primary CTA / active state
-  accentBright: "#FF5864", // expressive coral — illustration and large decorative moments
-  accentDeep: "#A92F3D", // pressed / stronger action coral
-  accentSoft: "#FF8276", // salmon — secondary highlight (icons, small pops)
-  accentFill: "#FF9F9D", // light salmon — small tinted fills / gauges
+  ink: "#2A2228", // warm charcoal — primary text (softer than pure black)
+  paper: "#FFF7F5", // warm rose-tinted page ground (was stark white)
+  card: "#FFFFFF", // crisp white card surface (depth against the warm ground)
+  heading: "#9F1239", // deep rose — headings / short emphasis
+  grayDark: "#5A4A50", // strong warm secondary text
+  grayMid: "#6E5A61", // supporting copy — ~5:1 on paper/white, AA for normal text
+  grayLight: "#EAD9DD", // rose-tinted dividers
+  border: "#F6D8DE", // soft rose hairline — card/button/input outline (was 2px black ink)
+  fill: "#FFF0F1", // rose surface fill
+  fillDeep: "#FDE4E8", // deeper rose surface
+  partyFloor: "#E9E2D6", // (party game world — disabled; legacy value kept)
+  partyRoom: "#FFFDF8",
+  partyRoomWarm: "#F8F0E6",
+  partyRoomRose: "#F8ECEC",
+  // Point colors — the one primary CTA per screen, active tab, unread badges, small highlights.
+  // #E11D48 (rose) is the dating-standard love-red; white on it passes AA (4.5:1).
+  accent: "#E11D48", // action rose — primary CTA / active state
+  accentBright: "#FB7185", // salmon — expressive brand moments / illustration
+  accentDeep: "#BE123C", // pressed / stronger action rose
+  accentSoft: "#FB7185", // salmon — secondary highlight (icons, small pops)
+  accentFill: "#FFD9DE", // light rose — small tinted fills / gauges
   onAccent: "#FFFFFF", // text/icons on an accent fill
   success: "#257A55",
   warning: "#9A5D00",
   warningFill: "#FFF0D6",
-  // Danger deliberately sits in a deeper burgundy family than the action coral. Use the
-  // outline/icon treatment for warnings and reserve the solid fill for a final confirmation.
-  danger: "#7B2531",
-  dangerFill: "#F7E7EA",
+  // Danger sits in a brick red, deliberately distinct from the rose primary so a destructive
+  // action never reads as "just the CTA color".
+  danger: "#B3261E",
+  dangerFill: "#FDECEA",
 } as const;
 
 /**
- * Production layout primitives. Screens may compose these tokens, but should not invent
- * one-off spacing or undersized controls. The 4pt base grid keeps dense game HUDs and calm
- * social screens visually related.
+ * Production layout primitives. Screens compose these tokens rather than inventing one-off
+ * spacing. The 4pt base grid keeps dense HUDs and calm social screens visually related.
  */
 export const space = {
   x1: 4,
@@ -51,17 +54,18 @@ export const space = {
 } as const;
 
 export const type = {
-  display: { fontFamily: "Gaegu_700Bold", fontSize: 30, lineHeight: 36 },
-  title: { fontFamily: "Gaegu_700Bold", fontSize: 24, lineHeight: 30 },
-  heading: { fontFamily: "Gaegu_700Bold", fontSize: 20, lineHeight: 26 },
+  // display = Cafe24 Dongdong (brand/display face), used only on the largest titles for character.
+  display: { fontFamily: "Cafe24Dongdong_400Regular", fontSize: 28, lineHeight: 36 },
+  title: { fontFamily: "Cafe24Dongdong_400Regular", fontSize: 22, lineHeight: 29 },
+  heading: { fontFamily: "Pretendard_600SemiBold", fontSize: 19, lineHeight: 25 },
   body: { fontFamily: "Pretendard_400Regular", fontSize: 16, lineHeight: 24 },
   label: { fontFamily: "Pretendard_600SemiBold", fontSize: 15, lineHeight: 21 },
-  caption: { fontFamily: "Pretendard_400Regular", fontSize: 13, lineHeight: 19 },
+  caption: { fontFamily: "Pretendard_400Regular", fontSize: 13, lineHeight: 18 },
 } as const;
 
 export const control = {
   minTouch: 44,
-  buttonHeight: 48,
+  buttonHeight: 50,
   compactHeight: 40,
 } as const;
 
@@ -75,9 +79,8 @@ export const layout = {
 } as const;
 
 /**
- * shade — 팔레트 색을 결정적으로 어둡게(f<1)/밝게(f>1) 파생. 두들 월드의 종이·잉크
- * 가구 명암에 사용. 팔레트를 벗어난 새 색을
- * 도입하지 않고 기존 토큰에서 명암만 파생하기 위한 순수 함수(#RRGGBB 입력 전제).
+ * shade — 팔레트 색을 결정적으로 어둡게(f<1)/밝게(f>1) 파생. (파티 게임 월드가 비활성이라 현재
+ * 미사용 — API는 유지.) #RRGGBB 입력 전제 순수 함수.
  */
 export function shade(hex: string, f: number): string {
   const n = parseInt(hex.slice(1), 16);
@@ -101,69 +104,86 @@ export function shade(hex: string, f: number): string {
 }
 
 /**
- * Type roles. Display = Gaegu (Korean handwriting) for the brand wordmark, headings, and short
- * CTA copy — the hand-drawn character the doodle system is built around. Body uses bundled
- * Pretendard (legible for long/small Korean text; never set Gaegu below 18px). Loaded in app/_layout.
+ * Type roles — all Pretendard (2026-07-23 dropped Gaegu handwriting from the UI for legibility and
+ * a warmer, more trustworthy dating tone). SemiBold is the heaviest bundled weight, so display /
+ * title / heading all use it and lean on size + rose color for hierarchy. Loaded in app/_layout.
  */
 export const fonts = {
-  display: "Gaegu_700Bold",
-  displayRegular: "Gaegu_400Regular",
+  display: "Pretendard_600SemiBold",
+  displayRegular: "Pretendard_400Regular",
   body: "Pretendard_400Regular",
   bodySemibold: "Pretendard_600SemiBold",
 } as const;
 
 /**
- * Doodle surface tokens — the hand-drawn "sketchbook" look in warm ink and paper, re-expressed
- * for React Native (no SVG/feTurbulence, no new deps). The doodle character comes from:
- *  1. wonky per-corner border-radius (asymmetric),
- *  2. a solid offset shadow with NO blur (an ink layer translated behind the surface),
- *  3. a slight rotation on select surfaces.
- * Primary actions use the semantic action coral; neutral emphasis may use an inverted ink block.
+ * Soft elevation — blurred, low-opacity shadows in a warm rose-brown (replaces the doodle era's
+ * hard offset ink "sticker" shadow). Spread onto card/sheet/hero surfaces.
+ */
+export const shadow = {
+  card: {
+    shadowColor: "#7A2A3A",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  elevated: {
+    shadowColor: "#7A2A3A",
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+} as const;
+
+/**
+ * Surface tokens — rounded corners + soft rose hairline. `radius` keeps the four-corner shape
+ * (WonkyRadius) the primitives expect, but every corner is equal now (clean rounded, no wobble).
+ * `border` is the hairline width; `shadow` (legacy hard offset) is retained for API stability but
+ * unused — surfaces use the blurred `shadow` export above.
  */
 export const doodle = {
-  border: 2, // ink stroke width
-  shadow: { x: 4, y: 5 }, // hard offset "sticker" shadow, no blur (mirrors 4px 5px 0 #17150F)
-  // Wonky per-corner radii — deliberately asymmetric so edges read as hand-drawn.
+  border: 1.5, // soft hairline stroke width
+  shadow: { x: 4, y: 5 }, // legacy hard-offset (unused post-redesign)
   radius: {
     button: {
-      borderTopLeftRadius: 13,
-      borderTopRightRadius: 9,
-      borderBottomRightRadius: 15,
-      borderBottomLeftRadius: 7,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      borderBottomRightRadius: 16,
+      borderBottomLeftRadius: 16,
     },
     card: {
-      borderTopLeftRadius: 18,
-      borderTopRightRadius: 10,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
       borderBottomRightRadius: 20,
-      borderBottomLeftRadius: 12,
+      borderBottomLeftRadius: 20,
     },
     input: {
-      borderTopLeftRadius: 11,
-      borderTopRightRadius: 8,
-      borderBottomRightRadius: 13,
-      borderBottomLeftRadius: 9,
+      borderTopLeftRadius: 14,
+      borderTopRightRadius: 14,
+      borderBottomRightRadius: 14,
+      borderBottomLeftRadius: 14,
     },
     chip: {
-      borderTopLeftRadius: 10,
-      borderTopRightRadius: 7,
-      borderBottomRightRadius: 11,
-      borderBottomLeftRadius: 8,
+      borderTopLeftRadius: 999,
+      borderTopRightRadius: 999,
+      borderBottomRightRadius: 999,
+      borderBottomLeftRadius: 999,
     },
   },
 } as const;
 
 /**
- * Shared doodle navigation-header options — paper ground, bold ink title, a solid ink
- * underline (no soft shadow), so every screen reads like a page from the same sketchbook.
- * Spread into a Stack's screenOptions.
+ * Shared navigation-header options — warm ground, rose-ink title, soft rose underline. Headers
+ * are hidden app-wide, so this is kept for API stability. Spread into a Stack's screenOptions.
  */
 export const doodleHeaderOptions = {
   headerStyle: {
     backgroundColor: colors.paper,
     borderBottomWidth: doodle.border,
-    borderBottomColor: colors.ink,
+    borderBottomColor: colors.border,
   },
-  headerTitleStyle: { color: colors.ink, fontFamily: fonts.display, fontSize: 22 },
+  headerTitleStyle: { color: colors.heading, fontFamily: fonts.display, fontSize: 20 },
   headerTintColor: colors.ink,
   headerShadowVisible: false,
 };

@@ -58,7 +58,7 @@ export default function Consent() {
               style={styles.row}
             >
               <View style={[styles.box, on && styles.boxOn]}>
-                {on ? <Check color={colors.paper} size={16} strokeWidth={3} /> : null}
+                {on ? <Check color={colors.onAccent} size={16} strokeWidth={3} /> : null}
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>{item.title}</Text>
@@ -94,15 +94,15 @@ export default function Consent() {
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: "center", padding: layout.screenGutter, backgroundColor: colors.paper },
   container: { gap: space.x4, paddingVertical: space.x6 },
-  title: { ...type.title, color: colors.ink, textAlign: "center" },
+  title: { ...type.title, color: colors.heading, textAlign: "center" },
   sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
   row: { flexDirection: "row", gap: space.x3, alignItems: "flex-start" },
   box: {
     width: 26,
     height: 26,
     borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 2,

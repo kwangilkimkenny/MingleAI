@@ -1,13 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Platform,
-  Pressable,
-  Switch,
-  StyleSheet,
-} from "react-native";
+import { View, Text, FlatList, Platform, Pressable, Switch, StyleSheet } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import {
   getNotifications,
@@ -23,6 +15,7 @@ import {
 } from "../../../src/lib/route-for-notification";
 import { DashedLine } from "../../../src/components/DoodleSvg";
 import { EnterRow } from "../../../src/components/Motion";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, control, layout, space, type } from "../../../src/lib/theme";
 import { ContentColumn, PageHeader, StateView } from "../../../src/components/Foundation";
@@ -35,6 +28,7 @@ const Separator = () => (
 
 export default function Notifications() {
   const clearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [pushOn, setPushOn] = useState(true);
@@ -83,19 +77,17 @@ export default function Notifications() {
     setPushEnabled(v).catch(() => setPushOn(!v));
   }
 
-  if (phase === "loading")
-    return <StateView title="알림을 불러오고 있어요" loading />;
+  if (phase === "loading") return <StateView title="알림을 불러오고 있어요" loading />;
   if (phase === "error")
     return <StateView title="알림을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ContentColumn style={styles.headerColumn}>
-        <PageHeader title="알림" description="프로포즈와 새로운 대화 소식을 한곳에서 확인해요." />
+        <PageHeader back title="알림" />
         <View style={styles.preferenceRow}>
           <View style={styles.preferenceText}>
             <Text style={styles.preferenceTitle}>푸시 알림</Text>
-            <Text style={styles.toggleLabel}>새로운 소식을 기기에서 받아요.</Text>
           </View>
           <Switch
             value={pushOn}
@@ -127,12 +119,19 @@ export default function Notifications() {
         contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
         ItemSeparatorComponent={Separator}
         ListEmptyComponent={
-          <StateView title="아직 알림이 없어요" body="새로운 프로포즈나 대화 소식이 오면 여기에 알려드릴게요." />
+          <StateView
+            title="아직 알림이 없어요"
+            body="새로운 프로포즈나 대화 소식이 오면 여기에 알려드릴게요."
+          />
         }
         renderItem={({ item, index }) => (
           <EnterRow index={index}>
             <Pressable
-              style={({ pressed }) => [styles.row, !item.read && styles.rowUnread, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.row,
+                !item.read && styles.rowUnread,
+                pressed && styles.pressed,
+              ]}
               onPress={() => onTapItem(item)}
               accessibilityRole="button"
               accessibilityLabel={`${item.read ? "" : "읽지 않음, "}${item.title}. ${item.message}`}

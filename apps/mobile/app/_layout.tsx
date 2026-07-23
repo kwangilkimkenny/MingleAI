@@ -2,8 +2,6 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useFonts } from "expo-font";
-import { Gaegu_400Regular } from "@expo-google-fonts/gaegu/400Regular";
-import { Gaegu_700Bold } from "@expo-google-fonts/gaegu/700Bold";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import "../src/lib/client";
 import { colors, fonts, type } from "../src/lib/theme";
@@ -11,13 +9,15 @@ import { colors, fonts, type } from "../src/lib/theme";
 export { ErrorBoundary } from "expo-router";
 
 export default function RootLayout() {
-  // Gaegu (handwriting) powers the display type. Fonts are bundled, so this resolves fast;
-  // hold the first frame until they're ready so headings don't flash in the system fallback.
+  // Pretendard powers the whole type system (2026-07-23 dropped Gaegu handwriting). Fonts are
+  // bundled locally, so this resolves fast; hold the first frame until ready so text doesn't
+  // flash in the system fallback.
   const [fontsLoaded, fontError] = useFonts({
-    Gaegu_400Regular,
-    Gaegu_700Bold,
     Pretendard_400Regular: require("../assets/fonts/pretendard/Pretendard-Regular.otf"),
     Pretendard_600SemiBold: require("../assets/fonts/pretendard/Pretendard-SemiBold.otf"),
+    // Cafe24 Dongdong (OFL) — the display/brand face, used with restraint on large titles.
+    Cafe24Dongdong_400Regular: require("../assets/fonts/cafe24/Cafe24Dongdong-Regular.otf"),
+    Cafe24Dongdong_300Light: require("../assets/fonts/cafe24/Cafe24Dongdong-Light.otf"),
   });
 
   // app.json orientation="default"(runtime lock을 위해 필요) 상태에서 앱 전역은 세로 고정.

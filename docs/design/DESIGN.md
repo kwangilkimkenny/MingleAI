@@ -1,6 +1,9 @@
 # MingleAI production design system
 
-> Status: current source of truth · Updated 2026-07-22
+> ⚠️ **SUPERSEDED (2026-07-23)** — the app pivoted from this doodle line-art system to a **soft
+> romantic dating** look (warm rose paper, white cards, rose `#E11D48` primary, Pretendard, blur
+> shadows). This doc is kept as doodle-era history; the current system is the spec
+> `docs/superpowers/specs/2026-07-23-dating-visual-redesign-design.md` + live tokens below.
 > Live tokens: `apps/mobile/src/lib/theme.ts`
 
 ## 1. Product promise

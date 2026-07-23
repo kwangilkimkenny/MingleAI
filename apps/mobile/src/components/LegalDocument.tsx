@@ -42,6 +42,6 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: layout.screenGutter, paddingBottom: space.x8 },
   column: { gap: space.x5 },
   section: { gap: space.x2 },
-  heading: { ...type.title, color: colors.ink },
+  heading: { ...type.title, color: colors.heading },
   body: { ...type.body, color: colors.grayDark, lineHeight: 24 },
 });

@@ -16,7 +16,7 @@ import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { DashedLine } from "../../../src/components/DoodleSvg";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { pickAndUploadPhoto } from "../../../src/lib/photo";
-import { colors, layout, space, type } from "../../../src/lib/theme";
+import { colors, layout, shadow, space, type } from "../../../src/lib/theme";
 import {
   ConfirmDialog,
   ContentColumn,
@@ -73,7 +73,9 @@ export default function SettingsScreen() {
         const updated = await updateProfile(profileId, { photoUrl: res.url });
         setProfile((prev) => (prev ? { ...prev, photoUrl: updated.photoUrl } : prev));
       } catch (e) {
-        setPhotoError(e instanceof Error ? e.message : "사진을 저장하지 못했어요. 다시 시도해 주세요.");
+        setPhotoError(
+          e instanceof Error ? e.message : "사진을 저장하지 못했어요. 다시 시도해 주세요.",
+        );
       }
     } else if (res.status === "denied") {
       setPhotoError("사진을 변경하려면 기기 설정에서 사진 접근을 허용해 주세요.");
@@ -94,8 +96,7 @@ export default function SettingsScreen() {
       contentContainerStyle={[styles.container, { paddingBottom: clearance }]}
     >
       <ContentColumn style={styles.column}>
-      <PageHeader title="설정" description="프로필과 안전 설정을 관리해요." />
-      <View style={styles.summary}>
+        <View style={styles.summary}>
           <>
             <TouchableOpacity
               onPress={onChangePhoto}
@@ -131,56 +132,56 @@ export default function SettingsScreen() {
               </View>
             ) : null}
           </>
-      </View>
+        </View>
 
-      <View style={styles.rows}>
-        <Text style={styles.sectionLabel}>안전</Text>
-        <View style={styles.separatorWrap}>
-          <DashedLine />
+        <View style={styles.rows}>
+          <Text style={styles.sectionLabel}>안전</Text>
+          <View style={styles.separatorWrap}>
+            <DashedLine />
+          </View>
+          <Row
+            icon={<Ban color={colors.ink} size={20} strokeWidth={2} />}
+            label="차단 목록 관리"
+            chevron
+            onPress={() =>
+              // new route — Expo Router typegen updates on next `expo start`
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              router.push("/(app)/blocks" as any)
+            }
+          />
+          <View style={styles.separatorWrap}>
+            <DashedLine />
+          </View>
+          <Text style={styles.sectionLabel}>계정</Text>
+          <Row
+            icon={<FileText color={colors.ink} size={20} strokeWidth={2} />}
+            label="이용약관"
+            chevron
+            onPress={() => router.push("/terms")}
+          />
+          <Row
+            icon={<FileText color={colors.ink} size={20} strokeWidth={2} />}
+            label="개인정보 처리 안내"
+            chevron
+            onPress={() => router.push("/privacy")}
+          />
+          <Row
+            icon={<LogOut color={colors.danger} size={20} strokeWidth={2} />}
+            label="로그아웃"
+            danger
+            onPress={() => setLogoutOpen(true)}
+          />
+          <Row
+            icon={<Trash2 color={colors.danger} size={20} strokeWidth={2} />}
+            label="계정 삭제"
+            danger
+            chevron
+            onPress={() => router.push("/(app)/delete-account")}
+          />
+          <View style={styles.separatorWrap}>
+            <DashedLine />
+          </View>
         </View>
-        <Row
-          icon={<Ban color={colors.ink} size={20} strokeWidth={2} />}
-          label="차단 목록 관리"
-          chevron
-          onPress={() =>
-            // new route — Expo Router typegen updates on next `expo start`
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            router.push("/(app)/blocks" as any)
-          }
-        />
-        <View style={styles.separatorWrap}>
-          <DashedLine />
-        </View>
-        <Text style={styles.sectionLabel}>계정</Text>
-        <Row
-          icon={<FileText color={colors.ink} size={20} strokeWidth={2} />}
-          label="이용약관"
-          chevron
-          onPress={() => router.push("/terms")}
-        />
-        <Row
-          icon={<FileText color={colors.ink} size={20} strokeWidth={2} />}
-          label="개인정보 처리 안내"
-          chevron
-          onPress={() => router.push("/privacy")}
-        />
-        <Row
-          icon={<LogOut color={colors.danger} size={20} strokeWidth={2} />}
-          label="로그아웃"
-          danger
-          onPress={() => setLogoutOpen(true)}
-        />
-        <Row
-          icon={<Trash2 color={colors.danger} size={20} strokeWidth={2} />}
-          label="계정 삭제"
-          danger
-          chevron
-          onPress={() => router.push("/(app)/delete-account")}
-        />
-        <View style={styles.separatorWrap}>
-          <DashedLine />
-        </View>
-      </View>
       </ContentColumn>
       <ConfirmDialog
         visible={logoutOpen}
@@ -230,11 +231,14 @@ const styles = StyleSheet.create({
   summary: {
     alignItems: "center",
     gap: space.x1,
-    paddingVertical: space.x4,
+    paddingVertical: space.x6,
     minHeight: 180,
     justifyContent: "center",
-    backgroundColor: colors.fill,
-    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 20,
+    ...shadow.card,
   },
   photoBusy: {
     position: "absolute",
@@ -247,7 +251,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.55)",
     borderRadius: 46,
   },
-  name: { ...type.title, color: colors.ink, marginTop: space.x2 },
+  name: { ...type.title, color: colors.heading, marginTop: space.x2 },
   meta: { ...type.body, color: colors.grayDark },
   photoLink: {
     ...type.label,

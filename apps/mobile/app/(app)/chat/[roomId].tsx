@@ -277,7 +277,7 @@ export default function ChatRoom() {
               <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextPeer]}>
                 {item.content}
               </Text>
-              <Text style={styles.messageMeta}>
+              <Text style={[styles.messageMeta, isMe && styles.messageMetaMe]}>
                 {formatTime(item.createdAt)}{isMe && item.readAt ? " · 읽음" : ""}
               </Text>
             </View>
@@ -322,8 +322,8 @@ export default function ChatRoom() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.paper },
   header: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.ink,
+    borderBottomWidth: doodle.border,
+    borderBottomColor: colors.border,
     alignItems: "center",
   },
   headerInner: {
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   headerIcon: { width: control.minTouch, height: control.minTouch, alignItems: "center", justifyContent: "center" },
   headerPeer: { flexDirection: "row", alignItems: "center", gap: space.x2, flex: 1, minWidth: 0 },
   headerText: { flex: 1, minWidth: 0 },
-  headerName: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, color: colors.ink },
+  headerName: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, color: colors.heading },
   headerStatus: { ...type.caption, color: colors.grayDark },
   headerActions: { flexDirection: "row", alignItems: "center", gap: space.x1 },
   datePlanBtn: {
@@ -361,28 +361,29 @@ const styles = StyleSheet.create({
   emptyBody: { ...type.body, color: colors.grayDark, textAlign: "center", maxWidth: 360 },
   bubble: {
     maxWidth: "75%",
-    ...doodle.radius.card,
+    borderRadius: 18,
     paddingHorizontal: space.x3,
     paddingVertical: space.x2,
     marginVertical: space.x1,
-    borderWidth: doodle.border,
-    borderColor: colors.ink,
   },
   bubbleMe: {
     alignSelf: "flex-end",
-    backgroundColor: colors.fillDeep,
+    backgroundColor: colors.accent,
   },
   bubblePeer: {
     alignSelf: "flex-start",
-    backgroundColor: colors.paper,
+    backgroundColor: colors.card,
+    borderWidth: doodle.border,
+    borderColor: colors.border,
   },
   bubbleText: { ...type.body },
-  bubbleTextMe: { color: colors.ink },
+  bubbleTextMe: { color: colors.onAccent },
   bubbleTextPeer: { color: colors.ink },
   messageMeta: { ...type.caption, color: colors.grayDark, marginTop: space.x1, textAlign: "right" },
+  messageMetaMe: { color: "rgba(255,255,255,0.85)" },
   composeShell: {
-    borderTopWidth: 2,
-    borderTopColor: colors.ink,
+    borderTopWidth: doodle.border,
+    borderTopColor: colors.border,
     paddingTop: space.x2,
     paddingHorizontal: layout.screenGutter,
     backgroundColor: colors.paper,
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: control.buttonHeight,
     borderWidth: doodle.border,
-    borderColor: colors.ink,
+    borderColor: colors.border,
     ...doodle.radius.input,
     paddingHorizontal: space.x3,
     paddingVertical: space.x2,
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
     height: control.buttonHeight,
     backgroundColor: colors.accent,
     borderWidth: doodle.border,
-    borderColor: colors.ink,
+    borderColor: colors.border,
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",

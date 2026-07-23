@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { AlertCircle, ChevronLeft, X } from "lucide-react-native";
 import { router } from "expo-router";
-import { colors, control, doodle, layout, space, type } from "../lib/theme";
+import { colors, control, doodle, layout, shadow, space, type } from "../lib/theme";
 import { DoodleButton } from "./Doodle";
 import { DoodleFace } from "./DoodleSvg";
 import { useReducedMotion } from "react-native-reanimated";
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     paddingBottom: space.x3,
   },
   pageHeaderText: { flex: 1, minWidth: 0 },
-  pageTitle: { ...type.title, color: colors.ink },
+  pageTitle: { ...type.display, fontSize: 26, lineHeight: 31, letterSpacing: -0.6, color: colors.ink },
   pageDescription: { ...type.body, color: colors.grayDark, marginTop: space.x1 },
   pageAction: { minHeight: control.minTouch, justifyContent: "center" },
   backButton: {
@@ -269,8 +269,8 @@ const styles = StyleSheet.create({
   fieldLabel: { ...type.label, color: colors.ink },
   inputFrame: {
     borderWidth: doodle.border,
-    borderColor: colors.ink,
-    backgroundColor: colors.paper,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     ...doodle.radius.input,
     minHeight: 52,
     paddingVertical: 0,
@@ -328,19 +328,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: layout.screenGutter,
-    backgroundColor: "rgba(23,21,15,0.64)",
+    backgroundColor: "rgba(42,34,40,0.55)",
   },
   dialogCard: {
     width: "100%",
     maxWidth: layout.modalMax,
     gap: space.x3,
     padding: space.x5,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.card,
     borderWidth: doodle.border,
-    borderColor: colors.ink,
+    borderColor: colors.border,
     ...doodle.radius.card,
+    ...shadow.elevated,
   },
-  dialogTitle: { ...type.title, color: colors.ink },
+  dialogTitle: { ...type.title, color: colors.heading },
   dialogBody: { ...type.body, color: colors.grayDark },
   dialogActions: { flexDirection: "row", gap: space.x2, marginTop: space.x2 },
   dialogAction: { flex: 1 },

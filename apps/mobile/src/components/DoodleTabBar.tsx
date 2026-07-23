@@ -1,43 +1,32 @@
 /**
- * Floating hand-drawn tab bar — replaces the stock RN bottom tab bar. A single
- * WobbleBox (SVG wonky border + hard ink offset shadow) floats 12px above the
- * bottom edge; tabs stay exactly the 5 from _layout.tsx (routing untouched).
- * Active = colors.accent icon+label (CLAUDE.md single point-color rule),
- * inactive = colors.grayMid.
+ * Bottom tab bar — a full-width bar anchored to the bottom edge (replaces the earlier floating
+ * rounded pill). White card surface with a soft rose top hairline + a subtle upward shadow; the
+ * bar background fills all the way to the screen edge and reserves safe-area padding so the row
+ * sits above the home indicator. Tabs stay exactly the 5 from _layout.tsx (routing untouched).
+ * Active = colors.accent icon+label, inactive = colors.grayMid.
  */
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { WobbleBox } from "./DoodleSvg";
 import { colors, fonts } from "../lib/theme";
-
-const BAR_RADIUS = {
-  borderTopLeftRadius: 19,
-  borderTopRightRadius: 22,
-  borderBottomRightRadius: 18,
-  borderBottomLeftRadius: 21,
-};
 
 export const TAB_BAR_ROW_HEIGHT = 60;
 
-/** Bottom clearance tab screens must reserve so content scrolls clear of the floating bar. */
+/** Bottom clearance tab screens must reserve so content scrolls clear of the bottom bar. */
 export function useTabBarClearance(): number {
   const insets = useSafeAreaInsets();
-  return TAB_BAR_ROW_HEIGHT + Math.max(insets.bottom, 12) + 12;
+  return TAB_BAR_ROW_HEIGHT + insets.bottom + 8;
 }
 
 export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   return (
-    <View
-      style={[
-        styles.wrap,
-        { paddingBottom: Math.max(insets.bottom, 12), pointerEvents: "box-none" },
-      ]}
-    >
-      <WobbleBox radius={BAR_RADIUS} seed={11} shadow strokeWidth={2.4} contentStyle={styles.row}>
+    <View style={[styles.bar, { paddingBottom: insets.bottom }]}>
+      <View style={styles.row}>
         {state.routes.map((route, i) => {
           const { options } = descriptors[route.key];
+          // Skip routes hidden from the bar (href: null → no tabBarIcon), keeping index aligned.
+          if (!options.tabBarIcon) return null;
           const focused = state.index === i;
           const color = focused ? colors.accent : colors.grayMid;
           const label = typeof options.title === "string" ? options.title : route.name;
@@ -45,6 +34,7 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
             <Pressable
               key={route.key}
               accessibilityRole="button"
+              accessibilityLabel={label}
               accessibilityState={focused ? { selected: true } : {}}
               onPress={() => {
                 const e = navigation.emit({
@@ -59,8 +49,8 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
               }}
               style={styles.tab}
             >
-              {options.tabBarIcon ? options.tabBarIcon({ focused, color, size: 23 }) : null}
-              <Text style={[styles.label, { color }]}>{label}</Text>
+              {options.tabBarIcon ? options.tabBarIcon({ focused, color, size: 26 }) : null}
+              {focused ? <View style={styles.activeDot} /> : null}
               {options.tabBarBadge !== undefined ? (
                 <View style={styles.badge} accessibilityLabel={`읽지 않은 알림 ${options.tabBarBadge}개`}>
                   <Text style={styles.badgeText}>{options.tabBarBadge}</Text>
@@ -69,21 +59,43 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
             </Pressable>
           );
         })}
-      </WobbleBox>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: "absolute", left: 12, right: 12, bottom: 0, backgroundColor: "transparent" },
+  bar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    // Subtle upward lift so content scrolling under the bar reads as behind it.
+    shadowColor: "#7A2A3A",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 8,
+  },
   row: { flexDirection: "row", alignItems: "stretch", height: TAB_BAR_ROW_HEIGHT },
-  // 탭 터치 타깃이 라벨 높이(~39px)로 쪼그라들지 않게 행 전체(60px)를 채운다 — 44px 최소 기준.
-  tab: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 2 },
-  label: { fontFamily: fonts.bodySemibold, fontSize: 12, lineHeight: 16 },
+  // 아이콘만 — 행 전체(60px)를 채워 44px 최소 터치 타깃 보장.
+  tab: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 5 },
+  // 라벨이 없으니 활성 상태를 작은 로즈 점으로 명확히.
+  activeDot: {
+    position: "absolute",
+    bottom: 12,
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: colors.accent,
+  },
   badge: {
     position: "absolute",
-    top: 5,
-    right: "22%",
+    top: 8,
+    right: "28%",
     minWidth: 18,
     height: 18,
     paddingHorizontal: 4,

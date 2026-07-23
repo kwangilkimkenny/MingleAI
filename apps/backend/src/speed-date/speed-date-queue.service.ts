@@ -16,7 +16,15 @@ const MIN_AGE = 19;
 export class SpeedDateQueueService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async enqueue(userId: string): Promise<{ status: "waiting" }> {
+  async enqueue(
+    userId: string,
+    geo?: { lat?: number; lng?: number; radiusKm?: number },
+  ): Promise<{ status: "waiting" }> {
+    // Store coords only as a valid pair; a radius with no coords is meaningless and dropped.
+    const hasCoords = typeof geo?.lat === "number" && typeof geo?.lng === "number";
+    const lat = hasCoords ? geo!.lat! : null;
+    const lng = hasCoords ? geo!.lng! : null;
+    const radiusKm = hasCoords && typeof geo?.radiusKm === "number" ? geo.radiusKm : null;
     // Consent is captured at signup (the onboarding gate) — no per-session consent required.
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     if (!profile) throw new NotFoundException("프로필이 없습니다");
@@ -43,6 +51,9 @@ export class SpeedDateQueueService {
                 gender: profile.gender,
                 status: "waiting",
                 preferenceSnapshot: profile.preferenceSignals as object,
+                lat,
+                lng,
+                radiusKm,
               },
             });
           },

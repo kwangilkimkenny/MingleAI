@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { colors, control, doodle, layout, space, type } from "../lib/theme";
+import { colors, control, doodle, layout, shadow, space, type } from "../lib/theme";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { createBlock, ApiError } from "@mingle/client-core";
@@ -119,18 +119,19 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     alignItems: "center",
     padding: layout.screenGutter,
-    backgroundColor: "rgba(23,21,15,0.64)",
+    backgroundColor: "rgba(42,34,40,0.55)",
   },
   sheet: {
     width: "100%",
     maxWidth: layout.modalMax,
     gap: space.x3,
     padding: space.x5,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.card,
     borderWidth: doodle.border,
-    borderColor: colors.ink,
+    borderColor: colors.border,
     ...doodle.radius.card,
+    ...shadow.elevated,
   },
-  sheetTitle: { ...type.title, color: colors.ink },
+  sheetTitle: { ...type.title, color: colors.heading },
   sheetBody: { ...type.body, color: colors.grayDark },
 });

@@ -215,9 +215,9 @@ function RoundView({
           <DoodleChip label={genderLabel(partner.gender)} tiny />
           <View style={styles.badge}>
             {partner.voiceMod ? (
-              <MicOff color={colors.paper} size={14} />
+              <MicOff color={colors.onAccent} size={14} />
             ) : (
-              <Mic color={colors.paper} size={14} />
+              <Mic color={colors.onAccent} size={14} />
             )}
             <Text style={styles.overlayBadgeText}>{partner.voiceMod ? "음성 변조" : "실제 목소리"}</Text>
           </View>
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   fullScreen: { flex: 1, backgroundColor: "#000" },
   stageFull: { flex: 1, backgroundColor: "#000" },
-  avatarStage: { alignItems: "center", justifyContent: "center", backgroundColor: colors.ink },
+  avatarStage: { alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
   content: {
     flexGrow: 1,
     padding: layout.screenGutter,
@@ -329,10 +329,10 @@ const styles = StyleSheet.create({
     gap: space.x2,
     paddingHorizontal: layout.screenGutter,
     paddingBottom: space.x3,
-    backgroundColor: "rgba(20,17,15,0.45)",
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
   topRight: { flexDirection: "row", alignItems: "center", gap: space.x2 },
-  overlayMeta: { ...type.label, color: colors.paper },
+  overlayMeta: { ...type.label, color: colors.onAccent },
   timerPill: {
     backgroundColor: colors.accent,
     borderRadius: 999,
@@ -349,11 +349,11 @@ const styles = StyleSheet.create({
     gap: space.x2,
     paddingHorizontal: layout.screenGutter,
     paddingTop: space.x4,
-    backgroundColor: "rgba(20,17,15,0.45)",
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
-  overlayNick: { ...type.title, color: colors.paper },
-  overlayBadgeText: { ...type.caption, color: colors.paper },
-  overlayHint: { ...type.caption, color: colors.paper, textAlign: "center", opacity: 0.85 },
+  overlayNick: { ...type.title, color: colors.onAccent },
+  overlayBadgeText: { ...type.caption, color: colors.onAccent },
+  overlayHint: { ...type.caption, color: colors.onAccent, textAlign: "center", opacity: 0.85 },
   selfView: {
     position: "absolute",
     right: 16,
@@ -363,22 +363,22 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#000",
     borderWidth: 2,
-    borderColor: colors.paper,
+    borderColor: colors.onAccent,
   },
   selfLabel: {
     position: "absolute",
     bottom: 4,
     left: 6,
     ...type.caption,
-    color: colors.paper,
+    color: colors.onAccent,
   },
-  nickname: { ...type.title, color: colors.ink },
+  nickname: { ...type.title, color: colors.heading },
   badgeRow: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
   badge: { flexDirection: "row", alignItems: "center", gap: 4 },
   timer: { ...type.title, color: colors.accent },
-  title: { ...type.title, color: colors.ink, textAlign: "center" },
+  title: { ...type.title, color: colors.heading, textAlign: "center" },
   sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
-  msg: { ...type.heading, color: colors.ink, textAlign: "center" },
+  msg: { ...type.heading, color: colors.heading, textAlign: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.x3, justifyContent: "center" },
   gridCard: { width: 150 },
   gridCardOn: { borderColor: colors.accent },

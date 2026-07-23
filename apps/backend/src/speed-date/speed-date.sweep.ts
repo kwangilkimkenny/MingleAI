@@ -1,6 +1,12 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { preferenceScore, blockPairKey, type PreferenceSignals } from "@mingle/shared";
+import {
+  preferenceScore,
+  blockPairKey,
+  withinMutualRadius,
+  type PreferenceSignals,
+  type Coords,
+} from "@mingle/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SafetyService } from "../safety/safety.service";
 import { SpeedDateConfigProvider } from "./speed-date.config";
@@ -15,7 +21,17 @@ type Entry = {
   status: string;
   preferenceSnapshot: unknown;
   enqueuedAt: Date;
+  lat: number | null;
+  lng: number | null;
+  radiusKm: number | null;
 };
+
+/** Project a queue entry (or an AI slot's null entry) to geo shape for withinMutualRadius.
+ * `== null` catches both null and undefined so entries without coords never constrain matching. */
+function geoOf(e: Entry | null): { coords: Coords | null; radiusKm: number | null } {
+  if (!e || e.lat == null || e.lng == null) return { coords: null, radiusKm: e?.radiusKm ?? null };
+  return { coords: { lat: e.lat, lng: e.lng }, radiusKm: e.radiusKm };
+}
 
 /** A candidate slot — a real queue entry or a synthetic AI fill (dev only, no DB row). */
 type Slot = { profileId: string; gender: string; entry: Entry | null; isAi: boolean };
@@ -106,8 +122,12 @@ export class SpeedDateSweepService implements OnModuleInit, OnModuleDestroy {
       const out: Slot[] = [];
       for (const e of pool) {
         if (out.length >= count) break;
-        const conflict = [...selected, ...out].some((s) =>
-          blocked.has(blockPairKey(s.profileId, e.profileId)),
+        // Reject a candidate blocked with — or outside the mutual radius of — anyone already picked,
+        // so every member of a formed group is pairwise within each other's chosen distance.
+        const conflict = [...selected, ...out].some(
+          (s) =>
+            blocked.has(blockPairKey(s.profileId, e.profileId)) ||
+            !withinMutualRadius(geoOf(e), geoOf(s.entry)),
         );
         if (!conflict) out.push({ profileId: e.profileId, gender: e.gender, entry: e, isAi: false });
       }

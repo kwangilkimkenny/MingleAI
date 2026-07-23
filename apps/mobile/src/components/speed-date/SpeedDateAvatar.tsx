@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
 });

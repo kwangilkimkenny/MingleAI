@@ -273,6 +273,11 @@ model SpeedDateQueueEntry {
   gender             String // male | female (v1: hetero 3:3 only)
   status             String   @default("waiting") // waiting | matched | cancelled | timeout
   preferenceSnapshot Json     @map("preference_snapshot") // 큐 진입 시점 선호 신호
+  // Optional geo — set when the user shared location. Matching stays within the smaller radius of
+  // any pair; null coords/radius = no distance constraint (location is optional).
+  lat                Float?
+  lng                Float?
+  radiusKm           Int?     @map("radius_km")
   matchedSessionId   String?  @map("matched_session_id")
   enqueuedAt         DateTime @default(now()) @map("enqueued_at")
   updatedAt          DateTime @updatedAt @map("updated_at")

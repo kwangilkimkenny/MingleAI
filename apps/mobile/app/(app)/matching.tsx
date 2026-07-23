@@ -1,7 +1,7 @@
 import { colors, doodle, fonts, layout, space, type } from "../../src/lib/theme";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, View, Text, StyleSheet } from "react-native";
-import { router } from "expo-router";
+import { router, Redirect } from "expo-router";
 import { DoodleButton, DoodleCard } from "../../src/components/Doodle";
 import { DoodleChip, DoodleFace } from "../../src/components/DoodleSvg";
 import { DoodleAvatar } from "../../src/components/DoodleAvatar";
@@ -13,6 +13,7 @@ import {
   ApiError,
   type PublicParty,
 } from "@mingle/client-core";
+import { FEATURES } from "../../src/lib/features";
 
 const POLL_MS = 2500;
 
@@ -34,6 +35,13 @@ export default function Matching() {
 
   useEffect(() => {
     alive.current = true;
+
+    // Party game is on hold — never enqueue (the <Redirect> below bounces the view home).
+    if (!FEATURES.partyGame) {
+      return () => {
+        alive.current = false;
+      };
+    }
 
     async function poll() {
       try {
@@ -112,6 +120,9 @@ export default function Matching() {
     if (!matchedPartyId) return;
     router.replace({ pathname: "/(app)/party/[id]", params: { id: matchedPartyId } });
   }
+
+  // Party game disabled — render nothing but the redirect (the effect above skipped enqueue).
+  if (!FEATURES.partyGame) return <Redirect href="/home" />;
 
   if (phase === "failed") {
     return (

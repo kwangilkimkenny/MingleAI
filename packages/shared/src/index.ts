@@ -37,6 +37,8 @@ export type {
   TypingEvent,
 } from "./types/social.js";
 export { normalizeMatchPair, blockPairKey } from "./social/pair.js";
+export { haversineKm, withinMutualRadius } from "./geo/distance.js";
+export type { Coords } from "./geo/distance.js";
 
 export type { PartyMessage, GameSessionStatus, GameSession } from "./types/messaging.js";
 

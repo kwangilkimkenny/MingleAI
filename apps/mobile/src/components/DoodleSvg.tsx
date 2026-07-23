@@ -8,19 +8,24 @@ import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Line, Path } from "react-native-svg";
 import { hatchSegments, wobbleRect, type WonkyRadius } from "../lib/doodle-path";
-import { colors, doodle, fonts } from "../lib/theme";
+import { colors, doodle, fonts, shadow as elevation } from "../lib/theme";
 
-const PAD = 12; // svg overdraw margin so the shadow/jitter never clips
+const PAD = 12; // svg overdraw margin (used by the remaining SVG primitives)
 
+/**
+ * Rounded soft surface — the base for every button/card/chip/input. Post-redesign this is a plain
+ * View with a soft rose hairline + rounded corners (+ optional blurred elevation), NOT the old
+ * jittered SVG path. (Bonus: no onLayout measure pass, so surfaces paint filled on the first frame
+ * instead of flashing empty.) `seed`/`rotate` are accepted for call-site compatibility but ignored —
+ * the look is intentionally clean and un-wobbled now.
+ */
 export function WobbleBox({
   children,
   radius,
-  seed = 1,
-  bg = colors.paper,
-  stroke = colors.ink,
-  strokeWidth = 2.2,
+  bg = colors.card,
+  stroke = colors.border,
+  strokeWidth = doodle.border,
   shadow = false,
-  rotate,
   style,
   contentStyle,
 }: {
@@ -35,36 +40,14 @@ export function WobbleBox({
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 }) {
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  const d = size ? wobbleRect(size.w, size.h, radius, seed) : null;
   return (
     <View
-      style={[styles.wobbleOuter, rotate ? { transform: [{ rotate }] } : null, style]}
-      onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      style={[
+        { backgroundColor: bg, borderWidth: strokeWidth, borderColor: stroke, ...radius },
+        shadow ? elevation.card : null,
+        style,
+      ]}
     >
-      {size && d ? (
-        <Svg
-          style={{
-            position: "absolute",
-            left: -PAD,
-            top: -PAD,
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-          width={size.w + PAD * 2}
-          height={size.h + PAD * 2}
-          viewBox={`${-PAD} ${-PAD} ${size.w + PAD * 2} ${size.h + PAD * 2}`}
-        >
-          {shadow ? (
-            <Path
-              d={d}
-              fill={colors.ink}
-              transform={`translate(${doodle.shadow.x}, ${doodle.shadow.y})`}
-            />
-          ) : null}
-          <Path d={d} fill={bg} stroke={stroke} strokeWidth={strokeWidth} />
-        </Svg>
-      ) : null}
       <View style={[styles.wobbleContent, contentStyle]}>{children}</View>
     </View>
   );
@@ -132,8 +115,8 @@ export function DoodleFace({
   seed?: number;
 }) {
   const R = 32;
-  const face = inverted ? colors.ink : colors.paper;
-  const feat = inverted ? colors.paper : colors.ink;
+  const face = inverted ? colors.accent : colors.card;
+  const feat = inverted ? colors.onAccent : colors.heading;
   // Hand-drawn circle: wobbleRect with fully-round radii reads as a drawn circle.
   const circleD = wobbleRect(
     R * 2,
@@ -155,7 +138,7 @@ export function DoodleFace({
         : `M${R - 10} ${R + 7} C${R - 5} ${R + 14} ${R + 5} ${R + 14} ${R + 10} ${R + 7}`;
   return (
     <Svg width={size} height={size} viewBox={`-3 -3 ${R * 2 + 6} ${R * 2 + 6}`}>
-      <Path d={circleD} fill={face} stroke={colors.ink} strokeWidth={2.6} />
+      <Path d={circleD} fill={face} stroke={colors.heading} strokeWidth={2.6} />
       <Circle cx={R - 9} cy={R - 5} r={2.8} fill={feat} />
       <Circle cx={R + 9} cy={R - 5} r={2.8} fill={feat} />
       <Path
@@ -207,15 +190,15 @@ export function DoodleChip({
   const chip = (
     <WobbleBox
       radius={doodle.radius.chip}
-      seed={label.length + (on ? 40 : 0)}
-      bg={on ? colors.ink : colors.paper}
-      strokeWidth={1.8}
+      bg={on ? colors.accent : colors.card}
+      stroke={on ? colors.accent : colors.border}
+      strokeWidth={1.5}
       contentStyle={[tiny ? styles.chipTiny : styles.chipInner, onPress && styles.chipTouchable]}
     >
       <Text
         style={[
           tiny ? styles.chipTextTiny : styles.chipText,
-          { color: on ? colors.paper : colors.ink },
+          { color: on ? colors.onAccent : colors.ink },
         ]}
       >
         {label}

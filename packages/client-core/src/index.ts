@@ -100,6 +100,9 @@ export { connectPartySocket } from "./socket/party-socket.js";
 export type { PartySocketHandlers, PartySocketHandle } from "./socket/party-socket.js";
 
 export { enqueueSpeedDate, cancelSpeedDate, getSpeedDateStatus } from "./api/speed-date.js";
+export type { SpeedDateEnqueueOptions } from "./api/speed-date.js";
+export { getNearbyPlaces } from "./api/places.js";
+export type { NaverPlace } from "./api/places.js";
 export { connectSpeedDateSocket } from "./socket/speed-date-socket.js";
 export type {
   SpeedDateSocketHandlers,

@@ -164,6 +164,6 @@ const styles = StyleSheet.create({
   safetyNoteText: { ...type.caption, color: colors.grayDark, flex: 1 },
   successScreen: { flex: 1, justifyContent: "center", backgroundColor: colors.paper, padding: layout.screenGutter },
   successContent: { alignItems: "center", gap: space.x4 },
-  successTitle: { ...type.title, color: colors.ink, textAlign: "center" },
+  successTitle: { ...type.title, color: colors.heading, textAlign: "center" },
   successBody: { ...type.body, color: colors.grayDark, textAlign: "center", maxWidth: 420 },
 });

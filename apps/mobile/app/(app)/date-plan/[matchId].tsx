@@ -118,11 +118,7 @@ export default function DatePlanScreen() {
     return (
       <ScrollView style={s.screen} contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
         <ContentColumn style={s.column}>
-        <PageHeader
-          back
-          title="만남 계획 만들기"
-          description="두 사람 모두 확인할 수 있는 코스를 추천해요. 확정 전에는 언제든 취소할 수 있어요."
-        />
+        <PageHeader back title="만남 계획 만들기" />
         <LabeledInput
           label="전체 예산"
           value={budget}
@@ -153,7 +149,7 @@ export default function DatePlanScreen() {
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.container}>
       <ContentColumn style={s.column}>
-      <PageHeader back title="만남 계획" description="상대와 함께 확인하고 확정하는 코스예요." />
+      <PageHeader back title="만남 계획" />
       <View style={s.statusRow}>
         <DoodleChip label={statusLabel(p.status)} on={p.status === "confirmed"} />
       </View>

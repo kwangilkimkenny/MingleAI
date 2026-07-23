@@ -1,9 +1,9 @@
 /**
- * DoodleAvatar — a circular B&W profile picture in the doodle sketchbook style.
+ * DoodleAvatar — a circular profile picture in the soft dating style.
  *
- * Shows the photo when `uri` is set, otherwise a fill circle with the name's first
- * grapheme as a Gaegu initial. The ink ring keeps it on-brand whether or not a photo
- * exists. Pure B&W + the shared theme tokens; no color, no new deps.
+ * Shows the photo when `uri` is set, otherwise a rose fill circle with the name's first
+ * grapheme. A soft rose hairline ring keeps it on-brand whether or not a photo exists.
+ * Uses the shared theme tokens; no new deps.
  */
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View, Text, Image, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
@@ -34,7 +34,7 @@ export function DoodleAvatar({
     height: size,
     borderRadius: size / 2,
     borderWidth: ring,
-    borderColor: colors.ink,
+    borderColor: colors.border,
     backgroundColor: colors.fill,
     overflow: "hidden",
     alignItems: "center",

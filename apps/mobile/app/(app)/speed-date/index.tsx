@@ -14,16 +14,27 @@ import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { BackButton } from "../../../src/components/BackButton";
 import { isSpeedDateEligibleGender } from "../../../src/lib/speed-date-eligibility";
+import { requestLocation } from "../../../src/lib/location";
 import { colors, layout, space, type } from "../../../src/lib/theme";
 
 const POLL_MS = 2500;
 type Phase = "checking" | "consent" | "ineligible" | "joining" | "waiting" | "error";
+
+/** Match-distance options; null = no distance limit (skip location entirely). */
+const RADIUS_OPTIONS: { km: number | null; label: string }[] = [
+  { km: 5, label: "5km" },
+  { km: 10, label: "10km" },
+  { km: 30, label: "30km" },
+  { km: 50, label: "50km" },
+  { km: null, label: "제한 없음" },
+];
 
 export default function SpeedDateMatching() {
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>("checking");
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [radiusKm, setRadiusKm] = useState<number | null>(10);
   const alive = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const startedAt = useRef(0);
@@ -79,7 +90,14 @@ export default function SpeedDateMatching() {
     setError(null);
     startedAt.current = Date.now();
     try {
-      await enqueueSpeedDate();
+      // Location is optional: request it only when a radius is chosen; if granted, match within
+      // that radius, otherwise enqueue without coords (matches anyone).
+      let geo: { lat: number; lng: number; radiusKm: number } | undefined;
+      if (radiusKm !== null) {
+        const loc = await requestLocation();
+        if (loc.coords) geo = { lat: loc.coords.lat, lng: loc.coords.lng, radiusKm };
+      }
+      await enqueueSpeedDate(geo);
       if (!alive.current) return;
       setPhase("waiting");
       poll();
@@ -122,10 +140,7 @@ export default function SpeedDateMatching() {
         {phase === "ineligible" ? (
           <View style={styles.center}>
             <Text style={styles.title}>현재 참여할 수 없어요</Text>
-            <Text style={styles.sub}>
-              블라인드 데이트는 현재 남성·여성 프로필 간 매칭만 지원해요. 더 다양한 매칭을 준비하고
-              있어요.
-            </Text>
+            <Text style={styles.sub}>지금은 남성·여성 매칭만 지원해요.</Text>
             <DoodleButton title="홈으로" onPress={() => router.replace("/home")} variant="primary" />
           </View>
         ) : null}
@@ -133,15 +148,11 @@ export default function SpeedDateMatching() {
         {phase === "consent" ? (
           <>
             <Text style={styles.title}>얼굴보다 대화가 먼저</Text>
-            <Text style={styles.sub}>
-              남 3 · 여 3이 3분씩 1:1로 대화해요. 처음엔 변조된 목소리와 캐릭터로 시작하고,
-              단계가 지날수록 진짜 목소리와 얼굴이 공개돼요.
-            </Text>
 
             <DoodleCard tone="fill" contentStyle={styles.stepsCard}>
-              <Step icon={<Mic color={colors.ink} size={18} />} title="1. 가면 라운드" body="변조 목소리 + 캐릭터. 별명과 성별만 보여요." />
-              <Step icon={<Mic color={colors.accent} size={18} />} title="2. 목소리 공개" body="진짜 목소리로 대화해요. 얼굴은 아직 가림." />
-              <Step icon={<Video color={colors.ink} size={18} />} title="3. 얼굴 공개" body="카메라가 켜지고 마지막 대화를 나눠요." />
+              <Step icon={<Mic color={colors.ink} size={18} />} title="가면 라운드" />
+              <Step icon={<Mic color={colors.accent} size={18} />} title="목소리 공개" />
+              <Step icon={<Video color={colors.ink} size={18} />} title="얼굴 공개" />
             </DoodleCard>
 
             <View style={styles.chips}>
@@ -149,8 +160,22 @@ export default function SpeedDateMatching() {
               <DoodleChip label="비공개 선택" tiny />
             </View>
 
+            <View style={styles.radiusBlock}>
+              <Text style={styles.radiusLabel}>매칭 거리</Text>
+              <View style={styles.radiusChips}>
+                {RADIUS_OPTIONS.map((opt) => (
+                  <DoodleChip
+                    key={opt.label}
+                    label={opt.label}
+                    on={radiusKm === opt.km}
+                    tiny
+                    onPress={() => setRadiusKm(opt.km)}
+                  />
+                ))}
+              </View>
+            </View>
+
             <DoodleButton title="시작하기" onPress={onStart} variant="primary" />
-            <Text style={styles.footnote}>통화는 저장되지 않고, 선택은 비공개예요.</Text>
           </>
         ) : null}
 
@@ -179,14 +204,11 @@ export default function SpeedDateMatching() {
   );
 }
 
-function Step({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+function Step({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
     <View style={styles.stepRow}>
       <View style={styles.stepIcon}>{icon}</View>
-      <View style={styles.stepText}>
-        <Text style={styles.stepTitle}>{title}</Text>
-        <Text style={styles.stepBody}>{body}</Text>
-      </View>
+      <Text style={styles.stepTitle}>{title}</Text>
     </View>
   );
 }
@@ -200,7 +222,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenGutter,
     paddingVertical: space.x2,
   },
-  brand: { ...type.heading, color: colors.ink },
+  brand: { ...type.heading, color: colors.heading },
   content: {
     flexGrow: 1,
     padding: layout.screenGutter,
@@ -210,27 +232,23 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.x4, paddingVertical: space.x8 },
-  title: { ...type.title, color: colors.ink, textAlign: "center" },
+  title: { ...type.title, color: colors.heading, textAlign: "center" },
   sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
   stepsCard: { gap: space.x3 },
-  stepRow: { flexDirection: "row", gap: space.x3, alignItems: "flex-start" },
+  stepRow: { flexDirection: "row", gap: space.x3, alignItems: "center" },
   stepIcon: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.paper,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepText: { flex: 1 },
   stepTitle: { ...type.label, color: colors.ink },
-  stepBody: { ...type.caption, color: colors.grayDark, marginTop: 2 },
-  consentCard: { gap: space.x3 },
-  consentHead: { flexDirection: "row", alignItems: "center", gap: space.x2 },
-  consentTitle: { ...type.heading, color: colors.ink },
-  consentBody: { ...type.body, color: colors.grayDark },
   chips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
-  footnote: { ...type.caption, color: colors.grayDark, textAlign: "center" },
+  radiusBlock: { gap: space.x2, alignItems: "center" },
+  radiusLabel: { ...type.label, color: colors.ink },
+  radiusChips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
 });

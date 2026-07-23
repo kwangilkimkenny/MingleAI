@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import {
   getReceivedProposals,
@@ -20,6 +14,7 @@ import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { DoodleCard } from "../../../src/components/Doodle";
 import { DashedLine } from "../../../src/components/DoodleSvg";
 import { EnterRow } from "../../../src/components/Motion";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, control, doodle, layout, space, type } from "../../../src/lib/theme";
 import {
@@ -31,6 +26,7 @@ import {
 
 export default function Proposals() {
   const clearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
   const [received, setReceived] = useState<ProposalView[]>([]);
   const [sent, setSent] = useState<ProposalView[]>([]);
   const [tab, setTab] = useState<"received" | "sent">("received");
@@ -91,37 +87,39 @@ export default function Proposals() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ContentColumn style={styles.headerColumn}>
-      <PageHeader title="프로포즈" description="호감은 명확하게, 결정은 서로의 속도로 나눠요." />
-      <View style={styles.tabs} accessibilityRole="tablist">
-        <TouchableOpacity
-          style={[styles.tab, tab === "received" && styles.tabActive]}
-          onPress={() => setTab("received")}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab === "received" }}
-        >
-          <Text style={[styles.tabText, tab === "received" && styles.tabTextActive]}>
-            받은 프로포즈 {received.filter((p) => p.status === "pending").length}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, tab === "sent" && styles.tabActive]}
-          onPress={() => setTab("sent")}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab === "sent" }}
-        >
-          <Text style={[styles.tabText, tab === "sent" && styles.tabTextActive]}>보낸 프로포즈</Text>
-        </TouchableOpacity>
-      </View>
-      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        <PageHeader back title="프로포즈" />
+        <View style={styles.tabs} accessibilityRole="tablist">
+          <TouchableOpacity
+            style={[styles.tab, tab === "received" && styles.tabActive]}
+            onPress={() => setTab("received")}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === "received" }}
+          >
+            <Text style={[styles.tabText, tab === "received" && styles.tabTextActive]}>
+              받은 프로포즈 {received.filter((p) => p.status === "pending").length}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, tab === "sent" && styles.tabActive]}
+            onPress={() => setTab("sent")}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === "sent" }}
+          >
+            <Text style={[styles.tabText, tab === "sent" && styles.tabTextActive]}>
+              보낸 프로포즈
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
       </ContentColumn>
       {proposals.length === 0 ? (
         <StateView
           title={tab === "received" ? "아직 받은 프로포즈가 없어요" : "아직 보낸 프로포즈가 없어요"}
-          body="게임에서 함께 움직이고 대화한 뒤, 마음이 가는 상대에게 직접 선택을 전해보세요."
-          actionLabel="게임 파티 찾기"
-          onAction={() => router.push("/(app)/matching")}
+          body="블라인드 데이트에서 대화한 뒤, 마음이 가는 상대에게 직접 선택을 전해보세요."
+          actionLabel="블라인드 데이트 시작"
+          onAction={() => router.push("/(app)/speed-date")}
         />
       ) : (
         <FlatList
@@ -228,10 +226,10 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 8 },
   acceptBtn: {
     flex: 1,
-    // 수락 = 이 화면의 primary 액션 — 팔레트 규칙상 잉크 블록이 아닌 코랄 포인트.
+    // 수락 = 이 화면의 primary 액션 — 로즈 포인트.
     backgroundColor: colors.accent,
     borderWidth: doodle.border,
-    borderColor: colors.ink,
+    borderColor: colors.accent,
     ...doodle.radius.button,
     minHeight: control.buttonHeight,
     paddingVertical: space.x2,
@@ -241,8 +239,8 @@ const styles = StyleSheet.create({
   declineBtn: {
     flex: 1,
     borderWidth: doodle.border,
-    borderColor: colors.ink,
-    borderRadius: 8,
+    borderColor: colors.border,
+    ...doodle.radius.button,
     minHeight: control.buttonHeight,
     paddingVertical: space.x2,
     alignItems: "center",
