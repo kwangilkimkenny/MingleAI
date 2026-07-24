@@ -41,7 +41,7 @@ Writing tips:
 
 ## Design system — 두 시스템 공존 (line-art + masterpiece) — enforce on ALL new UI
 
-**2026-07-24 재설계**: 소프트로즈 폐기 → **두 시스템 공존**. (A) **기능 화면 = 얇은 선 라인아트**(코랄 원포인트), (B) **브랜드 모먼트(홈·입장·온보딩) = 명화 에디토리얼**(르네상스 누끼+크림+명조+하프톤). spec `docs/superpowers/specs/2026-07-24-lineart-archetype-redesign-design.md`, 제품 정체성 `docs/CONCEPT.md`(로테이션 블라인드 소개팅). 동시에 **IA를 AppScreen 아키타입 시스템으로 통일**(아래). ⚠️ 컴포넌트/토큰 **이름은 두들 시대 그대로 유지**(`Doodle*`/`WobbleBox`/`doodle.*`) — 이름만 보고 "손그림/로즈"로 되돌리지 말 것. 라이브 토큰 = `apps/mobile/src/lib/theme.ts`.
+**2026-07-24 재설계**: 소프트로즈 폐기 → **톤 분리 공존**(사용자 방침 "다크 무드 유지, 리스트만 밝게"). (A) **다크 에디토리얼 = 홈 테마**(홈·로그인·게이트[동의/권한/본인인증/온보딩]·스피드데이트 인트로) — 웜 니어블랙 배경·크림 명조 헤드라인·골드 라벨·크림 pill CTA·르네상스 명화(홈=풀신 배경, 로그인=누끼). 토큰 = `theme.ts` `dark`, 화면은 `<AppScreen tone="dark">` + 컴포넌트 `tone="dark"`/`dark` prop. (B) **라이트 라인아트 = 리스트/데이터 화면**(탭 리스트·채팅·설정·상세) — 얇은 선 + 코랄 원포인트(`colors`). spec `docs/superpowers/specs/2026-07-24-lineart-archetype-redesign-design.md`, 제품 정체성 `docs/CONCEPT.md`(로테이션 블라인드 소개팅). **IA = AppScreen 아키타입 시스템**(아래). ⚠️ 컴포넌트/토큰 **이름은 두들 시대 그대로 유지** — 이름 보고 "손그림/로즈"로 되돌리지 말 것. 라이브 토큰 = `apps/mobile/src/lib/theme.ts`. (명화 크림 `masterpiece`/`MasterpieceHero`는 다크 전환으로 현재 대부분 미사용 — 재활용 예약.)
 
 - **골격(라인아트)**: 전 비-Immersive 화면은 **`AppScreen`**(`src/components/AppScreen.tsx`) 단일 래퍼 통과 — SafeArea·`colors.paper`·`PageHeader`·폭캡(`ContentColumn`)·탭 클리어런스·하단고정 `footer`·전폭 `bleed` 슬롯 흡수. 화면은 콘텐츠만. 아키타입 6종 = **Hub / List / Detail / Flow / Sheet / Immersive**(Immersive=스피드데이트 세션·파티 월드만, 골격 밖). 공용 행 = `ListRow`/`RowSeparator`(`src/components/ListRow.tsx`; 카드 내부 `gutter={0}`, 위험행 `tone="danger"`). 빈/로딩/에러 = `StateView` 항상.
 
