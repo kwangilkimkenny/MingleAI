@@ -181,8 +181,7 @@ export default function SpeedDateMatching() {
 
       {isConsent && step === "rules" ? (
         <View style={styles.rulesStack}>
-          <Text style={styles.title}>얼굴보다 대화가 먼저</Text>
-          <Text style={styles.subtitle}>이렇게 진행돼요.</Text>
+          <Text style={styles.title}>로테이션 데이트 Rule</Text>
           <View style={styles.rules}>
             {RULES.map((r, i) => (
               <RuleRow key={r.n} rule={r} last={i === RULES.length - 1} />
@@ -269,7 +268,6 @@ function RuleRow({ rule, last }: { rule: { n: string; title: string; body: strin
 const styles = StyleSheet.create({
   rulesStack: { gap: space.x4, paddingTop: space.x2 },
   title: { ...type.title, fontFamily: serifFont, color: dark.text, textAlign: "center" },
-  subtitle: { ...type.caption, color: dark.textMuted, textAlign: "center", marginTop: -space.x2 },
   rules: { marginTop: space.x2 },
   ruleRow: { flexDirection: "row", gap: space.x3, alignItems: "flex-start", paddingVertical: space.x3 },
   ruleDivider: { borderBottomWidth: 1, borderBottomColor: dark.line },
