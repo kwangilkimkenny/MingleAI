@@ -136,6 +136,7 @@ export default function Login() {
             <View style={styles.devBox}>
               <Text style={styles.devLabel}>개발용 로그인</Text>
               <LabeledInput
+                dark
                 label="이메일"
                 placeholder="dev@mingle.test"
                 autoCapitalize="none"
@@ -147,6 +148,7 @@ export default function Login() {
                 title={busy === "dev" ? "로그인 중…" : "dev 로그인"}
                 onPress={onDevLogin}
                 disabled={busy !== null || !devEmail.trim()}
+                tone="dark"
               />
             </View>
           ) : null}
