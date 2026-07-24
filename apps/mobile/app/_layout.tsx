@@ -9,15 +9,13 @@ import { colors, fonts, type } from "../src/lib/theme";
 export { ErrorBoundary } from "expo-router";
 
 export default function RootLayout() {
-  // Pretendard powers the whole type system (2026-07-23 dropped Gaegu handwriting). Fonts are
-  // bundled locally, so this resolves fast; hold the first frame until ready so text doesn't
-  // flash in the system fallback.
+  // Pretendard powers the whole type system (2026-07-24 dropped the Cafe24 Dongdong display face —
+  // line-art is clean modern, hierarchy comes from size + weight + coral). Fonts are bundled
+  // locally, so this resolves fast; hold the first frame until ready so text doesn't flash in the
+  // system fallback.
   const [fontsLoaded, fontError] = useFonts({
     Pretendard_400Regular: require("../assets/fonts/pretendard/Pretendard-Regular.otf"),
     Pretendard_600SemiBold: require("../assets/fonts/pretendard/Pretendard-SemiBold.otf"),
-    // Cafe24 Dongdong (OFL) — the display/brand face, used with restraint on large titles.
-    Cafe24Dongdong_400Regular: require("../assets/fonts/cafe24/Cafe24Dongdong-Regular.otf"),
-    Cafe24Dongdong_300Light: require("../assets/fonts/cafe24/Cafe24Dongdong-Light.otf"),
   });
 
   // app.json orientation="default"(runtime lock을 위해 필요) 상태에서 앱 전역은 세로 고정.
