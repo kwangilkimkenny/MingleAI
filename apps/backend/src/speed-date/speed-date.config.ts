@@ -45,7 +45,8 @@ export class SpeedDateConfigProvider {
     this.value = {
       stages,
       stageOrder: STAGE_ORDER_FULL.slice(-stages),
-      groupPerGender: intOr(config.get("SPEEDDATE_GROUP_PER_GENDER"), 3, { min: 2, max: 6 }),
+      // min 1 allows a 1:1 test/low-traffic mode (default stays 3 = full rotation group).
+      groupPerGender: intOr(config.get("SPEEDDATE_GROUP_PER_GENDER"), 3, { min: 1, max: 6 }),
       preflightMs: intOr(config.get("SPEEDDATE_PREFLIGHT_MS"), 20000, { min: 1000 }),
       stageIntroMs: intOr(config.get("SPEEDDATE_STAGE_INTRO_MS"), 5000, { min: 1000 }),
       roundMs: intOr(config.get("SPEEDDATE_ROUND_MS"), 300000, { min: 5000 }),
