@@ -8,6 +8,7 @@ function cfg(over: Partial<SpeedDateConfig> = {}): SpeedDateConfig {
     stageOrder: STAGE_ORDER_FULL.slice(-1),
     groupPerGender: 3,
     preflightMs: 20000,
+    stageIntroMs: 5000,
     roundMs: 180000,
     intermissionMs: 10000,
     decisionMs: 10000,

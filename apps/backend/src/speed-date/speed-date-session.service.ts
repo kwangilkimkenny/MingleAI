@@ -18,6 +18,16 @@ export function isAiProfileId(id: string): boolean {
   return id.startsWith("ai-");
 }
 
+/** Fisher-Yates copy shuffle — randomizes session pairings (see createSession). */
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export interface AdvanceOutcome {
   sessionId: string;
   transitioned: boolean;
@@ -80,10 +90,13 @@ export class SpeedDateSessionService {
             const session = await tx.speedDateSession.create({
               data: {
                 status: "active",
+                // Shuffle each gender's ids so the rotation pairings vary per session (random
+                // matching); buildRotationSchedule keeps the round-robin invariant (each person
+                // still meets every opposite-gender partner exactly once per stage).
                 state: createInitialState(
                   participants,
-                  males,
-                  females,
+                  shuffle(males),
+                  shuffle(females),
                   this.cfg,
                   now.getTime(),
                 ) as unknown as Prisma.InputJsonValue,

@@ -11,6 +11,7 @@ export interface SpeedDateConfig {
   stageOrder: SpeedDateStage[];
   groupPerGender: number;
   preflightMs: number;
+  stageIntroMs: number;
   roundMs: number;
   intermissionMs: number;
   decisionMs: number;
@@ -39,14 +40,16 @@ function boolOr(raw: string | undefined, def: boolean): boolean {
 export class SpeedDateConfigProvider {
   readonly value: SpeedDateConfig;
   constructor(config: ConfigService) {
-    const stages = intOr(config.get("SPEEDDATE_STAGES"), 1, { min: 1, max: 3 });
+    // Full 3-stage reveal (DISGUISED→VOICE→FACE) is the product; slice down via env for dev/testing.
+    const stages = intOr(config.get("SPEEDDATE_STAGES"), 3, { min: 1, max: 3 });
     this.value = {
       stages,
       stageOrder: STAGE_ORDER_FULL.slice(-stages),
       groupPerGender: intOr(config.get("SPEEDDATE_GROUP_PER_GENDER"), 3, { min: 2, max: 6 }),
       preflightMs: intOr(config.get("SPEEDDATE_PREFLIGHT_MS"), 20000, { min: 1000 }),
-      roundMs: intOr(config.get("SPEEDDATE_ROUND_MS"), 180000, { min: 5000 }),
-      intermissionMs: intOr(config.get("SPEEDDATE_INTERMISSION_MS"), 10000, { min: 1000 }),
+      stageIntroMs: intOr(config.get("SPEEDDATE_STAGE_INTRO_MS"), 5000, { min: 1000 }),
+      roundMs: intOr(config.get("SPEEDDATE_ROUND_MS"), 300000, { min: 5000 }),
+      intermissionMs: intOr(config.get("SPEEDDATE_INTERMISSION_MS"), 5000, { min: 1000 }),
       decisionMs: intOr(config.get("SPEEDDATE_DECISION_MS"), 10000, { min: 3000 }),
       sweepMs: intOr(config.get("SPEEDDATE_SWEEP_MS"), 2500, { min: 250 }),
       maxWaitMs: intOr(config.get("SPEEDDATE_MAX_WAIT_MS"), 120000, { min: 1000 }),

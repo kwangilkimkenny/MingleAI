@@ -12,12 +12,20 @@ import { useSpeedDateMedia } from "../../../src/lib/speed-date-media";
 import { VideoView } from "../../../src/components/speed-date/VideoView";
 import { useAuthStore } from "../../../src/lib/client";
 import { hapticSelect } from "../../../src/lib/haptics";
-import { colors, layout, space, type } from "../../../src/lib/theme";
+import { serifFont } from "../../../src/lib/serif";
+import { colors, dark, layout, space, type } from "../../../src/lib/theme";
 
 const STAGE_HINT: Record<SpeedDateStage, string> = {
   DISGUISED: "목소리는 변조되고 캐릭터 이미지만 보여요.",
   VOICE: "이제 진짜 목소리가 들려요. 얼굴은 아직 가림.",
   FACE: "카메라가 켜지고 얼굴이 공개돼요.",
+};
+
+/** Per-stage "N라운드" announcement copy, shown on the stage_intro screen. */
+const STAGE_INTRO: Record<SpeedDateStage, { label: string; hint: string }> = {
+  DISGUISED: { label: "가면 대화", hint: "목소리는 변조되고 캐릭터로 만나요." },
+  VOICE: { label: "목소리 공개", hint: "이제 진짜 목소리가 들려요. 얼굴은 아직 가림." },
+  FACE: { label: "얼굴 공개", hint: "카메라가 켜지고 얼굴이 공개돼요." },
 };
 
 type Insets = ReturnType<typeof useSafeAreaInsets>;
@@ -84,7 +92,7 @@ export default function SpeedDateSession() {
       <Screen insets={insets}>
         <View style={styles.center}>
           <Text style={styles.msg}>세션을 찾을 수 없어요.</Text>
-          <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
+          <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
         </View>
       </Screen>
     );
@@ -93,7 +101,7 @@ export default function SpeedDateSession() {
     return (
       <Screen insets={insets}>
         <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
+          <ActivityIndicator color={dark.accent} />
           <Text style={styles.sub}>{error ?? "연결 중이에요…"}</Text>
         </View>
       </Screen>
@@ -120,6 +128,21 @@ export default function SpeedDateSession() {
             <Text style={styles.selfLabel}>나</Text>
           </View>
         ) : null}
+      </View>
+    );
+  }
+
+  // Stage intro = full-bleed "N라운드" announcement + countdown, shown to everyone before each stage.
+  if (snapshot.phase === "stage_intro" && snapshot.stage) {
+    return (
+      <View style={styles.introScreen}>
+        <StageIntroView
+          stageIndex={snapshot.stageIndex}
+          stageCount={snapshot.stageCount}
+          stage={snapshot.stage}
+          seconds={remainSec}
+          insets={insets}
+        />
       </View>
     );
   }
@@ -157,10 +180,42 @@ function Screen({ insets, children }: { insets: Insets; children: React.ReactNod
 function Waiting({ title, sub, seconds }: { title: string; sub: string; seconds: number }) {
   return (
     <View style={styles.center}>
-      <ActivityIndicator color={colors.accent} size="large" />
+      <ActivityIndicator color={dark.accent} size="large" />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.sub}>{sub}</Text>
       <Text style={styles.timer}>{seconds}s</Text>
+    </View>
+  );
+}
+
+function StageIntroView({
+  stageIndex,
+  stageCount,
+  stage,
+  seconds,
+  insets,
+}: {
+  stageIndex: number;
+  stageCount: number;
+  stage: SpeedDateStage;
+  seconds: number;
+  insets: Insets;
+}) {
+  const info = STAGE_INTRO[stage];
+  return (
+    <View style={[styles.intro, { paddingTop: insets.top + space.x6, paddingBottom: insets.bottom + space.x6 }]}>
+      <View style={styles.introTop}>
+        <Text style={styles.introKicker}>
+          ROUND {stageIndex + 1} / {stageCount}
+        </Text>
+        <Text style={styles.introRound}>{stageIndex + 1}라운드</Text>
+        <Text style={styles.introLabel}>{info.label}</Text>
+        <Text style={styles.introHint}>{info.hint}</Text>
+      </View>
+      <View style={styles.introBottom}>
+        <Text style={styles.introCount}>{seconds}</Text>
+        <Text style={styles.introSub}>잠시 후 시작해요</Text>
+      </View>
     </View>
   );
 }
@@ -252,6 +307,7 @@ function DecisionView({
           return (
             <DoodleCard
               key={p.profileId}
+              tone="dark"
               style={[styles.gridCard, on ? styles.gridCardOn : null]}
               contentStyle={styles.gridInner}
             >
@@ -263,6 +319,7 @@ function DecisionView({
                 title={on ? "선택됨 ✓" : "선택"}
                 onPress={() => onPick(p.profileId)}
                 variant={on ? "primary" : "secondary"}
+                tone="dark"
               />
             </DoodleCard>
           );
@@ -279,7 +336,7 @@ function ResultView({ result }: { result: SpeedDateSnapshot["result"] }) {
       <View style={styles.center}>
         <Text style={styles.title}>이번엔 서로 선택이 없었어요</Text>
         <Text style={styles.sub}>다음 만남에서 더 잘 맞는 상대를 찾아볼게요.</Text>
-        <DoodleButton title="홈으로" onPress={() => router.replace("/home")} variant="primary" />
+        <DoodleButton title="홈으로" onPress={() => router.replace("/home")} variant="primary" tone="dark" />
       </View>
     );
   }
@@ -288,25 +345,37 @@ function ResultView({ result }: { result: SpeedDateSnapshot["result"] }) {
       <Text style={styles.title}>{matches.length}명과 매칭됐어요!</Text>
       <Text style={styles.sub}>이제 1:1 채팅에서 실제 프로필로 대화를 이어가세요.</Text>
       {matches.map((m) => (
-        <DoodleCard key={m.roomId} style={styles.matchCard} contentStyle={styles.matchInner}>
+        <DoodleCard key={m.roomId} tone="dark" style={styles.matchCard} contentStyle={styles.matchInner}>
           <Text style={styles.nickname}>{m.nickname}</Text>
           <DoodleButton
             title="채팅 시작"
             variant="primary"
+            tone="dark"
             onPress={() => router.replace({ pathname: "/(app)/chat/[roomId]", params: { roomId: m.roomId } })}
           />
         </DoodleCard>
       ))}
-      <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
+      <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
+  screen: { flex: 1, backgroundColor: dark.bg },
   fullScreen: { flex: 1, backgroundColor: "#000" },
   stageFull: { flex: 1, backgroundColor: "#000" },
   avatarStage: { alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
+  // Stage intro ("N라운드" announcement)
+  introScreen: { flex: 1, backgroundColor: dark.bg },
+  intro: { flex: 1, justifyContent: "space-between", alignItems: "center", paddingHorizontal: space.x6 },
+  introTop: { alignItems: "center", gap: space.x2, marginTop: "auto" },
+  introKicker: { ...type.label, color: dark.label, letterSpacing: 2 },
+  introRound: { fontFamily: serifFont, fontSize: 44, lineHeight: 52, color: dark.heading, textAlign: "center" },
+  introLabel: { ...type.title, color: dark.text, textAlign: "center", marginTop: space.x1 },
+  introHint: { ...type.body, color: dark.textMuted, textAlign: "center", maxWidth: 320 },
+  introBottom: { alignItems: "center", gap: space.x1, marginTop: "auto" },
+  introCount: { fontFamily: serifFont, fontSize: 64, lineHeight: 72, color: dark.accent },
+  introSub: { ...type.caption, color: dark.textMuted },
   content: {
     flexGrow: 1,
     padding: layout.screenGutter,
@@ -372,18 +441,18 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.onAccent,
   },
-  nickname: { ...type.title, color: colors.heading },
+  nickname: { ...type.title, color: dark.heading },
   badgeRow: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
   badge: { flexDirection: "row", alignItems: "center", gap: 4 },
-  timer: { ...type.title, color: colors.accent },
-  title: { ...type.title, color: colors.heading, textAlign: "center" },
-  sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
-  msg: { ...type.heading, color: colors.heading, textAlign: "center" },
+  timer: { ...type.title, color: dark.accent },
+  title: { ...type.title, color: dark.heading, textAlign: "center" },
+  sub: { ...type.body, color: dark.textMuted, textAlign: "center" },
+  msg: { ...type.heading, color: dark.heading, textAlign: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.x3, justifyContent: "center" },
   gridCard: { width: 150 },
-  gridCardOn: { borderColor: colors.accent },
+  gridCardOn: { borderColor: dark.accent },
   gridInner: { alignItems: "center", gap: space.x2, paddingVertical: space.x3 },
-  gridNick: { ...type.label, color: colors.ink, maxWidth: 130 },
+  gridNick: { ...type.label, color: dark.text, maxWidth: 130 },
   matchCard: { width: "100%" },
   matchInner: { alignItems: "center", gap: space.x3, paddingVertical: space.x4 },
 });

@@ -45,7 +45,7 @@ export interface SpeedDateState {
 /** Timing config needed to advance phases. */
 type PhaseCfg = Pick<
   SpeedDateConfig,
-  "preflightMs" | "roundMs" | "intermissionMs" | "decisionMs"
+  "preflightMs" | "stageIntroMs" | "roundMs" | "intermissionMs" | "decisionMs"
 >;
 
 export function createInitialState(
@@ -100,27 +100,36 @@ export function nextPhase(
 
   switch (state.phase) {
     case "preflight":
-      next.phase = "round";
+      // Join window over → announce the first stage ("1라운드") before its first round.
+      next.phase = "stage_intro";
       next.stageIndex = 0;
       next.roundIndex = 0;
+      next.phaseEndsAt = now + cfg.stageIntroMs;
+      break;
+    case "stage_intro":
+      // Countdown over → begin the stage's first rotation (indices unchanged).
+      next.phase = "round";
       next.phaseEndsAt = now + cfg.roundMs;
       break;
     case "round":
       if (isLastPosition(state)) {
         next.phase = "decision";
         next.phaseEndsAt = now + cfg.decisionMs;
+      } else if (state.roundIndex === roundCount(state) - 1) {
+        // Last rotation of this stage, more stages remain → announce the next stage.
+        next.phase = "stage_intro";
+        next.stageIndex = state.stageIndex + 1;
+        next.roundIndex = 0;
+        next.phaseEndsAt = now + cfg.stageIntroMs;
       } else {
+        // More partners in this stage → brief switch to the next rotation.
         next.phase = "intermission";
         next.phaseEndsAt = now + cfg.intermissionMs;
       }
       break;
     case "intermission":
-      if (state.roundIndex < roundCount(state) - 1) {
-        next.roundIndex = state.roundIndex + 1;
-      } else {
-        next.stageIndex = state.stageIndex + 1;
-        next.roundIndex = 0;
-      }
+      // Intra-stage rotation only (stage transitions go through stage_intro above).
+      next.roundIndex = state.roundIndex + 1;
       next.phase = "round";
       next.phaseEndsAt = now + cfg.roundMs;
       break;
@@ -164,7 +173,8 @@ export function currentPair(
 
 /** Distinct opposite-gender partners the viewer has met up to (and including) the current round. */
 export function metPartnerIds(state: SpeedDateState, viewerId: string): string[] {
-  if (state.phase === "preflight") return [];
+  // No partners met yet during the initial wait, nor leak the upcoming one during a stage intro.
+  if (state.phase === "preflight" || state.phase === "stage_intro") return [];
   const rc = roundCount(state);
   const current = state.stageIndex * rc + state.roundIndex;
   const met = new Set<string>();
@@ -202,7 +212,9 @@ export function snapshotFor(
   viewerId: string,
 ): SpeedDateSnapshot {
   const me = partById(state, viewerId);
-  const inSession = state.phase === "round" || state.phase === "intermission";
+  // Expose the current stage during its intro too, so the "N라운드" screen can show the reveal.
+  const inSession =
+    state.phase === "round" || state.phase === "intermission" || state.phase === "stage_intro";
   const stage = inSession ? state.stageOrder[state.stageIndex] : null;
 
   let partner: PartnerView | null = null;

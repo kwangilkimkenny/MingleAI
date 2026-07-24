@@ -9,6 +9,7 @@ function cfg(): SpeedDateConfig {
     stageOrder: STAGE_ORDER_FULL.slice(-1),
     groupPerGender: 3,
     preflightMs: 1000,
+    stageIntroMs: 500,
     roundMs: 3000,
     intermissionMs: 500,
     decisionMs: 1000,

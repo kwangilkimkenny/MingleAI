@@ -15,6 +15,7 @@ function cfg(stages: number): SpeedDateConfig {
     stageOrder: STAGE_ORDER_FULL.slice(-stages),
     groupPerGender: 3,
     preflightMs: 1000,
+    stageIntroMs: 500,
     roundMs: 3000,
     intermissionMs: 500,
     decisionMs: 1000,
@@ -61,15 +62,16 @@ describe("createInitialState", () => {
 describe("nextPhase — slice (1 stage = FACE)", () => {
   const c = cfg(1);
 
-  it("walks preflight → 3 rounds w/ intermissions → decision → ended", () => {
+  it("walks preflight → stage intro → 3 rounds w/ intermissions → decision → ended", () => {
     let s = makeState(1, 0);
     const seen: string[] = [s.phase];
-    for (let i = 0; i < 8 && s.phase !== "ended"; i++) {
+    for (let i = 0; i < 12 && s.phase !== "ended"; i++) {
       s = tick(s, c);
       seen.push(`${s.phase}:${s.stageIndex}:${s.roundIndex}`);
     }
     expect(seen).toEqual([
       "preflight",
+      "stage_intro:0:0",
       "round:0:0",
       "intermission:0:0",
       "round:0:1",
@@ -117,6 +119,23 @@ describe("nextPhase — full (3 stages)", () => {
     expect(decisions).toBe(1);
     expect(s.stageOrder).toEqual(["DISGUISED", "VOICE", "FACE"]);
   });
+
+  it("announces every stage with its own intro (stage_intro before each stage's first round)", () => {
+    let s = makeState(3, 0);
+    const seen: string[] = [`${s.phase}`];
+    for (let i = 0; i < 30 && s.phase !== "ended"; i++) {
+      s = tick(s, c);
+      seen.push(`${s.phase}:${s.stageIndex}:${s.roundIndex}`);
+    }
+    expect(seen).toEqual([
+      "preflight",
+      "stage_intro:0:0", "round:0:0", "intermission:0:0", "round:0:1", "intermission:0:1", "round:0:2",
+      "stage_intro:1:0", "round:1:0", "intermission:1:0", "round:1:1", "intermission:1:1", "round:1:2",
+      "stage_intro:2:0", "round:2:0", "intermission:2:0", "round:2:1", "intermission:2:1", "round:2:2",
+      "decision:2:2",
+      "ended:2:2",
+    ]);
+  });
 });
 
 describe("metPartnerIds", () => {
@@ -124,6 +143,7 @@ describe("metPartnerIds", () => {
     const c = cfg(1);
     let s = makeState(1, 0);
     expect(metPartnerIds(s, "m0")).toEqual([]);
+    s = tick(s, c); // preflight → stage intro
     s = tick(s, c); // round 0: m0-f0
     expect(metPartnerIds(s, "m0")).toEqual(["f0"]);
     s = tick(s, c); // intermission
@@ -140,6 +160,8 @@ describe("snapshotFor", () => {
   it("shows the live partner only during a round, redacted for the FACE stage", () => {
     let s = makeState(1, 0);
     expect(snapshotFor("sess", s, "m0").partner).toBeNull(); // preflight
+    s = tick(s, c); // preflight → stage intro
+    expect(snapshotFor("sess", s, "m0").partner).toBeNull(); // stage_intro: no live partner yet
     s = tick(s, c); // round 0: m0-f0, stage FACE
     const snap = snapshotFor("sess", s, "m0");
     expect(snap.stage).toBe("FACE");

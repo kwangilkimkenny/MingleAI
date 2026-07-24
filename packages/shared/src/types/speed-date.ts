@@ -12,8 +12,15 @@
 /** Progressive reveal stages. */
 export type SpeedDateStage = "DISGUISED" | "VOICE" | "FACE";
 
-/** Session lifecycle phases held in `state.phase`. */
-export type SpeedDatePhase = "preflight" | "round" | "intermission" | "decision" | "ended";
+/** Session lifecycle phases held in `state.phase`. `stage_intro` = the per-stage announcement
+ *  ("N라운드" + upcoming reveal) shown with a short countdown before that stage's first round. */
+export type SpeedDatePhase =
+  | "preflight"
+  | "stage_intro"
+  | "round"
+  | "intermission"
+  | "decision"
+  | "ended";
 
 /** What the current stage reveals about a partner's media. Single source of truth. */
 export interface StageReveal {
