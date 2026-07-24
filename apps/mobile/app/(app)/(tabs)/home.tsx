@@ -51,8 +51,8 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      {/* full-width scene, natural height → the whole couple is visible (native fits to width) */}
-      <Image source={SCENE} resizeMode="cover" style={styles.scene} />
+      {/* whole image always visible — contain fits the entire scene (letterboxed on the dark root) */}
+      <Image source={SCENE} resizeMode="contain" style={StyleSheet.absoluteFill} />
 
       {/* bottom scrim for legible light copy */}
       <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
@@ -120,9 +120,6 @@ function IconDot({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#1A120C" },
-  // Full width, natural aspect → the entire couple shows (native fits to width; the strip artifact
-  // was RN-Web only). The scene sits at the top; the dark root + scrim carry the copy below it.
-  scene: { width: "100%", aspectRatio: 1023 / 1537 },
   topbar: { position: "absolute", right: 16, flexDirection: "row", gap: 10, zIndex: 5 },
   iconDot: {
     width: 42,
