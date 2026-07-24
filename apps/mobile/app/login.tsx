@@ -1,14 +1,14 @@
-import { colors, space, type } from "../src/lib/theme";
 import { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { socialLogin, devLogin, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { startSocialOAuth, socialClientAvailable, type SocialProvider } from "../src/lib/social-auth";
-import { AppScreen } from "../src/components/AppScreen";
-import { DoodleButton } from "../src/components/Doodle";
-import { DoodleHero } from "../src/components/DoodleHero";
+import { MasterpieceHero, PillButton } from "../src/components/MasterpieceHero";
 import { InlineNotice, LabeledInput } from "../src/components/Foundation";
+import { DoodleButton } from "../src/components/Doodle";
+import { fonts, masterpiece } from "../src/lib/theme";
 
 const PROVIDERS: { key: SocialProvider; label: string }[] = [
   { key: "kakao", label: "카카오로 시작하기" },
@@ -17,6 +17,7 @@ const PROVIDERS: { key: SocialProvider; label: string }[] = [
 ];
 
 export default function Login() {
+  const insets = useSafeAreaInsets();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<SocialProvider | "dev" | null>(null);
@@ -63,71 +64,67 @@ export default function Login() {
   }
 
   return (
-    <AppScreen body="scroll" contentStyle={styles.scroll}>
-      <View style={styles.container}>
-        <DoodleHero tagline="가벼운 만남의 시작" />
-        <View style={styles.intro}>
-          <Text accessibilityRole="header" style={styles.title}>소셜 계정으로 시작하세요</Text>
-          <Text style={styles.description}>
-            안전한 만남을 위해 소셜 로그인 후 본인인증을 진행해요. 별도 비밀번호는 없어요.
-          </Text>
+    <View style={styles.root}>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}>
+        <MasterpieceHero
+          height={430}
+          eyebrow="로테이션 블라인드 소개팅"
+          headline={"얼굴보다\n대화가 먼저"}
+          subhead="여러 인연을, 편견 없이."
+          figure="both"
+        />
+
+        <View style={styles.actions}>
+          {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+
+          {available.length === 0 ? (
+            <InlineNotice tone="neutral">
+              소셜 로그인이 아직 설정되지 않았어요. EXPO_PUBLIC_*_CLIENT_ID를 설정하거나 아래 dev 로그인을 사용하세요.
+            </InlineNotice>
+          ) : (
+            available.map((p) => (
+              <PillButton
+                key={p.key}
+                title={busy === p.key ? "연결 중…" : p.label}
+                onPress={() => (busy === null ? onSocial(p.key) : undefined)}
+              />
+            ))
+          )}
+
+          {__DEV__ ? (
+            <View style={styles.devBox}>
+              <Text style={styles.devLabel}>개발용 로그인</Text>
+              <LabeledInput
+                label="이메일"
+                placeholder="dev@mingle.test"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={devEmail}
+                onChangeText={setDevEmail}
+              />
+              <DoodleButton
+                title={busy === "dev" ? "로그인 중…" : "dev 로그인"}
+                onPress={onDevLogin}
+                disabled={busy !== null || !devEmail.trim()}
+              />
+            </View>
+          ) : null}
         </View>
-
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-
-        {available.length === 0 ? (
-          <InlineNotice tone="neutral">
-            소셜 로그인이 아직 설정되지 않았어요. EXPO_PUBLIC_*_CLIENT_ID를 설정하거나 아래 dev 로그인을 사용하세요.
-          </InlineNotice>
-        ) : (
-          available.map((p) => (
-            <DoodleButton
-              key={p.key}
-              title={busy === p.key ? "연결 중…" : p.label}
-              onPress={() => onSocial(p.key)}
-              disabled={busy !== null}
-              variant="primary"
-            />
-          ))
-        )}
-
-        {__DEV__ ? (
-          <View style={styles.devBox}>
-            <Text style={styles.devLabel}>개발용 로그인</Text>
-            <LabeledInput
-              label="이메일"
-              placeholder="dev@mingle.test"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={devEmail}
-              onChangeText={setDevEmail}
-            />
-            <DoodleButton
-              title={busy === "dev" ? "로그인 중…" : "dev 로그인"}
-              onPress={onDevLogin}
-              disabled={busy !== null || !devEmail.trim()}
-            />
-          </View>
-        ) : null}
-      </View>
-    </AppScreen>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // AppScreen owns SafeArea + paper background + width cap; this only centers the branding column.
-  scroll: { flexGrow: 1, justifyContent: "center" },
-  container: { gap: space.x4, paddingVertical: space.x6 },
-  intro: { gap: space.x1 },
-  title: { ...type.heading, color: colors.ink, textAlign: "center" },
-  description: { ...type.body, color: colors.grayDark, textAlign: "center" },
+  root: { flex: 1, backgroundColor: masterpiece.cream },
+  actions: { paddingHorizontal: 22, paddingTop: 8, gap: 10 },
   devBox: {
-    gap: space.x2,
-    marginTop: space.x6,
-    padding: space.x4,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 12,
+    gap: 8,
+    marginTop: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: masterpiece.pillGhostBorder,
+    borderRadius: 16,
   },
-  devLabel: { ...type.label, color: colors.grayDark },
+  devLabel: { fontFamily: fonts.bodySemibold, fontSize: 15, color: masterpiece.inkSoft },
 });

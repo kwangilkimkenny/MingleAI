@@ -9,7 +9,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Pattern, Rect, Stop } from "react-native-svg";
 import { fonts, masterpiece } from "../lib/theme";
 
 const MAN = require("../../assets/images/renaissance-man-cutout.png");
@@ -93,6 +93,18 @@ export function MasterpieceHero({
         <Animated.Image source={MAN} resizeMode="contain" style={[styles.fig, manStyle]} />
         <Animated.Image source={WOMAN} resizeMode="contain" style={[styles.fig, womanStyle]} />
       </View>
+
+      {/* left-to-right cream scrim so the serif copy stays legible over the figure */}
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+        <Defs>
+          <LinearGradient id="mp-scrim" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor={bg} stopOpacity={1} />
+            <Stop offset="0.5" stopColor={bg} stopOpacity={0.86} />
+            <Stop offset="0.78" stopColor={bg} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#mp-scrim)" />
+      </Svg>
 
       {/* copy + actions on the left */}
       <View style={styles.copy}>
