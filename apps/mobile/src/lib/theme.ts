@@ -1,41 +1,48 @@
 /**
- * Romantic-soft palette — warm rose ground, crisp white cards, a love-red action rose, and warm
- * charcoal ink. Single source of truth for mobile colors. 2026-07-23 the app moved from the
- * hand-drawn doodle look (stark white + black wobble borders + Gaegu handwriting) to a
- * dating-conventional soft system (warm ground, soft rose hairlines, rounded shapes, Pretendard).
- * Token NAMES are kept stable so the ~48 consumers shift by value; the doodle-era names
- * (ink/paper/accent/…) now carry soft-romantic values.
+ * Line-art palette — warm off-white paper, crisp white cards, thin ink strokes, and a single
+ * persimmon-coral point color. Single source of truth for mobile colors. 2026-07-24 the app moved
+ * from the soft-romantic rose system back to the doodle identity, evolved into a refined thin-line
+ * line-art look (clean hairlines, outline-first elevation, no wobble, one accent). Aesthetic rule:
+ * outline-first, shadow-minimal, color = coral in one or two spots. Token NAMES are kept stable so
+ * the ~48 consumers shift by value; the doodle/rose-era names now carry line-art values.
+ *
+ * ⚠️ accent (#FF4D3D) fails AA for white TEXT (3.29:1) — it is for strokes/icons/active/tint only.
+ * White text on a coral surface (buttons, badges) MUST use accentStrong (#D6361F, 4.77:1). danger is
+ * a cool crimson, deliberately hue-separated from the warm coral so destructive ≠ "just the CTA".
  */
 export const colors = {
-  ink: "#2A2228", // warm charcoal — primary text (softer than pure black)
-  paper: "#FFF7F5", // warm rose-tinted page ground (was stark white)
-  card: "#FFFFFF", // crisp white card surface (depth against the warm ground)
-  heading: "#9F1239", // deep rose — headings / short emphasis
-  grayDark: "#5A4A50", // strong warm secondary text
-  grayMid: "#6E5A61", // supporting copy — ~5:1 on paper/white, AA for normal text
-  grayLight: "#EAD9DD", // rose-tinted dividers
-  border: "#F6D8DE", // soft rose hairline — card/button/input outline (was 2px black ink)
-  fill: "#FFF0F1", // rose surface fill
-  fillDeep: "#FDE4E8", // deeper rose surface
+  ink: "#181514", // 먹선·본문 (따뜻 니어블랙)
+  paper: "#FBFAF8", // 페이지 그라운드 (살짝 웜 오프화이트)
+  card: "#FFFFFF", // 카드 서피스
+  heading: "#181514", // 라인아트 = 타이틀도 잉크 (색 강조는 코랄 1점만)
+  grayDark: "#57534E", // 보조 텍스트 (AA)
+  grayMid: "#78716C", // 캡션·비활성 (white/paper 위 AA)
+  grayLight: "#E8E5E0", // = line 값 (divider) — 이름 유지
+  line: "#E8E5E0", // 헤어라인 divider·행 구분
+  border: "#E0DBD3", // = outline 값 (카드·인풋 외곽) — 이름 유지
+  outline: "#E0DBD3", // 카드·인풋 외곽선 (신규 별칭)
+  fill: "#F4F2EF", // 중립 연회색 fill (disabled 버튼·notice bg)
+  fillDeep: "#ECE9E4", // 더 진한 중립 fill
   partyFloor: "#E9E2D6", // (party game world — disabled; legacy value kept)
   partyRoom: "#FFFDF8",
   partyRoomWarm: "#F8F0E6",
   partyRoomRose: "#F8ECEC",
-  // Point colors — the one primary CTA per screen, active tab, unread badges, small highlights.
-  // #E11D48 (rose) is the dating-standard love-red; white on it passes AA (4.5:1).
-  accent: "#E11D48", // action rose — primary CTA / active state
-  accentBright: "#FB7185", // salmon — expressive brand moments / illustration
-  accentDeep: "#BE123C", // pressed / stronger action rose
-  accentSoft: "#FB7185", // salmon — secondary highlight (icons, small pops)
-  accentFill: "#FFD9DE", // light rose — small tinted fills / gauges
-  onAccent: "#FFFFFF", // text/icons on an accent fill
+  // Point color — the single coral used per screen. accent = strokes/icons/active/tint (NO white
+  // text). accentStrong = coral surfaces carrying white text (buttons, badges).
+  accent: "#FF4D3D", // 브랜드 코랄 — 선·아이콘·활성탭·틴트 전용 (흰글씨 X)
+  accentBright: "#FF6F5E", // 밝은 코랄 — 일러스트·표현
+  accentDeep: "#B92E1A", // pressed (레거시 이름 유지)
+  accentPressed: "#B92E1A", // 눌림 (신규 별칭)
+  accentSoft: "#FF6F5E", // 밝은 코랄 보조
+  accentStrong: "#D6361F", // 흰글씨 얹는 코랄 fill (버튼·배지) — white 4.77:1 AA
+  accentFill: "#FFE7E3", // 연코랄 틴트 (hero 배경·pressed)
+  onAccent: "#FFFFFF", // 코랄 위 글씨
   success: "#257A55",
   warning: "#9A5D00",
   warningFill: "#FFF0D6",
-  // Danger sits in a brick red, deliberately distinct from the rose primary so a destructive
-  // action never reads as "just the CTA color".
-  danger: "#B3261E",
-  dangerFill: "#FDECEA",
+  // Cool crimson — hue-separated from the warm coral so a destructive action never reads as the CTA.
+  danger: "#C4122F",
+  dangerFill: "#FCE8EC",
 } as const;
 
 /**
@@ -54,9 +61,9 @@ export const space = {
 } as const;
 
 export const type = {
-  // display = Cafe24 Dongdong (brand/display face), used only on the largest titles for character.
-  display: { fontFamily: "Cafe24Dongdong_400Regular", fontSize: 28, lineHeight: 36 },
-  title: { fontFamily: "Cafe24Dongdong_400Regular", fontSize: 22, lineHeight: 29 },
+  // Pretendard 단일 (2026-07-24 Cafe24Dongdong 폐기 — 라인아트는 클린 모던, 계층은 크기+웨이트+코랄).
+  display: { fontFamily: "Pretendard_600SemiBold", fontSize: 28, lineHeight: 36 },
+  title: { fontFamily: "Pretendard_600SemiBold", fontSize: 22, lineHeight: 29 },
   heading: { fontFamily: "Pretendard_600SemiBold", fontSize: 19, lineHeight: 25 },
   body: { fontFamily: "Pretendard_400Regular", fontSize: 16, lineHeight: 24 },
   label: { fontFamily: "Pretendard_600SemiBold", fontSize: 15, lineHeight: 21 },
