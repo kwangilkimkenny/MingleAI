@@ -1,137 +1,42 @@
-import { useCallback, useState, type ReactNode } from "react";
-import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
-import { router, useFocusEffect } from "expo-router";
-import { Ban, ChevronRight, LogOut, FileText, Trash2 } from "lucide-react-native";
-import { getMyProfile, logoutSession, updateProfile } from "@mingle/client-core";
+import { useState, type ReactNode } from "react";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { router } from "expo-router";
+import { Ban, ChevronRight, LogOut, FileText, Trash2, UserRound } from "lucide-react-native";
+import { logoutSession } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
-import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { pickAndUploadPhoto } from "../../../src/lib/photo";
 import { AppScreen } from "../../../src/components/AppScreen";
-import { ConfirmDialog, InlineNotice, StateView } from "../../../src/components/Foundation";
+import { ConfirmDialog } from "../../../src/components/Foundation";
 import { dark, space, type } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
 
-type MyProfile = NonNullable<Awaited<ReturnType<typeof getMyProfile>>>;
-
 export default function SettingsScreen() {
   const logout = useAuthStore((s) => s.logout);
-  const profileId = useAuthStore((s) => s.profileId);
   const refreshToken = useAuthStore((s) => s.refreshToken);
-  const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
-
-  const load = useCallback(() => {
-    let alive = true;
-    setLoading(true);
-    setLoadError(false);
-    getMyProfile()
-      .then((p) => {
-        if (alive) {
-          setProfile(p);
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (alive) {
-          setLoading(false);
-          setLoadError(true);
-        }
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useFocusEffect(load);
-
-  async function onChangePhoto() {
-    if (photoBusy || !profileId) return;
-    setPhotoError(null);
-    setPhotoBusy(true);
-    const res = await pickAndUploadPhoto();
-    if (res.status === "ok") {
-      try {
-        const updated = await updateProfile(profileId, { photoUrl: res.url });
-        setProfile((prev) => (prev ? { ...prev, photoUrl: updated.photoUrl } : prev));
-      } catch (e) {
-        setPhotoError(e instanceof Error ? e.message : "사진을 저장하지 못했어요. 다시 시도해 주세요.");
-      }
-    } else if (res.status === "denied") {
-      setPhotoError("사진을 변경하려면 기기 설정에서 사진 접근을 허용해 주세요.");
-    } else if (res.status === "error") {
-      setPhotoError(res.message);
-    }
-    setPhotoBusy(false);
-  }
-
-  if (loading) {
-    return (
-      <AppScreen tone="dark" tabScreen body="plain">
-        <StateView title="설정을 불러오고 있어요" loading dark />
-      </AppScreen>
-    );
-  }
-  if (loadError || !profile) {
-    return (
-      <AppScreen tone="dark" tabScreen body="plain">
-        <StateView title="프로필을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} dark />
-      </AppScreen>
-    );
-  }
 
   return (
     <AppScreen tone="dark" tabScreen body="scroll" contentStyle={styles.content}>
-      {/* editorial profile masthead */}
-      <View style={styles.profile}>
-        <TouchableOpacity
-          onPress={onChangePhoto}
-          disabled={photoBusy}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="프로필 사진 변경"
-        >
-          <DoodleAvatar uri={profile.photoUrl} name={profile.name} size={76} />
-          {photoBusy ? (
-            <View style={styles.photoBusy}>
-              <ActivityIndicator color={dark.text} />
-            </View>
-          ) : null}
-        </TouchableOpacity>
-        <View style={styles.profileText}>
-          <Text accessibilityRole="header" style={styles.name}>
-            {profile.name} · {profile.age}
-          </Text>
-          <Text style={styles.meta}>
-            {[profile.occupation, profile.location].filter(Boolean).join(" · ")}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={profile.photoUrl ? "프로필 사진 변경" : "프로필 사진 추가"}
-            onPress={onChangePhoto}
-            style={styles.photoLinkButton}
-          >
-            <Text style={styles.photoLink}>{profile.photoUrl ? "사진 변경" : "사진 추가"}</Text>
-          </Pressable>
-        </View>
-      </View>
-      {photoError ? (
-        <View style={styles.photoNotice}>
-          <InlineNotice tone="error" dark>
-            {photoError}
-          </InlineNotice>
-        </View>
-      ) : null}
+      <Text style={styles.masthead}>설정</Text>
 
-      <Section label="안전">
-        <Row icon={<Ban color={dark.text} size={19} strokeWidth={1.6} />} title="차단 목록 관리" last onPress={() =>
+      <Section label="프로필">
+        <Row
+          icon={<UserRound color={dark.text} size={19} strokeWidth={1.6} />}
+          title="내 정보"
+          last
           // new route — Expo Router typegen updates on next `expo start`
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          router.push("/(app)/blocks" as any)
-        } />
+          onPress={() => router.push("/(app)/profile-edit" as any)}
+        />
+      </Section>
+
+      <Section label="안전">
+        <Row
+          icon={<Ban color={dark.text} size={19} strokeWidth={1.6} />}
+          title="차단 목록 관리"
+          last
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onPress={() => router.push("/(app)/blocks" as any)}
+        />
       </Section>
 
       <Section label="계정">
@@ -163,7 +68,7 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={styles.sectionBody}>{children}</View>
+      <View>{children}</View>
     </View>
   );
 }
@@ -199,24 +104,7 @@ function Row({
 
 const styles = StyleSheet.create({
   content: { paddingTop: space.x4 },
-  profile: { flexDirection: "row", alignItems: "center", gap: space.x4 },
-  photoBusy: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(26,18,12,0.6)",
-    borderRadius: 40,
-  },
-  profileText: { flex: 1, minWidth: 0 },
-  name: { fontFamily: serifFont, fontSize: 21, lineHeight: 27, color: dark.text, letterSpacing: -0.2 },
-  meta: { ...type.caption, color: dark.textMuted, marginTop: 2 },
-  photoLink: { ...type.caption, fontFamily: type.label.fontFamily, color: dark.accent, marginTop: space.x2 },
-  photoLinkButton: { alignSelf: "flex-start", minHeight: 32, justifyContent: "center" },
-  photoNotice: { marginTop: space.x3 },
+  masthead: { fontFamily: serifFont, fontSize: 26, color: dark.text, letterSpacing: -0.3 },
   section: { marginTop: space.x6 },
   sectionLabel: {
     fontFamily: type.label.fontFamily,
@@ -226,7 +114,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: space.x1,
   },
-  sectionBody: {},
   row: { flexDirection: "row", alignItems: "center", gap: space.x3, minHeight: 54 },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: dark.line },
   rowIcon: { width: 22, alignItems: "center" },
