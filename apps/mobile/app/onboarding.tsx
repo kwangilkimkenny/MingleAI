@@ -1,9 +1,8 @@
-import { colors, doodle, layout, space, type } from "../src/lib/theme";
+import { colors, space, type } from "../src/lib/theme";
 import { useState, useEffect } from "react";
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -11,20 +10,15 @@ import {
   Platform,
 } from "react-native";
 import { Redirect, router } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createProfile, getMyProfile, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
+import { AppScreen } from "../src/components/AppScreen";
 import { DoodleButton } from "../src/components/Doodle";
+import { DoodleChip } from "../src/components/DoodleSvg";
 import { DoodleAvatar } from "../src/components/DoodleAvatar";
 import { pickAndUploadPhoto } from "../src/lib/photo";
-import {
-  ContentColumn,
-  InlineNotice,
-  LabeledInput,
-  PageHeader,
-  StateView,
-} from "../src/components/Foundation";
+import { InlineNotice, LabeledInput, StateView } from "../src/components/Foundation";
 
 const GENDER_OPTIONS = [
   { label: "남성", value: "male" },
@@ -57,7 +51,6 @@ function validate(fields: {
 export default function Onboarding() {
   const hydrated = useAuthHydrated();
   const token = useAuthStore((s) => s.token);
-  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
@@ -70,7 +63,6 @@ export default function Onboarding() {
 
   const [profileChecked, setProfileChecked] = useState<"loading" | "none" | "has">("loading");
 
-  const [validationError, setValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -108,12 +100,6 @@ export default function Onboarding() {
 
   async function onSubmit() {
     if (busy) return;
-    const err = validate({ name, gender, ageText, occupation, partyPreferenceText });
-    if (err) {
-      setValidationError(err);
-      return;
-    }
-    setValidationError(null);
     setSubmitError(null);
     setBusy(true);
     try {
@@ -136,148 +122,119 @@ export default function Onboarding() {
     }
   }
 
-  if (busy) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={styles.loadingTitle}>잘 맞는 파티의 단서를 찾고 있어요</Text>
-        <Text style={styles.loadingText}>작성한 소개를 안전하게 분석하고 있어요.</Text>
-      </View>
-    );
-  }
+  const valid = !validate({ name, gender, ageText, occupation, partyPreferenceText });
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[
-        styles.container,
-        { paddingTop: insets.top + space.x4, paddingBottom: insets.bottom + space.x8 },
-      ]}
-      keyboardShouldPersistTaps="handled"
-    >
-      <ContentColumn style={styles.column}>
-      <PageHeader
-        title="나를 조금만 알려주세요"
-        description="이 정보는 파티 추천과 프로필 소개에 사용돼요. 나중에 다시 바꿀 수 있어요."
-      />
-
-      <View style={styles.photoSection}>
-        <TouchableOpacity
-          onPress={onPickPhoto}
-          disabled={photoBusy}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="프로필 사진 선택"
-        >
-          <DoodleAvatar uri={photoUrl} name={name} size={104} />
-          {photoBusy ? (
-            <View style={styles.photoBusy}>
-              <ActivityIndicator color={colors.ink} />
-            </View>
-          ) : null}
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onPickPhoto}
-          disabled={photoBusy}
-          accessibilityRole="button"
-          accessibilityLabel={photoUrl ? "프로필 사진 변경" : "프로필 사진 추가"}
-          style={styles.photoLinkButton}
-        >
-          <Text style={styles.photoLink}>{photoUrl ? "사진 변경" : "사진 추가 (선택)"}</Text>
-        </TouchableOpacity>
-        {photoError ? (
-          <View style={styles.photoNotice}>
-            <InlineNotice tone="error">{photoError}</InlineNotice>
+      <AppScreen
+        header={{ title: "프로필" }}
+        body="scroll"
+        footer={
+          <DoodleButton
+            title="시작하기"
+            onPress={onSubmit}
+            variant="primary"
+            disabled={!valid || busy}
+            busy={busy}
+          />
+        }
+      >
+        <View style={styles.form}>
+          <View style={styles.photoSection}>
+            <TouchableOpacity
+              onPress={onPickPhoto}
+              disabled={photoBusy}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="프로필 사진 선택"
+            >
+              <DoodleAvatar uri={photoUrl} name={name} size={104} />
+              {photoBusy ? (
+                <View style={styles.photoBusy}>
+                  <ActivityIndicator color={colors.ink} />
+                </View>
+              ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onPickPhoto}
+              disabled={photoBusy}
+              accessibilityRole="button"
+              accessibilityLabel={photoUrl ? "프로필 사진 변경" : "프로필 사진 추가"}
+              style={styles.photoLinkButton}
+            >
+              <Text style={styles.photoLink}>{photoUrl ? "사진 변경" : "사진 추가 (선택)"}</Text>
+            </TouchableOpacity>
+            {photoError ? (
+              <View style={styles.photoNotice}>
+                <InlineNotice tone="error">{photoError}</InlineNotice>
+              </View>
+            ) : null}
           </View>
-        ) : null}
-      </View>
 
-      <LabeledInput
-        label="닉네임 / 이름"
-        placeholder="표시될 이름"
-        hint="다른 사용자에게 공개되는 이름이에요."
-        value={name}
-        onChangeText={setName}
-        maxLength={40}
-      />
+          <LabeledInput
+            label="닉네임 / 이름"
+            placeholder="표시될 이름"
+            hint="다른 사용자에게 공개되는 이름이에요."
+            value={name}
+            onChangeText={setName}
+            maxLength={40}
+          />
 
-      <View style={styles.fieldGroup} accessibilityRole="radiogroup">
-      <Text style={styles.label}>성별</Text>
-      <View style={styles.segmentRow}>
-        {GENDER_OPTIONS.map((opt) => (
-          <TouchableOpacity
-            key={opt.value}
-            style={[styles.segment, gender === opt.value && styles.segmentActive]}
-            onPress={() => setGender(opt.value)}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: gender === opt.value }}
-            accessibilityLabel={opt.label}
-          >
-            <Text style={[styles.segmentText, gender === opt.value && styles.segmentTextActive]}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <Text style={styles.fieldHint}>원하지 않으면 ‘응답 안 함’을 선택할 수 있어요.</Text>
-      </View>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>성별</Text>
+            <View style={styles.chipRow}>
+              {GENDER_OPTIONS.map((opt) => (
+                <DoodleChip
+                  key={opt.value}
+                  label={opt.label}
+                  on={gender === opt.value}
+                  onPress={() => setGender(opt.value)}
+                />
+              ))}
+            </View>
+            <Text style={styles.fieldHint}>원하지 않으면 ‘응답 안 함’을 선택할 수 있어요.</Text>
+          </View>
 
-      <LabeledInput
-        label="나이"
-        placeholder="예: 25"
-        keyboardType="numeric"
-        value={ageText}
-        onChangeText={setAgeText}
-      />
+          <LabeledInput
+            label="나이"
+            placeholder="예: 25"
+            keyboardType="numeric"
+            value={ageText}
+            onChangeText={setAgeText}
+          />
 
-      <LabeledInput
-        label="직업"
-        placeholder="예: 대학원생"
-        maxLength={120}
-        value={occupation}
-        onChangeText={setOccupation}
-      />
+          <LabeledInput
+            label="직업"
+            placeholder="예: 대학원생"
+            maxLength={120}
+            value={occupation}
+            onChangeText={setOccupation}
+          />
 
-      <LabeledInput
-        label="함께 놀고 싶은 분위기"
-        placeholder="예: 조용히 보드게임 하면서 천천히 친해지는 분위기"
-        hint="8자 이상 구체적으로 적을수록 취향에 가까운 파티를 찾기 쉬워요."
-        multiline
-        numberOfLines={4}
-        maxLength={1000}
-        value={partyPreferenceText}
-        onChangeText={setPartyPreferenceText}
-      />
+          <LabeledInput
+            label="함께 놀고 싶은 분위기"
+            placeholder="예: 조용히 보드게임 하면서 천천히 친해지는 분위기"
+            hint="8자 이상 구체적으로 적을수록 취향에 가까운 파티를 찾기 쉬워요."
+            multiline
+            numberOfLines={4}
+            maxLength={1000}
+            value={partyPreferenceText}
+            onChangeText={setPartyPreferenceText}
+          />
 
-      {validationError ? <InlineNotice tone="error">{validationError}</InlineNotice> : null}
-      {submitError ? <InlineNotice tone="error">{submitError}</InlineNotice> : null}
-
-      <View style={styles.saveWrap}>
-        <DoodleButton title="소개 저장하고 시작하기" onPress={onSubmit} variant="primary" />
-      </View>
-      </ContentColumn>
-    </ScrollView>
+          {submitError ? <InlineNotice tone="error">{submitError}</InlineNotice> : null}
+        </View>
+      </AppScreen>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 16,
-    backgroundColor: colors.paper,
-  },
-  screen: { flex: 1, backgroundColor: colors.paper },
-  loadingTitle: { ...type.heading, color: colors.ink, textAlign: "center" },
-  loadingText: { ...type.body, color: colors.grayDark, textAlign: "center" },
-  container: { paddingHorizontal: layout.screenGutter, backgroundColor: colors.paper },
-  column: { gap: space.x5 },
+  flex: { flex: 1 },
+  form: { gap: space.x5 },
   photoSection: { alignItems: "center", gap: space.x2, marginBottom: space.x1 },
   photoBusy: {
     position: "absolute",
@@ -300,23 +257,5 @@ const styles = StyleSheet.create({
   fieldGroup: { gap: space.x2 },
   label: { ...type.label, color: colors.ink },
   fieldHint: { ...type.caption, color: colors.grayDark },
-  segmentRow: { flexDirection: "row", flexWrap: "wrap", gap: space.x2 },
-  segment: {
-    flexBasis: 128,
-    flexGrow: 1,
-    minWidth: 128,
-    minHeight: 52,
-    borderWidth: doodle.border,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    paddingHorizontal: space.x3,
-    paddingVertical: space.x3,
-    alignItems: "center",
-    justifyContent: "center",
-    ...doodle.radius.chip,
-  },
-  segmentActive: { borderColor: colors.accent, backgroundColor: colors.accent },
-  segmentText: { ...type.label, color: colors.ink },
-  segmentTextActive: { color: colors.onAccent },
-  saveWrap: { marginTop: space.x2 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: space.x2 },
 });

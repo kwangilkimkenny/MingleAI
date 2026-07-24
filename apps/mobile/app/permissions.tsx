@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Linking } from "react-native";
+import { View, Text, StyleSheet, Linking } from "react-native";
 import { router } from "expo-router";
 import { Camera, Mic } from "lucide-react-native";
+import { AppScreen } from "../src/components/AppScreen";
 import { DoodleButton, DoodleCard } from "../src/components/Doodle";
-import { ContentColumn, InlineNotice } from "../src/components/Foundation";
+import { InlineNotice } from "../src/components/Foundation";
 import { requestCameraMic, isPermanentlyDenied } from "../src/lib/permissions";
-import { colors, layout, space, type } from "../src/lib/theme";
+import { colors, space, type } from "../src/lib/theme";
 
 export default function Permissions() {
   const [busy, setBusy] = useState(false);
@@ -31,42 +32,47 @@ export default function Permissions() {
     }
   }
 
-  return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <ContentColumn style={styles.container}>
-        <Text accessibilityRole="header" style={styles.title}>카메라·마이크 권한이 필요해요</Text>
-        <Text style={styles.sub}>
-          영상 대화(블라인드 데이트)를 위해 카메라와 마이크 권한이 필요해요. 두 가지를 모두 허용해야
-          서비스를 이용할 수 있어요.
-        </Text>
+  const footer = blocked ? (
+    <View style={styles.footerStack}>
+      <DoodleButton title="설정 열기" onPress={() => Linking.openSettings()} variant="primary" />
+      <DoodleButton title="다시 확인" onPress={onRequest} />
+    </View>
+  ) : (
+    <DoodleButton
+      title={busy ? "요청 중…" : "권한 허용하기"}
+      onPress={onRequest}
+      disabled={busy}
+      variant="primary"
+    />
+  );
 
+  return (
+    <AppScreen header={{ title: "카메라·마이크 권한" }} footer={footer}>
+      <View style={styles.body}>
         <DoodleCard tone="fill" contentStyle={styles.card}>
-          <Row icon={<Camera color={colors.ink} size={20} />} title="카메라" body="얼굴 공개 단계의 영상 통화에 사용해요." />
-          <Row icon={<Mic color={colors.ink} size={20} />} title="마이크" body="모든 대화의 음성에 사용해요." />
+          <Row
+            icon={<Camera color={colors.accent} size={20} strokeWidth={1.75} />}
+            title="카메라"
+            body="얼굴 공개 단계의 영상 통화에 사용해요."
+          />
+          <Row
+            icon={<Mic color={colors.accent} size={20} strokeWidth={1.75} />}
+            title="마이크"
+            body="모든 대화의 음성에 사용해요."
+          />
         </DoodleCard>
 
         {blocked ? (
-          <>
-            <InlineNotice tone="error">
-              권한이 거부되어 있어요. 설정에서 카메라·마이크를 허용한 뒤 다시 시도해 주세요.
-            </InlineNotice>
-            <DoodleButton title="설정 열기" onPress={() => Linking.openSettings()} variant="primary" />
-            <DoodleButton title="다시 확인" onPress={onRequest} />
-          </>
-        ) : (
-          <>
-            {missing ? <InlineNotice tone="error">{missing}</InlineNotice> : null}
-            <DoodleButton
-              title={busy ? "요청 중…" : "권한 허용하기"}
-              onPress={onRequest}
-              disabled={busy}
-              variant="primary"
-            />
-          </>
-        )}
+          <InlineNotice tone="error">
+            권한이 거부되어 있어요. 설정에서 카메라·마이크를 허용한 뒤 다시 시도해 주세요.
+          </InlineNotice>
+        ) : missing ? (
+          <InlineNotice tone="error">{missing}</InlineNotice>
+        ) : null}
+
         <Text style={styles.note}>권한 없이는 서비스를 이용할 수 없어요.</Text>
-      </ContentColumn>
-    </ScrollView>
+      </View>
+    </AppScreen>
   );
 }
 
@@ -83,11 +89,9 @@ function Row({ icon, title, body }: { icon: React.ReactNode; title: string; body
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, justifyContent: "center", padding: layout.screenGutter, backgroundColor: colors.paper },
-  container: { gap: space.x4, paddingVertical: space.x6 },
-  title: { ...type.title, color: colors.heading, textAlign: "center" },
-  sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
+  body: { gap: space.x4 },
   card: { gap: space.x3 },
+  footerStack: { gap: space.x2 },
   row: { flexDirection: "row", gap: space.x3, alignItems: "center" },
   rowIcon: {
     width: 40,

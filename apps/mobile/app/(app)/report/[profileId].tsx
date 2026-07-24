@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-} from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   reportUser,
@@ -16,14 +11,9 @@ import {
 import { REASON_LABELS } from "../../../src/lib/moderation";
 import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
-import { colors, layout, space, type } from "../../../src/lib/theme";
-import {
-  ConfirmDialog,
-  ContentColumn,
-  InlineNotice,
-  LabeledInput,
-  PageHeader,
-} from "../../../src/components/Foundation";
+import { AppScreen } from "../../../src/components/AppScreen";
+import { colors, space, type } from "../../../src/lib/theme";
+import { ConfirmDialog, InlineNotice, LabeledInput } from "../../../src/components/Foundation";
 import { CheckCircle2, Shield } from "lucide-react-native";
 
 const MAX_DETAILS = 1000;
@@ -80,15 +70,19 @@ export default function ReportScreen() {
 
   if (submitted) {
     return (
-      <View style={styles.successScreen}>
-        <ContentColumn style={styles.successContent}>
-          <CheckCircle2 color={colors.success} size={58} />
-          <Text accessibilityRole="header" style={styles.successTitle}>신고가 접수됐어요</Text>
-          <Text style={styles.successBody}>검토에 필요한 내용을 안전하게 전달했어요. 상대에게 신고 사실이나 상세 내용은 공개되지 않아요.</Text>
+      <AppScreen contentStyle={styles.successScroll}>
+        <View style={styles.successInner}>
+          <CheckCircle2 color={colors.success} size={58} strokeWidth={1.75} />
+          <Text accessibilityRole="header" style={styles.successTitle}>
+            신고가 접수됐어요
+          </Text>
+          <Text style={styles.successBody}>
+            검토에 필요한 내용을 안전하게 전달했어요. 상대에게 신고 사실이나 상세 내용은 공개되지 않아요.
+          </Text>
           {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
           <DoodleButton title="이 사용자도 차단" variant="danger" onPress={() => setBlockOpen(true)} />
           <DoodleButton title="완료" onPress={closeScreen} />
-        </ContentColumn>
+        </View>
         <ConfirmDialog
           visible={blockOpen}
           title="이 사용자도 차단할까요?"
@@ -99,71 +93,67 @@ export default function ReportScreen() {
           onCancel={() => setBlockOpen(false)}
           onConfirm={onBlock}
         />
-      </View>
+      </AppScreen>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <ContentColumn style={styles.column}>
-      <PageHeader
-        back
-        title="신고하기"
-        description="긴급한 위험이 있다면 먼저 현지 긴급기관에 도움을 요청하세요. 신고 내용은 안전 검토에만 사용해요."
-      />
+    <AppScreen
+      header={{ back: true, title: "신고" }}
+      footer={
+        <DoodleButton
+          title={submitting ? "신고 제출 중..." : "신고 제출"}
+          variant="danger"
+          disabled={!reason || submitting}
+          onPress={onSubmit}
+        />
+      }
+    >
+      <View style={styles.form}>
+        <Text style={styles.section}>신고 사유</Text>
+        <View style={styles.reasonWrap} accessibilityRole="radiogroup">
+          {REPORT_REASONS.map((r) => (
+            <DoodleChip
+              key={r}
+              label={REASON_LABELS[r]}
+              on={reason === r}
+              onPress={() => setReason(r)}
+            />
+          ))}
+        </View>
 
-      <Text style={styles.section}>신고 사유</Text>
-      <View style={styles.reasonWrap} accessibilityRole="radiogroup">
-        {REPORT_REASONS.map((r) => (
-          <DoodleChip
-            key={r}
-            label={REASON_LABELS[r]}
-            on={reason === r}
-            onPress={() => setReason(r)}
-          />
-        ))}
+        <LabeledInput
+          label="상세 내용 (선택)"
+          value={details}
+          onChangeText={setDetails}
+          multiline
+          maxLength={MAX_DETAILS}
+          placeholder="자세한 상황을 적어주세요"
+          hint="시간, 장소, 상대의 행동처럼 사실을 중심으로 적어주면 검토에 도움이 돼요."
+        />
+        <Text style={styles.counter}>
+          {details.length}/{MAX_DETAILS}
+        </Text>
+
+        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        <View style={styles.safetyNote}>
+          <Shield color={colors.success} size={19} strokeWidth={1.75} />
+          <Text style={styles.safetyNoteText}>제출 후 바로 차단할지 선택할 수 있어요.</Text>
+        </View>
       </View>
-
-      <LabeledInput
-        label="상세 내용 (선택)"
-        value={details}
-        onChangeText={setDetails}
-        multiline
-        maxLength={MAX_DETAILS}
-        placeholder="자세한 상황을 적어주세요"
-        hint="시간, 장소, 상대의 행동처럼 사실을 중심으로 적어주면 검토에 도움이 돼요."
-      />
-      <Text style={styles.counter}>
-        {details.length}/{MAX_DETAILS}
-      </Text>
-
-      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-      <View style={styles.safetyNote}>
-        <Shield color={colors.success} size={19} />
-        <Text style={styles.safetyNoteText}>제출 후 바로 차단할지 선택할 수 있어요.</Text>
-      </View>
-      <DoodleButton
-        title={submitting ? "신고 제출 중..." : "신고 제출"}
-        variant="dangerSolid"
-        disabled={!reason || submitting}
-        onPress={onSubmit}
-      />
-      </ContentColumn>
-    </ScrollView>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-  content: { flexGrow: 1, paddingHorizontal: layout.screenGutter, paddingBottom: space.x8 },
-  column: { gap: space.x4 },
+  form: { gap: space.x4 },
   section: { ...type.label, color: colors.ink },
   reasonWrap: { flexDirection: "row", flexWrap: "wrap", gap: space.x2 },
   counter: { alignSelf: "flex-end", ...type.caption, color: colors.grayDark },
   safetyNote: { flexDirection: "row", alignItems: "center", gap: space.x2 },
   safetyNoteText: { ...type.caption, color: colors.grayDark, flex: 1 },
-  successScreen: { flex: 1, justifyContent: "center", backgroundColor: colors.paper, padding: layout.screenGutter },
-  successContent: { alignItems: "center", gap: space.x4 },
+  successScroll: { flexGrow: 1, justifyContent: "center" },
+  successInner: { alignItems: "center", gap: space.x4 },
   successTitle: { ...type.title, color: colors.heading, textAlign: "center" },
   successBody: { ...type.body, color: colors.grayDark, textAlign: "center", maxWidth: 420 },
 });

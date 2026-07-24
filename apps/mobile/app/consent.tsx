@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { router } from "expo-router";
 import { Check } from "lucide-react-native";
 import { submitConsents, type ConsentScope } from "@mingle/client-core";
-import { DoodleButton } from "../src/components/Doodle";
-import { ContentColumn, InlineNotice } from "../src/components/Foundation";
-import { colors, layout, space, type } from "../src/lib/theme";
+import { AppScreen } from "../src/components/AppScreen";
+import { DoodleButton, DoodleCard } from "../src/components/Doodle";
+import { InlineNotice } from "../src/components/Foundation";
+import { colors, space, type } from "../src/lib/theme";
 
 const ITEMS: { scope: ConsentScope; title: string; body: string; link?: "/terms" | "/privacy" }[] = [
   { scope: "age19", title: "만 19세 이상입니다", body: "성인만 이용할 수 있는 서비스예요." },
@@ -42,75 +43,86 @@ export default function Consent() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <ContentColumn style={styles.container}>
-        <Text accessibilityRole="header" style={styles.title}>시작 전 동의가 필요해요</Text>
-        <Text style={styles.sub}>안전한 서비스 운영을 위해 아래 항목에 모두 동의해 주세요.</Text>
-
-        {ITEMS.map((item) => {
-          const on = checked[item.scope];
-          return (
-            <Pressable
-              key={item.scope}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: on }}
-              onPress={() => setChecked((c) => ({ ...c, [item.scope]: !c[item.scope] }))}
-              style={styles.row}
-            >
-              <View style={[styles.box, on && styles.boxOn]}>
-                {on ? <Check color={colors.onAccent} size={16} strokeWidth={3} /> : null}
-              </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{item.title}</Text>
-                <Text style={styles.rowBody}>{item.body}</Text>
-                {item.link ? (
-                  <Text
-                    style={styles.link}
-                    onPress={() => router.push(item.link!)}
-                    accessibilityRole="link"
-                  >
-                    전문 보기
-                  </Text>
-                ) : null}
-              </View>
-            </Pressable>
-          );
-        })}
-
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-
+    <AppScreen
+      header={{
+        title: "시작 전 동의가 필요해요",
+        description: "안전한 서비스 운영을 위해 아래 항목에 모두 동의해 주세요.",
+      }}
+      footer={
         <DoodleButton
           title={busy ? "저장 중…" : "동의하고 계속"}
           onPress={onSubmit}
           disabled={!allChecked || busy}
           variant="primary"
         />
+      }
+    >
+      <View style={styles.body}>
+        <DoodleCard contentStyle={styles.cardList}>
+          {ITEMS.map((item, i) => {
+            const on = checked[item.scope];
+            return (
+              <Pressable
+                key={item.scope}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on }}
+                onPress={() => setChecked((c) => ({ ...c, [item.scope]: !c[item.scope] }))}
+                style={[styles.row, i > 0 && styles.rowDivider]}
+              >
+                <View style={[styles.box, on && styles.boxOn]}>
+                  {on ? <Check color={colors.onAccent} size={16} strokeWidth={1.75} /> : null}
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowTitle}>{item.title}</Text>
+                  <Text style={styles.rowBody}>{item.body}</Text>
+                  {item.link ? (
+                    <Text
+                      style={styles.link}
+                      onPress={() => router.push(item.link!)}
+                      accessibilityRole="link"
+                    >
+                      전문 보기
+                    </Text>
+                  ) : null}
+                </View>
+              </Pressable>
+            );
+          })}
+        </DoodleCard>
+
+        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+
         <Text style={styles.note}>모든 필수 항목에 동의해야 서비스를 이용할 수 있어요.</Text>
-      </ContentColumn>
-    </ScrollView>
+      </View>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, justifyContent: "center", padding: layout.screenGutter, backgroundColor: colors.paper },
-  container: { gap: space.x4, paddingVertical: space.x6 },
-  title: { ...type.title, color: colors.heading, textAlign: "center" },
-  sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
-  row: { flexDirection: "row", gap: space.x3, alignItems: "flex-start" },
+  body: { gap: space.x4, paddingTop: space.x2 },
+  cardList: { padding: 0 },
+  row: {
+    flexDirection: "row",
+    gap: space.x3,
+    alignItems: "flex-start",
+    paddingHorizontal: space.x4,
+    paddingVertical: space.x4,
+  },
+  rowDivider: { borderTopWidth: 1, borderTopColor: colors.line },
   box: {
     width: 26,
     height: 26,
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 1.5,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
+    marginTop: 1,
   },
-  boxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  boxOn: { backgroundColor: colors.accentStrong, borderColor: colors.accentStrong },
   rowText: { flex: 1, gap: 2 },
   rowTitle: { ...type.label, color: colors.ink },
   rowBody: { ...type.caption, color: colors.grayDark },
-  link: { ...type.caption, color: colors.accent, textDecorationLine: "underline", marginTop: 4 },
+  link: { ...type.caption, color: colors.accentStrong, textDecorationLine: "underline", marginTop: 4 },
   note: { ...type.caption, color: colors.grayDark, textAlign: "center" },
 });

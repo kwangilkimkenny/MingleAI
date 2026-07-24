@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import {
   startIdentityVerification,
@@ -7,8 +7,9 @@ import {
   ApiError,
 } from "@mingle/client-core";
 import { DoodleButton } from "../src/components/Doodle";
-import { ContentColumn, InlineNotice, LabeledInput } from "../src/components/Foundation";
-import { colors, layout, space, type } from "../src/lib/theme";
+import { AppScreen } from "../src/components/AppScreen";
+import { InlineNotice, LabeledInput, StateView } from "../src/components/Foundation";
+import { colors, space, type } from "../src/lib/theme";
 
 type Mode = "loading" | "dev" | "unavailable";
 
@@ -48,32 +49,44 @@ export default function VerifyIdentity() {
 
   if (mode === "loading") {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} />
-      </View>
+      <AppScreen body="plain">
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      </AppScreen>
     );
   }
 
   if (mode === "unavailable") {
     return (
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <ContentColumn style={styles.container}>
-          <Text accessibilityRole="header" style={styles.title}>본인인증 준비 중</Text>
-          <Text style={styles.sub}>
-            실명 본인인증(통신사·인증기관) 연동을 준비하고 있어요. 잠시 후 다시 시도해 주세요.
-          </Text>
-          <DoodleButton title="다시 시도" onPress={() => setMode("loading")} variant="primary" />
-        </ContentColumn>
-      </ScrollView>
+      <AppScreen body="plain">
+        <StateView
+          title="본인인증 준비 중"
+          body="실명 본인인증(통신사·인증기관) 연동을 준비하고 있어요. 잠시 후 다시 시도해 주세요."
+          actionLabel="다시 시도"
+          onAction={() => setMode("loading")}
+        />
+      </AppScreen>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <ContentColumn style={styles.container}>
-        <Text accessibilityRole="header" style={styles.title}>본인인증</Text>
-        <Text style={styles.sub}>안전한 매칭을 위해 실명 본인인증이 필요해요. (개발용 입력)</Text>
-
+    <AppScreen
+      header={{
+        title: "본인인증",
+        description: "안전한 매칭을 위해 실명 본인인증이 필요해요. (개발용 입력)",
+      }}
+      footer={
+        <DoodleButton
+          title="인증 완료"
+          onPress={onSubmit}
+          disabled={!valid}
+          busy={busy}
+          variant="primary"
+        />
+      }
+    >
+      <View style={styles.form}>
         <LabeledInput label="이름" placeholder="홍길동" value={name} onChangeText={setName} />
         <LabeledInput
           label="생년월일 (YYYY-MM-DD)"
@@ -110,24 +123,15 @@ export default function VerifyIdentity() {
 
         {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
 
-        <DoodleButton
-          title={busy ? "인증 중…" : "인증 완료"}
-          onPress={onSubmit}
-          disabled={!valid || busy}
-          variant="primary"
-        />
         <Text style={styles.note}>인증된 이름·성별·생년월일은 프로필에 반영돼요.</Text>
-      </ContentColumn>
-    </ScrollView>
+      </View>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.paper },
-  scroll: { flexGrow: 1, justifyContent: "center", padding: layout.screenGutter, backgroundColor: colors.paper },
-  container: { gap: space.x4, paddingVertical: space.x6 },
-  title: { ...type.title, color: colors.heading, textAlign: "center" },
-  sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
+  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
+  form: { gap: space.x4, paddingTop: space.x2 },
   fieldLabel: { ...type.label, color: colors.ink, marginBottom: space.x2 },
   genderRow: { flexDirection: "row", gap: space.x3 },
   genderChip: {
@@ -138,7 +142,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  genderChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  genderChipOn: { backgroundColor: colors.accentStrong, borderColor: colors.accentStrong },
   genderText: { ...type.label, color: colors.ink },
   genderTextOn: { color: colors.onAccent },
   note: { ...type.caption, color: colors.grayDark, textAlign: "center" },

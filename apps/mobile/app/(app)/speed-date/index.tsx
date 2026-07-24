@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Mic, Video } from "lucide-react-native";
 import {
@@ -10,12 +9,13 @@ import {
   getMyProfile,
   ApiError,
 } from "@mingle/client-core";
+import { AppScreen } from "../../../src/components/AppScreen";
 import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
-import { BackButton } from "../../../src/components/BackButton";
+import { StateView } from "../../../src/components/Foundation";
 import { isSpeedDateEligibleGender } from "../../../src/lib/speed-date-eligibility";
 import { requestLocation } from "../../../src/lib/location";
-import { colors, layout, space, type } from "../../../src/lib/theme";
+import { colors, space, type } from "../../../src/lib/theme";
 
 const POLL_MS = 2500;
 type Phase = "checking" | "consent" | "ineligible" | "joining" | "waiting" | "error";
@@ -30,7 +30,6 @@ const RADIUS_OPTIONS: { km: number | null; label: string }[] = [
 ];
 
 export default function SpeedDateMatching() {
-  const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>("checking");
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -119,88 +118,87 @@ export default function SpeedDateMatching() {
     router.replace("/home");
   }
 
+  const isConsent = phase === "consent";
+  const footer = isConsent ? (
+    <DoodleButton title="시작하기" onPress={onStart} variant="primary" />
+  ) : phase === "joining" || phase === "waiting" ? (
+    <DoodleButton title="매칭 취소" onPress={onCancel} />
+  ) : phase === "error" ? (
+    <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
+  ) : undefined;
+
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
-        <BackButton />
-        <Text style={styles.brand}>블라인드 데이트</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <AppScreen
+      header={{ title: "블라인드 데이트", back: true }}
+      body={isConsent ? "scroll" : "plain"}
+      footer={footer}
+    >
+      {phase === "checking" ? (
+        <StateView title="참여 가능 여부를 확인하고 있어요" loading />
+      ) : null}
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: space.x8 + insets.bottom }]}
-      >
-        {phase === "checking" ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.accent} size="large" />
-            <Text style={styles.sub}>참여 가능 여부를 확인하고 있어요</Text>
+      {phase === "ineligible" ? (
+        <StateView
+          title="현재 참여할 수 없어요"
+          body="지금은 남성·여성 매칭만 지원해요."
+          actionLabel="홈으로"
+          onAction={() => router.replace("/home")}
+        />
+      ) : null}
+
+      {isConsent ? (
+        <View style={styles.stack}>
+          <Text style={styles.title}>얼굴보다 대화가 먼저</Text>
+
+          <DoodleCard tone="fill" contentStyle={styles.stepsCard}>
+            <Step icon={<Mic color={colors.ink} size={18} strokeWidth={1.75} />} title="가면 라운드" />
+            <Step icon={<Mic color={colors.accent} size={18} strokeWidth={1.75} />} title="목소리 공개" />
+            <Step icon={<Video color={colors.ink} size={18} strokeWidth={1.75} />} title="얼굴 공개" />
+          </DoodleCard>
+
+          <View style={styles.chips}>
+            <DoodleChip label="녹화 없음" tiny />
+            <DoodleChip label="비공개 선택" tiny />
           </View>
-        ) : null}
 
-        {phase === "ineligible" ? (
-          <View style={styles.center}>
-            <Text style={styles.title}>현재 참여할 수 없어요</Text>
-            <Text style={styles.sub}>지금은 남성·여성 매칭만 지원해요.</Text>
-            <DoodleButton title="홈으로" onPress={() => router.replace("/home")} variant="primary" />
-          </View>
-        ) : null}
-
-        {phase === "consent" ? (
-          <>
-            <Text style={styles.title}>얼굴보다 대화가 먼저</Text>
-
-            <DoodleCard tone="fill" contentStyle={styles.stepsCard}>
-              <Step icon={<Mic color={colors.ink} size={18} />} title="가면 라운드" />
-              <Step icon={<Mic color={colors.accent} size={18} />} title="목소리 공개" />
-              <Step icon={<Video color={colors.ink} size={18} />} title="얼굴 공개" />
-            </DoodleCard>
-
-            <View style={styles.chips}>
-              <DoodleChip label="녹화 없음" tiny />
-              <DoodleChip label="비공개 선택" tiny />
+          <View style={styles.radiusBlock}>
+            <Text style={styles.radiusLabel}>매칭 거리</Text>
+            <View style={styles.radiusChips}>
+              {RADIUS_OPTIONS.map((opt) => (
+                <DoodleChip
+                  key={opt.label}
+                  label={opt.label}
+                  on={radiusKm === opt.km}
+                  tiny
+                  onPress={() => setRadiusKm(opt.km)}
+                />
+              ))}
             </View>
-
-            <View style={styles.radiusBlock}>
-              <Text style={styles.radiusLabel}>매칭 거리</Text>
-              <View style={styles.radiusChips}>
-                {RADIUS_OPTIONS.map((opt) => (
-                  <DoodleChip
-                    key={opt.label}
-                    label={opt.label}
-                    on={radiusKm === opt.km}
-                    tiny
-                    onPress={() => setRadiusKm(opt.km)}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <DoodleButton title="시작하기" onPress={onStart} variant="primary" />
-          </>
-        ) : null}
-
-        {phase === "joining" || phase === "waiting" ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.accent} size="large" />
-            <Text style={styles.title}>상대를 찾고 있어요</Text>
-            <Text style={styles.sub}>
-              {phase === "waiting"
-                ? `${Math.floor(elapsed / 1000)}초째 · 남3 여3이 모이면 시작해요`
-                : "대기열에 등록하는 중…"}
-            </Text>
-            <DoodleButton title="매칭 취소" onPress={onCancel} />
           </View>
-        ) : null}
+        </View>
+      ) : null}
 
-        {phase === "error" ? (
-          <View style={styles.center}>
-            <Text style={styles.sub}>{error}</Text>
-            <DoodleButton title="다시 시도" onPress={loadEligibility} variant="primary" />
-            <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
-          </View>
-        ) : null}
-      </ScrollView>
-    </View>
+      {phase === "joining" || phase === "waiting" ? (
+        <StateView
+          title="상대를 찾고 있어요"
+          body={
+            phase === "waiting"
+              ? `${Math.floor(elapsed / 1000)}초째 · 남3 여3이 모이면 시작해요`
+              : "대기열에 등록하는 중…"
+          }
+          loading
+        />
+      ) : null}
+
+      {phase === "error" ? (
+        <StateView
+          title="문제가 생겼어요"
+          body={error ?? undefined}
+          actionLabel="다시 시도"
+          onAction={loadEligibility}
+        />
+      ) : null}
+    </AppScreen>
   );
 }
 
@@ -214,26 +212,8 @@ function Step({ icon, title }: { icon: React.ReactNode; title: string }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: layout.screenGutter,
-    paddingVertical: space.x2,
-  },
-  brand: { ...type.heading, color: colors.heading },
-  content: {
-    flexGrow: 1,
-    padding: layout.screenGutter,
-    gap: space.x4,
-    maxWidth: layout.contentMax,
-    width: "100%",
-    alignSelf: "center",
-  },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.x4, paddingVertical: space.x8 },
+  stack: { gap: space.x4 },
   title: { ...type.title, color: colors.heading, textAlign: "center" },
-  sub: { ...type.body, color: colors.grayDark, textAlign: "center" },
   stepsCard: { gap: space.x3 },
   stepRow: { flexDirection: "row", gap: space.x3, alignItems: "center" },
   stepIcon: {

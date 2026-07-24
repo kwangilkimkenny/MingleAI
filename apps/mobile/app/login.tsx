@@ -1,13 +1,14 @@
-import { colors, layout, space, type } from "../src/lib/theme";
+import { colors, space, type } from "../src/lib/theme";
 import { useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { socialLogin, devLogin, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { startSocialOAuth, socialClientAvailable, type SocialProvider } from "../src/lib/social-auth";
+import { AppScreen } from "../src/components/AppScreen";
 import { DoodleButton } from "../src/components/Doodle";
 import { DoodleHero } from "../src/components/DoodleHero";
-import { ContentColumn, InlineNotice, LabeledInput } from "../src/components/Foundation";
+import { InlineNotice, LabeledInput } from "../src/components/Foundation";
 
 const PROVIDERS: { key: SocialProvider; label: string }[] = [
   { key: "kakao", label: "카카오로 시작하기" },
@@ -62,8 +63,8 @@ export default function Login() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <ContentColumn style={styles.container}>
+    <AppScreen body="scroll" contentStyle={styles.scroll}>
+      <View style={styles.container}>
         <DoodleHero tagline="가벼운 만남의 시작" />
         <View style={styles.intro}>
           <Text accessibilityRole="header" style={styles.title}>소셜 계정으로 시작하세요</Text>
@@ -108,13 +109,14 @@ export default function Login() {
             />
           </View>
         ) : null}
-      </ContentColumn>
-    </ScrollView>
+      </View>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, justifyContent: "center", padding: layout.screenGutter, backgroundColor: colors.paper },
+  // AppScreen owns SafeArea + paper background + width cap; this only centers the branding column.
+  scroll: { flexGrow: 1, justifyContent: "center" },
   container: { gap: space.x4, paddingVertical: space.x6 },
   intro: { gap: space.x1 },
   title: { ...type.heading, color: colors.ink, textAlign: "center" },
