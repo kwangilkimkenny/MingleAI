@@ -147,8 +147,41 @@ npx eas-cli build --profile development --platform ios   # 또는 android
 - DISGUISED/VOICE 단계에서 카메라가 **송출되지 않는지** LiveKit 대시보드/로그로 확인(토큰 grant `canPublishSources`가 `["microphone"]`뿐). UI 숨김이 아니라 발행 권한이 경계다.
 - 스냅샷에 상대 실명/photoUrl이 절대 없는지(별명만). 실명은 매치 후 DM에서만.
 
-## 6. 남은 백로그 (슬라이스 밖)
+## 7. 풀 3라운드 흐름 + 음성변조 (2026-07-24)
 
-- Slice 2: VOICE + DISGUISED 단계(스테이지 2·3), 아바타 마스킹 이미지셋.
-- Slice 3: 실제 음성변조(LiveKit server agent; 품질 하드 요구 시 Agora 재검토).
+**흐름**(기본 `SPEEDDATE_STAGES=3`): `preflight`(조인) → **1라운드 안내**(`stage_intro`/DISGUISED, 카운트다운) → 상대 3명 로테이션(각 5분, 상단 타이머, 랜덤 페어링) → **2라운드 안내**(VOICE) → 3 로테이션 → **3라운드 안내**(FACE) → 3 로테이션 → **프로포즈**(`decision`, 10초 상호선택) → 상호픽 시 Match+DM.
+
+### 7-1. 빠른 라이브 검증(구조·타이머·인트로)
+
+backend `.env`에 짧은 타이밍(관찰용):
+```
+SPEEDDATE_STAGE_INTRO_MS=1500
+SPEEDDATE_ROUND_MS=5000
+SPEEDDATE_INTERMISSION_MS=1500
+SPEEDDATE_PREFLIGHT_MS=2000
+SPEEDDATE_DECISION_MS=3000
+SPEEDDATE_AI_FILL=true
+```
+백엔드 재기동 후, 웹/실기기에서 큐 진입 → 인트로 화면("N라운드")·5초 카운트다운·상단 남은시간·상대 전환이 스테이지별로 도는지 확인. (백엔드 상태머신은 `speed-date.state.spec.ts`가 전 시퀀스를 결정적으로 검증.)
+
+### 7-2. 웹 음성변조 + 카메라 리빌 검증
+
+`docker compose up -d livekit` (devkey/secret) → 브라우저 2탭(male/female 각 온보딩 계정)으로 동시 큐 진입 → 같은 세션 매칭.
+- **DISGUISED**(1라운드): 상대 목소리가 **피치 하강(변조)**으로 들림(`pitchRatio` 0.72).
+- **VOICE**(2라운드): **원음**으로 전환(재발행 없이 워클릿 파라미터만 1.0).
+- **FACE**(3라운드): 카메라 발행 → 상호 영상.
+- 프라이버시: DISGUISED/VOICE에서 카메라 미발행(§5). 음성변조는 **퍼블리셔측**이라 원음이 상대에게 전송되지 않음.
+
+### 7-3. 네이티브 실미디어 (Phase D/E — 미구현, 실기기 전용)
+
+네이티브(iOS/Android)는 현재 **아바타 폴백**(seam `speed-date-media.ts` no-op). 실영상/실음성 = 다음 필요:
+1. `pnpm --filter @mingle/mobile add @livekit/react-native @livekit/react-native-webrtc`
+2. `app.json` config plugin + 카메라/마이크 권한 문구.
+3. `speed-date-media.ts`를 guarded require(미설치=폴백)로 실제 LiveKit RN 구현(웹 seam과 동형), `VideoView.tsx` 네이티브 렌더.
+4. `npx expo prebuild` → EAS dev build → 실기기 2대 §4-3 절차.
+5. **네이티브 음성변조 = 스파이크**: react-native-webrtc는 커스텀 오디오 처리 미지원 → 네이티브 오디오 모듈 또는 LiveKit RN audio filter 조사 필요.
+
+## 8. 남은 백로그 (슬라이스 밖)
+
+- ~~Slice 2: VOICE + DISGUISED 단계~~ 완료(기본 3스테이지). ~~Slice 3: 웹 음성변조~~ 완료(퍼블리셔측 피치시프트). **네이티브 실미디어(§7-3)는 EAS 전용 미구현.**
 - 예약형 런칭·성비 예측·대기자 승계. 논바이너리/다양한 조합. redis-adapter 다중 인스턴스. 중도 이탈 UI("상대가 나갔습니다") 정교화.
