@@ -32,6 +32,7 @@ export default function DeleteAccountScreen() {
   return (
     <AppScreen
       tone="dark"
+      keyboardAware
       header={{ back: true, title: "계정 삭제" }}
       footer={
         <DoodleButton

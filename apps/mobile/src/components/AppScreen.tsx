@@ -1,5 +1,13 @@
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, dark, layout, space } from "../lib/theme";
 import { ContentColumn, PageHeader } from "./Foundation";
@@ -24,6 +32,7 @@ export function AppScreen({
   tabScreen = false,
   bleed,
   tone = "light",
+  keyboardAware = false,
   contentStyle,
   children,
 }: {
@@ -35,6 +44,8 @@ export function AppScreen({
   bleed?: ReactNode;
   /** "dark" = 홈 테마(다크 에디토리얼) 화면. 리스트/데이터 화면은 기본 "light". */
   tone?: "light" | "dark";
+  /** 입력 폼 화면 — 키보드가 뜰 때 콘텐츠·하단 footer를 함께 밀어올린다(작은 화면서 CTA 가림 방지). */
+  keyboardAware?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
   children: ReactNode;
 }) {
@@ -75,23 +86,41 @@ export function AppScreen({
       </View>
     );
 
+  const footerNode = footer ? (
+    <View
+      style={[
+        styles.footer,
+        {
+          backgroundColor: bg,
+          borderTopColor: isDark ? dark.line : colors.line,
+          paddingBottom: insets.bottom + space.x3,
+        },
+      ]}
+    >
+      <ContentColumn style={styles.gutter}>{footer}</ContentColumn>
+    </View>
+  ) : null;
+
+  const stack = (
+    <>
+      {inner}
+      {footerNode}
+    </>
+  );
+
   return (
     <View style={[styles.root, { backgroundColor: bg, paddingTop: insets.top }]}>
-      {inner}
-      {footer ? (
-        <View
-          style={[
-            styles.footer,
-            {
-              backgroundColor: bg,
-              borderTopColor: isDark ? dark.line : colors.line,
-              paddingBottom: insets.bottom + space.x3,
-            },
-          ]}
+      {keyboardAware ? (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={insets.top}
         >
-          <ContentColumn style={styles.gutter}>{footer}</ContentColumn>
-        </View>
-      ) : null}
+          {stack}
+        </KeyboardAvoidingView>
+      ) : (
+        stack
+      )}
     </View>
   );
 }

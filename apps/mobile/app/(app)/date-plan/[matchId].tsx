@@ -102,21 +102,24 @@ export default function DatePlanScreen() {
     }
   }
 
-  if (phase === "loading") return <StateView title="데이트 플랜을 불러오고 있어요" loading dark />;
+  if (phase === "loading")
+    return (
+      <AppScreen tone="dark" header={{ back: true, title: "데이트 플랜" }} body="plain">
+        <StateView title="데이트 플랜을 불러오고 있어요" loading dark />
+      </AppScreen>
+    );
   if (phase === "error")
     return (
-      <StateView
-        title="데이트 플랜을 불러오지 못했어요"
-        actionLabel="다시 시도"
-        onAction={load}
-        dark
-      />
+      <AppScreen tone="dark" header={{ back: true, title: "데이트 플랜" }} body="plain">
+        <StateView title="데이트 플랜을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} dark />
+      </AppScreen>
     );
 
   if (phase === "form") {
     return (
       <AppScreen
         tone="dark"
+        keyboardAware
         header={{ back: true, title: "데이트 플랜 만들기" }}
         body="scroll"
         footer={

@@ -74,6 +74,7 @@ export default function VerifyIdentity() {
   return (
     <AppScreen
       tone="dark"
+      keyboardAware
       header={{
         title: "본인인증",
         description: "안전한 매칭을 위해 실명 본인인증이 필요해요. (개발용 입력)",

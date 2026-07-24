@@ -118,6 +118,7 @@ export default function ProfileEditScreen() {
   return (
     <AppScreen
       tone="dark"
+      keyboardAware
       header={{ back: true, title: "내 정보" }}
       body="scroll"
       contentStyle={styles.content}

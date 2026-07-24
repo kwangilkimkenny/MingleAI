@@ -109,6 +109,7 @@ export default function ReportScreen() {
   return (
     <AppScreen
       tone="dark"
+      keyboardAware
       header={{ back: true, title: "신고" }}
       footer={
         <DoodleButton
