@@ -9,7 +9,7 @@ import {
 import { DoodleButton } from "../src/components/Doodle";
 import { AppScreen } from "../src/components/AppScreen";
 import { InlineNotice, LabeledInput, StateView } from "../src/components/Foundation";
-import { colors, space, type } from "../src/lib/theme";
+import { dark, space, type } from "../src/lib/theme";
 
 type Mode = "loading" | "dev" | "unavailable";
 
@@ -49,9 +49,9 @@ export default function VerifyIdentity() {
 
   if (mode === "loading") {
     return (
-      <AppScreen body="plain">
+      <AppScreen body="plain" tone="dark">
         <View style={styles.loading}>
-          <ActivityIndicator color={colors.accent} />
+          <ActivityIndicator color={dark.accent} />
         </View>
       </AppScreen>
     );
@@ -59,12 +59,13 @@ export default function VerifyIdentity() {
 
   if (mode === "unavailable") {
     return (
-      <AppScreen body="plain">
+      <AppScreen body="plain" tone="dark">
         <StateView
           title="본인인증 준비 중"
           body="실명 본인인증(통신사·인증기관) 연동을 준비하고 있어요. 잠시 후 다시 시도해 주세요."
           actionLabel="다시 시도"
           onAction={() => setMode("loading")}
+          dark
         />
       </AppScreen>
     );
@@ -72,6 +73,7 @@ export default function VerifyIdentity() {
 
   return (
     <AppScreen
+      tone="dark"
       header={{
         title: "본인인증",
         description: "안전한 매칭을 위해 실명 본인인증이 필요해요. (개발용 입력)",
@@ -83,17 +85,19 @@ export default function VerifyIdentity() {
           disabled={!valid}
           busy={busy}
           variant="primary"
+          tone="dark"
         />
       }
     >
       <View style={styles.form}>
-        <LabeledInput label="이름" placeholder="홍길동" value={name} onChangeText={setName} />
+        <LabeledInput label="이름" placeholder="홍길동" value={name} onChangeText={setName} dark />
         <LabeledInput
           label="생년월일 (YYYY-MM-DD)"
           placeholder="1996-05-02"
           value={birth}
           onChangeText={setBirth}
           keyboardType="numbers-and-punctuation"
+          dark
         />
         <View>
           <Text style={styles.fieldLabel}>성별</Text>
@@ -119,9 +123,14 @@ export default function VerifyIdentity() {
           value={phone}
           onChangeText={setPhone}
           keyboardType="number-pad"
+          dark
         />
 
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        {error ? (
+          <InlineNotice tone="error" dark>
+            {error}
+          </InlineNotice>
+        ) : null}
 
         <Text style={styles.note}>인증된 이름·성별·생년월일은 프로필에 반영돼요.</Text>
       </View>
@@ -132,18 +141,18 @@ export default function VerifyIdentity() {
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   form: { gap: space.x4, paddingTop: space.x2 },
-  fieldLabel: { ...type.label, color: colors.ink, marginBottom: space.x2 },
+  fieldLabel: { ...type.label, color: dark.text, marginBottom: space.x2 },
   genderRow: { flexDirection: "row", gap: space.x3 },
   genderChip: {
     flex: 1,
     paddingVertical: space.x3,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: dark.border,
     borderRadius: 10,
     alignItems: "center",
   },
-  genderChipOn: { backgroundColor: colors.accentStrong, borderColor: colors.accentStrong },
-  genderText: { ...type.label, color: colors.ink },
-  genderTextOn: { color: colors.onAccent },
-  note: { ...type.caption, color: colors.grayDark, textAlign: "center" },
+  genderChipOn: { backgroundColor: dark.pill, borderColor: dark.pill },
+  genderText: { ...type.label, color: dark.textMuted },
+  genderTextOn: { color: dark.onPill },
+  note: { ...type.caption, color: dark.textMuted, textAlign: "center" },
 });

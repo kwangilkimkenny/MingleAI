@@ -1,4 +1,4 @@
-import { colors, space, type } from "../src/lib/theme";
+import { dark, space, type } from "../src/lib/theme";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -14,7 +14,6 @@ import { createProfile, getMyProfile, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
 import { AppScreen } from "../src/components/AppScreen";
-import { MasterpieceHero } from "../src/components/MasterpieceHero";
 import { DoodleButton } from "../src/components/Doodle";
 import { DoodleChip } from "../src/components/DoodleSvg";
 import { DoodleAvatar } from "../src/components/DoodleAvatar";
@@ -82,9 +81,9 @@ export default function Onboarding() {
     };
   }, [hydrated, token]);
 
-  if (!hydrated) return <StateView title="계정을 확인하고 있어요" loading />;
+  if (!hydrated) return <StateView title="계정을 확인하고 있어요" loading dark />;
   if (!token) return <Redirect href="/login" />;
-  if (profileChecked === "loading") return <StateView title="프로필을 확인하고 있어요" loading />;
+  if (profileChecked === "loading") return <StateView title="프로필을 확인하고 있어요" loading dark />;
   if (profileChecked === "has") return <Redirect href="/home" />;
 
   async function onPickPhoto() {
@@ -131,22 +130,15 @@ export default function Onboarding() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <AppScreen
+        tone="dark"
         body="scroll"
-        bleed={
-          <MasterpieceHero
-            rounded
-            tone="creamDeep"
-            height={190}
-            eyebrow="프로필 만들기"
-            headline={"당신을\n소개해요"}
-            figure="both"
-          />
-        }
+        header={{ title: "당신을 소개해요" }}
         footer={
           <DoodleButton
             title="시작하기"
             onPress={onSubmit}
             variant="primary"
+            tone="dark"
             disabled={!valid || busy}
             busy={busy}
           />
@@ -164,7 +156,7 @@ export default function Onboarding() {
               <DoodleAvatar uri={photoUrl} name={name} size={104} />
               {photoBusy ? (
                 <View style={styles.photoBusy}>
-                  <ActivityIndicator color={colors.ink} />
+                  <ActivityIndicator color={dark.text} />
                 </View>
               ) : null}
             </TouchableOpacity>
@@ -179,7 +171,9 @@ export default function Onboarding() {
             </TouchableOpacity>
             {photoError ? (
               <View style={styles.photoNotice}>
-                <InlineNotice tone="error">{photoError}</InlineNotice>
+                <InlineNotice tone="error" dark>
+                  {photoError}
+                </InlineNotice>
               </View>
             ) : null}
           </View>
@@ -191,6 +185,7 @@ export default function Onboarding() {
             value={name}
             onChangeText={setName}
             maxLength={40}
+            dark
           />
 
           <View style={styles.fieldGroup}>
@@ -202,6 +197,7 @@ export default function Onboarding() {
                   label={opt.label}
                   on={gender === opt.value}
                   onPress={() => setGender(opt.value)}
+                  dark
                 />
               ))}
             </View>
@@ -214,6 +210,7 @@ export default function Onboarding() {
             keyboardType="numeric"
             value={ageText}
             onChangeText={setAgeText}
+            dark
           />
 
           <LabeledInput
@@ -222,6 +219,7 @@ export default function Onboarding() {
             maxLength={120}
             value={occupation}
             onChangeText={setOccupation}
+            dark
           />
 
           <LabeledInput
@@ -233,9 +231,14 @@ export default function Onboarding() {
             maxLength={1000}
             value={partyPreferenceText}
             onChangeText={setPartyPreferenceText}
+            dark
           />
 
-          {submitError ? <InlineNotice tone="error">{submitError}</InlineNotice> : null}
+          {submitError ? (
+            <InlineNotice tone="error" dark>
+              {submitError}
+            </InlineNotice>
+          ) : null}
         </View>
       </AppScreen>
     </KeyboardAvoidingView>
@@ -254,18 +257,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.55)",
+    backgroundColor: "rgba(26,18,12,0.55)",
     borderRadius: 52,
   },
   photoLink: {
     ...type.label,
-    color: colors.ink,
+    color: dark.text,
     textDecorationLine: "underline",
   },
   photoLinkButton: { minHeight: 44, alignItems: "center", justifyContent: "center" },
   photoNotice: { alignSelf: "stretch", marginTop: space.x1 },
   fieldGroup: { gap: space.x2 },
-  label: { ...type.label, color: colors.ink },
-  fieldHint: { ...type.caption, color: colors.grayDark },
+  label: { ...type.label, color: dark.text },
+  fieldHint: { ...type.caption, color: dark.textMuted },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: space.x2 },
 });

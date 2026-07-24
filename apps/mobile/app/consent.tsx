@@ -6,7 +6,7 @@ import { submitConsents, type ConsentScope } from "@mingle/client-core";
 import { AppScreen } from "../src/components/AppScreen";
 import { DoodleButton, DoodleCard } from "../src/components/Doodle";
 import { InlineNotice } from "../src/components/Foundation";
-import { colors, space, type } from "../src/lib/theme";
+import { dark, space, type } from "../src/lib/theme";
 
 const ITEMS: { scope: ConsentScope; title: string; body: string; link?: "/terms" | "/privacy" }[] = [
   { scope: "age19", title: "만 19세 이상입니다", body: "성인만 이용할 수 있는 서비스예요." },
@@ -44,6 +44,7 @@ export default function Consent() {
 
   return (
     <AppScreen
+      tone="dark"
       header={{
         title: "시작 전 동의가 필요해요",
         description: "안전한 서비스 운영을 위해 아래 항목에 모두 동의해 주세요.",
@@ -54,11 +55,12 @@ export default function Consent() {
           onPress={onSubmit}
           disabled={!allChecked || busy}
           variant="primary"
+          tone="dark"
         />
       }
     >
       <View style={styles.body}>
-        <DoodleCard contentStyle={styles.cardList}>
+        <DoodleCard tone="dark" contentStyle={styles.cardList}>
           {ITEMS.map((item, i) => {
             const on = checked[item.scope];
             return (
@@ -70,7 +72,7 @@ export default function Consent() {
                 style={[styles.row, i > 0 && styles.rowDivider]}
               >
                 <View style={[styles.box, on && styles.boxOn]}>
-                  {on ? <Check color={colors.onAccent} size={16} strokeWidth={1.75} /> : null}
+                  {on ? <Check color={dark.onPill} size={16} strokeWidth={1.75} /> : null}
                 </View>
                 <View style={styles.rowText}>
                   <Text style={styles.rowTitle}>{item.title}</Text>
@@ -90,7 +92,7 @@ export default function Consent() {
           })}
         </DoodleCard>
 
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        {error ? <InlineNotice tone="error" dark>{error}</InlineNotice> : null}
 
         <Text style={styles.note}>모든 필수 항목에 동의해야 서비스를 이용할 수 있어요.</Text>
       </View>
@@ -108,21 +110,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.x4,
     paddingVertical: space.x4,
   },
-  rowDivider: { borderTopWidth: 1, borderTopColor: colors.line },
+  rowDivider: { borderTopWidth: 1, borderTopColor: dark.line },
   box: {
     width: 26,
     height: 26,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: dark.border,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 1,
   },
-  boxOn: { backgroundColor: colors.accentStrong, borderColor: colors.accentStrong },
+  boxOn: { backgroundColor: dark.pill, borderColor: dark.pill },
   rowText: { flex: 1, gap: 2 },
-  rowTitle: { ...type.label, color: colors.ink },
-  rowBody: { ...type.caption, color: colors.grayDark },
-  link: { ...type.caption, color: colors.accentStrong, textDecorationLine: "underline", marginTop: 4 },
-  note: { ...type.caption, color: colors.grayDark, textAlign: "center" },
+  rowTitle: { ...type.label, color: dark.text },
+  rowBody: { ...type.caption, color: dark.textMuted },
+  link: { ...type.caption, color: dark.accent, textDecorationLine: "underline", marginTop: 4 },
+  note: { ...type.caption, color: dark.textMuted, textAlign: "center" },
 });

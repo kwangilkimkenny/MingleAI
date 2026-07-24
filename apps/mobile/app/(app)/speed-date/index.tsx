@@ -15,7 +15,8 @@ import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { StateView } from "../../../src/components/Foundation";
 import { isSpeedDateEligibleGender } from "../../../src/lib/speed-date-eligibility";
 import { requestLocation } from "../../../src/lib/location";
-import { colors, space, type } from "../../../src/lib/theme";
+import { dark, space, type } from "../../../src/lib/theme";
+import { serifFont } from "../../../src/lib/serif";
 
 const POLL_MS = 2500;
 type Phase = "checking" | "consent" | "ineligible" | "joining" | "waiting" | "error";
@@ -120,21 +121,22 @@ export default function SpeedDateMatching() {
 
   const isConsent = phase === "consent";
   const footer = isConsent ? (
-    <DoodleButton title="시작하기" onPress={onStart} variant="primary" />
+    <DoodleButton title="시작하기" onPress={onStart} variant="primary" tone="dark" />
   ) : phase === "joining" || phase === "waiting" ? (
-    <DoodleButton title="매칭 취소" onPress={onCancel} />
+    <DoodleButton title="매칭 취소" onPress={onCancel} tone="dark" />
   ) : phase === "error" ? (
-    <DoodleButton title="홈으로" onPress={() => router.replace("/home")} />
+    <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
   ) : undefined;
 
   return (
     <AppScreen
+      tone="dark"
       header={{ title: "로테이션 소개팅", back: true }}
       body={isConsent ? "scroll" : "plain"}
       footer={footer}
     >
       {phase === "checking" ? (
-        <StateView title="참여 가능 여부를 확인하고 있어요" loading />
+        <StateView title="참여 가능 여부를 확인하고 있어요" loading dark />
       ) : null}
 
       {phase === "ineligible" ? (
@@ -143,6 +145,7 @@ export default function SpeedDateMatching() {
           body="지금은 남성·여성 매칭만 지원해요."
           actionLabel="홈으로"
           onAction={() => router.replace("/home")}
+          dark
         />
       ) : null}
 
@@ -151,15 +154,15 @@ export default function SpeedDateMatching() {
           <Text style={styles.title}>얼굴보다 대화가 먼저</Text>
           <Text style={styles.subtitle}>여러 상대와 돌아가며, 대화로 알아가요.</Text>
 
-          <DoodleCard tone="fill" contentStyle={styles.stepsCard}>
-            <Step icon={<Mic color={colors.ink} size={18} strokeWidth={1.75} />} title="가면 라운드" />
-            <Step icon={<Mic color={colors.accent} size={18} strokeWidth={1.75} />} title="목소리 공개" />
-            <Step icon={<Video color={colors.ink} size={18} strokeWidth={1.75} />} title="얼굴 공개" />
+          <DoodleCard tone="dark" contentStyle={styles.stepsCard}>
+            <Step icon={<Mic color={dark.text} size={18} strokeWidth={1.75} />} title="가면 라운드" />
+            <Step icon={<Mic color={dark.accent} size={18} strokeWidth={1.75} />} title="목소리 공개" />
+            <Step icon={<Video color={dark.text} size={18} strokeWidth={1.75} />} title="얼굴 공개" />
           </DoodleCard>
 
           <View style={styles.chips}>
-            <DoodleChip label="녹화 없음" tiny />
-            <DoodleChip label="비공개 선택" tiny />
+            <DoodleChip label="녹화 없음" tiny dark />
+            <DoodleChip label="비공개 선택" tiny dark />
           </View>
 
           <View style={styles.radiusBlock}>
@@ -171,6 +174,7 @@ export default function SpeedDateMatching() {
                   label={opt.label}
                   on={radiusKm === opt.km}
                   tiny
+                  dark
                   onPress={() => setRadiusKm(opt.km)}
                 />
               ))}
@@ -188,6 +192,7 @@ export default function SpeedDateMatching() {
               : "대기열에 등록하는 중…"
           }
           loading
+          dark
         />
       ) : null}
 
@@ -197,6 +202,7 @@ export default function SpeedDateMatching() {
           body={error ?? undefined}
           actionLabel="다시 시도"
           onAction={loadEligibility}
+          dark
         />
       ) : null}
     </AppScreen>
@@ -214,23 +220,23 @@ function Step({ icon, title }: { icon: React.ReactNode; title: string }) {
 
 const styles = StyleSheet.create({
   stack: { gap: space.x4 },
-  title: { ...type.title, color: colors.heading, textAlign: "center" },
-  subtitle: { ...type.caption, color: colors.grayMid, textAlign: "center", marginTop: -space.x2 },
+  title: { ...type.title, fontFamily: serifFont, color: dark.text, textAlign: "center" },
+  subtitle: { ...type.caption, color: dark.textMuted, textAlign: "center", marginTop: -space.x2 },
   stepsCard: { gap: space.x3 },
   stepRow: { flexDirection: "row", gap: space.x3, alignItems: "center" },
   stepIcon: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.card,
+    backgroundColor: dark.surfaceHi,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: dark.border,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepTitle: { ...type.label, color: colors.ink },
+  stepTitle: { ...type.label, color: dark.text },
   chips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
   radiusBlock: { gap: space.x2, alignItems: "center" },
-  radiusLabel: { ...type.label, color: colors.ink },
+  radiusLabel: { ...type.label, color: dark.label },
   radiusChips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
 });

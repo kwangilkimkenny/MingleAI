@@ -6,7 +6,7 @@ import { AppScreen } from "../src/components/AppScreen";
 import { DoodleButton, DoodleCard } from "../src/components/Doodle";
 import { InlineNotice } from "../src/components/Foundation";
 import { requestCameraMic, isPermanentlyDenied } from "../src/lib/permissions";
-import { colors, space, type } from "../src/lib/theme";
+import { dark, space, type } from "../src/lib/theme";
 
 export default function Permissions() {
   const [busy, setBusy] = useState(false);
@@ -34,8 +34,13 @@ export default function Permissions() {
 
   const footer = blocked ? (
     <View style={styles.footerStack}>
-      <DoodleButton title="설정 열기" onPress={() => Linking.openSettings()} variant="primary" />
-      <DoodleButton title="다시 확인" onPress={onRequest} />
+      <DoodleButton
+        title="설정 열기"
+        onPress={() => Linking.openSettings()}
+        variant="primary"
+        tone="dark"
+      />
+      <DoodleButton title="다시 확인" onPress={onRequest} tone="dark" />
     </View>
   ) : (
     <DoodleButton
@@ -43,31 +48,34 @@ export default function Permissions() {
       onPress={onRequest}
       disabled={busy}
       variant="primary"
+      tone="dark"
     />
   );
 
   return (
-    <AppScreen header={{ title: "카메라·마이크 권한" }} footer={footer}>
+    <AppScreen header={{ title: "카메라·마이크 권한" }} footer={footer} tone="dark">
       <View style={styles.body}>
-        <DoodleCard tone="fill" contentStyle={styles.card}>
+        <DoodleCard tone="dark" contentStyle={styles.card}>
           <Row
-            icon={<Camera color={colors.accent} size={20} strokeWidth={1.75} />}
+            icon={<Camera color={dark.accent} size={20} strokeWidth={1.75} />}
             title="카메라"
             body="얼굴 공개 단계의 영상 통화에 사용해요."
           />
           <Row
-            icon={<Mic color={colors.accent} size={20} strokeWidth={1.75} />}
+            icon={<Mic color={dark.accent} size={20} strokeWidth={1.75} />}
             title="마이크"
             body="모든 대화의 음성에 사용해요."
           />
         </DoodleCard>
 
         {blocked ? (
-          <InlineNotice tone="error">
+          <InlineNotice tone="error" dark>
             권한이 거부되어 있어요. 설정에서 카메라·마이크를 허용한 뒤 다시 시도해 주세요.
           </InlineNotice>
         ) : missing ? (
-          <InlineNotice tone="error">{missing}</InlineNotice>
+          <InlineNotice tone="error" dark>
+            {missing}
+          </InlineNotice>
         ) : null}
 
         <Text style={styles.note}>권한 없이는 서비스를 이용할 수 없어요.</Text>
@@ -98,13 +106,13 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
+    borderColor: dark.border,
+    backgroundColor: dark.surfaceHi,
     alignItems: "center",
     justifyContent: "center",
   },
   rowText: { flex: 1 },
-  rowTitle: { ...type.label, color: colors.ink },
-  rowBody: { ...type.caption, color: colors.grayDark },
-  note: { ...type.caption, color: colors.grayDark, textAlign: "center" },
+  rowTitle: { ...type.label, color: dark.text },
+  rowBody: { ...type.caption, color: dark.textMuted },
+  note: { ...type.caption, color: dark.textMuted, textAlign: "center" },
 });
