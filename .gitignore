@@ -52,3 +52,7 @@ apps/mobile/dist-run/
 
 # brainstorming visual companion scratch
 .superpowers/
+
+# loose screenshots at repo root (throwaway QA/design captures)
+/*.png
+.playwright-mcp/
