@@ -5,7 +5,7 @@
  * 다크 톤(dark 토큰)·명조 헤더(serifFont)로 홈 테마와 결을 맞춘다.
  */
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, FlatList, Platform, Pressable, Switch, StyleSheet, Modal } from "react-native";
+import { View, FlatList, Platform, Pressable, Switch, StyleSheet, Modal } from "react-native";
 import { router } from "expo-router";
 import { X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,7 +13,6 @@ import {
   getNotifications,
   getPushEnabled,
   markNotificationRead,
-  markAllNotificationsRead,
   setPushEnabled,
   type AppNotification,
 } from "@mingle/client-core";
@@ -21,8 +20,7 @@ import { routeForNotification, type NotificationData } from "../lib/route-for-no
 import { EnterRow } from "./Motion";
 import { ListRow, RowSeparator } from "./ListRow";
 import { StateView } from "./Foundation";
-import { dark, space, type } from "../lib/theme";
-import { serifFont } from "../lib/serif";
+import { dark, space } from "../lib/theme";
 
 const ListSep = () => <RowSeparator gutter={0} dark />;
 
@@ -77,17 +75,10 @@ export function NotificationsPopup({
     onClose();
   }
 
-  function onMarkAll() {
-    setItems((prev) => prev.map((x) => ({ ...x, read: true })));
-    markAllNotificationsRead().catch(() => {});
-  }
-
   async function onTogglePush(v: boolean) {
     setPushOn(v);
     setPushEnabled(v).catch(() => setPushOn(!v));
   }
-
-  const allRead = items.length === 0 || items.every((x) => x.read);
 
   return (
     <Modal
@@ -102,32 +93,15 @@ export function NotificationsPopup({
         <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, space.x4) }]}>
           <View style={styles.handle} />
           <View style={styles.header}>
-            <Text style={styles.title} accessibilityRole="header">
-              알림
-            </Text>
-            <View style={styles.headerActions}>
-              {phase === "ready" ? (
-                <Pressable
-                  onPress={onMarkAll}
-                  disabled={allRead}
-                  accessibilityRole="button"
-                  accessibilityLabel="모든 알림 읽음 처리"
-                  hitSlop={8}
-                  style={({ pressed }) => (pressed && !allRead ? styles.pressed : undefined)}
-                >
-                  <Text style={[styles.markAll, allRead && styles.markAllOff]}>모두 읽음</Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel="닫기"
-                hitSlop={8}
-                style={({ pressed }) => (pressed ? styles.pressed : undefined)}
-              >
-                <X color={dark.text} size={22} strokeWidth={1.75} />
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="닫기"
+              hitSlop={8}
+              style={({ pressed }) => (pressed ? styles.pressed : undefined)}
+            >
+              <X color={dark.text} size={22} strokeWidth={1.75} />
+            </Pressable>
           </View>
 
           {phase === "loading" ? (
@@ -232,14 +206,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     paddingHorizontal: space.x5,
-    paddingVertical: space.x3,
+    paddingVertical: space.x2,
   },
-  title: { fontFamily: serifFont, fontSize: 22, lineHeight: 29, color: dark.text },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: space.x4 },
-  markAll: { ...type.label, color: dark.label },
-  markAllOff: { color: dark.textMuted },
   pressed: { opacity: 0.6 },
   // 컨텐츠 영역이 패널 maxHeight 안에서 줄어들 수 있어야 FlatList가 스크롤된다.
   content: { flexShrink: 1, minHeight: 0 },
