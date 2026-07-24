@@ -100,7 +100,7 @@ export default function Home() {
         >
           <View style={styles.match}>
             <Text style={styles.matchText}>MATCH</Text>
-            <Text style={styles.matchSub}>블라인드 데이트</Text>
+            <Text style={styles.matchSub}>로테이션 소개팅</Text>
           </View>
         </Pressable>
       </View>

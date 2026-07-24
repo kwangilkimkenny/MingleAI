@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-MingleAI **v2** — "가벼운 만남" (light/casual meetup) social-matching **mobile app**. pnpm monorepo (Node 18+). Native iOS/Android via **React Native + Expo**. AI is limited to preference analysis + matchmaking recommendation — it does **NOT** converse for users (that was v1). **Branch `megahuni` = mainline** (repo 루트에 직접 체크아웃, 2026-07-15~; `main`은 폐기된 v1 아카이브 — v1 README를 믿지 말 것). 상세 스펙: `docs/DEVELOPMENT_PLAN.md`(v2) + `docs/superpowers/plans/*`.
+MingleAI **v2** — **로테이션 블라인드 소개팅** 앱(정체성 = 한자리에서 여러 사람과 돌아가며·얼굴보다 대화로 먼저·사람을 알아가는 소개팅; 단일 진실 `docs/CONCEPT.md`). 정체성 루프 = **블라인드 스피드 데이트**(곁다리 아님, 앱 그 자체). pnpm monorepo (Node 18+). Native iOS/Android via **React Native + Expo**. AI is limited to preference analysis + matchmaking recommendation — it does **NOT** converse for users (that was v1). **Branch `megahuni` = mainline** (repo 루트에 직접 체크아웃, 2026-07-15~; `main`은 폐기된 v1 아카이브 — v1 README를 믿지 말 것). 상세 스펙: `docs/DEVELOPMENT_PLAN.md`(v2) + `docs/superpowers/plans/*`.
 
 ## Maintaining this file
 
