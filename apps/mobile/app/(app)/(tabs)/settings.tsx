@@ -16,8 +16,6 @@ export default function SettingsScreen() {
 
   return (
     <AppScreen tone="dark" tabScreen body="scroll" contentStyle={styles.content}>
-      <Text style={styles.masthead}>설정</Text>
-
       <Section label="프로필">
         <Row
           icon={<UserRound color={dark.text} size={19} strokeWidth={1.6} />}
@@ -104,7 +102,6 @@ function Row({
 
 const styles = StyleSheet.create({
   content: { paddingTop: space.x4 },
-  masthead: { fontFamily: serifFont, fontSize: 26, color: dark.text, letterSpacing: -0.3 },
   section: { marginTop: space.x6 },
   sectionLabel: {
     fontFamily: type.label.fontFamily,
