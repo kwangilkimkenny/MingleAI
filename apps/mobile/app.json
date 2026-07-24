@@ -20,7 +20,7 @@
       "package": "com.mingleai.app",
       "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#1A120C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -39,7 +39,7 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#1A120C"
         }
       ],
       "expo-secure-store",
@@ -47,6 +47,21 @@
         "expo-image-picker",
         {
           "photosPermission": "프로필 사진으로 쓸 사진을 선택할 수 있도록 사진 접근 권한이 필요해요."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "가까운 상대와 매칭하고 주변 맛집을 추천하기 위해 위치 접근이 필요해요.",
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "블라인드 데이트 마지막 단계의 얼굴 공개 영상 통화를 위해 카메라 접근이 필요해요.",
+          "microphonePermission": "블라인드 데이트 음성 대화를 위해 마이크 접근이 필요해요."
         }
       ]
     ],
