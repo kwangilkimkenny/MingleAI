@@ -49,3 +49,6 @@ uploads/
 /match-*.png
 apps/mobile/dist-run/
 .gstack/
+
+# brainstorming visual companion scratch
+.superpowers/
