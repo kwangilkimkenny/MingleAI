@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   topRight: { flexDirection: "row", alignItems: "center", gap: space.x2 },
   overlayMeta: { ...type.label, color: colors.onAccent },
   timerPill: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accentStrong,
     borderRadius: 999,
     paddingHorizontal: space.x3,
     paddingVertical: 4,
