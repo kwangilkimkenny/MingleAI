@@ -1,27 +1,93 @@
-import { useCallback, useRef, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Bell, Heart } from "lucide-react-native";
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { getReceivedProposals, getUnreadCount } from "@mingle/client-core";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, fonts, masterpiece } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
 
-const SCENE = require("../../../assets/images/renaissance-modern-cafe-date.png");
+const CAFE_BACKGROUND = require("../../../assets/images/cafe-date-background.png");
+const WOMAN = require("../../../assets/images/cafe-date-character-woman.png");
+const MAN = require("../../../assets/images/cafe-date-character-man.png");
 
 /**
- * Home — a single cinematic scene (Renaissance couple on a modern coffee date = the concept made
- * literal: 로테이션 블라인드 소개팅으로 만나 알아간 두 사람). Full-bleed image + bottom scrim, a
- * serif concept line and the MATCH CTA over it; proposals / notifications as light top-right icons.
+ * Home — a layered cinematic scene (Renaissance-painted couple on a modern café date = the concept
+ * made literal). The café is a full-bleed plate; each transparent character drifts independently so
+ * the scene feels alive without competing with the MATCH CTA. Reduced-motion keeps both figures
+ * static. Proposals / notifications remain light top-right actions.
  */
 export default function Home() {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
+  const { width } = useWindowDimensions();
+  const reducedMotion = useReducedMotion();
+  const womanShift = useSharedValue(0);
+  const manShift = useSharedValue(0);
   const [pending, setPending] = useState(0);
   const [unread, setUnread] = useState(0);
   const navigatingRef = useRef(false);
+
+  useEffect(() => {
+    cancelAnimation(womanShift);
+    cancelAnimation(manShift);
+
+    if (reducedMotion) {
+      womanShift.value = 0;
+      manShift.value = 0;
+      return;
+    }
+
+    const sway = Math.max(7, Math.min(width * 0.025, 12));
+    womanShift.value = -sway;
+    manShift.value = sway * 0.8;
+    womanShift.value = withRepeat(
+      withTiming(sway, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+    manShift.value = withRepeat(
+      withTiming(-sway * 0.8, { duration: 5100, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+
+    return () => {
+      cancelAnimation(womanShift);
+      cancelAnimation(manShift);
+    };
+  }, [manShift, reducedMotion, width, womanShift]);
+
+  const womanMotion = useAnimatedStyle(
+    () => ({
+      transform: [
+        { translateX: -width * 0.1 + womanShift.value },
+        { scale: 0.96 },
+      ],
+    }),
+    [width],
+  );
+  const manMotion = useAnimatedStyle(
+    () => ({
+      transform: [
+        { translateX: width * 0.13 + manShift.value },
+        { translateY: -width * 0.06 },
+        { scale: 1.06 },
+      ],
+    }),
+    [width],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -51,8 +117,26 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      {/* whole image always visible — contain fits the entire scene (letterboxed on the dark root) */}
-      <Image source={SCENE} resizeMode="contain" style={StyleSheet.absoluteFill} />
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Image
+          source={CAFE_BACKGROUND}
+          resizeMode="cover"
+          style={StyleSheet.absoluteFill}
+          accessible={false}
+        />
+        <Animated.Image
+          source={WOMAN}
+          resizeMode="contain"
+          style={[StyleSheet.absoluteFill, womanMotion]}
+          accessible={false}
+        />
+        <Animated.Image
+          source={MAN}
+          resizeMode="contain"
+          style={[StyleSheet.absoluteFill, manMotion]}
+          accessible={false}
+        />
+      </View>
 
       {/* bottom scrim for legible light copy */}
       <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">

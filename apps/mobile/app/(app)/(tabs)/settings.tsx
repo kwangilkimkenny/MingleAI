@@ -16,7 +16,7 @@ import { AppScreen } from "../../../src/components/AppScreen";
 import { DoodleCard } from "../../../src/components/Doodle";
 import { ListRow, RowSeparator } from "../../../src/components/ListRow";
 import { pickAndUploadPhoto } from "../../../src/lib/photo";
-import { colors, space, type } from "../../../src/lib/theme";
+import { dark, space, type } from "../../../src/lib/theme";
 import { ConfirmDialog, InlineNotice, StateView } from "../../../src/components/Foundation";
 
 type MyProfile = NonNullable<Awaited<ReturnType<typeof getMyProfile>>>;
@@ -84,9 +84,9 @@ export default function SettingsScreen() {
   }
 
   return (
-    <AppScreen tabScreen header={{ title: "설정" }} body="scroll">
+    <AppScreen tone="dark" tabScreen body="scroll">
       <View style={styles.stack}>
-        <DoodleCard contentStyle={styles.summary}>
+        <DoodleCard tone="dark" contentStyle={styles.summary}>
           <TouchableOpacity
             onPress={onChangePhoto}
             disabled={photoBusy}
@@ -97,7 +97,7 @@ export default function SettingsScreen() {
             <DoodleAvatar uri={profile.photoUrl} name={profile.name} size={92} />
             {photoBusy ? (
               <View style={styles.photoBusy}>
-                <ActivityIndicator color={colors.ink} />
+                <ActivityIndicator color={dark.text} />
               </View>
             ) : null}
           </TouchableOpacity>
@@ -117,17 +117,20 @@ export default function SettingsScreen() {
           </Pressable>
           {photoError ? (
             <View style={styles.photoNotice}>
-              <InlineNotice tone="error">{photoError}</InlineNotice>
+              <InlineNotice tone="error" dark>
+                {photoError}
+              </InlineNotice>
             </View>
           ) : null}
         </DoodleCard>
 
         <View>
           <Text style={styles.sectionLabel}>안전</Text>
-          <DoodleCard contentStyle={styles.card}>
+          <DoodleCard tone="dark" contentStyle={styles.card}>
             <ListRow
               gutter={0}
-              leading={<Ban color={colors.ink} size={20} strokeWidth={1.75} />}
+              dark
+              leading={<Ban color={dark.text} size={20} strokeWidth={1.75} />}
               title="차단 목록 관리"
               onPress={() =>
                 // new route — Expo Router typegen updates on next `expo start`
@@ -140,34 +143,38 @@ export default function SettingsScreen() {
 
         <View>
           <Text style={styles.sectionLabel}>계정</Text>
-          <DoodleCard contentStyle={styles.card}>
+          <DoodleCard tone="dark" contentStyle={styles.card}>
             <ListRow
               gutter={0}
-              leading={<FileText color={colors.ink} size={20} strokeWidth={1.75} />}
+              dark
+              leading={<FileText color={dark.text} size={20} strokeWidth={1.75} />}
               title="이용약관"
               onPress={() => router.push("/terms")}
             />
-            <RowSeparator gutter={0} />
+            <RowSeparator gutter={0} dark />
             <ListRow
               gutter={0}
-              leading={<FileText color={colors.ink} size={20} strokeWidth={1.75} />}
+              dark
+              leading={<FileText color={dark.text} size={20} strokeWidth={1.75} />}
               title="개인정보 처리 안내"
               onPress={() => router.push("/privacy")}
             />
-            <RowSeparator gutter={0} />
+            <RowSeparator gutter={0} dark />
             <ListRow
               gutter={0}
+              dark
               tone="danger"
-              leading={<LogOut color={colors.danger} size={20} strokeWidth={1.75} />}
+              leading={<LogOut color={dark.danger} size={20} strokeWidth={1.75} />}
               title="로그아웃"
               trailing={<View />}
               onPress={() => setLogoutOpen(true)}
             />
-            <RowSeparator gutter={0} />
+            <RowSeparator gutter={0} dark />
             <ListRow
               gutter={0}
+              dark
               tone="danger"
-              leading={<Trash2 color={colors.danger} size={20} strokeWidth={1.75} />}
+              leading={<Trash2 color={dark.danger} size={20} strokeWidth={1.75} />}
               title="계정 삭제"
               onPress={() => router.push("/(app)/delete-account")}
             />
@@ -176,6 +183,7 @@ export default function SettingsScreen() {
       </View>
 
       <ConfirmDialog
+        dark
         visible={logoutOpen}
         title="로그아웃할까요?"
         body="다시 로그인하면 채팅과 프로포즈를 이어서 확인할 수 있어요."
@@ -203,17 +211,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.55)",
+    backgroundColor: "rgba(26,18,12,0.6)",
     borderRadius: 46,
   },
-  name: { ...type.title, color: colors.heading, marginTop: space.x2 },
-  meta: { ...type.body, color: colors.grayDark },
-  photoLink: { ...type.label, color: colors.ink, textDecorationLine: "underline" },
+  name: { ...type.title, color: dark.heading, marginTop: space.x2 },
+  meta: { ...type.body, color: dark.textMuted },
+  photoLink: { ...type.label, color: dark.accent, textDecorationLine: "underline" },
   photoLinkButton: { minHeight: 44, justifyContent: "center", alignItems: "center" },
   photoNotice: { alignSelf: "stretch", marginTop: space.x1 },
   sectionLabel: {
     ...type.label,
-    color: colors.grayMid,
+    color: dark.label,
     marginBottom: space.x3,
     marginLeft: space.x1,
   },

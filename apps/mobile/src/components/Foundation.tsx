@@ -224,6 +224,7 @@ export function ConfirmDialog({
   busy = false,
   onConfirm,
   onCancel,
+  dark: isDark = false,
 }: {
   visible: boolean;
   title: string;
@@ -234,6 +235,8 @@ export function ConfirmDialog({
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** 홈 테마 다크 화면용 확인 다이얼로그. */
+  dark?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const focusRef = useInitialAccessibilityFocus(visible);
@@ -251,14 +254,24 @@ export function ConfirmDialog({
           onPress={onCancel}
           accessibilityLabel={`${title} 닫기`}
         />
-        <View style={styles.dialogCard}>
+        <View
+          style={[
+            styles.dialogCard,
+            isDark && { backgroundColor: dark.surface, borderColor: dark.border },
+          ]}
+        >
           <View ref={focusRef} accessible accessibilityRole="header" accessibilityLabel={title}>
-            <Text style={styles.dialogTitle}>{title}</Text>
+            <Text style={[styles.dialogTitle, isDark && { color: dark.heading }]}>{title}</Text>
           </View>
-          <Text style={styles.dialogBody}>{body}</Text>
+          <Text style={[styles.dialogBody, isDark && { color: dark.textMuted }]}>{body}</Text>
           <View style={styles.dialogActions}>
             <View style={styles.dialogAction}>
-              <DoodleButton title={cancelLabel} onPress={onCancel} disabled={busy} />
+              <DoodleButton
+                title={cancelLabel}
+                onPress={onCancel}
+                disabled={busy}
+                tone={isDark ? "dark" : "light"}
+              />
             </View>
             <View style={styles.dialogAction}>
               <DoodleButton
@@ -271,6 +284,7 @@ export function ConfirmDialog({
                 disabled={busy}
                 variant={destructive ? "dangerSolid" : "primary"}
                 serious
+                tone={isDark ? "dark" : "light"}
               />
             </View>
           </View>

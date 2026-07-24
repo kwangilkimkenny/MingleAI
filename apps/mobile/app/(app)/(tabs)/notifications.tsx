@@ -17,9 +17,9 @@ import { EnterRow } from "../../../src/components/Motion";
 import { AppScreen } from "../../../src/components/AppScreen";
 import { ListRow, RowSeparator } from "../../../src/components/ListRow";
 import { StateView } from "../../../src/components/Foundation";
-import { colors, space, type } from "../../../src/lib/theme";
+import { dark, space, type } from "../../../src/lib/theme";
 
-const ListSep = () => <RowSeparator gutter={0} />;
+const ListSep = () => <RowSeparator gutter={0} dark />;
 
 export default function Notifications() {
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -72,14 +72,14 @@ export default function Notifications() {
 
   if (phase === "loading")
     return (
-      <AppScreen tabScreen header={{ back: true, title: "알림" }} body="plain">
-        <StateView title="알림을 불러오고 있어요" loading />
+      <AppScreen tabScreen tone="dark" header={{ back: true, title: "알림" }} body="plain">
+        <StateView title="알림을 불러오고 있어요" loading dark />
       </AppScreen>
     );
   if (phase === "error")
     return (
-      <AppScreen tabScreen header={{ back: true, title: "알림" }} body="plain">
-        <StateView title="알림을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />
+      <AppScreen tabScreen tone="dark" header={{ back: true, title: "알림" }} body="plain">
+        <StateView title="알림을 불러오지 못했어요" dark actionLabel="다시 시도" onAction={load} />
       </AppScreen>
     );
 
@@ -88,6 +88,7 @@ export default function Notifications() {
   return (
     <AppScreen
       tabScreen
+      tone="dark"
       header={{
         back: true,
         title: "알림",
@@ -109,6 +110,7 @@ export default function Notifications() {
       {/* 푸시 알림 토글 — 리스트 위 고정 설정 행. */}
       <ListRow
         title="푸시 알림"
+        dark
         gutter={space.x2}
         trailing={
           <Switch
@@ -116,17 +118,17 @@ export default function Notifications() {
             onValueChange={onTogglePush}
             accessibilityLabel="푸시 알림"
             accessibilityState={{ checked: pushOn }}
-            trackColor={{ false: colors.grayLight, true: colors.accent }}
-            thumbColor={colors.paper}
-            ios_backgroundColor={colors.grayLight}
+            trackColor={{ false: dark.line, true: dark.accent }}
+            thumbColor={dark.text}
+            ios_backgroundColor={dark.line}
             // RN Web은 trackColor 객체를 무시하고 자체 기본 그린을 쓴다 — 웹 전용 prop으로 교정.
             {...(Platform.OS === "web"
-              ? ({ activeTrackColor: colors.accent, activeThumbColor: colors.paper } as object)
+              ? ({ activeTrackColor: dark.accent, activeThumbColor: dark.text } as object)
               : {})}
           />
         }
       />
-      <RowSeparator gutter={0} />
+      <RowSeparator gutter={0} dark />
       <FlatList
         style={styles.flex}
         data={items}
@@ -135,6 +137,7 @@ export default function Notifications() {
         ItemSeparatorComponent={ListSep}
         ListEmptyComponent={
           <StateView
+            dark
             title="아직 알림이 없어요"
             body="새로운 프로포즈나 대화 소식이 오면 여기에 알려드릴게요."
           />
@@ -143,6 +146,7 @@ export default function Notifications() {
           <EnterRow index={index}>
             <View style={!item.read ? styles.unreadRow : undefined}>
               <ListRow
+                dark
                 title={item.title}
                 subtitle={item.message}
                 gutter={space.x2}
@@ -165,12 +169,12 @@ export default function Notifications() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   listContent: { flexGrow: 1 },
-  markAll: { ...type.label, color: colors.ink },
-  markAllOff: { color: colors.grayMid },
+  markAll: { ...type.label, color: dark.text },
+  markAllOff: { color: dark.textMuted },
   pressed: { opacity: 0.6 },
-  // 안읽음 행은 연회색 fill로 은은히 강조 — 읽음/안읽음 구분 유지.
-  unreadRow: { backgroundColor: colors.fill },
+  // 안읽음 행은 살짝 밝은 다크 서피스로 은은히 강조 — 읽음/안읽음 구분 유지.
+  unreadRow: { backgroundColor: dark.surfaceHi },
   // 트레일링 슬롯 폭을 고정해 읽음/안읽음 행의 제목 정렬을 맞춘다(읽음=빈 슬롯).
   dotSlot: { width: 10, alignItems: "center", justifyContent: "center" },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: dark.accent },
 });

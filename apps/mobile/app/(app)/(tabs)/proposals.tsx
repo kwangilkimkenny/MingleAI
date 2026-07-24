@@ -16,7 +16,7 @@ import { EnterRow } from "../../../src/components/Motion";
 import { AppScreen } from "../../../src/components/AppScreen";
 import { ListRow } from "../../../src/components/ListRow";
 import { InlineNotice, StateView } from "../../../src/components/Foundation";
-import { colors, control, space, type } from "../../../src/lib/theme";
+import { control, dark, space, type } from "../../../src/lib/theme";
 
 export default function Proposals() {
   const [received, setReceived] = useState<ProposalView[]>([]);
@@ -81,9 +81,9 @@ export default function Proposals() {
   }
 
   return (
-    <AppScreen tabScreen header={{ back: true, title: "프로포즈" }} body="plain">
+    <AppScreen tabScreen tone="dark" header={{ back: true, title: "프로포즈" }} body="plain">
       {loading ? (
-        <StateView title="프로포즈를 불러오고 있어요" loading />
+        <StateView title="프로포즈를 불러오고 있어요" loading dark />
       ) : (
         <>
           <View style={styles.tabs} accessibilityRole="tablist">
@@ -110,11 +110,14 @@ export default function Proposals() {
           </View>
           {error ? (
             <View style={styles.notice}>
-              <InlineNotice tone="error">{error}</InlineNotice>
+              <InlineNotice tone="error" dark>
+                {error}
+              </InlineNotice>
             </View>
           ) : null}
           {proposals.length === 0 ? (
             <StateView
+              dark
               title={
                 tab === "received" ? "아직 받은 프로포즈가 없어요" : "아직 보낸 프로포즈가 없어요"
               }
@@ -130,8 +133,9 @@ export default function Proposals() {
               contentContainerStyle={styles.list}
               renderItem={({ item, index }) => (
                 <EnterRow index={index}>
-                  <DoodleCard contentStyle={styles.card}>
+                  <DoodleCard tone="dark" contentStyle={styles.card}>
                     <ListRow
+                      dark
                       gutter={0}
                       leading={
                         <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={44} />
@@ -140,6 +144,7 @@ export default function Proposals() {
                       subtitle={item.peer.occupation}
                       trailing={
                         <PeerModerationMenu
+                          dark
                           peer={{ profileId: item.peer.profileId, name: item.peer.name }}
                           onBlocked={() => {
                             setReceived((prev) => prev.filter((p) => p.id !== item.id));
@@ -159,11 +164,12 @@ export default function Proposals() {
                           <DoodleButton
                             title="수락하고 채팅 열기"
                             variant="primary"
+                            tone="dark"
                             onPress={() => onAccept(item.id)}
                           />
                         </View>
                         <View style={styles.actionItem}>
-                          <DoodleButton title="거절" onPress={() => onDecline(item.id)} />
+                          <DoodleButton title="거절" tone="dark" onPress={() => onDecline(item.id)} />
                         </View>
                       </View>
                     ) : (
@@ -188,19 +194,19 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: "row",
     borderBottomWidth: 1.5,
-    borderBottomColor: colors.grayLight,
+    borderBottomColor: dark.line,
   },
   tab: { minHeight: control.minTouch, flex: 1, alignItems: "center", justifyContent: "center" },
-  tabActive: { borderBottomWidth: 3, borderBottomColor: colors.accent },
-  tabText: { ...type.label, color: colors.grayDark },
-  tabTextActive: { color: colors.ink },
+  tabActive: { borderBottomWidth: 3, borderBottomColor: dark.accent },
+  tabText: { ...type.label, color: dark.textMuted },
+  tabTextActive: { color: dark.text },
   notice: { marginTop: space.x3 },
   list: { paddingTop: space.x3, gap: space.x3 },
   card: { paddingHorizontal: space.x4, paddingVertical: space.x2, gap: space.x2 },
-  summary: { ...type.caption, color: colors.grayDark },
+  summary: { ...type.caption, color: dark.textMuted },
   actions: { flexDirection: "row", gap: space.x2 },
   actionItem: { flex: 1 },
   statusRow: { gap: 2 },
-  statusLabel: { ...type.label, color: colors.ink },
-  statusHelp: { ...type.caption, color: colors.grayMid },
+  statusLabel: { ...type.label, color: dark.text },
+  statusHelp: { ...type.caption, color: dark.textMuted },
 });

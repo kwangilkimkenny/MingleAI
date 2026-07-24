@@ -13,7 +13,7 @@ import { useAuthStore } from "../../../src/lib/client";
 import { AppScreen } from "../../../src/components/AppScreen";
 import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
-import { colors, space, type } from "../../../src/lib/theme";
+import { dark, space, type } from "../../../src/lib/theme";
 import {
   ConfirmDialog,
   InlineNotice,
@@ -102,15 +102,21 @@ export default function DatePlanScreen() {
     }
   }
 
-  if (phase === "loading") return <StateView title="데이트 플랜을 불러오고 있어요" loading />;
+  if (phase === "loading") return <StateView title="데이트 플랜을 불러오고 있어요" loading dark />;
   if (phase === "error")
     return (
-      <StateView title="데이트 플랜을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />
+      <StateView
+        title="데이트 플랜을 불러오지 못했어요"
+        actionLabel="다시 시도"
+        onAction={load}
+        dark
+      />
     );
 
   if (phase === "form") {
     return (
       <AppScreen
+        tone="dark"
         header={{ back: true, title: "데이트 플랜 만들기" }}
         body="scroll"
         footer={
@@ -119,6 +125,7 @@ export default function DatePlanScreen() {
             disabled={busy}
             onPress={onCreate}
             variant="primary"
+            tone="dark"
           />
         }
       >
@@ -129,12 +136,14 @@ export default function DatePlanScreen() {
             onChangeText={setBudget}
             keyboardType="number-pad"
             hint="두 사람의 예상 총비용을 원 단위로 입력해 주세요."
+            dark
           />
           <LabeledInput
             label="만날 지역"
             value={city}
             onChangeText={setCity}
             placeholder="예: 서울 성수동"
+            dark
           />
           <LabeledInput
             label="희망 날짜"
@@ -142,8 +151,13 @@ export default function DatePlanScreen() {
             onChangeText={setDate}
             placeholder="2026-08-01"
             hint="비워두면 오늘을 기준으로 코스를 추천해요."
+            dark
           />
-          {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+          {error ? (
+            <InlineNotice tone="error" dark>
+              {error}
+            </InlineNotice>
+          ) : null}
         </View>
       </AppScreen>
     );
@@ -161,6 +175,7 @@ export default function DatePlanScreen() {
       <DoodleButton
         title={busy ? "확정 중..." : "이 계획 확정하기"}
         variant="primary"
+        tone="dark"
         disabled={busy}
         onPress={() => run(() => confirmDatePlan(p.id))}
       />
@@ -168,19 +183,24 @@ export default function DatePlanScreen() {
       <DoodleButton
         title="만남 완료로 표시"
         variant="primary"
+        tone="dark"
         disabled={busy}
         onPress={() => setCompleteOpen(true)}
       />
     ) : undefined;
 
   return (
-    <AppScreen header={{ back: true, title: "데이트 플랜" }} body="scroll" footer={footer}>
+    <AppScreen tone="dark" header={{ back: true, title: "데이트 플랜" }} body="scroll" footer={footer}>
       <View style={s.stack}>
         <View style={s.statusRow}>
-          <DoodleChip label={statusLabel(p.status)} on={p.status === "confirmed"} />
+          <DoodleChip label={statusLabel(p.status)} on={p.status === "confirmed"} dark />
         </View>
 
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        {error ? (
+          <InlineNotice tone="error" dark>
+            {error}
+          </InlineNotice>
+        ) : null}
 
         {p.status === "draft" && !p.selectedCourseId && isCreator && (
           <>
@@ -193,6 +213,7 @@ export default function DatePlanScreen() {
                   <DoodleButton
                     title="이 코스로 선택"
                     variant="primary"
+                    tone="dark"
                     disabled={busy}
                     onPress={() => run(() => selectCourse(p.id, c.courseId))}
                   />
@@ -249,6 +270,7 @@ export default function DatePlanScreen() {
       </View>
 
       <ConfirmDialog
+        dark
         visible={cancelOpen}
         title="이 계획을 취소할까요?"
         body="선택한 코스와 상대의 확인 상태가 모두 종료돼요."
@@ -262,6 +284,7 @@ export default function DatePlanScreen() {
         }}
       />
       <ConfirmDialog
+        dark
         visible={completeOpen}
         title="만남을 완료했나요?"
         body="완료로 표시하면 이 계획은 더 이상 변경하거나 취소할 수 없어요."
@@ -291,7 +314,7 @@ function statusLabel(status: string) {
 
 function CourseCard({ course, action }: { course: DateCourse; action?: React.ReactNode }) {
   return (
-    <DoodleCard tone="fill" style={s.card} contentStyle={s.cardInner}>
+    <DoodleCard tone="dark" style={s.card} contentStyle={s.cardInner}>
       <Text style={s.cardTitle}>{course.label}</Text>
       <Text style={s.cardMeta}>
         {course.totalEstimatedCost.toLocaleString()}원 · {course.totalEstimatedMinutes}분
@@ -315,15 +338,15 @@ function CourseCard({ course, action }: { course: DateCourse; action?: React.Rea
 const s = StyleSheet.create({
   stack: { gap: space.x4 },
   statusRow: { flexDirection: "row" },
-  hint: { ...type.body, color: colors.ink },
+  hint: { ...type.body, color: dark.text },
   cancel: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: space.x2 },
-  cancelText: { ...type.label, color: colors.danger },
+  cancelText: { ...type.label, color: dark.danger },
   card: { marginTop: space.x1 },
   cardInner: { padding: space.x4, gap: space.x2 },
-  cardTitle: { ...type.heading, color: colors.ink },
-  cardMeta: { ...type.caption, color: colors.grayDark, marginBottom: space.x1 },
+  cardTitle: { ...type.heading, color: dark.text },
+  cardMeta: { ...type.caption, color: dark.textMuted, marginBottom: space.x1 },
   stop: { marginTop: space.x2, gap: space.x1 },
-  stopName: { ...type.label, color: colors.ink },
-  stopMeta: { ...type.caption, color: colors.grayDark },
-  stopWhy: { ...type.caption, color: colors.grayDark },
+  stopName: { ...type.label, color: dark.text },
+  stopMeta: { ...type.caption, color: dark.textMuted },
+  stopWhy: { ...type.caption, color: dark.textMuted },
 });

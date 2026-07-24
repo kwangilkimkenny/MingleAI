@@ -38,15 +38,16 @@ export default function Chats() {
   useFocusEffect(load);
 
   return (
-    <AppScreen tabScreen header={{ title: "채팅" }} body="plain">
+    <AppScreen tabScreen tone="dark" body="plain">
       {loading ? (
-        <StateView title="대화를 불러오고 있어요" loading />
+        <StateView title="대화를 불러오고 있어요" loading dark />
       ) : error ? (
         <StateView
           title="대화를 불러오지 못했어요"
           body={error}
           actionLabel="다시 시도"
           onAction={load}
+          dark
         />
       ) : rooms.length === 0 ? (
         <StateView
@@ -54,6 +55,7 @@ export default function Chats() {
           body="블라인드 데이트에서 만나 서로 선택하면 1:1 채팅이 여기에 열려요."
           actionLabel="블라인드 데이트 시작"
           onAction={() => router.push("/(app)/speed-date")}
+          dark
         />
       ) : (
         <FlatList
@@ -61,11 +63,12 @@ export default function Chats() {
           keyExtractor={(item) => item.roomId}
           style={styles.list}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <RowSeparator gutter={0} />}
+          ItemSeparatorComponent={() => <RowSeparator gutter={0} dark />}
           renderItem={({ item, index }) => (
             <EnterRow index={index}>
               <ListRow
                 gutter={0}
+                dark
                 leading={<DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={46} />}
                 title={item.peer.name}
                 subtitle={item.lastMessage?.content ?? "메시지를 보내보세요"}

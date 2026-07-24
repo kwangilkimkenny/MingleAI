@@ -50,7 +50,6 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
               style={styles.tab}
             >
               {options.tabBarIcon ? options.tabBarIcon({ focused, color, size: 26 }) : null}
-              {focused ? <View style={styles.activeDot} /> : null}
               {options.tabBarBadge !== undefined ? (
                 <View style={styles.badge} accessibilityLabel={`읽지 않은 알림 ${options.tabBarBadge}개`}>
                   <Text style={styles.badgeText}>{options.tabBarBadge}</Text>
@@ -81,17 +80,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   row: { flexDirection: "row", alignItems: "stretch", height: TAB_BAR_ROW_HEIGHT },
-  // 아이콘만 — 행 전체(60px)를 채워 44px 최소 터치 타깃 보장.
+  // 아이콘만 — 행 전체(60px)를 채워 44px 최소 터치 타깃 보장. 활성 = 아이콘 색(골드)으로만 표시.
   tab: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 5 },
-  // 라벨이 없으니 활성 상태를 작은 로즈 점으로 명확히.
-  activeDot: {
-    position: "absolute",
-    bottom: 12,
-    width: 5,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: dark.accent,
-  },
   badge: {
     position: "absolute",
     top: 8,

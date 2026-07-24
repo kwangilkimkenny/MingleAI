@@ -24,7 +24,7 @@ import { useAuthStore } from "../../../src/lib/client";
 import { openMessengerSocket } from "../../../src/lib/messenger-socket";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { AppScreen } from "../../../src/components/AppScreen";
-import { colors, control, doodle, space, type } from "../../../src/lib/theme";
+import { colors, control, dark, doodle, space, type } from "../../../src/lib/theme";
 import { InlineNotice, StateView } from "../../../src/components/Foundation";
 import { CalendarDays, Send } from "lucide-react-native";
 
@@ -181,16 +181,23 @@ export default function ChatRoom() {
   }
 
   if (loading) {
-    return <StateView title="대화를 불러오고 있어요" loading />;
+    return (
+      <AppScreen tone="dark" body="plain">
+        <StateView title="대화를 불러오고 있어요" loading dark />
+      </AppScreen>
+    );
   }
   if (loadError) {
     return (
-      <StateView
-        title="대화를 열지 못했어요"
-        body={loadError}
-        actionLabel="채팅 목록으로"
-        onAction={() => router.replace("/chats")}
-      />
+      <AppScreen tone="dark" body="plain" header={{ back: true, title: "채팅" }}>
+        <StateView
+          title="대화를 열지 못했어요"
+          body={loadError}
+          actionLabel="채팅 목록으로"
+          onAction={() => router.replace("/chats")}
+          dark
+        />
+      </AppScreen>
     );
   }
 
@@ -210,9 +217,10 @@ export default function ChatRoom() {
           }
           style={({ pressed }) => [styles.headerIcon, pressed && styles.pressed]}
         >
-          <CalendarDays color={colors.ink} size={22} strokeWidth={1.75} />
+          <CalendarDays color={dark.text} size={22} strokeWidth={1.75} />
         </Pressable>
         <PeerModerationMenu
+          dark
           peer={{ profileId: match.peer.profileId, name: match.peer.name }}
           onBlocked={() => router.replace("/chats")}
         />
@@ -221,14 +229,18 @@ export default function ChatRoom() {
 
   const composeBar = (
     <View style={styles.compose}>
-      {sendError ? <InlineNotice tone="error">{sendError}</InlineNotice> : null}
+      {sendError ? (
+        <InlineNotice tone="error" dark>
+          {sendError}
+        </InlineNotice>
+      ) : null}
       <View style={styles.composeRow}>
         <TextInput
           style={styles.input}
           value={text}
           onChangeText={onChangeText}
           placeholder="메시지를 입력하세요"
-          placeholderTextColor={colors.grayMid}
+          placeholderTextColor={dark.textMuted}
           multiline
           returnKeyType="send"
           blurOnSubmit
@@ -247,7 +259,7 @@ export default function ChatRoom() {
           accessibilityLabel={sending ? "메시지 전송 중" : "메시지 전송"}
           accessibilityState={{ disabled: !text.trim() || sending, busy: sending }}
         >
-          <Send color={!text.trim() || sending ? colors.grayMid : colors.onAccent} size={20} />
+          <Send color={!text.trim() || sending ? dark.textMuted : dark.onPill} size={20} />
         </Pressable>
       </View>
     </View>
@@ -260,6 +272,7 @@ export default function ChatRoom() {
       keyboardVerticalOffset={0}
     >
       <AppScreen
+        tone="dark"
         header={{ back: true, title: match?.peer.name ?? "채팅", action: headerAction }}
         body="plain"
         footer={composeBar}
@@ -268,6 +281,7 @@ export default function ChatRoom() {
           <StateView
             title="첫 인사를 건네보세요"
             body="가볍게 인사하며 대화를 시작해 보세요."
+            dark
           />
         ) : (
           <FlatList
@@ -332,14 +346,14 @@ const styles = StyleSheet.create({
   },
   bubblePeer: {
     alignSelf: "flex-start",
-    backgroundColor: colors.card,
+    backgroundColor: dark.surface,
     borderWidth: doodle.border,
-    borderColor: colors.border,
+    borderColor: dark.border,
   },
   bubbleText: { ...type.body },
   bubbleTextMe: { color: colors.onAccent },
-  bubbleTextPeer: { color: colors.ink },
-  messageMeta: { ...type.caption, color: colors.grayMid, marginTop: space.x1, textAlign: "right" },
+  bubbleTextPeer: { color: dark.text },
+  messageMeta: { ...type.caption, color: dark.textMuted, marginTop: space.x1, textAlign: "right" },
   messageMetaMe: { color: "rgba(255,255,255,0.85)" },
   compose: { gap: space.x2 },
   composeRow: { flexDirection: "row", alignItems: "flex-end", gap: space.x2 },
@@ -347,22 +361,23 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: control.buttonHeight,
     borderWidth: doodle.border,
-    borderColor: colors.border,
+    borderColor: dark.border,
+    backgroundColor: dark.fieldBg,
     ...doodle.radius.input,
     paddingHorizontal: space.x3,
     paddingVertical: space.x2,
     ...type.body,
-    color: colors.ink,
+    color: dark.text,
     maxHeight: 120,
   },
   sendBtn: {
     width: control.buttonHeight,
     height: control.buttonHeight,
-    backgroundColor: colors.accentStrong,
+    backgroundColor: dark.pill,
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
-  sendBtnDisabled: { backgroundColor: colors.fillDeep },
+  sendBtnDisabled: { backgroundColor: dark.surfaceHi },
   pressed: { opacity: 0.68 },
 });

@@ -53,16 +53,22 @@ export default function BlocksScreen() {
 
   let content;
   if (state === "loading") {
-    content = <StateView title="차단 목록을 불러오고 있어요" loading />;
+    content = <StateView title="차단 목록을 불러오고 있어요" loading dark />;
   } else if (state === "error") {
     content = (
-      <StateView title="차단 목록을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />
+      <StateView
+        title="차단 목록을 불러오지 못했어요"
+        actionLabel="다시 시도"
+        onAction={load}
+        dark
+      />
     );
   } else if (blocks.length === 0) {
     content = (
       <StateView
         title="차단한 사용자가 없어요"
         body="불편한 사용자를 차단하면 이 목록에서 관리할 수 있어요."
+        dark
       />
     );
   } else {
@@ -71,15 +77,20 @@ export default function BlocksScreen() {
         style={{ flex: 1 }}
         data={blocks}
         keyExtractor={(item) => item.profileId}
-        ItemSeparatorComponent={() => <RowSeparator gutter={0} />}
+        ItemSeparatorComponent={() => <RowSeparator gutter={0} dark />}
         renderItem={({ item }) => (
           <ListRow
             gutter={0}
+            dark
             leading={<DoodleAvatar uri={item.photoUrl} name={item.name} size={44} />}
             title={item.name}
             subtitle={`${item.age} · ${item.occupation}`}
             trailing={
-              <DoodleButton title="차단 해제" onPress={() => setUnblockTarget(item)} />
+              <DoodleButton
+                title="차단 해제"
+                onPress={() => setUnblockTarget(item)}
+                tone="dark"
+              />
             }
           />
         )}
@@ -88,7 +99,7 @@ export default function BlocksScreen() {
   }
 
   return (
-    <AppScreen header={{ back: true, title: "차단 관리" }} body="plain">
+    <AppScreen tone="dark" header={{ back: true, title: "차단 관리" }} body="plain">
       {content}
       <ConfirmDialog
         visible={unblockTarget !== null}

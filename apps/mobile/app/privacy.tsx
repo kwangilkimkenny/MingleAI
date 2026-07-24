@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "../src/components/AppScreen";
-import { colors, space, type } from "../src/lib/theme";
+import { dark, space, type } from "../src/lib/theme";
 
 const UPDATED_AT = "2026년 7월 22일";
 
@@ -36,6 +36,7 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
 export default function PrivacyScreen() {
   return (
     <AppScreen
+      tone="dark"
       header={{ back: true, title: "개인정보 처리 안내", description: `시행일 ${UPDATED_AT}` }}
       body="scroll"
     >
@@ -60,6 +61,6 @@ export default function PrivacyScreen() {
 const styles = StyleSheet.create({
   column: { gap: space.x5 },
   section: { gap: space.x2 },
-  heading: { ...type.title, color: colors.heading },
-  body: { ...type.body, color: colors.grayDark, lineHeight: 24 },
+  heading: { ...type.title, color: dark.heading },
+  body: { ...type.body, color: dark.text, lineHeight: 24 },
 });

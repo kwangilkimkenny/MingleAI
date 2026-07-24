@@ -12,7 +12,7 @@ import { REASON_LABELS } from "../../../src/lib/moderation";
 import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { AppScreen } from "../../../src/components/AppScreen";
-import { colors, space, type } from "../../../src/lib/theme";
+import { colors, dark, space, type } from "../../../src/lib/theme";
 import { ConfirmDialog, InlineNotice, LabeledInput } from "../../../src/components/Foundation";
 import { CheckCircle2, Shield } from "lucide-react-native";
 
@@ -70,7 +70,7 @@ export default function ReportScreen() {
 
   if (submitted) {
     return (
-      <AppScreen contentStyle={styles.successScroll}>
+      <AppScreen tone="dark" contentStyle={styles.successScroll}>
         <View style={styles.successInner}>
           <CheckCircle2 color={colors.success} size={58} strokeWidth={1.75} />
           <Text accessibilityRole="header" style={styles.successTitle}>
@@ -79,9 +79,18 @@ export default function ReportScreen() {
           <Text style={styles.successBody}>
             검토에 필요한 내용을 안전하게 전달했어요. 상대에게 신고 사실이나 상세 내용은 공개되지 않아요.
           </Text>
-          {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-          <DoodleButton title="이 사용자도 차단" variant="danger" onPress={() => setBlockOpen(true)} />
-          <DoodleButton title="완료" onPress={closeScreen} />
+          {error ? (
+            <InlineNotice tone="error" dark>
+              {error}
+            </InlineNotice>
+          ) : null}
+          <DoodleButton
+            title="이 사용자도 차단"
+            variant="danger"
+            tone="dark"
+            onPress={() => setBlockOpen(true)}
+          />
+          <DoodleButton title="완료" tone="dark" onPress={closeScreen} />
         </View>
         <ConfirmDialog
           visible={blockOpen}
@@ -99,11 +108,13 @@ export default function ReportScreen() {
 
   return (
     <AppScreen
+      tone="dark"
       header={{ back: true, title: "신고" }}
       footer={
         <DoodleButton
           title={submitting ? "신고 제출 중..." : "신고 제출"}
           variant="danger"
+          tone="dark"
           disabled={!reason || submitting}
           onPress={onSubmit}
         />
@@ -117,6 +128,7 @@ export default function ReportScreen() {
               key={r}
               label={REASON_LABELS[r]}
               on={reason === r}
+              dark
               onPress={() => setReason(r)}
             />
           ))}
@@ -127,6 +139,7 @@ export default function ReportScreen() {
           value={details}
           onChangeText={setDetails}
           multiline
+          dark
           maxLength={MAX_DETAILS}
           placeholder="자세한 상황을 적어주세요"
           hint="시간, 장소, 상대의 행동처럼 사실을 중심으로 적어주면 검토에 도움이 돼요."
@@ -135,7 +148,11 @@ export default function ReportScreen() {
           {details.length}/{MAX_DETAILS}
         </Text>
 
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        {error ? (
+          <InlineNotice tone="error" dark>
+            {error}
+          </InlineNotice>
+        ) : null}
         <View style={styles.safetyNote}>
           <Shield color={colors.success} size={19} strokeWidth={1.75} />
           <Text style={styles.safetyNoteText}>제출 후 바로 차단할지 선택할 수 있어요.</Text>
@@ -147,13 +164,13 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   form: { gap: space.x4 },
-  section: { ...type.label, color: colors.ink },
+  section: { ...type.label, color: dark.text },
   reasonWrap: { flexDirection: "row", flexWrap: "wrap", gap: space.x2 },
-  counter: { alignSelf: "flex-end", ...type.caption, color: colors.grayDark },
+  counter: { alignSelf: "flex-end", ...type.caption, color: dark.textMuted },
   safetyNote: { flexDirection: "row", alignItems: "center", gap: space.x2 },
-  safetyNoteText: { ...type.caption, color: colors.grayDark, flex: 1 },
+  safetyNoteText: { ...type.caption, color: dark.textMuted, flex: 1 },
   successScroll: { flexGrow: 1, justifyContent: "center" },
   successInner: { alignItems: "center", gap: space.x4 },
-  successTitle: { ...type.title, color: colors.heading, textAlign: "center" },
-  successBody: { ...type.body, color: colors.grayDark, textAlign: "center", maxWidth: 420 },
+  successTitle: { ...type.title, color: dark.heading, textAlign: "center" },
+  successBody: { ...type.body, color: dark.textMuted, textAlign: "center", maxWidth: 420 },
 });

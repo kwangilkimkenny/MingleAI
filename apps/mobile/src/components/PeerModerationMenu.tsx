@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { colors, control, doodle, layout, shadow, space, type } from "../lib/theme";
+import { colors, control, dark, doodle, layout, shadow, space, type } from "../lib/theme";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { createBlock, ApiError } from "@mingle/client-core";
@@ -12,9 +12,16 @@ export interface PeerModerationMenuProps {
   peer: { profileId: string; name: string };
   evidencePartyId?: string;
   onBlocked?: () => void;
+  /** 홈 테마 다크 화면(채팅 헤더·프로포즈 카드)에서 트리거 아이콘을 크림 톤으로. */
+  dark?: boolean;
 }
 
-export function PeerModerationMenu({ peer, evidencePartyId, onBlocked }: PeerModerationMenuProps) {
+export function PeerModerationMenu({
+  peer,
+  evidencePartyId,
+  onBlocked,
+  dark: isDark = false,
+}: PeerModerationMenuProps) {
   const reducedMotion = useReducedMotion();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -60,7 +67,7 @@ export function PeerModerationMenu({ peer, evidencePartyId, onBlocked }: PeerMod
       style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
       onPress={openMenu}
     >
-      <MoreHorizontal color={colors.ink} size={22} />
+      <MoreHorizontal color={isDark ? dark.text : colors.ink} size={22} />
     </Pressable>
     <Modal
       visible={menuOpen}
@@ -74,20 +81,41 @@ export function PeerModerationMenu({ peer, evidencePartyId, onBlocked }: PeerMod
             onPress={() => setMenuOpen(false)}
             accessibilityLabel="안전 메뉴 닫기"
           />
-          <View style={styles.sheet}>
-            <Text accessibilityRole="header" style={styles.sheetTitle}>{peer.name}님 안전 메뉴</Text>
-            <Text style={styles.sheetBody}>불편한 상황이라면 신고하거나 이 사용자를 보이지 않게 할 수 있어요.</Text>
-            {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-            <DoodleButton title="신고하기" onPress={openReport} />
+          <View
+            style={[
+              styles.sheet,
+              isDark && { backgroundColor: dark.surface, borderColor: dark.border },
+            ]}
+          >
+            <Text
+              accessibilityRole="header"
+              style={[styles.sheetTitle, isDark && { color: dark.heading }]}
+            >
+              {peer.name}님 안전 메뉴
+            </Text>
+            <Text style={[styles.sheetBody, isDark && { color: dark.textMuted }]}>
+              불편한 상황이라면 신고하거나 이 사용자를 보이지 않게 할 수 있어요.
+            </Text>
+            {error ? (
+              <InlineNotice tone="error" dark={isDark}>
+                {error}
+              </InlineNotice>
+            ) : null}
+            <DoodleButton title="신고하기" onPress={openReport} tone={isDark ? "dark" : "light"} />
             <DoodleButton
               title="차단하기"
               variant="danger"
+              tone={isDark ? "dark" : "light"}
               onPress={() => {
                 setMenuOpen(false);
                 setConfirmOpen(true);
               }}
             />
-            <DoodleButton title="취소" onPress={() => setMenuOpen(false)} />
+            <DoodleButton
+              title="취소"
+              onPress={() => setMenuOpen(false)}
+              tone={isDark ? "dark" : "light"}
+            />
           </View>
         </View>
     </Modal>
@@ -98,6 +126,7 @@ export function PeerModerationMenu({ peer, evidencePartyId, onBlocked }: PeerMod
         confirmLabel="차단하기"
         destructive
         busy={busy}
+        dark={isDark}
         onCancel={() => setConfirmOpen(false)}
         onConfirm={onConfirmBlock}
     />

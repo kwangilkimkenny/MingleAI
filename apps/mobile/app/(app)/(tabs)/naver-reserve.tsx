@@ -3,14 +3,13 @@ import { View, FlatList, Linking, StyleSheet } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { MapPin } from "lucide-react-native";
 import { getNearbyPlaces, type NaverPlace } from "@mingle/client-core";
-import { colors, doodle, space } from "../../../src/lib/theme";
+import { dark, doodle, space } from "../../../src/lib/theme";
 import { StateView } from "../../../src/components/Foundation";
 import { AppScreen } from "../../../src/components/AppScreen";
 import { ListRow, RowSeparator } from "../../../src/components/ListRow";
 import { NaverMap, type MapPlace } from "../../../src/components/NaverMap";
 import { getCurrentCoords, type Coords } from "../../../src/lib/location";
 
-const HEADER = { title: "근처 맛집" } as const;
 
 /** Naver local-search mapx/mapy are WGS84 ×1e7 strings → decimal degrees for map pins. */
 function toMapPlace(p: NaverPlace): MapPlace | null {
@@ -49,22 +48,22 @@ export default function NaverReserve() {
 
   if (phase === "loading") {
     return (
-      <AppScreen tabScreen header={HEADER} body="plain">
-        <StateView title="맛집을 불러오고 있어요" loading />
+      <AppScreen tabScreen tone="dark" body="plain">
+        <StateView title="맛집을 불러오고 있어요" loading dark />
       </AppScreen>
     );
   }
   if (phase === "unconfigured") {
     return (
-      <AppScreen tabScreen header={HEADER} body="plain">
-        <StateView title="곧 만나요" body="근처 맛집을 지도에서 찾고 바로 예약할 수 있어요." />
+      <AppScreen tabScreen tone="dark" body="plain">
+        <StateView title="곧 만나요" body="근처 맛집을 지도에서 찾고 바로 예약할 수 있어요." dark />
       </AppScreen>
     );
   }
   if (phase === "error") {
     return (
-      <AppScreen tabScreen header={HEADER} body="plain">
-        <StateView title="맛집을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />
+      <AppScreen tabScreen tone="dark" body="plain">
+        <StateView title="맛집을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} dark />
       </AppScreen>
     );
   }
@@ -72,7 +71,7 @@ export default function NaverReserve() {
   const pins = places.map(toMapPlace).filter((p): p is MapPlace => p !== null);
 
   return (
-    <AppScreen tabScreen header={HEADER} body="plain">
+    <AppScreen tabScreen tone="dark" body="plain">
       {center ? (
         <View style={styles.map}>
           <NaverMap center={center} radiusKm={null} places={pins} />
@@ -83,12 +82,13 @@ export default function NaverReserve() {
         keyExtractor={(p, i) => `${p.title}-${i}`}
         style={styles.flex}
         contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <RowSeparator gutter={0} />}
-        ListEmptyComponent={<StateView title="근처 맛집이 없어요" />}
+        ItemSeparatorComponent={() => <RowSeparator gutter={0} dark />}
+        ListEmptyComponent={<StateView title="근처 맛집이 없어요" dark />}
         renderItem={({ item }) => (
           <ListRow
             gutter={0}
-            leading={<MapPin color={colors.accent} size={20} strokeWidth={1.75} />}
+            dark
+            leading={<MapPin color={dark.accent} size={20} strokeWidth={1.75} />}
             title={item.title}
             subtitle={
               [item.category, item.roadAddress || item.address].filter(Boolean).join(" · ") ||
@@ -112,6 +112,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     borderWidth: doodle.border,
-    borderColor: colors.border,
+    borderColor: dark.border,
   },
 });
