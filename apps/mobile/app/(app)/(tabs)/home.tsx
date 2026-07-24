@@ -15,6 +15,8 @@ import Animated, {
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { getReceivedProposals, getUnreadCount } from "@mingle/client-core";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
+import { ProposalsPopup } from "../../../src/components/ProposalsPopup";
+import { NotificationsPopup } from "../../../src/components/NotificationsPopup";
 import { colors, fonts, masterpiece } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
 
@@ -31,13 +33,22 @@ const MAN = require("../../../assets/images/cafe-date-character-man.png");
 export default function Home() {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
   const womanShift = useSharedValue(0);
   const manShift = useSharedValue(0);
   const [pending, setPending] = useState(0);
   const [unread, setUnread] = useState(0);
+  const [popup, setPopup] = useState<null | "proposals" | "notifications">(null);
   const navigatingRef = useRef(false);
+  const availableHeight = Math.max(480, height - clearance);
+  const characterHeight = availableHeight * 0.84;
+  const womanHeight = characterHeight * 0.95;
+  const womanWidth = womanHeight * (1023 / 1537);
+  const manHeight = characterHeight * 1.06;
+  const manWidth = manHeight * (1023 / 1537);
+  const womanLeft = width * 0.32 - womanWidth * 0.47;
+  const manLeft = width * 0.68 - manWidth * 0.49;
 
   useEffect(() => {
     cancelAnimation(womanShift);
@@ -69,25 +80,12 @@ export default function Home() {
     };
   }, [manShift, reducedMotion, width, womanShift]);
 
-  const womanMotion = useAnimatedStyle(
-    () => ({
-      transform: [
-        { translateX: -width * 0.1 + womanShift.value },
-        { scale: 0.96 },
-      ],
-    }),
-    [width],
-  );
-  const manMotion = useAnimatedStyle(
-    () => ({
-      transform: [
-        { translateX: width * 0.13 + manShift.value },
-        { translateY: -width * 0.06 },
-        { scale: 1.06 },
-      ],
-    }),
-    [width],
-  );
+  const womanMotion = useAnimatedStyle(() => ({
+    transform: [{ translateX: womanShift.value }],
+  }));
+  const manMotion = useAnimatedStyle(() => ({
+    transform: [{ translateX: manShift.value }],
+  }));
 
   useFocusEffect(
     useCallback(() => {
@@ -127,13 +125,31 @@ export default function Home() {
         <Animated.Image
           source={WOMAN}
           resizeMode="contain"
-          style={[StyleSheet.absoluteFill, womanMotion]}
+          style={[
+            styles.character,
+            {
+              left: womanLeft,
+              bottom: characterHeight - womanHeight,
+              width: womanWidth,
+              height: womanHeight,
+            },
+            womanMotion,
+          ]}
           accessible={false}
         />
         <Animated.Image
           source={MAN}
           resizeMode="contain"
-          style={[StyleSheet.absoluteFill, manMotion]}
+          style={[
+            styles.character,
+            {
+              left: manLeft,
+              bottom: characterHeight * 0.04,
+              width: manWidth,
+              height: manHeight,
+            },
+            manMotion,
+          ]}
           accessible={false}
         />
       </View>
@@ -152,8 +168,8 @@ export default function Home() {
 
       {/* top-right: proposals + notifications */}
       <View style={[styles.topbar, { top: insets.top + 6 }]}>
-        <IconDot icon={<Heart color="#FFF" size={20} strokeWidth={2} />} n={pending} label="프로포즈" onPress={() => router.push("/proposals")} />
-        <IconDot icon={<Bell color="#FFF" size={20} strokeWidth={2} />} n={unread} label="알림" onPress={() => router.push("/notifications")} />
+        <IconDot icon={<Heart color="#FFF" size={20} strokeWidth={2} />} n={pending} label="프로포즈" onPress={() => setPopup("proposals")} />
+        <IconDot icon={<Bell color="#FFF" size={20} strokeWidth={2} />} n={unread} label="알림" onPress={() => setPopup("notifications")} />
       </View>
 
       {/* bottom: concept line + MATCH */}
@@ -170,6 +186,9 @@ export default function Home() {
           <Text style={styles.matchSub}>로테이션 소개팅 시작</Text>
         </Pressable>
       </View>
+
+      <ProposalsPopup visible={popup === "proposals"} onClose={() => setPopup(null)} />
+      <NotificationsPopup visible={popup === "notifications"} onClose={() => setPopup(null)} />
     </View>
   );
 }
@@ -204,6 +223,7 @@ function IconDot({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#1A120C" },
+  character: { position: "absolute" },
   topbar: { position: "absolute", right: 16, flexDirection: "row", gap: 10, zIndex: 5 },
   iconDot: {
     width: 42,

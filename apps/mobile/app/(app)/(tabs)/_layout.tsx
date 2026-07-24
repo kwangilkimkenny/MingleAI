@@ -5,8 +5,8 @@ import { DoodleTabBar } from "../../../src/components/DoodleTabBar";
 
 /**
  * Bottom tab bar (icon-only), shown once the user is past onboarding. Four tabs:
- * 홈 · 채팅 · 네이버예약 · 설정. Proposals and notifications keep their routes (reachable from the
- * home hub) but are hidden from the bar via `href: null`.
+ * 홈 · 채팅 · 네이버예약 · 설정. 프로포즈·알림은 페이지가 아니라 홈의 투명 팝업(ProposalsPopup·
+ * NotificationsPopup)으로 열린다.
  */
 export default function TabsLayout() {
   return (
@@ -44,9 +44,6 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Settings color={color} size={size} strokeWidth={2} />,
         }}
       />
-      {/* Kept as routes (home hub links here) but hidden from the bar. */}
-      <Tabs.Screen name="proposals" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

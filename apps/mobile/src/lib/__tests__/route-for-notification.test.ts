@@ -6,15 +6,15 @@ it("routes message_received to the chat room with roomId", () => {
     params: { roomId: "r1" },
   });
 });
-it("routes proposal_received to proposals", () => {
-  expect(routeForNotification({ type: "proposal_received" })).toBe("/proposals");
+it("routes proposal_received to home (proposals is a home popup now)", () => {
+  expect(routeForNotification({ type: "proposal_received" })).toBe("/home");
 });
 it("routes match_made to chats", () => {
   expect(routeForNotification({ type: "match_made" })).toBe("/chats");
 });
-it("falls back to the notification center for system/unknown", () => {
-  expect(routeForNotification({ type: "system" })).toBe("/notifications");
-  expect(routeForNotification({ type: "whatever" as any })).toBe("/notifications");
+it("falls back to home for system/unknown (notifications is a home popup now)", () => {
+  expect(routeForNotification({ type: "system" })).toBe("/home");
+  expect(routeForNotification({ type: "whatever" as any })).toBe("/home");
 });
 it("message_received without roomId falls back to chats", () => {
   expect(routeForNotification({ type: "message_received" })).toBe("/chats");

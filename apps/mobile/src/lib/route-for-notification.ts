@@ -17,7 +17,8 @@ export function routeForNotification(data: NotificationData): Href {
     case "match_made":
       return "/chats";
     case "proposal_received":
-      return "/proposals";
+      // 프로포즈는 이제 페이지가 아니라 홈의 팝업 — 딥링크는 홈으로 보낸다.
+      return "/home";
     case "party_reminder":
     case "match_result":
       return "/home";
@@ -30,6 +31,7 @@ export function routeForNotification(data: NotificationData): Href {
         : "/home";
     case "system":
     default:
-      return "/notifications";
+      // 알림도 페이지가 아니라 홈의 팝업 — 딥링크는 홈으로.
+      return "/home";
   }
 }
