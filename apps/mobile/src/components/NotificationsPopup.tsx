@@ -19,6 +19,8 @@ const ListSep = () => <RowSeparator gutter={0} dark />;
 
 /** 최소 슬롯 수 — 공지가 없어도 빈 칸이 구분선으로 나뉜 리스트 UI가 보이도록. */
 const MIN_SLOTS = 8;
+/** 클라 기본 환영 공지의 고정 id. */
+const WELCOME_ID = "__welcome__";
 
 export function NotificationsPopup({
   visible,
@@ -30,6 +32,8 @@ export function NotificationsPopup({
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
+  // 기본 환영 공지 — 백엔드 행이 아니라 클라 기본 항목. 읽음 상태만 로컬로 추적.
+  const [welcomeRead, setWelcomeRead] = useState(false);
 
   const load = useCallback(() => {
     let alive = true;
@@ -56,6 +60,10 @@ export function NotificationsPopup({
   }, [visible, load]);
 
   function onTapItem(n: AppNotification) {
+    if (n.id === WELCOME_ID) {
+      setWelcomeRead(true);
+      return;
+    }
     if (!n.read) {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       markNotificationRead(n.id).catch(() => {});
@@ -69,10 +77,20 @@ export function NotificationsPopup({
     onClose();
   }
 
-  // 실제 공지 + 빈 슬롯을 채워 최소 MIN_SLOTS 행이 항상 보이게(구분선으로 나뉜 빈 리스트).
+  // 기본 환영 공지(맨 아래) + 실제 공지(위) + 빈 슬롯 패딩. 구분선으로 나뉜 리스트에 위부터 찬다.
+  const welcome: AppNotification = {
+    id: WELCOME_ID,
+    type: "system",
+    title: "가입을 축하드립니다",
+    message: "밍글에 오신 걸 환영해요. 로테이션 블라인드 소개팅으로 인연을 만나보세요.",
+    data: null,
+    read: welcomeRead,
+    createdAt: "",
+  };
+  const feed = [...items, welcome];
   const rows: (AppNotification | null)[] = [
-    ...items,
-    ...Array(Math.max(0, MIN_SLOTS - items.length)).fill(null),
+    ...feed,
+    ...Array(Math.max(0, MIN_SLOTS - feed.length)).fill(null),
   ];
 
   return (
@@ -123,7 +141,7 @@ export function NotificationsPopup({
                 renderItem={({ item, index }) =>
                   item ? (
                     <EnterRow index={index}>
-                      <View style={!item.read ? styles.unreadRow : undefined}>
+                      <View style={item.read ? styles.readRow : styles.unreadRow}>
                         <ListRow
                           dark
                           title={item.title}
@@ -179,8 +197,9 @@ const styles = StyleSheet.create({
   listContent: { flexGrow: 1 },
   // 빈 슬롯 — 공지가 아직 없는 칸. 알림 행과 같은 높이로 두어 리스트 구조가 보인다.
   emptySlot: { minHeight: 62 },
-  // 안읽음 행은 살짝 밝은 다크 서피스로 은은히 강조 — 읽음/안읽음 구분 유지.
+  // 안읽음 = 밝게(풀 크림 + 살짝 밝은 서피스로 강조). 읽음 = 진하게(딤 처리로 배경에 가라앉음).
   unreadRow: { backgroundColor: dark.surfaceHi },
+  readRow: { opacity: 0.45 },
   // 트레일링 슬롯 폭을 고정해 읽음/안읽음 행의 제목 정렬을 맞춘다(읽음=빈 슬롯).
   dotSlot: { width: 10, alignItems: "center", justifyContent: "center" },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: dark.accent },
