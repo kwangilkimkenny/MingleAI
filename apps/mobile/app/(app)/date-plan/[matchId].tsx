@@ -1,11 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-} from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
   getDatePlansForMatch,
@@ -16,15 +10,14 @@ import {
   completeDatePlan,
 } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
+import { AppScreen } from "../../../src/components/AppScreen";
 import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
-import { colors, layout, space, type } from "../../../src/lib/theme";
+import { colors, space, type } from "../../../src/lib/theme";
 import {
   ConfirmDialog,
-  ContentColumn,
   InlineNotice,
   LabeledInput,
-  PageHeader,
   StateView,
 } from "../../../src/components/Foundation";
 
@@ -109,35 +102,50 @@ export default function DatePlanScreen() {
     }
   }
 
-  if (phase === "loading")
-    return <StateView title="만남 계획을 불러오고 있어요" loading />;
+  if (phase === "loading") return <StateView title="데이트 플랜을 불러오고 있어요" loading />;
   if (phase === "error")
-    return <StateView title="만남 계획을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />;
+    return (
+      <StateView title="데이트 플랜을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />
+    );
 
   if (phase === "form") {
     return (
-      <ScrollView style={s.screen} contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
-        <ContentColumn style={s.column}>
-        <PageHeader back title="만남 계획 만들기" />
-        <LabeledInput
-          label="전체 예산"
-          value={budget}
-          onChangeText={setBudget}
-          keyboardType="number-pad"
-          hint="두 사람의 예상 총비용을 원 단위로 입력해 주세요."
-        />
-        <LabeledInput label="만날 지역" value={city} onChangeText={setCity} placeholder="예: 서울 성수동" />
-        <LabeledInput
-          label="희망 날짜"
-          value={date}
-          onChangeText={setDate}
-          placeholder="2026-08-01"
-          hint="비워두면 오늘을 기준으로 코스를 추천해요."
-        />
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-        <DoodleButton title={busy ? "추천 중..." : "함께 볼 코스 추천 받기"} disabled={busy} onPress={onCreate} variant="primary" />
-        </ContentColumn>
-      </ScrollView>
+      <AppScreen
+        header={{ back: true, title: "데이트 플랜 만들기" }}
+        body="scroll"
+        footer={
+          <DoodleButton
+            title={busy ? "추천 중..." : "함께 볼 코스 추천 받기"}
+            disabled={busy}
+            onPress={onCreate}
+            variant="primary"
+          />
+        }
+      >
+        <View style={s.stack}>
+          <LabeledInput
+            label="전체 예산"
+            value={budget}
+            onChangeText={setBudget}
+            keyboardType="number-pad"
+            hint="두 사람의 예상 총비용을 원 단위로 입력해 주세요."
+          />
+          <LabeledInput
+            label="만날 지역"
+            value={city}
+            onChangeText={setCity}
+            placeholder="예: 서울 성수동"
+          />
+          <LabeledInput
+            label="희망 날짜"
+            value={date}
+            onChangeText={setDate}
+            placeholder="2026-08-01"
+            hint="비워두면 오늘을 기준으로 코스를 추천해요."
+          />
+          {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+        </View>
+      </AppScreen>
     );
   }
 
@@ -146,85 +154,100 @@ export default function DatePlanScreen() {
   const isCreator = myProfileId != null && p.creatorProfileId === myProfileId;
   const selected = p.courses.find((c) => c.courseId === p.selectedCourseId) ?? null;
 
+  // Single primary action moves to the footer; the creator's course pick stays inline on each
+  // candidate card (one select button per course — the agreement logic is per-course).
+  const footer =
+    p.status === "draft" && p.selectedCourseId && !isCreator ? (
+      <DoodleButton
+        title={busy ? "확정 중..." : "이 계획 확정하기"}
+        variant="primary"
+        disabled={busy}
+        onPress={() => run(() => confirmDatePlan(p.id))}
+      />
+    ) : p.status === "confirmed" ? (
+      <DoodleButton
+        title="만남 완료로 표시"
+        variant="primary"
+        disabled={busy}
+        onPress={() => setCompleteOpen(true)}
+      />
+    ) : undefined;
+
   return (
-    <ScrollView style={s.screen} contentContainerStyle={s.container}>
-      <ContentColumn style={s.column}>
-      <PageHeader back title="만남 계획" />
-      <View style={s.statusRow}>
-        <DoodleChip label={statusLabel(p.status)} on={p.status === "confirmed"} />
+    <AppScreen header={{ back: true, title: "데이트 플랜" }} body="scroll" footer={footer}>
+      <View style={s.stack}>
+        <View style={s.statusRow}>
+          <DoodleChip label={statusLabel(p.status)} on={p.status === "confirmed"} />
+        </View>
+
+        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+
+        {p.status === "draft" && !p.selectedCourseId && isCreator && (
+          <>
+            <Text style={s.hint}>마음에 드는 코스를 선택하세요.</Text>
+            {p.courses.map((c) => (
+              <CourseCard
+                key={c.courseId}
+                course={c}
+                action={
+                  <DoodleButton
+                    title="이 코스로 선택"
+                    variant="primary"
+                    disabled={busy}
+                    onPress={() => run(() => selectCourse(p.id, c.courseId))}
+                  />
+                }
+              />
+            ))}
+          </>
+        )}
+
+        {p.status === "draft" && !p.selectedCourseId && !isCreator && (
+          <>
+            <Text style={s.hint}>상대가 코스를 고르는 중이에요.</Text>
+            {p.courses.map((c) => (
+              <CourseCard key={c.courseId} course={c} />
+            ))}
+          </>
+        )}
+
+        {p.status === "draft" && p.selectedCourseId && (
+          <>
+            <Text style={s.hint}>
+              {isCreator ? "상대의 확정을 기다리는 중이에요." : "이 코스로 진행할까요?"}
+            </Text>
+            {selected && <CourseCard course={selected} />}
+          </>
+        )}
+
+        {p.status === "confirmed" && (
+          <>
+            <Text style={s.hint}>데이트 플랜이 확정되었어요!</Text>
+            {selected && <CourseCard course={selected} />}
+          </>
+        )}
+
+        {p.status === "completed" && (
+          <>
+            <Text style={s.hint}>
+              완료된 만남이에요. 함께한 시간을 존중하며 안전하게 대화를 이어가세요.
+            </Text>
+            {selected && <CourseCard course={selected} />}
+          </>
+        )}
+
+        {p.status !== "cancelled" && p.status !== "confirmed" && (
+          <Pressable
+            style={s.cancel}
+            disabled={busy}
+            onPress={() => setCancelOpen(true)}
+            accessibilityRole="button"
+          >
+            <Text style={s.cancelText}>플랜 취소</Text>
+          </Pressable>
+        )}
       </View>
 
-      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-      {p.status === "draft" && !p.selectedCourseId && isCreator && (
-        <>
-          <Text style={s.hint}>마음에 드는 코스를 선택하세요.</Text>
-          {p.courses.map((c) => (
-            <CourseCard
-              key={c.courseId}
-              course={c}
-              action={
-                <DoodleButton
-                  title="이 코스로 선택"
-                  variant="primary"
-                  disabled={busy}
-                  onPress={() => run(() => selectCourse(p.id, c.courseId))}
-                />
-              }
-            />
-          ))}
-        </>
-      )}
-
-      {p.status === "draft" && !p.selectedCourseId && !isCreator && (
-        <>
-          <Text style={s.hint}>상대가 코스를 고르는 중이에요.</Text>
-          {p.courses.map((c) => (
-            <CourseCard key={c.courseId} course={c} />
-          ))}
-        </>
-      )}
-
-      {p.status === "draft" && p.selectedCourseId && (
-        <>
-          <Text style={s.hint}>
-            {isCreator ? "상대의 확정을 기다리는 중이에요." : "이 코스로 진행할까요?"}
-          </Text>
-          {selected && <CourseCard course={selected} />}
-          {!isCreator && (
-            <DoodleButton
-              title={busy ? "확정 중..." : "이 계획 확정하기"}
-              variant="primary"
-              disabled={busy}
-              onPress={() => run(() => confirmDatePlan(p.id))}
-            />
-          )}
-        </>
-      )}
-
-      {p.status === "confirmed" && (
-        <>
-          <Text style={s.hint}>데이트 플랜이 확정되었어요!</Text>
-          {selected && <CourseCard course={selected} />}
-          <DoodleButton
-            title="만남 완료로 표시"
-            disabled={busy}
-            onPress={() => setCompleteOpen(true)}
-          />
-        </>
-      )}
-
-      {p.status === "completed" && (
-        <>
-          <Text style={s.hint}>완료된 만남이에요. 함께한 시간을 존중하며 안전하게 대화를 이어가세요.</Text>
-          {selected && <CourseCard course={selected} />}
-        </>
-      )}
-
-      {p.status !== "cancelled" && p.status !== "confirmed" && (
-        <Pressable style={s.cancel} disabled={busy} onPress={() => setCancelOpen(true)} accessibilityRole="button">
-          <Text style={s.cancelText}>플랜 취소</Text>
-        </Pressable>
-      )}
       <ConfirmDialog
         visible={cancelOpen}
         title="이 계획을 취소할까요?"
@@ -250,8 +273,7 @@ export default function DatePlanScreen() {
           void run(() => completeDatePlan(p.id));
         }}
       />
-      </ContentColumn>
-    </ScrollView>
+    </AppScreen>
   );
 }
 
@@ -262,9 +284,9 @@ function statusLabel(status: string) {
       ? "확정됨"
       : status === "completed"
         ? "완료됨"
-      : status === "cancelled"
-        ? "취소됨"
-        : status;
+        : status === "cancelled"
+          ? "취소됨"
+          : status;
 }
 
 function CourseCard({ course, action }: { course: DateCourse; action?: React.ReactNode }) {
@@ -291,9 +313,7 @@ function CourseCard({ course, action }: { course: DateCourse; action?: React.Rea
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  container: { flexGrow: 1, paddingHorizontal: layout.screenGutter, paddingBottom: space.x8 },
-  column: { gap: space.x4 },
+  stack: { gap: space.x4 },
   statusRow: { flexDirection: "row" },
   hint: { ...type.body, color: colors.ink },
   cancel: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: space.x2 },

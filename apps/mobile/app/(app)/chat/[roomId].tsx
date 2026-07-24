@@ -23,17 +23,15 @@ import {
 import { useAuthStore } from "../../../src/lib/client";
 import { openMessengerSocket } from "../../../src/lib/messenger-socket";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
-import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { colors, control, doodle, fonts, layout, space, type } from "../../../src/lib/theme";
+import { AppScreen } from "../../../src/components/AppScreen";
+import { colors, control, doodle, space, type } from "../../../src/lib/theme";
 import { InlineNotice, StateView } from "../../../src/components/Foundation";
-import { CalendarDays, ChevronLeft, Send } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CalendarDays, Send } from "lucide-react-native";
 
 export default function ChatRoom() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
   const myProfileId = useAuthStore((s) => s.profileId);
   const token = useAuthStore((s) => s.token);
-  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [match, setMatch] = useState<MatchSummary | null>(null);
@@ -196,100 +194,35 @@ export default function ChatRoom() {
     );
   }
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={0}
-    >
-      <View style={styles.header}>
-        <View style={styles.headerInner}>
+  const headerAction =
+    match != null ? (
+      <View style={styles.headerActions}>
         <Pressable
-          onPress={() => router.replace("/chats")}
           accessibilityRole="button"
-          accessibilityLabel="채팅 목록으로 돌아가기"
+          accessibilityLabel="만남 계획"
+          onPress={() =>
+            // new route — Expo Router typegen updates on next `expo start`
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            router.push({
+              pathname: "/(app)/date-plan/[matchId]" as any,
+              params: { matchId: match.matchId },
+            })
+          }
           style={({ pressed }) => [styles.headerIcon, pressed && styles.pressed]}
         >
-          <ChevronLeft color={colors.ink} size={24} strokeWidth={2.5} />
+          <CalendarDays color={colors.ink} size={22} strokeWidth={1.75} />
         </Pressable>
-        <View style={styles.headerPeer} accessibilityLabel={`${match?.peer.name ?? "상대"}님과의 채팅`}>
-          <DoodleAvatar uri={match?.peer.photoUrl} name={match?.peer.name} size={36} />
-          <View style={styles.headerText}>
-            <Text accessibilityRole="header" style={styles.headerName} numberOfLines={1}>
-              {match?.peer.name ?? "채팅"}
-            </Text>
-            <Text style={styles.headerStatus}>서로 수락한 안전한 대화</Text>
-          </View>
-        </View>
-        <View style={styles.headerActions}>
-          {match != null && (
-            <Pressable
-              style={styles.datePlanBtn}
-              onPress={() =>
-                // new route — Expo Router typegen updates on next `expo start`
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                router.push({
-                  pathname: "/(app)/date-plan/[matchId]" as any,
-                  params: { matchId: match.matchId },
-                })
-              }
-            >
-              <CalendarDays color={colors.ink} size={18} />
-              <Text style={styles.datePlanText}>만남 계획</Text>
-            </Pressable>
-          )}
-          {match != null && (
-            <PeerModerationMenu
-              peer={{ profileId: match.peer.profileId, name: match.peer.name }}
-              onBlocked={() => router.replace("/chats")}
-            />
-          )}
-        </View>
-        </View>
+        <PeerModerationMenu
+          peer={{ profileId: match.peer.profileId, name: match.peer.name }}
+          onBlocked={() => router.replace("/chats")}
+        />
       </View>
+    ) : undefined;
 
-      {/* Messages (inverted = newest at bottom) */}
-      <FlatList
-        inverted
-        data={messages}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messages}
-        ListEmptyComponent={
-          <View style={styles.emptyConversation}>
-            <Text style={styles.emptyTitle}>첫 인사를 건네보세요</Text>
-            <Text style={styles.emptyBody}>게임에서 기억에 남은 순간을 이야기하면 자연스럽게 대화를 이어갈 수 있어요.</Text>
-          </View>
-        }
-        ListHeaderComponent={
-          peerTyping ? (
-            <View style={[styles.bubble, styles.bubblePeer]}>
-              <Text style={[styles.bubbleText, styles.bubbleTextPeer]}>···</Text>
-            </View>
-          ) : null
-        }
-        renderItem={({ item }) => {
-          const isMe = item.senderProfileId === myProfileId;
-          return (
-            <View
-              style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubblePeer]}
-              accessibilityLabel={`${isMe ? "내 메시지" : `${match?.peer.name ?? "상대"}의 메시지`}, ${item.content}, ${formatTime(item.createdAt)}${isMe && item.readAt ? ", 읽음" : ""}`}
-            >
-              <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextPeer]}>
-                {item.content}
-              </Text>
-              <Text style={[styles.messageMeta, isMe && styles.messageMetaMe]}>
-                {formatTime(item.createdAt)}{isMe && item.readAt ? " · 읽음" : ""}
-              </Text>
-            </View>
-          );
-        }}
-      />
-
-      {/* Compose bar */}
-      <View style={[styles.composeShell, { paddingBottom: Math.max(insets.bottom, space.x2) }]}>
-      <View style={styles.compose}>
-        {sendError ? <InlineNotice tone="error">{sendError}</InlineNotice> : null}
-        <View style={styles.composeRow}>
+  const composeBar = (
+    <View style={styles.compose}>
+      {sendError ? <InlineNotice tone="error">{sendError}</InlineNotice> : null}
+      <View style={styles.composeRow}>
         <TextInput
           style={styles.input}
           value={text}
@@ -303,7 +236,11 @@ export default function ChatRoom() {
           accessibilityLabel="메시지 입력"
         />
         <Pressable
-          style={({ pressed }) => [styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.sendBtn,
+            (!text.trim() || sending) && styles.sendBtnDisabled,
+            pressed && styles.pressed,
+          ]}
           onPress={onSend}
           disabled={!text.trim() || sending}
           accessibilityRole="button"
@@ -312,55 +249,78 @@ export default function ChatRoom() {
         >
           <Send color={!text.trim() || sending ? colors.grayMid : colors.onAccent} size={20} />
         </Pressable>
-        </View>
       </View>
-      </View>
+    </View>
+  );
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
+    >
+      <AppScreen
+        header={{ back: true, title: match?.peer.name ?? "채팅", action: headerAction }}
+        body="plain"
+        footer={composeBar}
+      >
+        {messages.length === 0 ? (
+          <StateView
+            title="첫 인사를 건네보세요"
+            body="가볍게 인사하며 대화를 시작해 보세요."
+          />
+        ) : (
+          <FlatList
+            style={styles.flex}
+            inverted
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.messages}
+            ListHeaderComponent={
+              peerTyping ? (
+                <View style={[styles.bubble, styles.bubblePeer]}>
+                  <Text style={[styles.bubbleText, styles.bubbleTextPeer]}>···</Text>
+                </View>
+              ) : null
+            }
+            renderItem={({ item }) => {
+              const isMe = item.senderProfileId === myProfileId;
+              return (
+                <View
+                  style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubblePeer]}
+                  accessibilityLabel={`${isMe ? "내 메시지" : `${match?.peer.name ?? "상대"}의 메시지`}, ${item.content}, ${formatTime(item.createdAt)}${isMe && item.readAt ? ", 읽음" : ""}`}
+                >
+                  <Text
+                    style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextPeer]}
+                  >
+                    {item.content}
+                  </Text>
+                  <Text style={[styles.messageMeta, isMe && styles.messageMetaMe]}>
+                    {formatTime(item.createdAt)}
+                    {isMe && item.readAt ? " · 읽음" : ""}
+                  </Text>
+                </View>
+              );
+            }}
+          />
+        )}
+      </AppScreen>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-  header: {
-    borderBottomWidth: doodle.border,
-    borderBottomColor: colors.border,
-    alignItems: "center",
-  },
-  headerInner: {
-    width: "100%",
-    maxWidth: 760,
-    minHeight: 68,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: space.x2,
-  },
-  headerIcon: { width: control.minTouch, height: control.minTouch, alignItems: "center", justifyContent: "center" },
-  headerPeer: { flexDirection: "row", alignItems: "center", gap: space.x2, flex: 1, minWidth: 0 },
-  headerText: { flex: 1, minWidth: 0 },
-  headerName: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, color: colors.heading },
-  headerStatus: { ...type.caption, color: colors.grayDark },
+  flex: { flex: 1 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: space.x1 },
-  datePlanBtn: {
-    minHeight: control.minTouch,
-    flexDirection: "row",
+  headerIcon: {
+    width: control.minTouch,
+    height: control.minTouch,
     alignItems: "center",
-    gap: space.x1,
-    paddingHorizontal: space.x2,
+    justifyContent: "center",
   },
-  datePlanText: { ...type.label, color: colors.ink },
-  messages: {
-    width: "100%",
-    maxWidth: 760,
-    alignSelf: "center",
-    paddingHorizontal: layout.screenGutter,
-    paddingVertical: space.x4,
-    gap: space.x2,
-  },
-  emptyConversation: { alignItems: "center", gap: space.x2, paddingVertical: space.x10 },
-  emptyTitle: { ...type.heading, color: colors.ink },
-  emptyBody: { ...type.body, color: colors.grayDark, textAlign: "center", maxWidth: 360 },
+  messages: { paddingVertical: space.x4, gap: space.x2 },
   bubble: {
-    maxWidth: "75%",
+    maxWidth: "78%",
     borderRadius: 18,
     paddingHorizontal: space.x3,
     paddingVertical: space.x2,
@@ -368,7 +328,7 @@ const styles = StyleSheet.create({
   },
   bubbleMe: {
     alignSelf: "flex-end",
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accentStrong,
   },
   bubblePeer: {
     alignSelf: "flex-start",
@@ -379,17 +339,9 @@ const styles = StyleSheet.create({
   bubbleText: { ...type.body },
   bubbleTextMe: { color: colors.onAccent },
   bubbleTextPeer: { color: colors.ink },
-  messageMeta: { ...type.caption, color: colors.grayDark, marginTop: space.x1, textAlign: "right" },
+  messageMeta: { ...type.caption, color: colors.grayMid, marginTop: space.x1, textAlign: "right" },
   messageMetaMe: { color: "rgba(255,255,255,0.85)" },
-  composeShell: {
-    borderTopWidth: doodle.border,
-    borderTopColor: colors.border,
-    paddingTop: space.x2,
-    paddingHorizontal: layout.screenGutter,
-    backgroundColor: colors.paper,
-    alignItems: "center",
-  },
-  compose: { width: "100%", maxWidth: 760, gap: space.x2 },
+  compose: { gap: space.x2 },
   composeRow: { flexDirection: "row", alignItems: "flex-end", gap: space.x2 },
   input: {
     flex: 1,
@@ -406,9 +358,7 @@ const styles = StyleSheet.create({
   sendBtn: {
     width: control.buttonHeight,
     height: control.buttonHeight,
-    backgroundColor: colors.accent,
-    borderWidth: doodle.border,
-    borderColor: colors.border,
+    backgroundColor: colors.accentStrong,
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
