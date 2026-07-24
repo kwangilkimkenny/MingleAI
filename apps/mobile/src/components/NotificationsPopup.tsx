@@ -17,6 +17,9 @@ import { dark, space } from "../lib/theme";
 
 const ListSep = () => <RowSeparator gutter={0} dark />;
 
+/** 최소 슬롯 수 — 공지가 없어도 빈 칸이 구분선으로 나뉜 리스트 UI가 보이도록. */
+const MIN_SLOTS = 8;
+
 export function NotificationsPopup({
   visible,
   onClose,
@@ -66,6 +69,12 @@ export function NotificationsPopup({
     onClose();
   }
 
+  // 실제 공지 + 빈 슬롯을 채워 최소 MIN_SLOTS 행이 항상 보이게(구분선으로 나뉜 빈 리스트).
+  const rows: (AppNotification | null)[] = [
+    ...items,
+    ...Array(Math.max(0, MIN_SLOTS - items.length)).fill(null),
+  ];
+
   return (
     <Modal
       transparent
@@ -104,31 +113,36 @@ export function NotificationsPopup({
             </View>
           ) : (
             <View style={styles.content}>
+              {/* 고정 슬롯 리스트 — 빈 칸이 구분선으로 나뉘어 보이고, 공지가 오면 위부터 하나씩 찬다. */}
               <FlatList
                 style={styles.list}
-                data={items}
-                keyExtractor={(n) => n.id}
+                data={rows}
+                keyExtractor={(n, i) => n?.id ?? `slot-${i}`}
                 contentContainerStyle={styles.listContent}
                 ItemSeparatorComponent={ListSep}
-                renderItem={({ item, index }) => (
-                  <EnterRow index={index}>
-                    <View style={!item.read ? styles.unreadRow : undefined}>
-                      <ListRow
-                        dark
-                        title={item.title}
-                        subtitle={item.message}
-                        gutter={space.x5}
-                        onPress={() => onTapItem(item)}
-                        accessibilityLabel={`${item.read ? "" : "읽지 않음, "}${item.title}. ${item.message}`}
-                        trailing={
-                          <View style={styles.dotSlot}>
-                            {!item.read ? <View style={styles.dot} /> : null}
-                          </View>
-                        }
-                      />
-                    </View>
-                  </EnterRow>
-                )}
+                renderItem={({ item, index }) =>
+                  item ? (
+                    <EnterRow index={index}>
+                      <View style={!item.read ? styles.unreadRow : undefined}>
+                        <ListRow
+                          dark
+                          title={item.title}
+                          subtitle={item.message}
+                          gutter={space.x5}
+                          onPress={() => onTapItem(item)}
+                          accessibilityLabel={`${item.read ? "" : "읽지 않음, "}${item.title}. ${item.message}`}
+                          trailing={
+                            <View style={styles.dotSlot}>
+                              {!item.read ? <View style={styles.dot} /> : null}
+                            </View>
+                          }
+                        />
+                      </View>
+                    </EnterRow>
+                  ) : (
+                    <View style={styles.emptySlot} />
+                  )
+                }
               />
             </View>
           )}
@@ -163,6 +177,8 @@ const styles = StyleSheet.create({
   content: { flexShrink: 1, minHeight: 0 },
   list: { flexShrink: 1 },
   listContent: { flexGrow: 1 },
+  // 빈 슬롯 — 공지가 아직 없는 칸. 알림 행과 같은 높이로 두어 리스트 구조가 보인다.
+  emptySlot: { minHeight: 62 },
   // 안읽음 행은 살짝 밝은 다크 서피스로 은은히 강조 — 읽음/안읽음 구분 유지.
   unreadRow: { backgroundColor: dark.surfaceHi },
   // 트레일링 슬롯 폭을 고정해 읽음/안읽음 행의 제목 정렬을 맞춘다(읽음=빈 슬롯).
