@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { Mic, Video } from "lucide-react-native";
 import {
   enqueueSpeedDate,
   cancelSpeedDate,
@@ -10,16 +9,18 @@ import {
   ApiError,
 } from "@mingle/client-core";
 import { AppScreen } from "../../../src/components/AppScreen";
-import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
+import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { StateView } from "../../../src/components/Foundation";
+import { NaverMap } from "../../../src/components/NaverMap";
 import { isSpeedDateEligibleGender } from "../../../src/lib/speed-date-eligibility";
-import { requestLocation } from "../../../src/lib/location";
+import { requestLocation, type Coords } from "../../../src/lib/location";
 import { dark, space, type } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
 
 const POLL_MS = 2500;
 type Phase = "checking" | "consent" | "ineligible" | "joining" | "waiting" | "error";
+type Step = "rules" | "location";
 
 /** Match-distance options; null = no distance limit (skip location entirely). */
 const RADIUS_OPTIONS: { km: number | null; label: string }[] = [
@@ -30,11 +31,23 @@ const RADIUS_OPTIONS: { km: number | null; label: string }[] = [
   { km: null, label: "제한 없음" },
 ];
 
+/** 상세 룰 — 처음 화면에서 진행 방식을 자세히 안내한다. */
+const RULES: { n: string; title: string; body: string }[] = [
+  { n: "1", title: "여섯 명이 모이면 시작", body: "남성 3명 · 여성 3명이 모이면 라운드가 열려요." },
+  { n: "2", title: "돌아가며 대화", body: "여러 상대와 라운드로 순환하며 짧게 대화해요(로테이션)." },
+  { n: "3", title: "단계적 공개", body: "가면 라운드(음성 변조) → 목소리 공개 → 얼굴 공개 순으로 열려요." },
+  { n: "4", title: "비공개 상호 선택", body: "라운드가 끝나면 마음이 가는 상대를 비공개로 골라요." },
+  { n: "5", title: "서로 고르면 매칭", body: "둘 다 서로를 골랐을 때만 1:1 채팅이 열려요." },
+];
+
 export default function SpeedDateMatching() {
   const [phase, setPhase] = useState<Phase>("checking");
+  const [step, setStep] = useState<Step>("rules");
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [radiusKm, setRadiusKm] = useState<number | null>(10);
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const [locBusy, setLocBusy] = useState(false);
   const alive = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const startedAt = useRef(0);
@@ -59,6 +72,19 @@ export default function SpeedDateMatching() {
       if (!alive.current) return;
       setError(e instanceof ApiError ? e.message : "프로필을 확인하지 못했어요.");
       setPhase("error");
+    }
+  }
+
+  // 룰 → 다음: 지도 단계로 이동하며 현위치를 요청한다(옵션 권한).
+  async function onNext() {
+    setStep("location");
+    if (coords || locBusy) return;
+    setLocBusy(true);
+    try {
+      const loc = await requestLocation();
+      if (alive.current && loc.coords) setCoords(loc.coords);
+    } finally {
+      if (alive.current) setLocBusy(false);
     }
   }
 
@@ -90,13 +116,11 @@ export default function SpeedDateMatching() {
     setError(null);
     startedAt.current = Date.now();
     try {
-      // Location is optional: request it only when a radius is chosen; if granted, match within
-      // that radius, otherwise enqueue without coords (matches anyone).
-      let geo: { lat: number; lng: number; radiusKm: number } | undefined;
-      if (radiusKm !== null) {
-        const loc = await requestLocation();
-        if (loc.coords) geo = { lat: loc.coords.lat, lng: loc.coords.lng, radiusKm };
-      }
+      // 거리를 골랐고 위치가 있으면 반경 매칭, 아니면 좌표 없이 등록(누구나 매칭).
+      const geo =
+        radiusKm !== null && coords
+          ? { lat: coords.lat, lng: coords.lng, radiusKm }
+          : undefined;
       await enqueueSpeedDate(geo);
       if (!alive.current) return;
       setPhase("waiting");
@@ -121,18 +145,24 @@ export default function SpeedDateMatching() {
 
   const isConsent = phase === "consent";
   const footer = isConsent ? (
-    <DoodleButton title="시작하기" onPress={onStart} variant="primary" tone="dark" />
+    step === "rules" ? (
+      <DoodleButton title="다음" onPress={onNext} variant="primary" tone="dark" />
+    ) : (
+      <DoodleButton title="시작하기" onPress={onStart} variant="primary" tone="dark" />
+    )
   ) : phase === "joining" || phase === "waiting" ? (
     <DoodleButton title="매칭 취소" onPress={onCancel} tone="dark" />
   ) : phase === "error" ? (
     <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
   ) : undefined;
 
+  const scrollBody = isConsent && step === "rules";
+
   return (
     <AppScreen
       tone="dark"
-      header={{ title: "로테이션 소개팅", back: true }}
-      body={isConsent ? "scroll" : "plain"}
+      header={{ title: "", back: true }}
+      body={scrollBody ? "scroll" : "plain"}
       footer={footer}
     >
       {phase === "checking" ? (
@@ -149,22 +179,35 @@ export default function SpeedDateMatching() {
         />
       ) : null}
 
-      {isConsent ? (
-        <View style={styles.stack}>
+      {isConsent && step === "rules" ? (
+        <View style={styles.rulesStack}>
           <Text style={styles.title}>얼굴보다 대화가 먼저</Text>
-          <Text style={styles.subtitle}>여러 상대와 돌아가며, 대화로 알아가요.</Text>
-
-          <DoodleCard tone="dark" contentStyle={styles.stepsCard}>
-            <Step icon={<Mic color={dark.text} size={18} strokeWidth={1.75} />} title="가면 라운드" />
-            <Step icon={<Mic color={dark.accent} size={18} strokeWidth={1.75} />} title="목소리 공개" />
-            <Step icon={<Video color={dark.text} size={18} strokeWidth={1.75} />} title="얼굴 공개" />
-          </DoodleCard>
-
+          <Text style={styles.subtitle}>이렇게 진행돼요.</Text>
+          <View style={styles.rules}>
+            {RULES.map((r, i) => (
+              <RuleRow key={r.n} rule={r} last={i === RULES.length - 1} />
+            ))}
+          </View>
           <View style={styles.chips}>
             <DoodleChip label="녹화 없음" tiny dark />
-            <DoodleChip label="비공개 선택" tiny dark />
+            <DoodleChip label="선택은 비공개" tiny dark />
           </View>
+        </View>
+      ) : null}
 
+      {isConsent && step === "location" ? (
+        <View style={styles.locationStep}>
+          <View style={styles.mapWrap}>
+            {coords ? (
+              <NaverMap center={coords} radiusKm={radiusKm} places={[]} />
+            ) : (
+              <View style={styles.mapFallback}>
+                <Text style={styles.mapFallbackText}>
+                  {locBusy ? "현위치를 확인하고 있어요…" : "위치를 확인할 수 없어요. ‘제한 없음’으로 시작할 수 있어요."}
+                </Text>
+              </View>
+            )}
+          </View>
           <View style={styles.radiusBlock}>
             <Text style={styles.radiusLabel}>매칭 거리</Text>
             <View style={styles.radiusChips}>
@@ -209,33 +252,46 @@ export default function SpeedDateMatching() {
   );
 }
 
-function Step({ icon, title }: { icon: React.ReactNode; title: string }) {
+function RuleRow({ rule, last }: { rule: { n: string; title: string; body: string }; last: boolean }) {
   return (
-    <View style={styles.stepRow}>
-      <View style={styles.stepIcon}>{icon}</View>
-      <Text style={styles.stepTitle}>{title}</Text>
+    <View style={[styles.ruleRow, !last && styles.ruleDivider]}>
+      <View style={styles.ruleNum}>
+        <Text style={styles.ruleNumText}>{rule.n}</Text>
+      </View>
+      <View style={styles.ruleText}>
+        <Text style={styles.ruleTitle}>{rule.title}</Text>
+        <Text style={styles.ruleBody}>{rule.body}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: space.x4 },
+  rulesStack: { gap: space.x4, paddingTop: space.x2 },
   title: { ...type.title, fontFamily: serifFont, color: dark.text, textAlign: "center" },
   subtitle: { ...type.caption, color: dark.textMuted, textAlign: "center", marginTop: -space.x2 },
-  stepsCard: { gap: space.x3 },
-  stepRow: { flexDirection: "row", gap: space.x3, alignItems: "center" },
-  stepIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: dark.surfaceHi,
+  rules: { marginTop: space.x2 },
+  ruleRow: { flexDirection: "row", gap: space.x3, alignItems: "flex-start", paddingVertical: space.x3 },
+  ruleDivider: { borderBottomWidth: 1, borderBottomColor: dark.line },
+  ruleNum: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 1.5,
     borderColor: dark.border,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 1,
   },
-  stepTitle: { ...type.label, color: dark.text },
+  ruleNumText: { fontFamily: serifFont, fontSize: 14, color: dark.accent },
+  ruleText: { flex: 1, gap: 2 },
+  ruleTitle: { ...type.label, color: dark.text },
+  ruleBody: { ...type.caption, color: dark.textMuted },
   chips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
+  locationStep: { flex: 1, gap: space.x4 },
+  mapWrap: { flex: 1, borderRadius: 18, overflow: "hidden", backgroundColor: dark.surface },
+  mapFallback: { flex: 1, alignItems: "center", justifyContent: "center", padding: space.x5 },
+  mapFallbackText: { ...type.body, color: dark.textMuted, textAlign: "center" },
   radiusBlock: { gap: space.x2, alignItems: "center" },
   radiusLabel: { ...type.label, color: dark.label },
   radiusChips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
