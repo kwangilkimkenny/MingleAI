@@ -9,7 +9,6 @@ import { router } from "expo-router";
 import { X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getNotifications, markNotificationRead, type AppNotification } from "@mingle/client-core";
-import { routeForNotification, type NotificationData } from "../lib/route-for-notification";
 import { EnterRow } from "./Motion";
 import { ListRow, RowSeparator } from "./ListRow";
 import { StateView } from "./Foundation";
@@ -62,19 +61,18 @@ export function NotificationsPopup({
   function onTapItem(n: AppNotification) {
     if (n.id === WELCOME_ID) {
       setWelcomeRead(true);
-      return;
-    }
-    if (!n.read) {
+    } else if (!n.read) {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       markNotificationRead(n.id).catch(() => {});
     }
-    router.push(
-      routeForNotification({
-        type: n.type,
-        ...((n.data as object) ?? {}),
-      } as NotificationData),
-    );
     onClose();
+    // 공지 상세(전체화면)로. 제목·본문을 파라미터로 넘긴다.
+    router.push({
+      // new route — Expo Router typegen updates on next `expo start`
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      pathname: "/(app)/announcement" as any,
+      params: { title: n.title, message: n.message },
+    });
   }
 
   // 기본 환영 공지(맨 아래) + 실제 공지(위) + 빈 슬롯 패딩. 구분선으로 나뉜 리스트에 위부터 찬다.
