@@ -16,6 +16,7 @@ export function ListRow({
   onPress,
   accessibilityLabel,
   gutter = layout.screenGutter,
+  tone = "default",
 }: {
   leading?: ReactNode;
   title: string;
@@ -25,12 +26,17 @@ export function ListRow({
   accessibilityLabel?: string;
   /** Horizontal inset. Default = screen gutter (full-bleed lists); pass 0 inside a card. */
   gutter?: number;
+  /** "danger" tints the title crimson (destructive rows — 계정 삭제 등). */
+  tone?: "default" | "danger";
 }) {
   const body = (
     <>
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <View style={styles.text}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={[styles.title, tone === "danger" && { color: colors.danger }]}
+          numberOfLines={1}
+        >
           {title}
         </Text>
         {subtitle ? (

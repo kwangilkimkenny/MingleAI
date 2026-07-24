@@ -1,21 +1,12 @@
 import { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Pressable,
-  StyleSheet,
-} from "react-native";
+import { FlatList } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { getBlocks, removeBlock, ApiError, type PeerProfile } from "@mingle/client-core";
-import { colors, control, doodle, layout, shadow, space, type } from "../../src/lib/theme";
+import { AppScreen } from "../../src/components/AppScreen";
+import { ListRow, RowSeparator } from "../../src/components/ListRow";
+import { DoodleButton } from "../../src/components/Doodle";
 import { DoodleAvatar } from "../../src/components/DoodleAvatar";
-import {
-  ConfirmDialog,
-  ContentColumn,
-  PageHeader,
-  StateView,
-} from "../../src/components/Foundation";
+import { ConfirmDialog, StateView } from "../../src/components/Foundation";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -60,99 +51,54 @@ export default function BlocksScreen() {
     }
   }
 
+  let content;
   if (state === "loading") {
-    return <StateView title="차단 목록을 불러오고 있어요" loading />;
-  }
-  if (state === "error") {
-    return <StateView title="차단 목록을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />;
-  }
-  if (blocks.length === 0) {
-    return (
-      <View style={styles.container}>
-        <ContentColumn style={styles.headerColumn}>
-          <PageHeader back title="차단 목록" />
-        </ContentColumn>
-        <StateView title="차단한 사용자가 없어요" body="불편한 사용자를 차단하면 이 목록에서 관리할 수 있어요." />
-      </View>
+    content = <StateView title="차단 목록을 불러오고 있어요" loading />;
+  } else if (state === "error") {
+    content = (
+      <StateView title="차단 목록을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />
+    );
+  } else if (blocks.length === 0) {
+    content = (
+      <StateView
+        title="차단한 사용자가 없어요"
+        body="불편한 사용자를 차단하면 이 목록에서 관리할 수 있어요."
+      />
+    );
+  } else {
+    content = (
+      <FlatList
+        style={{ flex: 1 }}
+        data={blocks}
+        keyExtractor={(item) => item.profileId}
+        ItemSeparatorComponent={() => <RowSeparator gutter={0} />}
+        renderItem={({ item }) => (
+          <ListRow
+            gutter={0}
+            leading={<DoodleAvatar uri={item.photoUrl} name={item.name} size={44} />}
+            title={item.name}
+            subtitle={`${item.age} · ${item.occupation}`}
+            trailing={
+              <DoodleButton title="차단 해제" onPress={() => setUnblockTarget(item)} />
+            }
+          />
+        )}
+      />
     );
   }
+
   return (
-    <FlatList
-      style={styles.container}
-      data={blocks}
-      keyExtractor={(item) => item.profileId}
-      contentContainerStyle={styles.list}
-      ListHeaderComponent={
-        <PageHeader back title="차단 목록" />
-      }
-      renderItem={({ item }) => (
-        <View style={styles.row}>
-          <DoodleAvatar uri={item.photoUrl} name={item.name} size={48} />
-          <View style={styles.info}>
-            <Text style={styles.name}>
-              {item.name} · {item.age}
-            </Text>
-            <Text style={styles.meta}>{item.occupation}</Text>
-          </View>
-          <Pressable
-            style={styles.unblock}
-            onPress={() => setUnblockTarget(item)}
-            accessibilityRole="button"
-            accessibilityLabel={`${item.name}님 차단 해제`}
-          >
-            <Text style={styles.unblockText}>차단 해제</Text>
-          </Pressable>
-        </View>
-      )}
-      ListFooterComponent={
-        <ConfirmDialog
-          visible={unblockTarget !== null}
-          title="차단을 해제할까요?"
-          body={`${unblockTarget?.name ?? "이 사용자"}님의 프로필과 대화가 다시 보일 수 있어요.`}
-          confirmLabel="차단 해제"
-          busy={unblocking}
-          onCancel={() => setUnblockTarget(null)}
-          onConfirm={confirmUnblock}
-        />
-      }
-    />
+    <AppScreen header={{ back: true, title: "차단 관리" }} body="plain">
+      {content}
+      <ConfirmDialog
+        visible={unblockTarget !== null}
+        title="차단을 해제할까요?"
+        body={`${unblockTarget?.name ?? "이 사용자"}님의 프로필과 대화가 다시 보일 수 있어요.`}
+        confirmLabel="차단 해제"
+        busy={unblocking}
+        onCancel={() => setUnblockTarget(null)}
+        onConfirm={confirmUnblock}
+      />
+    </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-  headerColumn: { paddingHorizontal: layout.screenGutter },
-  list: {
-    width: "100%",
-    maxWidth: layout.contentMax,
-    alignSelf: "center",
-    paddingHorizontal: layout.screenGutter,
-    paddingBottom: space.x8,
-    gap: space.x3,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderWidth: doodle.border,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    gap: space.x3,
-    padding: space.x3,
-    ...doodle.radius.card,
-    ...shadow.card,
-  },
-  info: { flex: 1, gap: space.x1 },
-  name: { ...type.label, color: colors.ink },
-  meta: { ...type.caption, color: colors.grayDark },
-  unblock: {
-    borderWidth: doodle.border,
-    borderColor: colors.border,
-    borderRadius: 8,
-    minHeight: control.minTouch,
-    justifyContent: "center",
-    paddingVertical: space.x2,
-    paddingHorizontal: 12,
-  },
-  unblockText: { ...type.label, color: colors.ink },
-});

@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -6,29 +6,22 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  ScrollView,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { Ban, LogOut, ChevronRight, FileText, Trash2 } from "lucide-react-native";
+import { Ban, LogOut, FileText, Trash2 } from "lucide-react-native";
 import { getMyProfile, logoutSession, updateProfile } from "@mingle/client-core";
 import { useAuthStore } from "../../../src/lib/client";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { DashedLine } from "../../../src/components/DoodleSvg";
-import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
+import { AppScreen } from "../../../src/components/AppScreen";
+import { DoodleCard } from "../../../src/components/Doodle";
+import { ListRow, RowSeparator } from "../../../src/components/ListRow";
 import { pickAndUploadPhoto } from "../../../src/lib/photo";
-import { colors, layout, shadow, space, type } from "../../../src/lib/theme";
-import {
-  ConfirmDialog,
-  ContentColumn,
-  InlineNotice,
-  PageHeader,
-  StateView,
-} from "../../../src/components/Foundation";
+import { colors, space, type } from "../../../src/lib/theme";
+import { ConfirmDialog, InlineNotice, StateView } from "../../../src/components/Foundation";
 
 type MyProfile = NonNullable<Awaited<ReturnType<typeof getMyProfile>>>;
 
 export default function SettingsScreen() {
-  const clearance = useTabBarClearance();
   const logout = useAuthStore((s) => s.logout);
   const profileId = useAuthStore((s) => s.profileId);
   const refreshToken = useAuthStore((s) => s.refreshToken);
@@ -91,98 +84,97 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[styles.container, { paddingBottom: clearance }]}
-    >
-      <ContentColumn style={styles.column}>
-        <View style={styles.summary}>
-          <>
-            <TouchableOpacity
-              onPress={onChangePhoto}
-              disabled={photoBusy}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="프로필 사진 변경"
-            >
-              <DoodleAvatar uri={profile.photoUrl} name={profile.name} size={92} />
-              {photoBusy ? (
-                <View style={styles.photoBusy}>
-                  <ActivityIndicator color={colors.ink} />
-                </View>
-              ) : null}
-            </TouchableOpacity>
-            <Text accessibilityRole="header" style={styles.name}>
-              {profile.name} · {profile.age}
-            </Text>
-            <Text style={styles.meta}>
-              {[profile.occupation, profile.location].filter(Boolean).join(" · ")}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={profile.photoUrl ? "프로필 사진 변경" : "프로필 사진 추가"}
-              onPress={onChangePhoto}
-              style={styles.photoLinkButton}
-            >
-              <Text style={styles.photoLink}>{profile.photoUrl ? "사진 변경" : "사진 추가"}</Text>
-            </Pressable>
-            {photoError ? (
-              <View style={styles.photoNotice}>
-                <InlineNotice tone="error">{photoError}</InlineNotice>
+    <AppScreen tabScreen header={{ title: "설정" }} body="scroll">
+      <View style={styles.stack}>
+        <DoodleCard contentStyle={styles.summary}>
+          <TouchableOpacity
+            onPress={onChangePhoto}
+            disabled={photoBusy}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="프로필 사진 변경"
+          >
+            <DoodleAvatar uri={profile.photoUrl} name={profile.name} size={92} />
+            {photoBusy ? (
+              <View style={styles.photoBusy}>
+                <ActivityIndicator color={colors.ink} />
               </View>
             ) : null}
-          </>
+          </TouchableOpacity>
+          <Text accessibilityRole="header" style={styles.name}>
+            {profile.name} · {profile.age}
+          </Text>
+          <Text style={styles.meta}>
+            {[profile.occupation, profile.location].filter(Boolean).join(" · ")}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={profile.photoUrl ? "프로필 사진 변경" : "프로필 사진 추가"}
+            onPress={onChangePhoto}
+            style={styles.photoLinkButton}
+          >
+            <Text style={styles.photoLink}>{profile.photoUrl ? "사진 변경" : "사진 추가"}</Text>
+          </Pressable>
+          {photoError ? (
+            <View style={styles.photoNotice}>
+              <InlineNotice tone="error">{photoError}</InlineNotice>
+            </View>
+          ) : null}
+        </DoodleCard>
+
+        <View>
+          <Text style={styles.sectionLabel}>안전</Text>
+          <DoodleCard contentStyle={styles.card}>
+            <ListRow
+              gutter={0}
+              leading={<Ban color={colors.ink} size={20} strokeWidth={1.75} />}
+              title="차단 목록 관리"
+              onPress={() =>
+                // new route — Expo Router typegen updates on next `expo start`
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                router.push("/(app)/blocks" as any)
+              }
+            />
+          </DoodleCard>
         </View>
 
-        <View style={styles.rows}>
-          <Text style={styles.sectionLabel}>안전</Text>
-          <View style={styles.separatorWrap}>
-            <DashedLine />
-          </View>
-          <Row
-            icon={<Ban color={colors.ink} size={20} strokeWidth={2} />}
-            label="차단 목록 관리"
-            chevron
-            onPress={() =>
-              // new route — Expo Router typegen updates on next `expo start`
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              router.push("/(app)/blocks" as any)
-            }
-          />
-          <View style={styles.separatorWrap}>
-            <DashedLine />
-          </View>
+        <View>
           <Text style={styles.sectionLabel}>계정</Text>
-          <Row
-            icon={<FileText color={colors.ink} size={20} strokeWidth={2} />}
-            label="이용약관"
-            chevron
-            onPress={() => router.push("/terms")}
-          />
-          <Row
-            icon={<FileText color={colors.ink} size={20} strokeWidth={2} />}
-            label="개인정보 처리 안내"
-            chevron
-            onPress={() => router.push("/privacy")}
-          />
-          <Row
-            icon={<LogOut color={colors.danger} size={20} strokeWidth={2} />}
-            label="로그아웃"
-            danger
-            onPress={() => setLogoutOpen(true)}
-          />
-          <Row
-            icon={<Trash2 color={colors.danger} size={20} strokeWidth={2} />}
-            label="계정 삭제"
-            danger
-            chevron
-            onPress={() => router.push("/(app)/delete-account")}
-          />
-          <View style={styles.separatorWrap}>
-            <DashedLine />
-          </View>
+          <DoodleCard contentStyle={styles.card}>
+            <ListRow
+              gutter={0}
+              leading={<FileText color={colors.ink} size={20} strokeWidth={1.75} />}
+              title="이용약관"
+              onPress={() => router.push("/terms")}
+            />
+            <RowSeparator gutter={0} />
+            <ListRow
+              gutter={0}
+              leading={<FileText color={colors.ink} size={20} strokeWidth={1.75} />}
+              title="개인정보 처리 안내"
+              onPress={() => router.push("/privacy")}
+            />
+            <RowSeparator gutter={0} />
+            <ListRow
+              gutter={0}
+              tone="danger"
+              leading={<LogOut color={colors.danger} size={20} strokeWidth={1.75} />}
+              title="로그아웃"
+              trailing={<View />}
+              onPress={() => setLogoutOpen(true)}
+            />
+            <RowSeparator gutter={0} />
+            <ListRow
+              gutter={0}
+              tone="danger"
+              leading={<Trash2 color={colors.danger} size={20} strokeWidth={1.75} />}
+              title="계정 삭제"
+              onPress={() => router.push("/(app)/delete-account")}
+            />
+          </DoodleCard>
         </View>
-      </ContentColumn>
+      </View>
+
       <ConfirmDialog
         visible={logoutOpen}
         title="로그아웃할까요?"
@@ -196,50 +188,13 @@ export default function SettingsScreen() {
           logout();
         }}
       />
-    </ScrollView>
-  );
-}
-
-function Row({
-  icon,
-  label,
-  onPress,
-  chevron = false,
-  danger = false,
-}: {
-  icon: ReactNode;
-  label: string;
-  onPress: () => void;
-  chevron?: boolean;
-  danger?: boolean;
-}) {
-  return (
-    <Pressable style={styles.row} onPress={onPress} accessibilityRole="button">
-      <View style={styles.rowLeft}>
-        {icon}
-        <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
-      </View>
-      {chevron ? <ChevronRight color={colors.grayMid} size={20} strokeWidth={2} /> : null}
-    </Pressable>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  container: { flexGrow: 1, backgroundColor: colors.paper, paddingHorizontal: layout.screenGutter },
-  column: { gap: space.x6, paddingTop: space.x2 },
-  summary: {
-    alignItems: "center",
-    gap: space.x1,
-    paddingVertical: space.x6,
-    minHeight: 180,
-    justifyContent: "center",
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 20,
-    ...shadow.card,
-  },
+  stack: { gap: space.x5, paddingTop: space.x2 },
+  summary: { alignItems: "center", gap: space.x1, paddingVertical: space.x4 },
   photoBusy: {
     position: "absolute",
     top: 0,
@@ -253,28 +208,14 @@ const styles = StyleSheet.create({
   },
   name: { ...type.title, color: colors.heading, marginTop: space.x2 },
   meta: { ...type.body, color: colors.grayDark },
-  photoLink: {
+  photoLink: { ...type.label, color: colors.ink, textDecorationLine: "underline" },
+  photoLinkButton: { minHeight: 44, justifyContent: "center", alignItems: "center" },
+  photoNotice: { alignSelf: "stretch", marginTop: space.x1 },
+  sectionLabel: {
     ...type.label,
-    color: colors.ink,
-    textDecorationLine: "underline",
+    color: colors.grayMid,
+    marginBottom: space.x3,
+    marginLeft: space.x1,
   },
-  photoLinkButton: {
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  photoNotice: { alignSelf: "stretch", marginHorizontal: space.x4, marginTop: space.x1 },
-  rows: { gap: space.x1 },
-  sectionLabel: { ...type.label, color: colors.grayDark, marginTop: space.x2 },
-  separatorWrap: { width: "100%" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: 56,
-    paddingVertical: space.x3,
-  },
-  rowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  rowLabel: { ...type.body, color: colors.ink },
-  rowLabelDanger: { color: colors.danger },
+  card: { paddingVertical: space.x1, paddingHorizontal: space.x4 },
 });

@@ -1,22 +1,15 @@
 import { useCallback, useRef, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, FlatList, StyleSheet } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { getMatches, ApiError, type MatchSummary } from "@mingle/client-core";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { DashedLine } from "../../../src/components/DoodleSvg";
 import { EnterRow } from "../../../src/components/Motion";
-import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
-import { colors, layout, space, type } from "../../../src/lib/theme";
-import { ContentColumn, PageHeader, StateView } from "../../../src/components/Foundation";
-
-const Separator = () => (
-  <View style={styles.separatorWrap}>
-    <DashedLine />
-  </View>
-);
+import { AppScreen } from "../../../src/components/AppScreen";
+import { ListRow, RowSeparator } from "../../../src/components/ListRow";
+import { StateView } from "../../../src/components/Foundation";
+import { colors, fonts, space, type } from "../../../src/lib/theme";
 
 export default function Chats() {
-  const clearance = useTabBarClearance();
   const [rooms, setRooms] = useState<MatchSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,13 +37,11 @@ export default function Chats() {
 
   useFocusEffect(load);
 
-  if (loading) {
-    return <StateView title="대화를 불러오고 있어요" loading />;
-  }
-
   return (
-    <View style={styles.container}>
-      {error ? (
+    <AppScreen tabScreen header={{ title: "채팅" }} body="plain">
+      {loading ? (
+        <StateView title="대화를 불러오고 있어요" loading />
+      ) : error ? (
         <StateView
           title="대화를 불러오지 못했어요"
           body={error}
@@ -68,70 +59,49 @@ export default function Chats() {
         <FlatList
           data={rooms}
           keyExtractor={(item) => item.roomId}
-          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
-          ItemSeparatorComponent={Separator}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={() => <RowSeparator gutter={0} />}
           renderItem={({ item, index }) => (
             <EnterRow index={index}>
-              <TouchableOpacity
-                style={styles.row}
+              <ListRow
+                gutter={0}
+                leading={<DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={46} />}
+                title={item.peer.name}
+                subtitle={item.lastMessage?.content ?? "메시지를 보내보세요"}
+                trailing={
+                  item.unreadCount > 0 ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{item.unreadCount}</Text>
+                    </View>
+                  ) : (
+                    <View />
+                  )
+                }
                 onPress={() =>
                   router.push({ pathname: "/(app)/chat/[roomId]", params: { roomId: item.roomId } })
                 }
-                accessibilityRole="button"
                 accessibilityLabel={`${item.peer.name}님과의 채팅${item.unreadCount > 0 ? `, 읽지 않은 메시지 ${item.unreadCount}개` : ""}`}
-              >
-                <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={46} />
-                <View style={styles.rowLeft}>
-                  <Text style={styles.peerName}>{item.peer.name}</Text>
-                  <Text style={styles.lastMsg} numberOfLines={1}>
-                    {item.lastMessage?.content ?? "메시지를 보내보세요"}
-                  </Text>
-                </View>
-                {item.unreadCount > 0 ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{item.unreadCount}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
+              />
             </EnterRow>
           )}
         />
       )}
-    </View>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-  headerColumn: { paddingHorizontal: layout.screenGutter },
-  list: {
-    width: "100%",
-    maxWidth: layout.contentMax,
-    alignSelf: "center",
-    paddingVertical: space.x2,
-  },
-  // Old separator was full-bleed with no horizontal margin — the wrap keeps that (100% width
-  // also gives the DashedLine Svg's percentage width a definite parent).
-  separatorWrap: { width: "100%" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.x3,
-    minHeight: 72,
-    paddingVertical: space.x3,
-    paddingHorizontal: layout.screenGutter,
-  },
-  rowLeft: { flex: 1 },
-  peerName: { ...type.heading, fontSize: 18, lineHeight: 23, color: colors.ink },
-  lastMsg: { ...type.caption, color: colors.grayDark, marginTop: space.x1 },
+  list: { flex: 1 },
+  listContent: { paddingTop: space.x1 },
   badge: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: colors.accentStrong,
     alignItems: "center",
-    paddingHorizontal: 5,
+    justifyContent: "center",
   },
-  badgeText: { color: colors.onAccent, fontSize: 11, fontWeight: "700" },
+  badgeText: { ...type.caption, color: colors.onAccent, fontFamily: fonts.bodySemibold },
 });

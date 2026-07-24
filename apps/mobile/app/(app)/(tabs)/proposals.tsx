@@ -11,22 +11,14 @@ import {
 } from "@mingle/client-core";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
-import { DoodleCard } from "../../../src/components/Doodle";
-import { DashedLine } from "../../../src/components/DoodleSvg";
+import { DoodleCard, DoodleButton } from "../../../src/components/Doodle";
 import { EnterRow } from "../../../src/components/Motion";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
-import { colors, control, doodle, layout, space, type } from "../../../src/lib/theme";
-import {
-  ContentColumn,
-  InlineNotice,
-  PageHeader,
-  StateView,
-} from "../../../src/components/Foundation";
+import { AppScreen } from "../../../src/components/AppScreen";
+import { ListRow } from "../../../src/components/ListRow";
+import { InlineNotice, StateView } from "../../../src/components/Foundation";
+import { colors, control, space, type } from "../../../src/lib/theme";
 
 export default function Proposals() {
-  const clearance = useTabBarClearance();
-  const insets = useSafeAreaInsets();
   const [received, setReceived] = useState<ProposalView[]>([]);
   const [sent, setSent] = useState<ProposalView[]>([]);
   const [tab, setTab] = useState<"received" | "sent">("received");
@@ -74,10 +66,6 @@ export default function Proposals() {
     }
   }
 
-  if (loading) {
-    return <StateView title="프로포즈를 불러오고 있어요" loading />;
-  }
-
   const proposals = tab === "received" ? received : sent;
 
   function statusLabel(status: ProposalView["status"]) {
@@ -86,119 +74,119 @@ export default function Proposals() {
     return tab === "sent" ? "답변 기다리는 중" : "답변 필요";
   }
 
+  function statusHelp(status: ProposalView["status"]) {
+    if (status === "accepted") return "채팅 탭에서 대화를 이어가세요";
+    if (status === "declined") return "상세한 거절 사유는 서로에게 공개하지 않아요";
+    return "상대가 편한 시간에 답할 수 있어요";
+  }
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ContentColumn style={styles.headerColumn}>
-        <PageHeader back title="프로포즈" />
-        <View style={styles.tabs} accessibilityRole="tablist">
-          <TouchableOpacity
-            style={[styles.tab, tab === "received" && styles.tabActive]}
-            onPress={() => setTab("received")}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === "received" }}
-          >
-            <Text style={[styles.tabText, tab === "received" && styles.tabTextActive]}>
-              받은 프로포즈 {received.filter((p) => p.status === "pending").length}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, tab === "sent" && styles.tabActive]}
-            onPress={() => setTab("sent")}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === "sent" }}
-          >
-            <Text style={[styles.tabText, tab === "sent" && styles.tabTextActive]}>
-              보낸 프로포즈
-            </Text>
-          </TouchableOpacity>
-        </View>
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-      </ContentColumn>
-      {proposals.length === 0 ? (
-        <StateView
-          title={tab === "received" ? "아직 받은 프로포즈가 없어요" : "아직 보낸 프로포즈가 없어요"}
-          body="블라인드 데이트에서 대화한 뒤, 마음이 가는 상대에게 직접 선택을 전해보세요."
-          actionLabel="블라인드 데이트 시작"
-          onAction={() => router.push("/(app)/speed-date")}
-        />
+    <AppScreen tabScreen header={{ back: true, title: "프로포즈" }} body="plain">
+      {loading ? (
+        <StateView title="프로포즈를 불러오고 있어요" loading />
       ) : (
-        <FlatList
-          data={proposals}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
-          renderItem={({ item, index }) => (
-            <EnterRow index={index}>
-              <DoodleCard tone="paper" contentStyle={styles.cardInner}>
-                <View style={styles.cardHeader}>
-                  <PeerModerationMenu
-                    peer={{ profileId: item.peer.profileId, name: item.peer.name }}
-                    onBlocked={() => {
-                      setReceived((prev) => prev.filter((p) => p.id !== item.id));
-                      setSent((prev) => prev.filter((p) => p.id !== item.id));
-                    }}
-                  />
-                </View>
-                <View style={styles.peerInfo}>
-                  <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={54} />
-                  <View style={styles.peerText}>
-                    <Text style={styles.name}>
-                      {item.peer.name} · {item.peer.age}
-                    </Text>
-                    <Text style={styles.meta}>{item.peer.occupation}</Text>
+        <>
+          <View style={styles.tabs} accessibilityRole="tablist">
+            <TouchableOpacity
+              style={[styles.tab, tab === "received" && styles.tabActive]}
+              onPress={() => setTab("received")}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === "received" }}
+            >
+              <Text style={[styles.tabText, tab === "received" && styles.tabTextActive]}>
+                받은 프로포즈 {received.filter((p) => p.status === "pending").length}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, tab === "sent" && styles.tabActive]}
+              onPress={() => setTab("sent")}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: tab === "sent" }}
+            >
+              <Text style={[styles.tabText, tab === "sent" && styles.tabTextActive]}>
+                보낸 프로포즈
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {error ? (
+            <View style={styles.notice}>
+              <InlineNotice tone="error">{error}</InlineNotice>
+            </View>
+          ) : null}
+          {proposals.length === 0 ? (
+            <StateView
+              title={
+                tab === "received" ? "아직 받은 프로포즈가 없어요" : "아직 보낸 프로포즈가 없어요"
+              }
+              body="블라인드 데이트에서 대화한 뒤, 마음이 가는 상대에게 직접 선택을 전해보세요."
+              actionLabel="블라인드 데이트 시작"
+              onAction={() => router.push("/(app)/speed-date")}
+            />
+          ) : (
+            <FlatList
+              style={styles.flex}
+              data={proposals}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.list}
+              renderItem={({ item, index }) => (
+                <EnterRow index={index}>
+                  <DoodleCard contentStyle={styles.card}>
+                    <ListRow
+                      gutter={0}
+                      leading={
+                        <DoodleAvatar uri={item.peer.photoUrl} name={item.peer.name} size={44} />
+                      }
+                      title={`${item.peer.name} · ${item.peer.age}`}
+                      subtitle={item.peer.occupation}
+                      trailing={
+                        <PeerModerationMenu
+                          peer={{ profileId: item.peer.profileId, name: item.peer.name }}
+                          onBlocked={() => {
+                            setReceived((prev) => prev.filter((p) => p.id !== item.id));
+                            setSent((prev) => prev.filter((p) => p.id !== item.id));
+                          }}
+                        />
+                      }
+                    />
                     {item.peer.preferenceSummary ? (
-                      <Text style={styles.summary}>{item.peer.preferenceSummary}</Text>
+                      <Text style={styles.summary} numberOfLines={2}>
+                        {item.peer.preferenceSummary}
+                      </Text>
                     ) : null}
-                  </View>
-                </View>
-                <View style={styles.divider}>
-                  <DashedLine />
-                </View>
-                {tab === "received" && item.status === "pending" ? (
-                  <View style={styles.actions}>
-                    <TouchableOpacity
-                      style={styles.acceptBtn}
-                      onPress={() => onAccept(item.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${item.peer.name}님의 프로포즈 수락`}
-                    >
-                      <Text style={styles.acceptText}>수락하고 채팅 열기</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.declineBtn}
-                      onPress={() => onDecline(item.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${item.peer.name}님의 프로포즈 거절`}
-                    >
-                      <Text style={styles.declineText}>거절</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={styles.statusRow}>
-                    <Text style={styles.statusLabel}>{statusLabel(item.status)}</Text>
-                    <Text style={styles.statusHelp}>
-                      {item.status === "pending"
-                        ? "상대가 편한 시간에 답할 수 있어요"
-                        : item.status === "accepted"
-                          ? "채팅 탭에서 대화를 이어가세요"
-                          : "상세한 거절 사유는 서로에게 공개하지 않아요"}
-                    </Text>
-                  </View>
-                )}
-              </DoodleCard>
-            </EnterRow>
+                    {tab === "received" && item.status === "pending" ? (
+                      <View style={styles.actions}>
+                        <View style={styles.actionItem}>
+                          <DoodleButton
+                            title="수락하고 채팅 열기"
+                            variant="primary"
+                            onPress={() => onAccept(item.id)}
+                          />
+                        </View>
+                        <View style={styles.actionItem}>
+                          <DoodleButton title="거절" onPress={() => onDecline(item.id)} />
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.statusRow}>
+                        <Text style={styles.statusLabel}>{statusLabel(item.status)}</Text>
+                        <Text style={styles.statusHelp}>{statusHelp(item.status)}</Text>
+                      </View>
+                    )}
+                  </DoodleCard>
+                </EnterRow>
+              )}
+            />
           )}
-        />
+        </>
       )}
-    </View>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-  headerColumn: { paddingHorizontal: layout.screenGutter, gap: space.x2 },
+  flex: { flex: 1 },
   tabs: {
     flexDirection: "row",
-    marginTop: space.x1,
     borderBottomWidth: 1.5,
     borderBottomColor: colors.grayLight,
   },
@@ -206,47 +194,13 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomWidth: 3, borderBottomColor: colors.accent },
   tabText: { ...type.label, color: colors.grayDark },
   tabTextActive: { color: colors.ink },
-  list: {
-    width: "100%",
-    maxWidth: layout.contentMax,
-    alignSelf: "center",
-    padding: layout.screenGutter,
-    gap: space.x3,
-  },
-  cardInner: { padding: 14 },
-  cardHeader: { alignItems: "flex-end" },
-  peerInfo: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 12 },
-  peerText: { flex: 1 },
-  name: { ...type.heading, fontSize: 18, lineHeight: 23, color: colors.ink },
-  meta: { ...type.caption, color: colors.grayDark, marginTop: space.x1 },
-  summary: { ...type.caption, color: colors.grayDark, marginTop: space.x1 },
-  // SVG dashed hairline wrap (RN single-side dashed borders are broken natively); keeps the
-  // 12px gap the old border-divider had before the action row.
-  divider: { width: "100%", marginBottom: 12 },
-  actions: { flexDirection: "row", gap: 8 },
-  acceptBtn: {
-    flex: 1,
-    // 수락 = 이 화면의 primary 액션 — 로즈 포인트.
-    backgroundColor: colors.accent,
-    borderWidth: doodle.border,
-    borderColor: colors.accent,
-    ...doodle.radius.button,
-    minHeight: control.buttonHeight,
-    paddingVertical: space.x2,
-    alignItems: "center",
-  },
-  acceptText: { color: colors.onAccent, ...type.label },
-  declineBtn: {
-    flex: 1,
-    borderWidth: doodle.border,
-    borderColor: colors.border,
-    ...doodle.radius.button,
-    minHeight: control.buttonHeight,
-    paddingVertical: space.x2,
-    alignItems: "center",
-  },
-  declineText: { ...type.label, color: colors.ink },
-  statusRow: { gap: 3 },
+  notice: { marginTop: space.x3 },
+  list: { paddingTop: space.x3, gap: space.x3 },
+  card: { paddingHorizontal: space.x4, paddingVertical: space.x2, gap: space.x2 },
+  summary: { ...type.caption, color: colors.grayDark },
+  actions: { flexDirection: "row", gap: space.x2 },
+  actionItem: { flex: 1 },
+  statusRow: { gap: 2 },
   statusLabel: { ...type.label, color: colors.ink },
-  statusHelp: { ...type.caption, color: colors.grayDark },
+  statusHelp: { ...type.caption, color: colors.grayMid },
 });

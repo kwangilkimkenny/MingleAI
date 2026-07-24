@@ -1,14 +1,16 @@
-import { useCallback, useState, type ReactNode } from "react";
-import { View, Text, FlatList, Pressable, Linking, StyleSheet } from "react-native";
+import { useCallback, useState } from "react";
+import { View, FlatList, Linking, StyleSheet } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { ChevronRight } from "lucide-react-native";
+import { MapPin } from "lucide-react-native";
 import { getNearbyPlaces, type NaverPlace } from "@mingle/client-core";
-import { colors, doodle, layout, space, type } from "../../../src/lib/theme";
-import { ContentColumn, PageHeader, StateView } from "../../../src/components/Foundation";
-import { DashedLine } from "../../../src/components/DoodleSvg";
+import { colors, doodle, space } from "../../../src/lib/theme";
+import { StateView } from "../../../src/components/Foundation";
+import { AppScreen } from "../../../src/components/AppScreen";
+import { ListRow, RowSeparator } from "../../../src/components/ListRow";
 import { NaverMap, type MapPlace } from "../../../src/components/NaverMap";
-import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { getCurrentCoords, type Coords } from "../../../src/lib/location";
+
+const HEADER = { title: "근처 맛집" } as const;
 
 /** Naver local-search mapx/mapy are WGS84 ×1e7 strings → decimal degrees for map pins. */
 function toMapPlace(p: NaverPlace): MapPlace | null {
@@ -19,7 +21,6 @@ function toMapPlace(p: NaverPlace): MapPlace | null {
 }
 
 export default function NaverReserve() {
-  const clearance = useTabBarClearance();
   const [phase, setPhase] = useState<"loading" | "ready" | "unconfigured" | "error">("loading");
   const [places, setPlaces] = useState<NaverPlace[]>([]);
   const [center, setCenter] = useState<Coords | null>(null);
@@ -46,26 +47,32 @@ export default function NaverReserve() {
 
   useFocusEffect(load);
 
-  if (phase === "loading") return <StateView title="맛집을 불러오고 있어요" loading />;
+  if (phase === "loading") {
+    return (
+      <AppScreen tabScreen header={HEADER} body="plain">
+        <StateView title="맛집을 불러오고 있어요" loading />
+      </AppScreen>
+    );
+  }
   if (phase === "unconfigured") {
     return (
-      <Screen>
+      <AppScreen tabScreen header={HEADER} body="plain">
         <StateView title="곧 만나요" body="근처 맛집을 지도에서 찾고 바로 예약할 수 있어요." />
-      </Screen>
+      </AppScreen>
     );
   }
   if (phase === "error") {
     return (
-      <Screen>
+      <AppScreen tabScreen header={HEADER} body="plain">
         <StateView title="맛집을 불러오지 못했어요" actionLabel="다시 시도" onAction={load} />
-      </Screen>
+      </AppScreen>
     );
   }
 
   const pins = places.map(toMapPlace).filter((p): p is MapPlace => p !== null);
 
   return (
-    <Screen>
+    <AppScreen tabScreen header={HEADER} body="plain">
       {center ? (
         <View style={styles.map}>
           <NaverMap center={center} radiusKm={null} places={pins} />
@@ -74,63 +81,37 @@ export default function NaverReserve() {
       <FlatList
         data={places}
         keyExtractor={(p, i) => `${p.title}-${i}`}
-        contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
-        ItemSeparatorComponent={() => <DashedLine />}
+        style={styles.flex}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <RowSeparator gutter={0} />}
         ListEmptyComponent={<StateView title="근처 맛집이 없어요" />}
         renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
-            onPress={() => item.link && Linking.openURL(item.link)}
-            accessibilityRole="button"
+          <ListRow
+            gutter={0}
+            leading={<MapPin color={colors.accent} size={20} strokeWidth={1.75} />}
+            title={item.title}
+            subtitle={
+              [item.category, item.roadAddress || item.address].filter(Boolean).join(" · ") ||
+              undefined
+            }
             accessibilityLabel={`${item.title}, 네이버에서 보기`}
-          >
-            <View style={styles.rowText}>
-              <Text style={styles.name}>{item.title}</Text>
-              <Text style={styles.meta} numberOfLines={1}>
-                {[item.category, item.roadAddress || item.address].filter(Boolean).join(" · ")}
-              </Text>
-            </View>
-            <ChevronRight color={colors.grayMid} size={20} strokeWidth={2} />
-          </Pressable>
+            onPress={() => item.link && Linking.openURL(item.link)}
+          />
         )}
       />
-    </Screen>
-  );
-}
-
-function Screen({ children }: { children: ReactNode }) {
-  return (
-    <View style={styles.container}>
-      <ContentColumn style={styles.header}>
-        <PageHeader title="네이버 예약" />
-      </ContentColumn>
-      {children}
-    </View>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-  header: { paddingHorizontal: layout.screenGutter },
+  flex: { flex: 1 },
+  listContent: { flexGrow: 1 },
   map: {
     height: 200,
-    marginHorizontal: layout.screenGutter,
     marginBottom: space.x3,
     borderRadius: 20,
     overflow: "hidden",
     borderWidth: doodle.border,
     borderColor: colors.border,
   },
-  list: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.x3,
-    minHeight: 64,
-    paddingVertical: space.x3,
-    paddingHorizontal: layout.screenGutter,
-  },
-  rowText: { flex: 1, gap: 2 },
-  name: { ...type.heading, fontSize: 17, lineHeight: 22, color: colors.ink },
-  meta: { ...type.caption, color: colors.grayDark },
 });
