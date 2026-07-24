@@ -81,6 +81,15 @@ export default function AppLayout() {
       <Stack.Screen name="party/[id]" options={{ title: "파티" }} />
       <Stack.Screen name="date-plan/[matchId]" options={{ title: "데이트 플랜" }} />
       <Stack.Screen name="report/[profileId]" options={{ title: "신고" }} />
+      {/* 공지 상세 = 홈 위에 살짝 투명하게 뜨는 오버레이(홈이 뒤로 비침). */}
+      <Stack.Screen
+        name="announcement"
+        options={{
+          presentation: "transparentModal",
+          animation: "fade",
+          contentStyle: { backgroundColor: "transparent" },
+        }}
+      />
     </Stack>
   );
 }
