@@ -131,6 +131,12 @@ export class AdminController {
     });
   }
 
+  @Get("safety-reports/:id")
+  @ApiOperation({ summary: "신고 상세 (누적 신고 수·피신고자 상태 포함)" })
+  getSafetyReportDetail(@Param("id") id: string) {
+    return this.adminService.getSafetyReportDetail(id);
+  }
+
   @Post("safety-reports/:id/resolve")
   @ApiOperation({ summary: "신고 처리" })
   resolveSafetyReport(
@@ -138,5 +144,12 @@ export class AdminController {
     @Body() dto: ResolveReportDto,
   ) {
     return this.adminService.resolveSafetyReport(id, dto);
+  }
+
+  // 프로필 복구
+  @Patch("profiles/:id/reinstate")
+  @ApiOperation({ summary: "정지·차단된 프로필 복구 (활성화)" })
+  reinstateProfile(@Param("id") id: string) {
+    return this.adminService.reinstateProfile(id);
   }
 }

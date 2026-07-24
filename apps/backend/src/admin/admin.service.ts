@@ -5,6 +5,16 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 
+/** 신고 목록/상세에 노출하는 최소 프로필 투영 — userId/riskScore 등 민감 필드는 제외. */
+function toReportParty(profile: { id: string; name: string; age: number; gender: string }) {
+  return {
+    profileId: profile.id,
+    name: profile.name,
+    age: profile.age,
+    gender: profile.gender,
+  };
+}
+
 export interface AdminStatsResult {
   totalUsers: number;
   activeUsers: number;
@@ -370,19 +380,56 @@ export class AdminService {
         details: r.details,
         status: r.status,
         createdAt: r.createdAt,
-        reporter: {
-          id: r.reporter.id,
-          name: r.reporter.name,
-        },
-        reported: {
-          id: r.reported.id,
-          name: r.reported.name,
-        },
+        reporter: toReportParty(r.reporter),
+        reported: toReportParty(r.reported),
       })),
       total,
       limit,
       offset,
     };
+  }
+
+  async getSafetyReportDetail(reportId: string) {
+    const report = await this.prisma.safetyReport.findUnique({
+      where: { id: reportId },
+      include: { reporter: true, reported: true },
+    });
+
+    if (!report) {
+      throw new NotFoundException("신고를 찾을 수 없습니다");
+    }
+
+    const reportsAgainstReported = await this.prisma.safetyReport.count({
+      where: { reportedProfileId: report.reportedProfileId },
+    });
+
+    return {
+      id: report.id,
+      reason: report.reason,
+      details: report.details,
+      evidencePartyId: report.evidencePartyId,
+      status: report.status,
+      createdAt: report.createdAt,
+      reporter: toReportParty(report.reporter),
+      reported: {
+        ...toReportParty(report.reported),
+        status: report.reported.status,
+      },
+      // 피신고자가 받은 누적 신고 수(현재 신고 포함) — 반복 가해 판단용.
+      reportsAgainstReported,
+    };
+  }
+
+  /** 정지·차단된 프로필을 다시 활성화(계정 복구). */
+  async reinstateProfile(profileId: string) {
+    const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
+    if (!profile) {
+      throw new NotFoundException("프로필을 찾을 수 없습니다");
+    }
+    return this.prisma.profile.update({
+      where: { id: profileId },
+      data: { status: "active" },
+    });
   }
 
   async resolveSafetyReport(

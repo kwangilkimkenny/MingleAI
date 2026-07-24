@@ -56,14 +56,21 @@ export interface AdminPartiesResponse {
   offset: number;
 }
 
+export interface ReportParty {
+  profileId: string;
+  name: string;
+  age: number;
+  gender: string;
+}
+
 export interface SafetyReport {
   id: string;
   reason: string;
-  details?: string;
+  details?: string | null;
   status: string;
   createdAt: string;
-  reporter: { id: string; name: string };
-  reported: { id: string; name: string };
+  reporter: ReportParty;
+  reported: ReportParty;
 }
 
 export interface SafetyReportsResponse {
@@ -71,6 +78,18 @@ export interface SafetyReportsResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+export interface SafetyReportDetail {
+  id: string;
+  reason: string;
+  details?: string | null;
+  evidencePartyId?: string | null;
+  status: string;
+  createdAt: string;
+  reporter: ReportParty;
+  reported: ReportParty & { status: string };
+  reportsAgainstReported: number;
 }
 
 // 통계
@@ -220,6 +239,12 @@ export async function getSafetyReports(options?: {
   return apiFetch(`/admin/safety-reports${query ? `?${query}` : ""}`);
 }
 
+export async function getSafetyReportDetail(
+  reportId: string,
+): Promise<SafetyReportDetail> {
+  return apiFetch(`/admin/safety-reports/${reportId}`);
+}
+
 export async function resolveSafetyReport(
   reportId: string,
   resolution: {
@@ -231,5 +256,12 @@ export async function resolveSafetyReport(
   return apiFetch(`/admin/safety-reports/${reportId}/resolve`, {
     method: "POST",
     body: JSON.stringify(resolution),
+  });
+}
+
+/** 정지·차단된 프로필을 다시 활성화(계정 복구). profileId = report.reported.profileId. */
+export async function reinstateProfile(profileId: string) {
+  return apiFetch(`/admin/profiles/${profileId}/reinstate`, {
+    method: "PATCH",
   });
 }

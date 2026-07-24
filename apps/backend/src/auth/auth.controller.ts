@@ -19,6 +19,7 @@ import { ConsentService } from "./consent/consent.service";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { SocialLoginDto } from "./dto/social-login.dto";
 import { DevLoginDto } from "./dto/dev-login.dto";
+import { AdminLoginDto } from "./dto/admin-login.dto";
 import { ConsentDto } from "./dto/consent.dto";
 import { IdentityCompleteDto } from "./dto/identity-complete.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
@@ -54,6 +55,13 @@ export class AuthController {
   devLogin(@Body() dto: DevLoginDto) {
     if (this.config.get("DEV_AUTH_ENABLED") !== "true") throw new NotFoundException();
     return this.authService.devLogin(dto.email, dto.role);
+  }
+
+  // ── Admin console login (prod-capable; disabled unless ADMIN_* env set) ───
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Post("admin-login")
+  adminLogin(@Body() dto: AdminLoginDto) {
+    return this.authService.adminLogin(dto.email, dto.password);
   }
 
   // ── Session lifecycle ────────────────────────────────────────────────────

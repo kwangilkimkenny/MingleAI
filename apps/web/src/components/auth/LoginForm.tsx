@@ -7,9 +7,8 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Alert from "@mui/material/Alert";
 import Typography from "@mui/material/Typography";
-import Link from "@mui/material/Link";
-import NextLink from "next/link";
-import { login } from "@/lib/api/auth";
+import { adminLogin } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 
 export default function LoginForm() {
@@ -25,11 +24,15 @@ export default function LoginForm() {
     setError("");
     setLoading(true);
     try {
-      const res = await login(email, password);
+      const res = await adminLogin(email, password);
       setAuth({ token: res.accessToken, refreshToken: res.refreshToken, role: res.role });
-      router.push(res.role === "admin" || res.role === "super_admin" ? "/admin" : "/dashboard");
+      router.push("/admin");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "로그인에 실패했습니다.");
+      if (err instanceof ApiError && err.status === 501) {
+        setError("관리자 로그인이 아직 설정되지 않았습니다. 관리자에게 문의하세요.");
+      } else {
+        setError(err instanceof Error ? err.message : "로그인에 실패했습니다.");
+      }
     } finally {
       setLoading(false);
     }
@@ -37,8 +40,11 @@ export default function LoginForm() {
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-      <Typography variant="h4" fontWeight={700} mb={3} textAlign="center">
-        로그인
+      <Typography variant="h4" fontWeight={700} mb={1} textAlign="center">
+        관리자 로그인
+      </Typography>
+      <Typography variant="body2" color="text.secondary" mb={3} textAlign="center">
+        MingleAI 운영 콘솔
       </Typography>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -72,12 +78,6 @@ export default function LoginForm() {
       >
         {loading ? "로그인 중..." : "로그인"}
       </Button>
-      <Typography variant="body2" textAlign="center" mt={2}>
-        계정이 없으신가요?{" "}
-        <Link component={NextLink} href="/register">
-          회원가입
-        </Link>
-      </Typography>
     </Box>
   );
 }

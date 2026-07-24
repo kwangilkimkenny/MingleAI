@@ -1,5 +1,10 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  Injectable,
+  NotImplementedException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
 import { createHash, randomBytes } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -34,6 +39,47 @@ export class AuthService {
       user = await this.prisma.user.update({ where: { id: user.id }, data: { role } });
     }
     return this.issueSession(user.id, user.email, user.role);
+  }
+
+  /**
+   * Admin console login (prod-capable). Gated on ADMIN_EMAIL + ADMIN_PASSWORD_HASH (bcrypt) env —
+   * if either is unset the feature is disabled (501). Verifies both fields before issuing, and never
+   * reveals which one was wrong (single generic 401). On success, upserts a durable
+   * (authProvider="admin", providerId=email) identity with role="admin" and reuses issueSession.
+   */
+  async adminLogin(email: string, password: string) {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const passwordHash = process.env.ADMIN_PASSWORD_HASH;
+    if (!adminEmail || !passwordHash) {
+      throw new NotImplementedException("관리자 로그인이 비활성화되어 있습니다");
+    }
+
+    const normalizedEmail = this.normalizeEmail(email);
+    const emailOk = normalizedEmail === this.normalizeEmail(adminEmail);
+    // Always run the hash comparison so timing does not leak whether the email matched.
+    const passwordOk = await bcrypt.compare(password ?? "", passwordHash);
+    if (!emailOk || !passwordOk) {
+      throw new UnauthorizedException("이메일 또는 비밀번호가 올바르지 않습니다");
+    }
+
+    const user = await this.findOrCreateAdmin(normalizedEmail);
+    return this.issueSession(user.id, user.email, user.role);
+  }
+
+  private async findOrCreateAdmin(normalizedEmail: string) {
+    const existing = await this.prisma.user.findUnique({
+      where: { authProvider_providerId: { authProvider: "admin", providerId: normalizedEmail } },
+    });
+    if (existing) {
+      if (existing.role === "admin" || existing.role === "super_admin") return existing;
+      return this.prisma.user.update({ where: { id: existing.id }, data: { role: "admin" } });
+    }
+    // email is unique — only attach it if free so we never collide with an existing account.
+    let email: string | null = normalizedEmail;
+    if (await this.prisma.user.findUnique({ where: { email } })) email = null;
+    return this.prisma.user.create({
+      data: { authProvider: "admin", providerId: normalizedEmail, email, role: "admin" },
+    });
   }
 
   async refresh(rawToken: string) {
