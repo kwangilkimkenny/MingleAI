@@ -1,5 +1,3 @@
-import { Platform } from "react-native";
-
 /**
  * Line-art palette — warm off-white paper, crisp white cards, thin ink strokes, and a single
  * persimmon-coral point color. Single source of truth for mobile colors. 2026-07-24 the app moved
@@ -140,16 +138,9 @@ export const fonts = {
   displayRegular: "Pretendard_400Regular",
   body: "Pretendard_400Regular",
   bodySemibold: "Pretendard_600SemiBold",
-  // Myeongjo serif for the masterpiece hero headline only. System fallback for now (iOS AppleMyungjo,
-  // Android Noto Serif CJK). Bundle a Cafe24 serif into assets/fonts/cafe24 + useFonts, then swap
-  // this one line to the registered family (e.g. "Cafe24Classictype").
-  serif: Platform.select({
-    ios: "AppleMyungjo",
-    android: "serif",
-    web: 'AppleMyungjo, "Nanum Myeongjo", Georgia, "Times New Roman", serif',
-    default: "serif",
-  }) as string,
 } as const;
+// Myeongjo serif (masterpiece headline) lives in `src/lib/serif.ts` — it needs `Platform` from
+// react-native, which the pure-lib Vitest can't parse, so it is kept out of this pure token module.
 
 /**
  * Soft elevation — blurred, low-opacity shadows in a neutral warm-gray. Line-art is outline-first,

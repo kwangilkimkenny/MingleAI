@@ -14,6 +14,7 @@ import { createProfile, getMyProfile, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
 import { AppScreen } from "../src/components/AppScreen";
+import { MasterpieceHero } from "../src/components/MasterpieceHero";
 import { DoodleButton } from "../src/components/Doodle";
 import { DoodleChip } from "../src/components/DoodleSvg";
 import { DoodleAvatar } from "../src/components/DoodleAvatar";
@@ -130,8 +131,17 @@ export default function Onboarding() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <AppScreen
-        header={{ title: "프로필" }}
         body="scroll"
+        bleed={
+          <MasterpieceHero
+            rounded
+            tone="creamDeep"
+            height={190}
+            eyebrow="프로필 만들기"
+            headline={"당신을\n소개해요"}
+            figure="both"
+          />
+        }
         footer={
           <DoodleButton
             title="시작하기"
@@ -234,7 +244,7 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  form: { gap: space.x5 },
+  form: { gap: space.x5, marginTop: space.x5 },
   photoSection: { alignItems: "center", gap: space.x2, marginBottom: space.x1 },
   photoBusy: {
     position: "absolute",

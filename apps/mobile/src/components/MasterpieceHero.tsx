@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Pattern, Rect, Stop } from "react-native-svg";
 import { fonts, masterpiece } from "../lib/theme";
+import { serifFont } from "../lib/serif";
 
 const MAN = require("../../assets/images/renaissance-man-cutout.png");
 const WOMAN = require("../../assets/images/renaissance-woman-cutout.png");
@@ -164,7 +165,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   headline: {
-    fontFamily: fonts.serif,
+    fontFamily: serifFont,
     fontSize: 32,
     lineHeight: 38,
     letterSpacing: -0.4,

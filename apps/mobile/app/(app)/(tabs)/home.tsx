@@ -7,6 +7,7 @@ import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import { getReceivedProposals, getUnreadCount } from "@mingle/client-core";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, fonts, masterpiece } from "../../../src/lib/theme";
+import { serifFont } from "../../../src/lib/serif";
 
 const MAN = require("../../../assets/images/renaissance-man-cutout.png");
 const WOMAN = require("../../../assets/images/renaissance-woman-cutout.png");
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   matchText: {
-    fontFamily: fonts.serif,
+    fontFamily: serifFont,
     fontSize: 26,
     letterSpacing: 2,
     color: masterpiece.onPill,

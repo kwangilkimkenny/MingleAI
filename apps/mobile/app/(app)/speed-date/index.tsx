@@ -129,7 +129,7 @@ export default function SpeedDateMatching() {
 
   return (
     <AppScreen
-      header={{ title: "블라인드 데이트", back: true }}
+      header={{ title: "로테이션 소개팅", back: true }}
       body={isConsent ? "scroll" : "plain"}
       footer={footer}
     >
@@ -149,6 +149,7 @@ export default function SpeedDateMatching() {
       {isConsent ? (
         <View style={styles.stack}>
           <Text style={styles.title}>얼굴보다 대화가 먼저</Text>
+          <Text style={styles.subtitle}>여러 상대와 돌아가며, 대화로 알아가요.</Text>
 
           <DoodleCard tone="fill" contentStyle={styles.stepsCard}>
             <Step icon={<Mic color={colors.ink} size={18} strokeWidth={1.75} />} title="가면 라운드" />
@@ -214,6 +215,7 @@ function Step({ icon, title }: { icon: React.ReactNode; title: string }) {
 const styles = StyleSheet.create({
   stack: { gap: space.x4 },
   title: { ...type.title, color: colors.heading, textAlign: "center" },
+  subtitle: { ...type.caption, color: colors.grayMid, textAlign: "center", marginTop: -space.x2 },
   stepsCard: { gap: space.x3 },
   stepRow: { flexDirection: "row", gap: space.x3, alignItems: "center" },
   stepIcon: {
