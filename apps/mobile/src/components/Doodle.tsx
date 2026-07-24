@@ -1,10 +1,9 @@
 /**
- * Doodle primitives: warm ink-and-paper surfaces with restrained semantic coral.
+ * Line-art primitives: white surfaces with thin ink outlines and one persimmon-coral point color.
  *
- * The signature "hand-drawn sticker" look comes from WobbleBox (DoodleSvg.tsx): a
- * pre-computed jittered SVG border (+ optional hard offset ink shadow, no blur — RN's
- * native shadow/elevation always blurs). Combined with wonky per-corner radii and a
- * slight rotation, the surface reads as a hand-drawn object without sacrificing legibility.
+ * Elevation is outline-first — cards read via a thin hairline (WobbleBox in DoodleSvg.tsx, now a
+ * plain rounded View), not a shadow. Primary buttons fill with accentStrong + white label (AA-safe;
+ * the bright accent is for strokes/icons only). Secondary buttons are white + thin outline.
  */
 import type { ReactNode } from "react";
 import {
@@ -79,13 +78,14 @@ export function DoodleButton({
   const danger = variant === "danger";
   const dangerSolid = variant === "dangerSolid";
   const off = disabled || busy;
-  // Soft rounded button. Primary = rose fill; secondary = white + soft rose hairline.
+  // Line-art button. Primary = accentStrong fill + white label (AA-safe; the bright accent fails
+  // white-text contrast). Secondary = white card + thin outline. Destructive = cool crimson.
   const bg = off
     ? colors.fill
     : dangerSolid
       ? colors.danger
       : primary
-        ? colors.accent
+        ? colors.accentStrong
         : colors.card;
   const fg = off
     ? colors.grayMid
@@ -94,7 +94,8 @@ export function DoodleButton({
       : primary || dangerSolid
         ? colors.onAccent
         : colors.ink;
-  const stroke = danger || dangerSolid ? colors.danger : primary ? colors.accent : colors.border;
+  const stroke =
+    danger || dangerSolid ? colors.danger : primary ? colors.accentStrong : colors.border;
   return (
     <Pressable
       accessibilityRole="button"
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  btnText: { fontFamily: fonts.display, fontSize: 18, lineHeight: 23, letterSpacing: 0.3 },
+  btnText: { fontFamily: fonts.bodySemibold, fontSize: 16, lineHeight: 21, letterSpacing: 0 },
   seriousBtnText: { fontFamily: fonts.bodySemibold, fontSize: 15, lineHeight: 21, letterSpacing: 0 },
   cardInner: { padding: 16 },
 });

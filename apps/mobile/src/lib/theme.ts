@@ -123,20 +123,20 @@ export const fonts = {
 } as const;
 
 /**
- * Soft elevation — blurred, low-opacity shadows in a warm rose-brown (replaces the doodle era's
- * hard offset ink "sticker" shadow). Spread onto card/sheet/hero surfaces.
+ * Soft elevation — blurred, low-opacity shadows in a neutral warm-gray. Line-art is outline-first,
+ * so this is reserved for modals / sheets / hero surfaces; flat cards rely on the hairline outline.
  */
 export const shadow = {
   card: {
-    shadowColor: "#7A2A3A",
-    shadowOpacity: 0.1,
+    shadowColor: "#2A2320",
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   elevated: {
-    shadowColor: "#7A2A3A",
-    shadowOpacity: 0.14,
+    shadowColor: "#2A2320",
+    shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,
@@ -144,10 +144,10 @@ export const shadow = {
 } as const;
 
 /**
- * Surface tokens — rounded corners + soft rose hairline. `radius` keeps the four-corner shape
- * (WonkyRadius) the primitives expect, but every corner is equal now (clean rounded, no wobble).
+ * Surface tokens — rounded corners + thin ink hairline. `radius` keeps the four-corner shape
+ * (WonkyRadius) the primitives expect, but every corner is equal (clean rounded, no wobble).
  * `border` is the hairline width; `shadow` (legacy hard offset) is retained for API stability but
- * unused — surfaces use the blurred `shadow` export above.
+ * unused — line-art elevation is outline-first (blurred `shadow` export above only for modals/sheets).
  */
 export const doodle = {
   border: 1.5, // soft hairline stroke width

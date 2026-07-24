@@ -115,8 +115,10 @@ export function DoodleFace({
   seed?: number;
 }) {
   const R = 32;
-  const face = inverted ? colors.accent : colors.card;
-  const feat = inverted ? colors.onAccent : colors.heading;
+  // Line-art face: transparent fill + thin ink stroke. Inverted (e.g. my name tag) = coral fill.
+  const face = inverted ? colors.accentStrong : "transparent";
+  const feat = inverted ? colors.onAccent : colors.ink;
+  const ring = inverted ? colors.accentStrong : colors.ink;
   // Hand-drawn circle: wobbleRect with fully-round radii reads as a drawn circle.
   const circleD = wobbleRect(
     R * 2,
@@ -138,14 +140,14 @@ export function DoodleFace({
         : `M${R - 10} ${R + 7} C${R - 5} ${R + 14} ${R + 5} ${R + 14} ${R + 10} ${R + 7}`;
   return (
     <Svg width={size} height={size} viewBox={`-3 -3 ${R * 2 + 6} ${R * 2 + 6}`}>
-      <Path d={circleD} fill={face} stroke={colors.heading} strokeWidth={2.6} />
-      <Circle cx={R - 9} cy={R - 5} r={2.8} fill={feat} />
-      <Circle cx={R + 9} cy={R - 5} r={2.8} fill={feat} />
+      <Path d={circleD} fill={face} stroke={ring} strokeWidth={1.8} />
+      <Circle cx={R - 9} cy={R - 5} r={2.2} fill={feat} />
+      <Circle cx={R + 9} cy={R - 5} r={2.2} fill={feat} />
       <Path
         d={mouth}
         fill={variant === "open" ? feat : "none"}
         stroke={feat}
-        strokeWidth={2.6}
+        strokeWidth={1.8}
         strokeLinecap="round"
       />
     </Svg>
@@ -190,8 +192,8 @@ export function DoodleChip({
   const chip = (
     <WobbleBox
       radius={doodle.radius.chip}
-      bg={on ? colors.accent : colors.card}
-      stroke={on ? colors.accent : colors.border}
+      bg={on ? colors.accentStrong : colors.card}
+      stroke={on ? colors.accentStrong : colors.border}
       strokeWidth={1.5}
       contentStyle={[tiny ? styles.chipTiny : styles.chipInner, onPress && styles.chipTouchable]}
     >
