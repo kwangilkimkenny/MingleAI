@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { ChevronLeft } from "lucide-react-native";
 import {
   enqueueSpeedDate,
   cancelSpeedDate,
@@ -24,10 +26,10 @@ type Step = "rules" | "location";
 
 /** Match-distance options; null = no distance limit (skip location entirely). */
 const RADIUS_OPTIONS: { km: number | null; label: string }[] = [
+  { km: 1, label: "1km" },
   { km: 5, label: "5km" },
   { km: 10, label: "10km" },
   { km: 30, label: "30km" },
-  { km: 50, label: "50km" },
   { km: null, label: "제한 없음" },
 ];
 
@@ -41,6 +43,7 @@ const RULES: { n: string; title: string; body: string }[] = [
 ];
 
 export default function SpeedDateMatching() {
+  const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>("checking");
   const [step, setStep] = useState<Step>("rules");
   const [error, setError] = useState<string | null>(null);
@@ -144,17 +147,61 @@ export default function SpeedDateMatching() {
   }
 
   const isConsent = phase === "consent";
-  const footer = isConsent ? (
-    step === "rules" ? (
+
+  // Location step = full-bleed map with floating controls (chips + start hover over the map).
+  if (isConsent && step === "location") {
+    return (
+      <View style={styles.mapScreen}>
+        <View style={StyleSheet.absoluteFill}>
+          {coords ? (
+            <NaverMap center={coords} radiusKm={radiusKm} places={[]} />
+          ) : (
+            <View style={styles.mapFallback}>
+              {locBusy ? <ActivityIndicator color={dark.textMuted} /> : null}
+              <Text style={styles.mapFallbackText}>
+                {locBusy
+                  ? "현위치를 확인하고 있어요…"
+                  : "위치를 확인할 수 없어요. ‘제한 없음’으로 시작할 수 있어요."}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <Pressable
+          onPress={() => setStep("rules")}
+          style={[styles.floatBack, { top: insets.top + space.x2 }]}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로"
+        >
+          <ChevronLeft color={dark.text} size={24} strokeWidth={2.5} />
+        </Pressable>
+
+        <View style={[styles.dock, { paddingBottom: insets.bottom + space.x4 }]}>
+          <View style={styles.dockChips}>
+            {RADIUS_OPTIONS.map((opt) => (
+              <RadiusPill
+                key={opt.label}
+                label={opt.label}
+                on={radiusKm === opt.km}
+                onPress={() => setRadiusKm(opt.km)}
+              />
+            ))}
+          </View>
+          <DoodleButton title="시작하기" onPress={onStart} variant="primary" tone="dark" />
+        </View>
+      </View>
+    );
+  }
+
+  const footer =
+    isConsent && step === "rules" ? (
       <DoodleButton title="다음" onPress={onNext} variant="primary" tone="dark" />
-    ) : (
-      <DoodleButton title="시작하기" onPress={onStart} variant="primary" tone="dark" />
-    )
-  ) : phase === "joining" || phase === "waiting" ? (
-    <DoodleButton title="매칭 취소" onPress={onCancel} tone="dark" />
-  ) : phase === "error" ? (
-    <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
-  ) : undefined;
+    ) : phase === "joining" || phase === "waiting" ? (
+      <DoodleButton title="매칭 취소" onPress={onCancel} tone="dark" />
+    ) : phase === "error" ? (
+      <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
+    ) : undefined;
 
   const scrollBody = isConsent && step === "rules";
 
@@ -194,37 +241,6 @@ export default function SpeedDateMatching() {
         </View>
       ) : null}
 
-      {isConsent && step === "location" ? (
-        <View style={styles.locationStep}>
-          <View style={styles.mapWrap}>
-            {coords ? (
-              <NaverMap center={coords} radiusKm={radiusKm} places={[]} />
-            ) : (
-              <View style={styles.mapFallback}>
-                <Text style={styles.mapFallbackText}>
-                  {locBusy ? "현위치를 확인하고 있어요…" : "위치를 확인할 수 없어요. ‘제한 없음’으로 시작할 수 있어요."}
-                </Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.radiusBlock}>
-            <Text style={styles.radiusLabel}>매칭 거리</Text>
-            <View style={styles.radiusChips}>
-              {RADIUS_OPTIONS.map((opt) => (
-                <DoodleChip
-                  key={opt.label}
-                  label={opt.label}
-                  on={radiusKm === opt.km}
-                  tiny
-                  dark
-                  onPress={() => setRadiusKm(opt.km)}
-                />
-              ))}
-            </View>
-          </View>
-        </View>
-      ) : null}
-
       {phase === "joining" || phase === "waiting" ? (
         <StateView
           title="상대를 찾고 있어요"
@@ -248,6 +264,21 @@ export default function SpeedDateMatching() {
         />
       ) : null}
     </AppScreen>
+  );
+}
+
+/** Opaque radius pill for the map overlay — needs a solid bg to stay legible over map tiles. */
+function RadiusPill({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.pill, on ? styles.pillOn : styles.pillOff]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: on }}
+      hitSlop={6}
+    >
+      <Text style={[styles.pillText, { color: on ? dark.text : dark.textMuted }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -286,11 +317,46 @@ const styles = StyleSheet.create({
   ruleTitle: { ...type.label, color: dark.text },
   ruleBody: { ...type.caption, color: dark.textMuted },
   chips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
-  locationStep: { flex: 1, gap: space.x4 },
-  mapWrap: { flex: 1, borderRadius: 18, overflow: "hidden", backgroundColor: dark.surface },
-  mapFallback: { flex: 1, alignItems: "center", justifyContent: "center", padding: space.x5 },
+  // Full-bleed location step
+  mapScreen: { flex: 1, backgroundColor: dark.bg },
+  mapFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.x2,
+    padding: space.x5,
+    backgroundColor: dark.surface,
+  },
   mapFallbackText: { ...type.body, color: dark.textMuted, textAlign: "center" },
-  radiusBlock: { gap: space.x2, alignItems: "center" },
-  radiusLabel: { ...type.label, color: dark.label },
-  radiusChips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
+  floatBack: {
+    position: "absolute",
+    left: space.x4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(20,14,9,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: space.x4,
+    paddingTop: space.x5,
+    gap: space.x3,
+  },
+  dockChips: { flexDirection: "row", gap: 6, flexWrap: "nowrap", justifyContent: "center" },
+  pill: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    minHeight: 40,
+    justifyContent: "center",
+  },
+  pillOff: { backgroundColor: dark.surface, borderColor: dark.border },
+  pillOn: { backgroundColor: dark.surfaceHi, borderColor: dark.text },
+  pillText: { ...type.caption },
 });
