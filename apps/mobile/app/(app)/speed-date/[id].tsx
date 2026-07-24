@@ -72,7 +72,13 @@ export default function SpeedDateSession() {
     };
   }, [token, id]);
 
-  const media = useSpeedDateMedia(snapshot?.room ?? null, snapshot?.room?.publishVideo ?? false);
+  // My own outgoing voice is disguised whenever the current stage is DISGUISED. The stage's voiceMod
+  // is symmetric within a pairing, so partner.voiceMod is my modulation flag too.
+  const media = useSpeedDateMedia(
+    snapshot?.room ?? null,
+    snapshot?.room?.publishVideo ?? false,
+    snapshot?.partner?.voiceMod ?? false,
+  );
   const remainSec = snapshot ? Math.max(0, Math.ceil((snapshot.phaseEndsAt - now) / 1000)) : 0;
 
   const chosen = useMemo(() => new Set(snapshot?.myChoices ?? []), [snapshot?.myChoices]);

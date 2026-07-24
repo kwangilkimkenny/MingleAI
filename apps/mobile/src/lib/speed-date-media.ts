@@ -24,6 +24,7 @@ export interface SpeedDateMedia {
 export function useSpeedDateMedia(
   _room: SpeedDateRoomInfo | null,
   _publishVideo: boolean,
+  _modulateVoice: boolean,
 ): SpeedDateMedia {
   return { status: "unavailable", hasRemoteVideo: false, remoteVideoTrack: null, localVideoTrack: null };
 }
