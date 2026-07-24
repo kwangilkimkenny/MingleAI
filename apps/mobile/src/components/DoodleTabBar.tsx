@@ -8,7 +8,7 @@
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts } from "../lib/theme";
+import { colors, dark, fonts } from "../lib/theme";
 
 export const TAB_BAR_ROW_HEIGHT = 60;
 
@@ -28,7 +28,7 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
           // Skip routes hidden from the bar (href: null → no tabBarIcon), keeping index aligned.
           if (!options.tabBarIcon) return null;
           const focused = state.index === i;
-          const color = focused ? colors.accent : colors.grayMid;
+          const color = focused ? dark.accent : dark.textMuted;
           const label = typeof options.title === "string" ? options.title : route.name;
           return (
             <Pressable
@@ -70,12 +70,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.card,
+    backgroundColor: dark.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
+    borderTopColor: dark.line,
     // Subtle upward lift so content scrolling under the bar reads as behind it.
-    shadowColor: "#2A2320",
-    shadowOpacity: 0.06,
+    shadowColor: "#000000",
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: -3 },
     elevation: 8,
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 999,
-    backgroundColor: colors.accent,
+    backgroundColor: dark.accent,
   },
   badge: {
     position: "absolute",

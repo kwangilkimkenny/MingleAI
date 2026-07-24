@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ChevronRight } from "lucide-react-native";
-import { colors, control, layout, space, type } from "../lib/theme";
+import { colors, control, dark, layout, space, type } from "../lib/theme";
 
 /**
  * 공용 리스트 행 — List 아키타입(채팅·프로포즈·알림·차단·설정·맛집)과 Hub 허브 카드 내부에서
@@ -17,6 +17,7 @@ export function ListRow({
   accessibilityLabel,
   gutter = layout.screenGutter,
   tone = "default",
+  dark: isDark = false,
 }: {
   leading?: ReactNode;
   title: string;
@@ -28,25 +29,31 @@ export function ListRow({
   gutter?: number;
   /** "danger" tints the title crimson (destructive rows — 계정 삭제 등). */
   tone?: "default" | "danger";
+  /** 홈 테마 다크 화면용 행. */
+  dark?: boolean;
 }) {
+  const titleColor =
+    tone === "danger" ? (isDark ? dark.danger : colors.danger) : isDark ? dark.text : colors.ink;
   const body = (
     <>
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <View style={styles.text}>
-        <Text
-          style={[styles.title, tone === "danger" && { color: colors.danger }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.title, { color: titleColor }]} numberOfLines={1}>
           {title}
         </Text>
         {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text
+            style={[styles.subtitle, isDark && { color: dark.textMuted }]}
+            numberOfLines={1}
+          >
             {subtitle}
           </Text>
         ) : null}
       </View>
       {trailing ??
-        (onPress ? <ChevronRight color={colors.grayMid} size={20} strokeWidth={1.75} /> : null)}
+        (onPress ? (
+          <ChevronRight color={isDark ? dark.textMuted : colors.grayMid} size={20} strokeWidth={1.75} />
+        ) : null)}
     </>
   );
   const rowStyle = [styles.row, { paddingHorizontal: gutter }];
@@ -63,8 +70,14 @@ export function ListRow({
   );
 }
 
-export function RowSeparator({ gutter = layout.screenGutter }: { gutter?: number }) {
-  return <View style={[styles.sep, { marginLeft: gutter }]} />;
+export function RowSeparator({
+  gutter = layout.screenGutter,
+  dark: isDark = false,
+}: {
+  gutter?: number;
+  dark?: boolean;
+}) {
+  return <View style={[styles.sep, isDark && { backgroundColor: dark.line }, { marginLeft: gutter }]} />;
 }
 
 const styles = StyleSheet.create({
