@@ -2,11 +2,12 @@ import { colors, fonts, space, type } from "../../../src/lib/theme";
 import { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { ArrowRight, Bell, Heart, Sparkles, Video } from "lucide-react-native";
+import { Bell, Heart, Sparkles } from "lucide-react-native";
 import { getMyProfile, getReceivedProposals, getUnreadCount } from "@mingle/client-core";
 import { DoodleCard } from "../../../src/components/Doodle";
 import { AppScreen } from "../../../src/components/AppScreen";
 import { ListRow, RowSeparator } from "../../../src/components/ListRow";
+import { MasterpieceHero, PillButton } from "../../../src/components/MasterpieceHero";
 import { Enter } from "../../../src/components/Motion";
 import { FEATURES } from "../../../src/lib/features";
 
@@ -48,35 +49,22 @@ export default function Home() {
   }
 
   return (
-    <AppScreen tabScreen contentStyle={styles.content}>
-      <Enter index={0}>
-        <View style={styles.header}>
-          <Text style={styles.hello}>안녕하세요</Text>
-          <Text style={styles.name}>{name ?? "환영해요"}</Text>
-        </View>
-      </Enter>
-
-      <Enter index={1}>
-        <Pressable
-          onPress={() => router.push("/(app)/speed-date")}
-          accessibilityRole="button"
-          accessibilityLabel="블라인드 데이트 시작"
-          style={({ pressed }) => pressed && { opacity: 0.9 }}
+    <AppScreen
+      tabScreen
+      contentStyle={styles.content}
+      bleed={
+        <MasterpieceHero
+          rounded
+          tone="creamDeep"
+          height={306}
+          eyebrow={name ? `안녕하세요, ${name}님` : "환영해요"}
+          headline={"블라인드\n데이트"}
         >
-          <DoodleCard elevated contentStyle={styles.feature}>
-            <View style={styles.featureBadge}>
-              <Video color={colors.onAccent} size={22} strokeWidth={2.2} />
-            </View>
-            <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>블라인드 데이트</Text>
-              <Text style={styles.featureMeta}>3분 · 1:1 · 목소리 → 얼굴</Text>
-            </View>
-            <ArrowRight color={colors.accent} size={22} strokeWidth={2.2} />
-          </DoodleCard>
-        </Pressable>
-      </Enter>
-
-      <Enter index={2}>
+          <PillButton title="3분 만에 시작 →" onPress={() => router.push("/(app)/speed-date")} />
+        </MasterpieceHero>
+      }
+    >
+      <Enter index={0}>
         <Text style={styles.sectionLabel}>최근</Text>
         <DoodleCard contentStyle={styles.hub}>
           <ListRow
@@ -118,23 +106,14 @@ function CountPill({ n }: { n: number }) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: space.x4, gap: space.x5 },
-  header: {},
-  hello: { ...type.caption, color: colors.grayMid },
-  name: { ...type.title, color: colors.ink, marginTop: 2 },
-  feature: { flexDirection: "row", alignItems: "center", gap: space.x4, paddingVertical: space.x2 },
-  featureBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.accentStrong,
-    alignItems: "center",
-    justifyContent: "center",
+  content: { paddingBottom: space.x5 },
+  sectionLabel: {
+    ...type.label,
+    color: colors.grayMid,
+    marginTop: space.x5,
+    marginBottom: space.x3,
+    marginLeft: space.x1,
   },
-  featureText: { flex: 1, gap: 2 },
-  featureTitle: { ...type.heading, color: colors.ink },
-  featureMeta: { ...type.caption, color: colors.grayMid },
-  sectionLabel: { ...type.label, color: colors.grayMid, marginBottom: space.x3, marginLeft: space.x1 },
   hub: { paddingVertical: space.x1, paddingHorizontal: space.x4 },
   countPill: {
     minWidth: 22,

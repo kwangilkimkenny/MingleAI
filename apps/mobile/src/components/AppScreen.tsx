@@ -22,6 +22,7 @@ export function AppScreen({
   body = "scroll",
   footer,
   tabScreen = false,
+  bleed,
   contentStyle,
   children,
 }: {
@@ -29,6 +30,8 @@ export function AppScreen({
   body?: "scroll" | "plain";
   footer?: ReactNode;
   tabScreen?: boolean;
+  /** Full-width node rendered above the gutter'd content (heroes/banners that bleed to the edges). */
+  bleed?: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
   children: ReactNode;
 }) {
@@ -55,11 +58,13 @@ export function AppScreen({
         keyboardShouldPersistTaps="handled"
       >
         {head}
+        {bleed}
         <ContentColumn style={styles.gutter}>{children}</ContentColumn>
       </ScrollView>
     ) : (
       <View style={[styles.flex, { paddingBottom: bottomPad }]}>
         {head}
+        {bleed}
         <ContentColumn style={[styles.gutter, styles.flex]}>{children}</ContentColumn>
       </View>
     );

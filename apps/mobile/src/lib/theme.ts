@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 /**
  * Line-art palette — warm off-white paper, crisp white cards, thin ink strokes, and a single
  * persimmon-coral point color. Single source of truth for mobile colors. 2026-07-24 the app moved
@@ -76,6 +78,24 @@ export const control = {
   compactHeight: 40,
 } as const;
 
+/**
+ * Masterpiece (fine-art editorial) surface tokens — hero / entrance / onboarding ONLY.
+ * Classical cutout figures on cream paper, Myeongjo serif display, halftone dots, a black pill CTA.
+ * Deliberately SEPARATE from the line-art `colors` so the two systems coexist: line-art skins the
+ * functional screens (chat/lists/settings), masterpiece skins brand moments. 2026-07-24.
+ */
+export const masterpiece = {
+  cream: "#F4F1EA", // warm paper ground
+  creamDeep: "#EFE9DC", // deeper cream (home hero band)
+  inkDeep: "#221D18", // near-black warm ink — serif headline / pill fill
+  inkSoft: "#6A6151", // muted brown — subhead
+  tag: "#A99A7D", // faded gold — eyebrow/label
+  dot: "#D8CEB9", // halftone dot
+  pill: "#221D18", // black pill CTA fill
+  onPill: "#F4F1EA", // text on pill
+  pillGhostBorder: "#CABFA9", // outline pill border
+} as const;
+
 export const layout = {
   screenGutter: 20,
   contentMax: 560,
@@ -120,6 +140,15 @@ export const fonts = {
   displayRegular: "Pretendard_400Regular",
   body: "Pretendard_400Regular",
   bodySemibold: "Pretendard_600SemiBold",
+  // Myeongjo serif for the masterpiece hero headline only. System fallback for now (iOS AppleMyungjo,
+  // Android Noto Serif CJK). Bundle a Cafe24 serif into assets/fonts/cafe24 + useFonts, then swap
+  // this one line to the registered family (e.g. "Cafe24Classictype").
+  serif: Platform.select({
+    ios: "AppleMyungjo",
+    android: "serif",
+    web: 'AppleMyungjo, "Nanum Myeongjo", Georgia, "Times New Roman", serif',
+    default: "serif",
+  }) as string,
 } as const;
 
 /**
