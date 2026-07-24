@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, layout, space } from "../lib/theme";
+import { colors, dark, layout, space } from "../lib/theme";
 import { ContentColumn, PageHeader } from "./Foundation";
 import { useTabBarClearance } from "./DoodleTabBar";
 
@@ -23,6 +23,7 @@ export function AppScreen({
   footer,
   tabScreen = false,
   bleed,
+  tone = "light",
   contentStyle,
   children,
 }: {
@@ -32,12 +33,16 @@ export function AppScreen({
   tabScreen?: boolean;
   /** Full-width node rendered above the gutter'd content (heroes/banners that bleed to the edges). */
   bleed?: ReactNode;
+  /** "dark" = 홈 테마(다크 에디토리얼) 화면. 리스트/데이터 화면은 기본 "light". */
+  tone?: "light" | "dark";
   contentStyle?: StyleProp<ViewStyle>;
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
   const bottomPad = (tabScreen ? clearance : insets.bottom) + (footer ? 0 : space.x4);
+  const isDark = tone === "dark";
+  const bg = isDark ? dark.bg : colors.paper;
 
   const head = header ? (
     <ContentColumn style={styles.gutter}>
@@ -46,6 +51,7 @@ export function AppScreen({
         description={header.description}
         back={header.back}
         action={header.action}
+        dark={isDark}
       />
     </ContentColumn>
   ) : null;
@@ -70,10 +76,19 @@ export function AppScreen({
     );
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={[styles.root, { backgroundColor: bg, paddingTop: insets.top }]}>
       {inner}
       {footer ? (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + space.x3 }]}>
+        <View
+          style={[
+            styles.footer,
+            {
+              backgroundColor: bg,
+              borderTopColor: isDark ? dark.line : colors.line,
+              paddingBottom: insets.bottom + space.x3,
+            },
+          ]}
+        >
           <ContentColumn style={styles.gutter}>{footer}</ContentColumn>
         </View>
       ) : null}
@@ -82,13 +97,8 @@ export function AppScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.paper },
+  root: { flex: 1 },
   flex: { flex: 1 },
   gutter: { paddingHorizontal: layout.screenGutter },
-  footer: {
-    backgroundColor: colors.paper,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    paddingTop: space.x3,
-  },
+  footer: { borderTopWidth: 1, paddingTop: space.x3 },
 });

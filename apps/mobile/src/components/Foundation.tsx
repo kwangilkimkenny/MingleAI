@@ -13,7 +13,8 @@ import {
 } from "react-native";
 import { AlertCircle, ChevronLeft, X } from "lucide-react-native";
 import { router } from "expo-router";
-import { colors, control, doodle, layout, shadow, space, type } from "../lib/theme";
+import { colors, control, dark, doodle, layout, shadow, space, type } from "../lib/theme";
+import { serifFont } from "../lib/serif";
 import { DoodleButton } from "./Doodle";
 import { DoodleFace } from "./DoodleSvg";
 import { useReducedMotion } from "react-native-reanimated";
@@ -35,11 +36,14 @@ export function PageHeader({
   description,
   back = false,
   action,
+  dark: isDark = false,
 }: {
   title: string;
   description?: string;
   back?: boolean;
   action?: ReactNode;
+  /** 홈 테마 다크 화면용 — 타이틀/뒤로가기/설명을 크림 톤으로. */
+  dark?: boolean;
 }) {
   return (
     <View style={styles.pageHeader}>
@@ -51,14 +55,21 @@ export function PageHeader({
           hitSlop={4}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
         >
-          <ChevronLeft color={colors.ink} size={24} strokeWidth={2.5} />
+          <ChevronLeft color={isDark ? dark.text : colors.ink} size={24} strokeWidth={2.5} />
         </Pressable>
       ) : null}
       <View style={styles.pageHeaderText}>
-        <Text accessibilityRole="header" style={styles.pageTitle}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.pageTitle, isDark && { fontFamily: serifFont, color: dark.heading }]}
+        >
           {title}
         </Text>
-        {description ? <Text style={styles.pageDescription}>{description}</Text> : null}
+        {description ? (
+          <Text style={[styles.pageDescription, isDark && { color: dark.textMuted }]}>
+            {description}
+          </Text>
+        ) : null}
       </View>
       {action ? <View style={styles.pageAction}>{action}</View> : null}
     </View>
@@ -71,31 +82,40 @@ export function LabeledInput({
   error,
   trailing,
   style,
+  dark: isDark = false,
   ...props
 }: TextInputProps & {
   label: string;
   hint?: string;
   error?: string | null;
   trailing?: ReactNode;
+  /** 홈 테마 다크 화면용 폼 필드. */
+  dark?: boolean;
 }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={[styles.inputFrame, props.multiline && styles.inputFrameMultiline]}>
+      <Text style={[styles.fieldLabel, isDark && { color: dark.text }]}>{label}</Text>
+      <View
+        style={[
+          styles.inputFrame,
+          props.multiline && styles.inputFrameMultiline,
+          isDark && { borderColor: dark.border, backgroundColor: dark.fieldBg },
+        ]}
+      >
         <TextInput
           {...props}
           accessibilityLabel={props.accessibilityLabel ?? label}
-          placeholderTextColor={colors.grayMid}
-          style={[styles.input, props.multiline && styles.multilineInput, style]}
+          placeholderTextColor={isDark ? dark.textMuted : colors.grayMid}
+          style={[styles.input, props.multiline && styles.multilineInput, isDark && { color: dark.text }, style]}
         />
         {trailing ? <View style={styles.inputTrailing}>{trailing}</View> : null}
       </View>
       {error ? (
-        <Text accessibilityLiveRegion="assertive" style={styles.fieldError}>
+        <Text accessibilityLiveRegion="assertive" style={[styles.fieldError, isDark && { color: dark.danger }]}>
           {error}
         </Text>
       ) : hint ? (
-        <Text style={styles.fieldHint}>{hint}</Text>
+        <Text style={[styles.fieldHint, isDark && { color: dark.textMuted }]}>{hint}</Text>
       ) : null}
     </View>
   );
@@ -125,15 +145,27 @@ export function IconButton({
 export function InlineNotice({
   children,
   tone = "neutral",
+  dark: isDark = false,
 }: {
   children: ReactNode;
   tone?: "neutral" | "error" | "success";
+  /** 홈 테마 다크 화면용. */
+  dark?: boolean;
 }) {
-  const color = tone === "error" ? colors.danger : tone === "success" ? colors.success : colors.ink;
+  const color =
+    tone === "error"
+      ? isDark
+        ? dark.danger
+        : colors.danger
+      : tone === "success"
+        ? colors.success
+        : isDark
+          ? dark.text
+          : colors.ink;
   return (
     <View
       accessibilityLiveRegion={tone === "error" ? "assertive" : "polite"}
-      style={[styles.notice, { borderColor: color }]}
+      style={[styles.notice, { borderColor: color }, isDark && { backgroundColor: dark.surface }]}
     >
       {tone === "error" ? <AlertCircle color={color} size={18} /> : null}
       <Text style={[styles.noticeText, { color }]}>{children}</Text>
@@ -147,27 +179,35 @@ export function StateView({
   actionLabel,
   onAction,
   loading = false,
+  dark: isDark = false,
 }: {
   title: string;
   body?: string;
   actionLabel?: string;
   onAction?: () => void;
   loading?: boolean;
+  /** 홈 테마 다크 화면용 빈/로딩/에러 상태. */
+  dark?: boolean;
 }) {
   return (
     <View style={styles.state} accessibilityLiveRegion="polite">
       {loading ? (
-        <ActivityIndicator size="large" color={colors.accent} />
+        <ActivityIndicator size="large" color={isDark ? dark.accent : colors.accent} />
       ) : (
         <DoodleFace variant="flat" size={64} />
       )}
-      <Text accessibilityRole="header" style={styles.stateTitle}>
+      <Text accessibilityRole="header" style={[styles.stateTitle, isDark && { color: dark.text }]}>
         {title}
       </Text>
-      {body ? <Text style={styles.stateBody}>{body}</Text> : null}
+      {body ? <Text style={[styles.stateBody, isDark && { color: dark.textMuted }]}>{body}</Text> : null}
       {actionLabel && onAction ? (
         <View style={styles.stateAction}>
-          <DoodleButton title={actionLabel} onPress={onAction} variant="primary" />
+          <DoodleButton
+            title={actionLabel}
+            onPress={onAction}
+            variant="primary"
+            tone={isDark ? "dark" : "light"}
+          />
         </View>
       ) : null}
     </View>

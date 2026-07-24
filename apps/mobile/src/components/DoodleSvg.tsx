@@ -8,7 +8,7 @@ import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Line, Path } from "react-native-svg";
 import { hatchSegments, wobbleRect, type WonkyRadius } from "../lib/doodle-path";
-import { colors, doodle, fonts, shadow as elevation } from "../lib/theme";
+import { colors, dark, doodle, fonts, shadow as elevation } from "../lib/theme";
 
 const PAD = 12; // svg overdraw margin (used by the remaining SVG primitives)
 
@@ -183,28 +183,33 @@ export function DoodleChip({
   on = false,
   tiny = false,
   onPress,
+  dark: isDark = false,
 }: {
   label: string;
   on?: boolean;
   tiny?: boolean;
   onPress?: () => void;
+  /** 홈 테마 다크 화면용 칩. */
+  dark?: boolean;
 }) {
+  const chipBg = isDark
+    ? on
+      ? dark.pill
+      : "transparent"
+    : on
+      ? colors.accentStrong
+      : colors.card;
+  const chipStroke = isDark ? (on ? dark.pill : dark.border) : on ? colors.accentStrong : colors.border;
+  const chipText = isDark ? (on ? dark.onPill : dark.textMuted) : on ? colors.onAccent : colors.ink;
   const chip = (
     <WobbleBox
       radius={doodle.radius.chip}
-      bg={on ? colors.accentStrong : colors.card}
-      stroke={on ? colors.accentStrong : colors.border}
+      bg={chipBg}
+      stroke={chipStroke}
       strokeWidth={1.5}
       contentStyle={[tiny ? styles.chipTiny : styles.chipInner, onPress && styles.chipTouchable]}
     >
-      <Text
-        style={[
-          tiny ? styles.chipTextTiny : styles.chipText,
-          { color: on ? colors.onAccent : colors.ink },
-        ]}
-      >
-        {label}
-      </Text>
+      <Text style={[tiny ? styles.chipTextTiny : styles.chipText, { color: chipText }]}>{label}</Text>
     </WobbleBox>
   );
   return onPress ? (

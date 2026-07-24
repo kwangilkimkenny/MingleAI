@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import { socialLogin, devLogin, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
 import { startSocialOAuth, socialClientAvailable, type SocialProvider } from "../src/lib/social-auth";
-import { PillButton } from "../src/components/MasterpieceHero";
-import { InlineNotice, LabeledInput } from "../src/components/Foundation";
+import { LabeledInput } from "../src/components/Foundation";
 import { DoodleButton } from "../src/components/Doodle";
-import { fonts, masterpiece } from "../src/lib/theme";
+import { dark, fonts } from "../src/lib/theme";
 import { serifFont } from "../src/lib/serif";
 
 const MAN = require("../assets/images/renaissance-man-cutout.png");
@@ -75,14 +74,14 @@ export default function Login() {
 
   return (
     <View style={styles.root}>
-      {/* halftone dot field */}
+      {/* subtle light halftone on the dark ground */}
       <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
         <Defs>
-          <Pattern id="login-dots" width={9} height={9} patternUnits="userSpaceOnUse">
-            <Circle cx={1.4} cy={1.4} r={1.15} fill={masterpiece.dot} />
+          <Pattern id="login-dots" width={10} height={10} patternUnits="userSpaceOnUse">
+            <Circle cx={1.5} cy={1.5} r={1.1} fill="rgba(251,244,236,0.06)" />
           </Pattern>
         </Defs>
-        <Rect width="100%" height="100%" fill="url(#login-dots)" opacity={0.5} />
+        <Rect width="100%" height="100%" fill="url(#login-dots)" />
       </Svg>
 
       {/* man top-left, woman bottom-right (mirrored) — same composition as home */}
@@ -100,7 +99,6 @@ export default function Login() {
         ]}
       />
 
-      {/* login centered */}
       <ScrollView
         contentContainerStyle={[styles.center, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
@@ -112,20 +110,24 @@ export default function Login() {
         </View>
 
         <View style={styles.card}>
-          {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
           {available.length === 0 ? (
-            <InlineNotice tone="neutral">
+            <Text style={styles.notice}>
               소셜 로그인이 아직 설정되지 않았어요. EXPO_PUBLIC_*_CLIENT_ID를 설정하거나 아래 dev 로그인을 사용하세요.
-            </InlineNotice>
+            </Text>
           ) : (
             <View style={styles.pills}>
               {available.map((p) => (
-                <PillButton
+                <Pressable
                   key={p.key}
-                  title={busy === p.key ? "연결 중…" : p.label}
+                  accessibilityRole="button"
+                  accessibilityLabel={p.label}
                   onPress={() => (busy === null ? onSocial(p.key) : undefined)}
-                />
+                  style={({ pressed }) => [styles.pill, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={styles.pillText}>{busy === p.key ? "연결 중…" : p.label}</Text>
+                </Pressable>
               ))}
             </View>
           )}
@@ -155,7 +157,7 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: masterpiece.cream },
+  root: { flex: 1, backgroundColor: dark.bg },
   fig: { position: "absolute" },
   figFlip: { position: "absolute", transform: [{ scaleX: -1 }] },
   center: {
@@ -166,48 +168,54 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   brandBlock: { alignItems: "center" },
-  card: {
-    width: "100%",
-    maxWidth: 340,
-    gap: 12,
-    padding: 22,
-    borderRadius: 24,
-    backgroundColor: "rgba(244,241,234,0.92)",
-    borderWidth: 1,
-    borderColor: masterpiece.pillGhostBorder,
-    shadowColor: "#221D18",
-    shadowOpacity: 0.16,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
-  },
   eyebrow: {
     fontFamily: fonts.bodySemibold,
     fontSize: 11,
     letterSpacing: 1.4,
-    color: "rgba(255,247,240,0.9)",
+    color: dark.label,
     textAlign: "center",
-    textShadowColor: "rgba(20,12,8,0.6)",
+    textShadowColor: "rgba(10,6,4,0.6)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
   },
   brand: {
     fontFamily: serifFont,
     fontSize: 46,
-    color: "#FFF7F0",
+    color: dark.text,
     textAlign: "center",
     marginTop: 2,
-    textShadowColor: "rgba(20,12,8,0.5)",
+    textShadowColor: "rgba(10,6,4,0.5)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 14,
   },
+  card: {
+    width: "100%",
+    maxWidth: 340,
+    gap: 12,
+    padding: 22,
+    borderRadius: 24,
+    backgroundColor: "rgba(36,28,21,0.86)",
+    borderWidth: 1,
+    borderColor: dark.border,
+  },
+  error: { fontFamily: fonts.body, fontSize: 13, color: dark.danger, lineHeight: 19 },
+  notice: { fontFamily: fonts.body, fontSize: 13, color: dark.textMuted, lineHeight: 20 },
   pills: { gap: 10 },
+  pill: {
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 50,
+    backgroundColor: dark.pill,
+  },
+  pillText: { fontFamily: fonts.bodySemibold, fontSize: 14, color: dark.onPill },
   devBox: {
     gap: 8,
     marginTop: 8,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: masterpiece.pillGhostBorder,
+    borderTopColor: dark.line,
   },
-  devLabel: { fontFamily: fonts.bodySemibold, fontSize: 15, color: masterpiece.inkSoft },
+  devLabel: { fontFamily: fonts.bodySemibold, fontSize: 15, color: dark.textMuted },
 });

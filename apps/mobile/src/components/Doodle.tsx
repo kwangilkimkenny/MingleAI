@@ -17,7 +17,7 @@ import {
   type StyleProp,
 } from "react-native";
 import { WobbleBox } from "./DoodleSvg";
-import { colors, control, doodle, fonts } from "../lib/theme";
+import { colors, control, dark, doodle, fonts } from "../lib/theme";
 
 type WonkyRadius = {
   borderTopLeftRadius: number;
@@ -60,6 +60,7 @@ export function DoodleButton({
   icon,
   style,
   serious = false,
+  tone = "light",
 }: {
   title: string;
   onPress?: () => void;
@@ -73,29 +74,64 @@ export function DoodleButton({
   style?: StyleProp<ViewStyle>;
   /** Use the UI sans for consent, safety, and irreversible decisions. */
   serious?: boolean;
+  /** "dark" = 홈 테마 화면 — primary = cream pill, secondary = dark surface + light outline. */
+  tone?: "light" | "dark";
 }) {
   const primary = variant === "primary";
   const danger = variant === "danger";
   const dangerSolid = variant === "dangerSolid";
   const off = disabled || busy;
-  // Line-art button. Primary = accentStrong fill + white label (AA-safe; the bright accent fails
-  // white-text contrast). Secondary = white card + thin outline. Destructive = cool crimson.
+  const isDark = tone === "dark";
+  // Line-art (light) button: primary = accentStrong fill + white label. Dark (홈 테마) button:
+  // primary = cream pill + dark label; secondary = dark surface + light outline.
   const bg = off
-    ? colors.fill
+    ? isDark
+      ? dark.surfaceHi
+      : colors.fill
     : dangerSolid
-      ? colors.danger
+      ? danger || dangerSolid
+        ? isDark
+          ? dark.danger
+          : colors.danger
+        : colors.danger
       : primary
-        ? colors.accentStrong
-        : colors.card;
+        ? isDark
+          ? dark.pill
+          : colors.accentStrong
+        : isDark
+          ? "transparent"
+          : colors.card;
   const fg = off
-    ? colors.grayMid
+    ? isDark
+      ? dark.textMuted
+      : colors.grayMid
     : danger
-      ? colors.danger
-      : primary || dangerSolid
-        ? colors.onAccent
-        : colors.ink;
+      ? isDark
+        ? dark.danger
+        : colors.danger
+      : dangerSolid
+        ? isDark
+          ? dark.onDanger
+          : colors.onAccent
+        : primary
+          ? isDark
+            ? dark.onPill
+            : colors.onAccent
+          : isDark
+            ? dark.text
+            : colors.ink;
   const stroke =
-    danger || dangerSolid ? colors.danger : primary ? colors.accentStrong : colors.border;
+    danger || dangerSolid
+      ? isDark
+        ? dark.danger
+        : colors.danger
+      : primary
+        ? isDark
+          ? dark.pill
+          : colors.accentStrong
+        : isDark
+          ? dark.border
+          : colors.border;
   return (
     <Pressable
       accessibilityRole="button"
@@ -136,23 +172,19 @@ export function DoodleCard({
   contentStyle,
 }: {
   children: ReactNode;
-  tone?: "paper" | "fill";
+  tone?: "paper" | "fill" | "dark";
   /** Reserve the hard sticker shadow for interactive or hero surfaces. */
   elevated?: boolean;
   rotate?: string;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 }) {
-  const bg = tone === "fill" ? colors.fill : colors.card;
+  const bg = tone === "dark" ? dark.surface : tone === "fill" ? colors.fill : colors.card;
+  const cardStroke =
+    tone === "dark" ? dark.border : tone === "fill" ? colors.fillDeep : colors.border;
   if (!elevated) {
     return (
-      <WobbleBox
-        radius={doodle.radius.card}
-        bg={bg}
-        stroke={tone === "fill" ? colors.fillDeep : colors.border}
-        rotate={rotate}
-        style={style}
-      >
+      <WobbleBox radius={doodle.radius.card} bg={bg} stroke={cardStroke} rotate={rotate} style={style}>
         <View style={[styles.cardInner, contentStyle]}>{children}</View>
       </WobbleBox>
     );

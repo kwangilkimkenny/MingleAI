@@ -94,6 +94,30 @@ export const masterpiece = {
   pillGhostBorder: "#CABFA9", // outline pill border
 } as const;
 
+/**
+ * Dark editorial (홈 테마) — warm near-black cinematic ground with cream serif copy, faded-gold
+ * labels, and a cream pill CTA. Applied to brand / entry / gate / flow / immersive screens
+ * (home·login·onboarding·gate·speed-date). List/data screens stay LIGHT (line-art `colors`) for
+ * readability — 사용자 방침 "다크 무드 유지, 리스트만 밝게" (2026-07-24).
+ */
+export const dark = {
+  bg: "#1A120C", // warm near-black page ground
+  surface: "#241C15", // dark card/sheet surface
+  surfaceHi: "#2E251C", // raised surface / input fill hint
+  text: "#FBF4EC", // cream body text
+  textMuted: "rgba(251,244,236,0.6)", // muted cream
+  heading: "#FBF4EC", // serif heading (cream)
+  label: "#CBB58F", // faded gold — eyebrow / label
+  border: "rgba(251,244,236,0.16)", // subtle light hairline on dark
+  line: "rgba(251,244,236,0.1)", // divider on dark
+  fieldBg: "rgba(251,244,236,0.06)", // input fill on dark
+  pill: "#F4F1EA", // cream pill CTA (primary on dark)
+  onPill: "#221D18", // dark text on the cream pill
+  accent: "#E9C9A0", // warm gold — active / small accent on dark
+  danger: "#FF7A6E", // brighter red for legibility on dark
+  onDanger: "#221109",
+} as const;
+
 export const layout = {
   screenGutter: 20,
   contentMax: 560,
