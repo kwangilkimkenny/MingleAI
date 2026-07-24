@@ -114,7 +114,6 @@ export function ProposalsPopup({ visible, onClose }: { visible: boolean; onClose
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="프로포즈 닫기" />
       <View style={styles.root} pointerEvents="box-none">
         <View style={[styles.sheet, { paddingBottom: insets.bottom + space.x4 }]}>
-          <View style={styles.handle} />
           <View style={styles.header}>
             <Text accessibilityRole="header" style={styles.headerTitle}>
               프로포즈
@@ -278,14 +277,6 @@ const styles = StyleSheet.create({
     borderTopColor: dark.border,
     paddingHorizontal: space.x4,
     paddingTop: space.x2,
-  },
-  handle: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: dark.border,
-    marginBottom: space.x2,
   },
   header: {
     flexDirection: "row",

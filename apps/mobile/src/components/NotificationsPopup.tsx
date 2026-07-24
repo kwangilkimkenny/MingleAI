@@ -1,21 +1,14 @@
 /**
- * NotificationsPopup — 알림 페이지((app)/(tabs)/notifications.tsx)의 데이터·로직을 그대로
- * 옮긴 투명 다크 바텀 시트 팝업. 홈 우상단 벨 아이콘에서 연다(배선은 홈 화면 소유).
- * 페이지와 동일하게 알림 리스트·읽음/mark-all·푸시 토글 Switch·빈/로딩/에러 상태를 다룬다.
- * 다크 톤(dark 토큰)·명조 헤더(serifFont)로 홈 테마와 결을 맞춘다.
+ * NotificationsPopup — 운영팀(어드민) 공지 피드. 홈 우상단 벨 아이콘에서 여는 투명 다크 바텀
+ * 시트 팝업. 공지 리스트(읽음 처리)·빈/로딩/에러만 — 타이틀·mark-all·푸시 토글·핸들바는 없다
+ * (프로포즈/대화 알림 용도가 아님). 탭하면 해당 딥링크로 이동 후 닫힌다.
  */
 import { useCallback, useEffect, useState } from "react";
-import { View, FlatList, Platform, Pressable, Switch, StyleSheet, Modal } from "react-native";
+import { View, FlatList, Pressable, StyleSheet, Modal } from "react-native";
 import { router } from "expo-router";
 import { X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  getNotifications,
-  getPushEnabled,
-  markNotificationRead,
-  setPushEnabled,
-  type AppNotification,
-} from "@mingle/client-core";
+import { getNotifications, markNotificationRead, type AppNotification } from "@mingle/client-core";
 import { routeForNotification, type NotificationData } from "../lib/route-for-notification";
 import { EnterRow } from "./Motion";
 import { ListRow, RowSeparator } from "./ListRow";
@@ -34,16 +27,14 @@ export function NotificationsPopup({
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
-  const [pushOn, setPushOn] = useState(true);
 
   const load = useCallback(() => {
     let alive = true;
     setPhase("loading");
-    Promise.all([getNotifications(50, 0), getPushEnabled()])
-      .then(([res, push]) => {
+    getNotifications(50, 0)
+      .then((res) => {
         if (alive) {
           setItems(res.notifications);
-          setPushOn(push.pushEnabled);
           setPhase("ready");
         }
       })
@@ -75,11 +66,6 @@ export function NotificationsPopup({
     onClose();
   }
 
-  async function onTogglePush(v: boolean) {
-    setPushOn(v);
-    setPushEnabled(v).catch(() => setPushOn(!v));
-  }
-
   return (
     <Modal
       transparent
@@ -91,7 +77,6 @@ export function NotificationsPopup({
       <View style={styles.root} accessibilityViewIsModal>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="알림 닫기" />
         <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, space.x4) }]}>
-          <View style={styles.handle} />
           <View style={styles.header}>
             <Pressable
               onPress={onClose}
@@ -119,41 +104,12 @@ export function NotificationsPopup({
             </View>
           ) : (
             <View style={styles.content}>
-              {/* 푸시 알림 토글 — 리스트 위 고정 설정 행. */}
-              <ListRow
-                title="푸시 알림"
-                dark
-                gutter={space.x5}
-                trailing={
-                  <Switch
-                    value={pushOn}
-                    onValueChange={onTogglePush}
-                    accessibilityLabel="푸시 알림"
-                    accessibilityState={{ checked: pushOn }}
-                    trackColor={{ false: dark.line, true: dark.accent }}
-                    thumbColor={dark.text}
-                    ios_backgroundColor={dark.line}
-                    // RN Web은 trackColor 객체를 무시하고 자체 기본 그린을 쓴다 — 웹 전용 prop으로 교정.
-                    {...(Platform.OS === "web"
-                      ? ({ activeTrackColor: dark.accent, activeThumbColor: dark.text } as object)
-                      : {})}
-                  />
-                }
-              />
-              <RowSeparator gutter={0} dark />
               <FlatList
                 style={styles.list}
                 data={items}
                 keyExtractor={(n) => n.id}
                 contentContainerStyle={styles.listContent}
                 ItemSeparatorComponent={ListSep}
-                ListEmptyComponent={
-                  <StateView
-                    dark
-                    title="아직 알림이 없어요"
-                    body="새로운 프로포즈나 대화 소식이 오면 여기에 알려드릴게요."
-                  />
-                }
                 renderItem={({ item, index }) => (
                   <EnterRow index={index}>
                     <View style={!item.read ? styles.unreadRow : undefined}>
@@ -194,21 +150,13 @@ const styles = StyleSheet.create({
     borderTopColor: dark.border,
     overflow: "hidden",
   },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: dark.border,
-    alignSelf: "center",
-    marginTop: space.x2,
-    marginBottom: space.x1,
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
     paddingHorizontal: space.x5,
-    paddingVertical: space.x2,
+    paddingTop: space.x3,
+    paddingBottom: space.x2,
   },
   pressed: { opacity: 0.6 },
   // 컨텐츠 영역이 패널 maxHeight 안에서 줄어들 수 있어야 FlatList가 스크롤된다.
