@@ -1,31 +1,24 @@
 import { useCallback, useRef, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Bell, Heart } from "lucide-react-native";
-import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { getReceivedProposals, getUnreadCount } from "@mingle/client-core";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { colors, fonts, masterpiece } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
 
-const MAN = require("../../../assets/images/renaissance-man-cutout.png");
-const WOMAN = require("../../../assets/images/renaissance-woman-cutout.png");
+const SCENE = require("../../../assets/images/renaissance-modern-cafe-date.png");
 
 /**
- * Home — full-bleed masterpiece composition. Two Renaissance cutouts reach across the screen
- * (man top-left, woman mirrored bottom-right) and a central MATCH button connects them. Cream
- * paper + halftone dots; the line-art system stays on the functional screens. Proposals /
- * notifications live as small top-right affordances (the old "최근" list is gone).
+ * Home — a single cinematic scene (Renaissance couple on a modern coffee date = the concept made
+ * literal: 로테이션 블라인드 소개팅으로 만나 알아간 두 사람). Full-bleed image + bottom scrim, a
+ * serif concept line and the MATCH CTA over it; proposals / notifications as light top-right icons.
  */
 export default function Home() {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
-  const { width: W, height: H } = useWindowDimensions();
-  // Both figures placed with an explicit top (bottom-anchoring mis-resolves on RN Web here).
-  const figW = W * 0.62;
-  const manH = figW * (1405 / 1024);
-  const womanH = figW * (1400 / 1024);
   const [pending, setPending] = useState(0);
   const [unread, setUnread] = useState(0);
   const navigatingRef = useRef(false);
@@ -58,51 +51,38 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      {/* halftone dot field */}
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+      <Image source={SCENE} resizeMode="cover" style={StyleSheet.absoluteFill} />
+
+      {/* bottom scrim for legible light copy */}
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
         <Defs>
-          <Pattern id="home-dots" width={9} height={9} patternUnits="userSpaceOnUse">
-            <Circle cx={1.4} cy={1.4} r={1.15} fill={masterpiece.dot} />
-          </Pattern>
+          <LinearGradient id="home-scrim" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#1A120C" stopOpacity={0} />
+            <Stop offset="0.55" stopColor="#1A120C" stopOpacity={0} />
+            <Stop offset="1" stopColor="#1A120C" stopOpacity={0.82} />
+          </LinearGradient>
         </Defs>
-        <Rect width="100%" height="100%" fill="url(#home-dots)" opacity={0.5} />
+        <Rect width="100%" height="100%" fill="url(#home-scrim)" />
       </Svg>
 
-      {/* man — top-left, bleeding off the left edge */}
-      <Image
-        source={MAN}
-        resizeMode="contain"
-        style={[styles.fig, { width: figW, height: manH, left: -18, top: insets.top - 6 }]}
-      />
-
-      {/* woman — bottom-right, mirrored so she faces in */}
-      <Image
-        source={WOMAN}
-        resizeMode="contain"
-        style={[
-          styles.figFlip,
-          { width: figW, height: womanH, right: -18, top: H - clearance - womanH + 34 },
-        ]}
-      />
-
-      {/* top-right: proposals + notifications (old 최근 entries preserved) */}
+      {/* top-right: proposals + notifications */}
       <View style={[styles.topbar, { top: insets.top + 6 }]}>
-        <IconDot icon={<Heart color={colors.ink} size={20} strokeWidth={1.9} />} n={pending} label="프로포즈" onPress={() => router.push("/proposals")} />
-        <IconDot icon={<Bell color={colors.ink} size={20} strokeWidth={1.9} />} n={unread} label="알림" onPress={() => router.push("/notifications")} />
+        <IconDot icon={<Heart color="#FFF" size={20} strokeWidth={2} />} n={pending} label="프로포즈" onPress={() => router.push("/proposals")} />
+        <IconDot icon={<Bell color="#FFF" size={20} strokeWidth={2} />} n={unread} label="알림" onPress={() => router.push("/notifications")} />
       </View>
 
-      {/* center MATCH button connecting the two figures */}
-      <View style={styles.center} pointerEvents="box-none">
+      {/* bottom: concept line + MATCH */}
+      <View style={[styles.bottom, { paddingBottom: clearance + 8 }]}>
+        <Text style={styles.eyebrow}>로테이션 블라인드 소개팅</Text>
+        <Text style={styles.headline}>얼굴보다{"\n"}대화가 먼저</Text>
         <Pressable
           onPress={onMatch}
           accessibilityRole="button"
           accessibilityLabel="블라인드 데이트 매칭 시작"
-          style={({ pressed }) => [styles.matchRing, pressed && { transform: [{ scale: 0.96 }] }]}
+          style={({ pressed }) => [styles.match, pressed && { opacity: 0.9 }]}
         >
-          <View style={styles.match}>
-            <Text style={styles.matchText}>MATCH</Text>
-            <Text style={styles.matchSub}>로테이션 소개팅</Text>
-          </View>
+          <Text style={styles.matchText}>MATCH</Text>
+          <Text style={styles.matchSub}>로테이션 소개팅 시작</Text>
         </Pressable>
       </View>
     </View>
@@ -138,17 +118,15 @@ function IconDot({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: masterpiece.cream, overflow: "hidden" },
-  fig: { position: "absolute" },
-  figFlip: { position: "absolute", transform: [{ scaleX: -1 }] },
+  root: { flex: 1, backgroundColor: "#1A120C" },
   topbar: { position: "absolute", right: 16, flexDirection: "row", gap: 10, zIndex: 5 },
   iconDot: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: masterpiece.cream,
+    backgroundColor: "rgba(20,15,10,0.32)",
     borderWidth: 1,
-    borderColor: masterpiece.pillGhostBorder,
+    borderColor: "rgba(255,255,255,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -165,42 +143,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   badgeText: { fontFamily: fonts.bodySemibold, fontSize: 10, lineHeight: 13, color: colors.onAccent },
-  center: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
+  bottom: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 24, gap: 4 },
+  eyebrow: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    color: "rgba(255,247,240,0.75)",
+    marginBottom: 4,
   },
-  matchRing: {
-    width: 148,
-    height: 148,
-    borderRadius: 74,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(244,241,234,0.55)",
-    shadowColor: "#221D18",
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
+  headline: {
+    fontFamily: serifFont,
+    fontSize: 34,
+    lineHeight: 42,
+    letterSpacing: -0.4,
+    color: "#FFF7F0",
   },
   match: {
-    width: 124,
-    height: 124,
-    borderRadius: 62,
-    backgroundColor: masterpiece.inkDeep,
+    marginTop: 16,
+    alignSelf: "flex-start",
+    minWidth: 200,
+    borderRadius: 999,
+    paddingVertical: 13,
+    paddingHorizontal: 26,
+    backgroundColor: masterpiece.cream,
     alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
+    gap: 1,
   },
-  matchText: {
-    fontFamily: serifFont,
-    fontSize: 26,
-    letterSpacing: 2,
-    color: masterpiece.onPill,
-  },
-  matchSub: { fontFamily: fonts.body, fontSize: 10, letterSpacing: 0.5, color: "rgba(244,241,234,0.72)" },
+  matchText: { fontFamily: serifFont, fontSize: 20, letterSpacing: 1.5, color: masterpiece.inkDeep },
+  matchSub: { fontFamily: fonts.body, fontSize: 10, letterSpacing: 0.3, color: masterpiece.inkSoft },
 });
