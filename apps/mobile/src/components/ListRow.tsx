@@ -15,6 +15,7 @@ export function ListRow({
   trailing,
   onPress,
   accessibilityLabel,
+  gutter = layout.screenGutter,
 }: {
   leading?: ReactNode;
   title: string;
@@ -22,6 +23,8 @@ export function ListRow({
   trailing?: ReactNode;
   onPress?: () => void;
   accessibilityLabel?: string;
+  /** Horizontal inset. Default = screen gutter (full-bleed lists); pass 0 inside a card. */
+  gutter?: number;
 }) {
   const body = (
     <>
@@ -40,21 +43,22 @@ export function ListRow({
         (onPress ? <ChevronRight color={colors.grayMid} size={20} strokeWidth={1.75} /> : null)}
     </>
   );
-  if (!onPress) return <View style={styles.row}>{body}</View>;
+  const rowStyle = [styles.row, { paddingHorizontal: gutter }];
+  if (!onPress) return <View style={rowStyle}>{body}</View>;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      style={({ pressed }) => [rowStyle, pressed && styles.pressed]}
     >
       {body}
     </Pressable>
   );
 }
 
-export function RowSeparator() {
-  return <View style={styles.sep} />;
+export function RowSeparator({ gutter = layout.screenGutter }: { gutter?: number }) {
+  return <View style={[styles.sep, { marginLeft: gutter }]} />;
 }
 
 const styles = StyleSheet.create({
@@ -64,12 +68,11 @@ const styles = StyleSheet.create({
     gap: space.x3,
     minHeight: 60,
     paddingVertical: space.x3,
-    paddingHorizontal: layout.screenGutter,
   },
   pressed: { opacity: 0.65 },
   leading: { width: control.minTouch, alignItems: "center" },
   text: { flex: 1, minWidth: 0 },
   title: { ...type.body, color: colors.ink },
   subtitle: { ...type.caption, color: colors.grayMid, marginTop: 2 },
-  sep: { height: 1, backgroundColor: colors.line, marginLeft: layout.screenGutter },
+  sep: { height: 1, backgroundColor: colors.line },
 });
