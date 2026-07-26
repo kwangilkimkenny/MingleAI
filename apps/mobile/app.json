@@ -18,7 +18,10 @@
     },
     "android": {
       "package": "com.mingleai.app",
-      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#1A120C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -62,6 +65,21 @@
         {
           "cameraPermission": "블라인드 데이트 마지막 단계의 얼굴 공개 영상 통화를 위해 카메라 접근이 필요해요.",
           "microphonePermission": "블라인드 데이트 음성 대화를 위해 마이크 접근이 필요해요."
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": ["https://repository.map.naver.com/archive/maven"]
+          }
+        }
+      ],
+      [
+        "@mj-studio/react-native-naver-map",
+        {
+          "client_id": ""
         }
       ]
     ],
