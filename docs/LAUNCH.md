@@ -38,4 +38,4 @@
 - **네이티브 가면 라운드(1라운드) = 음소거**: RN에 Web Audio가 없어 실변조 불가 → 원음 유출 대신 음소거로 가면 약속 유지(웹은 실변조). Phase E(네이티브 DSP 스파이크)가 해소 예정.
 - 단일 서버 인스턴스 전제(매칭 sweep·게이트웨이 인메모리 상태) — 스케일아웃 전 redis-adapter 필요.
 - 파티 게임("AI를 찾아라")은 의도적 비활성(`FEATURES.partyGame=false`) — 블라인드 데이트가 메인.
-- 네이버 지도는 네이티브 빌드+`EXPO_PUBLIC_NAVER_MAP_KEY` 필요(웹 프리뷰는 OSM 대체 지도).
+- 네이버 지도는 네이티브 빌드 필요(웹 프리뷰는 OSM 대체 지도). **실지도 인증 키 = NCP 콘솔의 Maps Key ID를 `apps/mobile/app.json`의 `@mj-studio/react-native-naver-map` plugin `client_id`에 입력 후 재빌드**(현재 빈 값 — 빌드는 되고 지도 인증만 대기).
