@@ -21,7 +21,7 @@
 1. **EAS 계정 연결**: `npx eas-cli login` → `cd apps/mobile && npx eas-cli init` (projectId 발급 — push 알림에도 필수).
 2. **개발자 계정**: Apple Developer Program($99/년), Google Play Console($25 1회).
 3. **EAS dev build + 실기기 E2E**: `npx eas-cli build --profile development --platform ios`(및 android) → 실기기 2대로 런북 `docs/qa/2026-07-22-blind-speed-date-runbook.md` §4-3·§7 절차(네이티브 카메라/음성 첫 실검증 지점).
-4. **소셜 로그인 실키**: 카카오·네이버·구글 개발자 콘솔에서 앱 생성 + redirect URI 등록 → backend `KAKAO/NAVER/GOOGLE_CLIENT_ID/SECRET`, 모바일 `EXPO_PUBLIC_*_CLIENT_ID`.
+4. **소셜 로그인 실키**(상세 절차 = `docs/SOCIAL-LOGIN.md` — 콘솔 입력값·redirect URI·리스크 포함): 카카오·네이버·구글 개발자 콘솔에서 앱 생성 + redirect URI 등록 → backend `KAKAO/NAVER/GOOGLE_CLIENT_ID/SECRET`, 모바일 `EXPO_PUBLIC_*_CLIENT_ID`.
 5. **본인인증 실계약**: PASS/포트원 등 본인확인 서비스 계약 → `auth/identity` 어댑터 seam에 실装(현재 `IDENTITY_DEV_BYPASS` 스텁). **데이팅 앱 특성상 심사·법무 관점 필수.**
 6. **인프라**:
    - backend 호스팅 + Postgres + Redis(다중 인스턴스 시 socket.io redis-adapter 작업 필요 — 현재 단일 인스턴스 전제)
