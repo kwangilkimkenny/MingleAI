@@ -39,8 +39,20 @@ export async function requestLocation(): Promise<{ status: LocationPermission; c
   try {
     const { status } = await L.requestForegroundPermissionsAsync();
     if (status !== "granted") return { status: normalize(status) };
-    const pos = await L.getCurrentPositionAsync({});
-    return { status: "granted", coords: { lat: pos.coords.latitude, lng: pos.coords.longitude } };
+    try {
+      const pos = await L.getCurrentPositionAsync({});
+      return { status: "granted", coords: { lat: pos.coords.latitude, lng: pos.coords.longitude } };
+    } catch {
+      // 프로바이더가 아직 fix를 못 잡은 경우(에뮬레이터·실내) — 마지막 알려진 위치로 폴백.
+      const last = await L.getLastKnownPositionAsync({});
+      if (last) {
+        return {
+          status: "granted",
+          coords: { lat: last.coords.latitude, lng: last.coords.longitude },
+        };
+      }
+      return { status: "granted" };
+    }
   } catch {
     return { status: "undetermined" };
   }
