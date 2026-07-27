@@ -12,10 +12,20 @@ export type NaverPlace = {
   mapy: string;
 };
 
-/** Nearby restaurants for the 네이버 예약 tab. `configured=false` when the Naver key is unset. */
+/** Nearby restaurants for the 예약 tab. `configured=false` when the Naver key is unset.
+ *  Pass coords to bias results to the user's neighborhood (server reverse-geocodes the area). */
 export function getNearbyPlaces(
   query?: string,
-): Promise<{ configured: boolean; places: NaverPlace[] }> {
-  const q = query ? `?query=${encodeURIComponent(query)}` : "";
-  return apiFetch<{ configured: boolean; places: NaverPlace[] }>(`/places/nearby${q}`);
+  coords?: { lat: number; lng: number },
+): Promise<{ configured: boolean; area: string | null; places: NaverPlace[] }> {
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  if (coords) {
+    params.set("lat", String(coords.lat));
+    params.set("lng", String(coords.lng));
+  }
+  const q = params.toString();
+  return apiFetch<{ configured: boolean; area: string | null; places: NaverPlace[] }>(
+    `/places/nearby${q ? `?${q}` : ""}`,
+  );
 }

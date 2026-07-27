@@ -31,6 +31,34 @@ export class NaverSearchService {
     return this.creds() !== null;
   }
 
+  /** 좌표 → 동네 이름(구·동). 키 없는 OSM Nominatim — 소수 2자리(±1km) 캐시로 호출을 아낀다.
+   *  네이버 로컬 검색은 좌표 파라미터가 없어서, 지역어를 query에 붙여야 '내 주변' 결과가 된다. */
+  private readonly areaCache = new Map<string, string | null>();
+
+  async reverseArea(lat: number, lng: number): Promise<string | null> {
+    const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+    if (this.areaCache.has(key)) return this.areaCache.get(key) ?? null;
+    let area: string | null = null;
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=14&accept-language=ko`,
+        { headers: { "User-Agent": "mingles/1.0 (date-place search)" } },
+      );
+      if (res.ok) {
+        const data = (await res.json()) as {
+          address?: Record<string, string | undefined>;
+        };
+        const a = data.address ?? {};
+        area =
+          a.quarter ?? a.suburb ?? a.borough ?? a.city_district ?? a.county ?? a.city ?? null;
+      }
+    } catch (e) {
+      this.log.warn(`reverse geocode failed: ${(e as Error).message}`);
+    }
+    this.areaCache.set(key, area);
+    return area;
+  }
+
   async searchLocal(query: string, display = 10): Promise<NaverPlace[]> {
     const creds = this.creds();
     if (!creds) throw new ServiceUnavailableException("네이버 검색이 설정되지 않았습니다");

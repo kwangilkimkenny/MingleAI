@@ -64,8 +64,14 @@ export async function getCurrentCoords(): Promise<Coords | null> {
   try {
     const perm = await L.getForegroundPermissionsAsync();
     if (perm.status !== "granted") return null;
-    const pos = await L.getCurrentPositionAsync({});
-    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    try {
+      const pos = await L.getCurrentPositionAsync({});
+      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    } catch {
+      // 첫 fix 전(실내·에뮬레이터) — 마지막 알려진 위치로 폴백.
+      const last = await L.getLastKnownPositionAsync({});
+      return last ? { lat: last.coords.latitude, lng: last.coords.longitude } : null;
+    }
   } catch {
     return null;
   }
