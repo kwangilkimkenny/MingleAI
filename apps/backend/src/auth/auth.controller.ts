@@ -6,9 +6,13 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Param,
   Post,
+  Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { ConfigService } from "@nestjs/config";
@@ -41,6 +45,31 @@ export class AuthController {
   @Get("social/providers")
   socialProviders() {
     return { providers: this.social.configuredProviders() };
+  }
+
+  /**
+   * OAuth redirect bounce. Kakao/Naver/Google consoles only accept http(s) redirect URIs (no
+   * custom schemes), so the provider redirects HERE and this route bounces the query straight
+   * into the app's deep link. Only whitelisted OAuth params are forwarded and the target scheme
+   * is a fixed constant — no open-redirect surface.
+   */
+  @Get("callback/:provider")
+  oauthCallback(
+    @Param("provider") provider: string,
+    @Query("code") code?: string,
+    @Query("state") state?: string,
+    @Query("error") error?: string,
+    @Query("error_description") errorDescription?: string,
+    @Res() res?: Response,
+  ) {
+    if (!["kakao", "naver", "google"].includes(provider)) throw new NotFoundException();
+    const params = new URLSearchParams();
+    if (code) params.set("code", code);
+    if (state) params.set("state", state);
+    if (error) params.set("error", error);
+    if (errorDescription) params.set("error_description", errorDescription);
+    params.set("provider", provider);
+    res!.redirect(302, `mingleai://auth?${params.toString()}`);
   }
 
   @Throttle({ default: { ttl: 60000, limit: 20 } })

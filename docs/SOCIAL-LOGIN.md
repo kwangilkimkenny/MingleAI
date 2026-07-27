@@ -3,13 +3,15 @@
 코드 배선은 **완료** 상태다. 남은 것은 각 개발자 콘솔에서 앱 등록 + 키 발급(계정 소유자만 가능).
 키를 env에 넣는 순간 로그인 버튼이 활성화된다(미설정 provider는 자동 숨김/비활성).
 
-## 현재 배선 (참고)
+## 현재 배선 (2026-07-27 콜백 방식 — 카카오가 커스텀 스킴 400 거부해 전환)
 
-- 모바일: `src/lib/social-auth.ts` — expo-auth-session 웹 OAuth. authorize URL로 브라우저 열고
-  **redirect = `mingleai://auth`** (app.json `scheme`)로 code 수신 → `POST /auth/social`.
+- 모바일: `src/lib/social-auth.ts` — authorize URL을 브라우저로 열고 **redirect_uri =
+  `${API_URL}/auth/callback/<provider>`**(콘솔은 http/https만 허용). 백엔드 콜백이
+  `mingleai://auth?code=…`로 302 반사 → 앱이 딥링크로 code 수신 → `POST /auth/social`.
   PKCE(카카오·구글)·state(네이버) 자동 처리.
-- 백엔드: `auth/social/social.provider.ts` — code→token 교환(카카오 kauth / 네이버 nid / 구글 oauth2)
-  후 프로필 조회 → `(authProvider, providerId)` 계정 upsert. 미설정 provider = 501.
+- 백엔드: `GET /auth/callback/:provider`(auth.controller — 화이트리스트 파라미터만 고정 스킴으로
+  반사) + `auth/social/social.provider.ts` code→token 교환 → `(authProvider, providerId)` upsert.
+  **email·닉네임 등 프로필 스코프는 전부 optional** — 동의항목 0개로 동작(최소 수집).
 
 ## 콘솔에 입력할 공통 값
 
@@ -17,21 +19,17 @@
 |---|---|
 | Android 패키지명 | `com.mingleai.app` |
 | iOS 번들 ID | `com.mingleai.app` |
-| 모바일 Redirect/Callback URI | `mingleai://auth` |
+| Redirect/Callback URI (dev) | `http://localhost:3000/auth/callback/<provider>` |
+| Redirect/Callback URI (prod) | `https://api.<도메인>/auth/callback/<provider>` (도메인 확정 시 추가) |
 
-## 1. 카카오 (developers.kakao.com)
+## 1. 카카오 — ✅ 완료 (2026-07-27, 앱 ID 1525003 "mingles")
 
-1. 내 애플리케이션 → 애플리케이션 추가.
-2. 앱 설정 → 플랫폼: Android(패키지명 + 키 해시*)·iOS(번들 ID) 등록.
-3. 제품 설정 → 카카오 로그인 **활성화** → Redirect URI에 `mingleai://auth` 등록.
-4. 카카오 로그인 → 동의항목: 닉네임·이메일(필요 범위만).
-5. 보안 → **Client Secret 생성 + 활성화**.
-6. 키 반영:
-   - 모바일 `apps/mobile/.env`: `EXPO_PUBLIC_KAKAO_CLIENT_ID=<REST API 키>`
-   - 백엔드 `apps/backend/.env`: `KAKAO_CLIENT_ID=<REST API 키>` / `KAKAO_CLIENT_SECRET=<Client Secret>`
-
-\* 키 해시: EAS 빌드 서명키 기준. `eas credentials -p android`에서 SHA-1 확인 후 변환하거나,
-카카오 문서의 keytool 명령 사용.
+- 앱 생성·카카오 로그인 활성화·Redirect URI(`http://localhost:3000/auth/callback/kakao`) 등록 완료.
+- REST API 키 → 모바일 `EXPO_PUBLIC_KAKAO_CLIENT_ID` + 백엔드 `KAKAO_CLIENT_ID`,
+  Client Secret(활성화 ON) → `KAKAO_CLIENT_SECRET` — 로컬 `.env` 배선 완료.
+- 동의항목 = **없음**(의도 — 회원식별값만 수집, 최소 수집 방침).
+- 에뮬레이터에서 "카카오로 시작하기" → 카카오 로그인 페이지 정상 로드 검증(KOE 에러 없음).
+- 남은 것: prod 도메인 확정 시 Redirect URI 추가, (선택) 앱 아이콘 등록.
 
 ## 2. 네이버 (developers.naver.com)
 

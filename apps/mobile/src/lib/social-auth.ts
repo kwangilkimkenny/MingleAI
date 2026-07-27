@@ -1,5 +1,6 @@
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -36,15 +37,24 @@ export interface SocialAuthResult {
   codeVerifier?: string;
 }
 
+/** The app deep link the backend callback bounces to (must stay in sync with auth.controller). */
+const RETURN_URL = "mingleai://auth";
+
 /**
  * Run the provider's web OAuth (PKCE) and return the authorization code for the backend to
  * exchange. Returns null if cancelled or if no client id is configured for the provider.
+ *
+ * Redirect flow: Kakao/Naver/Google consoles only accept http(s) redirect URIs, so the provider
+ * redirects to the BACKEND (`/auth/callback/:provider`), which 302-bounces the code into the
+ * app's `mingleai://auth` deep link. We open the auth URL manually so the browser session closes
+ * on that deep link (AuthRequest.promptAsync would wait for the http redirect instead).
  */
 export async function startSocialOAuth(provider: SocialProvider): Promise<SocialAuthResult | null> {
   const clientId = CLIENT_ID[provider];
   if (!clientId) return null;
 
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: "mingleai", path: "auth" });
+  const apiBase = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const redirectUri = `${apiBase}/auth/callback/${provider}`;
   const request = new AuthSession.AuthRequest({
     clientId,
     redirectUri,
@@ -53,12 +63,18 @@ export async function startSocialOAuth(provider: SocialProvider): Promise<Social
     scopes: SCOPES[provider],
   });
 
-  const result = await request.promptAsync({ authorizationEndpoint: AUTHORIZE[provider] });
-  if (result.type !== "success" || !result.params.code) return null;
+  const authUrl = await request.makeAuthUrlAsync({ authorizationEndpoint: AUTHORIZE[provider] });
+  const result = await WebBrowser.openAuthSessionAsync(authUrl, RETURN_URL);
+  if (result.type !== "success" || !result.url) return null;
+
+  const params = Linking.parse(result.url).queryParams ?? {};
+  const code = typeof params.code === "string" ? params.code : undefined;
+  if (!code) return null;
+  const state = typeof params.state === "string" ? params.state : undefined;
 
   return {
-    code: result.params.code,
+    code,
     redirectUri,
-    codeVerifier: request.codeVerifier ?? (result.params.state as string | undefined),
+    codeVerifier: request.codeVerifier ?? state,
   };
 }
