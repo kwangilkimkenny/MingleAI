@@ -9,6 +9,8 @@
     "dev:backend": "pnpm --filter @mingle/backend start:dev",
     "dev:web": "pnpm --filter @mingle/web dev",
     "dev:mobile": "pnpm --filter @mingle/mobile exec expo start",
+    "seed:mobile-qa": "node tools/seed-mobile-qa.mjs",
+    "qa:speed-date-bots": "node tools/speed-date-qa-bots.mjs",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
