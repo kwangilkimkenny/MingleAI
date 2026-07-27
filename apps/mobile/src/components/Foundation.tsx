@@ -16,7 +16,6 @@ import { router } from "expo-router";
 import { colors, control, dark, doodle, layout, shadow, space, type } from "../lib/theme";
 import { serifFont } from "../lib/serif";
 import { DoodleButton } from "./Doodle";
-import { DoodleFace } from "./DoodleSvg";
 import { useReducedMotion } from "react-native-reanimated";
 import { useInitialAccessibilityFocus } from "../lib/accessibility";
 import { hapticImpact, hapticWarning } from "../lib/haptics";
@@ -193,9 +192,7 @@ export function StateView({
     <View style={styles.state} accessibilityLiveRegion="polite">
       {loading ? (
         <ActivityIndicator size="large" color={isDark ? dark.accent : colors.accent} />
-      ) : (
-        <DoodleFace variant="flat" size={64} />
-      )}
+      ) : null}
       <Text accessibilityRole="header" style={[styles.stateTitle, isDark && { color: dark.text }]}>
         {title}
       </Text>

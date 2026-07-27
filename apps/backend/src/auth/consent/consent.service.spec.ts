@@ -2,9 +2,9 @@ import { BadRequestException } from "@nestjs/common";
 import { ConsentService } from "./consent.service";
 
 describe("ConsentService", () => {
-  it("requires all mandatory scopes", async () => {
+  it("requires all mandatory scopes (terms+privacy; age19 is legacy, not required)", async () => {
     const prisma = { consentGrant: { upsert: jest.fn() }, user: { update: jest.fn() } } as any;
-    await expect(new ConsentService(prisma).submit("u1", ["terms", "privacy"] as any)).rejects.toThrow(
+    await expect(new ConsentService(prisma).submit("u1", ["terms"] as any)).rejects.toThrow(
       BadRequestException,
     );
   });
@@ -14,8 +14,8 @@ describe("ConsentService", () => {
       consentGrant: { upsert: jest.fn().mockResolvedValue({}) },
       user: { update: jest.fn().mockResolvedValue({}) },
     } as any;
-    await new ConsentService(prisma).submit("u1", ["terms", "privacy", "age19"]);
-    expect(prisma.consentGrant.upsert).toHaveBeenCalledTimes(3);
+    await new ConsentService(prisma).submit("u1", ["terms", "privacy"]);
+    expect(prisma.consentGrant.upsert).toHaveBeenCalledTimes(2);
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "u1" }, data: expect.objectContaining({ termsAcceptedAt: expect.any(Date) }) }),
     );

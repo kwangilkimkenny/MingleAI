@@ -269,8 +269,9 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   sheet: {
-    maxHeight: "80%",
-    backgroundColor: "rgba(26,20,15,0.94)",
+    // 고정 % 높이 — auto+maxHeight 조합은 StateView(minHeight) 콘텐츠를 화면 밖으로 밀어냈다(QA 2026-07-27).
+    height: "62%",
+    backgroundColor: "rgba(26,20,15,0.99)",
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     borderTopWidth: 1,

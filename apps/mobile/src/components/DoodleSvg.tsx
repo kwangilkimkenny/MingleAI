@@ -108,17 +108,21 @@ export function DoodleFace({
   variant = "smile",
   inverted = false,
   seed = 3,
+  dark: isDark = false,
 }: {
   size?: number;
   variant?: "smile" | "flat" | "open";
   inverted?: boolean;
   seed?: number;
+  /** 다크 화면용 — 잉크 스트로크는 다크 배경에서 안 보이므로 크림 라인으로 전환. */
+  dark?: boolean;
 }) {
   const R = 32;
-  // Line-art face: transparent fill + thin ink stroke. Inverted (e.g. my name tag) = coral fill.
+  // Line-art face: transparent fill + thin ink stroke. Inverted (e.g. my name tag) = blush fill.
+  const line = isDark ? dark.textMuted : colors.ink;
   const face = inverted ? colors.accentStrong : "transparent";
-  const feat = inverted ? colors.onAccent : colors.ink;
-  const ring = inverted ? colors.accentStrong : colors.ink;
+  const feat = inverted ? colors.onAccent : line;
+  const ring = inverted ? colors.accentStrong : line;
   // Hand-drawn circle: wobbleRect with fully-round radii reads as a drawn circle.
   const circleD = wobbleRect(
     R * 2,

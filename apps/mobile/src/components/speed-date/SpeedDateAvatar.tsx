@@ -1,6 +1,5 @@
-import { View, StyleSheet } from "react-native";
-import { DoodleFace } from "../DoodleSvg";
-import { colors } from "../../lib/theme";
+import { View, Text, StyleSheet } from "react-native";
+import { colors, fonts } from "../../lib/theme";
 
 /** Static per-session avatar tint, keyed by the server-assigned avatarId. */
 const AVATAR_BG: Record<string, string> = {
@@ -14,19 +13,24 @@ const AVATAR_BG: Record<string, string> = {
   "av-slate": "#CBD0D6",
 };
 
-function seedFor(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return (h % 7) + 1;
-}
-
 /**
  * The blind-stage character image: a static, session-scoped avatar unrelated to the real
  * profile photo. Shown whenever live camera video is not being published (DISGUISED / VOICE
  * stages, or FACE before the remote camera track arrives).
+ * 두들 얼굴 폐기(2026-07-27 지시) — 파스텔 원 + 별명 이니셜만.
  */
-export function SpeedDateAvatar({ avatarId, size = 96 }: { avatarId: string; size?: number }) {
+export function SpeedDateAvatar({
+  avatarId,
+  nickname,
+  size = 96,
+}: {
+  avatarId: string;
+  /** 세션 별명 — 첫 글자가 이니셜로 표시된다. */
+  nickname?: string;
+  size?: number;
+}) {
   const bg = AVATAR_BG[avatarId] ?? colors.fillDeep;
+  const initial = nickname?.trim().charAt(0) ?? "";
   return (
     <View
       style={[
@@ -34,7 +38,9 @@ export function SpeedDateAvatar({ avatarId, size = 96 }: { avatarId: string; siz
         { width: size, height: size, borderRadius: size / 2, backgroundColor: bg },
       ]}
     >
-      <DoodleFace size={Math.round(size * 0.62)} variant="open" seed={seedFor(avatarId)} />
+      {initial ? (
+        <Text style={[styles.initial, { fontSize: Math.round(size * 0.34) }]}>{initial}</Text>
+      ) : null}
     </View>
   );
 }
@@ -46,4 +52,5 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
   },
+  initial: { fontFamily: fonts.bodySemibold, color: colors.ink },
 });

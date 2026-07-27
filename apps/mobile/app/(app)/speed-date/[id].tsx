@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { Mic, MicOff } from "lucide-react-native";
 import type { SpeedDateSnapshot, SpeedDateStage, PartnerView } from "@mingle/client-core";
 import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { SpeedDateAvatar } from "../../../src/components/speed-date/SpeedDateAvatar";
+import { SuggestedQuestion } from "../../../src/components/speed-date/SuggestedQuestion";
 import { openSpeedDateSocket } from "../../../src/lib/speed-date-socket";
 import { useSpeedDateMedia } from "../../../src/lib/speed-date-media";
 import { VideoView } from "../../../src/components/speed-date/VideoView";
 import { useAuthStore } from "../../../src/lib/client";
 import { hapticSelect } from "../../../src/lib/haptics";
 import { serifFont } from "../../../src/lib/serif";
+import { ConfirmDialog } from "../../../src/components/Foundation";
 import { colors, dark, layout, space, type } from "../../../src/lib/theme";
 
 const STAGE_HINT: Record<SpeedDateStage, string> = {
@@ -43,7 +45,22 @@ export default function SpeedDateSession() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [leaveAsk, setLeaveAsk] = useState(false);
   const socketRef = useRef<ReturnType<typeof openSpeedDateSocket> | null>(null);
+  const navigation = useNavigation();
+  const liveRef = useRef(false);
+
+  // 진행 중(ended 전)에는 뒤로가기(하드웨어 백 포함)를 확인 다이얼로그로 가드 — 실수 이탈 방지.
+  // native-stack은 하드웨어 백을 네이티브에서 pop하므로 BackHandler가 아니라 beforeRemove로 막는다.
+  liveRef.current = !!snapshot && snapshot.phase !== "ended" && !notFound;
+  useEffect(() => {
+    const unsub = navigation.addListener("beforeRemove", (e) => {
+      if (!liveRef.current) return;
+      e.preventDefault();
+      setLeaveAsk(true);
+    });
+    return unsub;
+  }, [navigation]);
 
   // display-only clock (server-authoritative phaseEndsAt drives the real timing)
   useEffect(() => {
@@ -114,6 +131,24 @@ export default function SpeedDateSession() {
     );
   }
 
+  const leaveDialog = (
+    <ConfirmDialog
+      dark
+      visible={leaveAsk}
+      title="소개팅에서 나갈까요?"
+      body="지금 나가면 이번 로테이션과 선택 기회를 놓쳐요. 세션이 끝날 때까지 다시 참여할 수 있어요."
+      confirmLabel="나가기"
+      destructive
+      onConfirm={() => {
+        // beforeRemove 가드가 이 이탈까지 막지 않도록 먼저 내린다.
+        liveRef.current = false;
+        setLeaveAsk(false);
+        router.replace("/home");
+      }}
+      onCancel={() => setLeaveAsk(false)}
+    />
+  );
+
   // Round = full-bleed video call. No header/back button — you can't leave mid-session.
   if (snapshot.phase === "round" && snapshot.partner && snapshot.stage) {
     return (
@@ -134,6 +169,7 @@ export default function SpeedDateSession() {
             <Text style={styles.selfLabel}>나</Text>
           </View>
         ) : null}
+        {leaveDialog}
       </View>
     );
   }
@@ -149,6 +185,7 @@ export default function SpeedDateSession() {
           seconds={remainSec}
           insets={insets}
         />
+        {leaveDialog}
       </View>
     );
   }
@@ -175,6 +212,7 @@ export default function SpeedDateSession() {
 
         {snapshot.phase === "ended" ? <ResultView result={snapshot.result} /> : null}
       </ScrollView>
+      {leaveDialog}
     </Screen>
   );
 }
@@ -253,7 +291,7 @@ function RoundView({
         </View>
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.avatarStage]}>
-          <SpeedDateAvatar avatarId={partner.avatarId} size={220} />
+          <SpeedDateAvatar avatarId={partner.avatarId} nickname={partner.nickname} size={220} />
         </View>
       )}
 
@@ -268,6 +306,9 @@ function RoundView({
           </View>
         </View>
       </View>
+
+      {/* 하단 1/3 지점: 추천 질문(랜덤 30개, crossfade) — 어색한 침묵 깨기 */}
+      <SuggestedQuestion />
 
       {/* Bottom overlay: nickname · badges · stage hint */}
       <View style={[styles.bottomOverlay, { paddingBottom: insets.bottom + space.x4 }]}>
@@ -317,7 +358,7 @@ function DecisionView({
               style={[styles.gridCard, on ? styles.gridCardOn : null]}
               contentStyle={styles.gridInner}
             >
-              <SpeedDateAvatar avatarId={p.avatarId} size={72} />
+              <SpeedDateAvatar avatarId={p.avatarId} nickname={p.nickname} size={72} />
               <Text style={styles.gridNick} numberOfLines={1}>
                 {p.nickname}
               </Text>

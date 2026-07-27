@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   row: { flexDirection: "row", alignItems: "stretch", height: TAB_BAR_ROW_HEIGHT },
-  // 아이콘만 — 행 전체(60px)를 채워 44px 최소 터치 타깃 보장. 활성 = 아이콘 색(골드)으로만 표시.
+  // 아이콘만 — 행 전체(60px)를 채워 44px 최소 터치 타깃 보장. 활성 = 아이콘 색(블러쉬)으로만 표시.
   tab: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 5 },
   badge: {
     position: "absolute",

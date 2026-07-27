@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { nextGate, REQUIRED_CONSENTS, type AccountStatus, type PermissionState } from "./gate.js";
 
-const allConsents = { terms: true, privacy: true, age19: true };
+const allConsents = { terms: true, privacy: true, age19: false }; // age19 is legacy — never required
 const bothPerms: PermissionState = { camera: true, microphone: true };
 
 function status(over: Partial<AccountStatus> = {}): AccountStatus {
@@ -19,35 +19,41 @@ describe("nextGate", () => {
     expect(nextGate(status(), bothPerms)).toBe("ready");
   });
 
-  it("requires consent before anything else", () => {
-    expect(nextGate(status({ consents: { terms: true, privacy: false, age19: true } }), bothPerms)).toBe(
-      "consent",
-    );
+  it("requires identity verification before anything else (identity provides verified age)", () => {
+    expect(
+      nextGate(
+        status({
+          phoneVerifiedAt: null,
+          consents: { terms: false, privacy: false, age19: false },
+          hasProfile: false,
+        }),
+        { camera: false, microphone: false },
+      ),
+    ).toBe("identity");
   });
 
-  it("blocks on missing camera OR microphone permission (hard gate)", () => {
+  it("requires consent after identity", () => {
+    expect(
+      nextGate(status({ consents: { terms: true, privacy: false, age19: false } }), bothPerms),
+    ).toBe("consent");
+  });
+
+  it("blocks on missing camera OR microphone permission (hard gate) after consent", () => {
     expect(nextGate(status(), { camera: false, microphone: true })).toBe("permissions");
     expect(nextGate(status(), { camera: true, microphone: false })).toBe("permissions");
-  });
-
-  it("requires identity verification after permissions", () => {
-    expect(nextGate(status({ phoneVerifiedAt: null }), bothPerms)).toBe("identity");
   });
 
   it("requires a profile last", () => {
     expect(nextGate(status({ hasProfile: false }), bothPerms)).toBe("profile");
   });
 
-  it("enforces the order: consent outranks permissions outranks identity outranks profile", () => {
-    const nothing = status({
-      consents: { terms: false, privacy: false, age19: false },
-      phoneVerifiedAt: null,
-      hasProfile: false,
-    });
-    expect(nextGate(nothing, { camera: false, microphone: false })).toBe("consent");
+  it("never requires the legacy age19 consent scope", () => {
+    expect(
+      nextGate(status({ consents: { terms: true, privacy: true, age19: false } }), bothPerms),
+    ).toBe("ready");
   });
 
-  it("REQUIRED_CONSENTS covers terms, privacy, and age19", () => {
-    expect([...REQUIRED_CONSENTS].sort()).toEqual(["age19", "privacy", "terms"]);
+  it("REQUIRED_CONSENTS covers terms and privacy only", () => {
+    expect([...REQUIRED_CONSENTS].sort()).toEqual(["privacy", "terms"]);
   });
 });

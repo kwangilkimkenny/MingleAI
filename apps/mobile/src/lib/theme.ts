@@ -1,46 +1,65 @@
 /**
- * Line-art palette — warm off-white paper, crisp white cards, thin ink strokes, and a single
- * persimmon-coral point color. Single source of truth for mobile colors. 2026-07-24 the app moved
- * from the soft-romantic rose system back to the doodle identity, evolved into a refined thin-line
- * line-art look (clean hairlines, outline-first elevation, no wobble, one accent). Aesthetic rule:
- * outline-first, shadow-minimal, color = coral in one or two spots. Token NAMES are kept stable so
- * the ~48 consumers shift by value; the doodle/rose-era names now carry line-art values.
+ * Mingle brand primitives — dark brown × blush pink.
  *
- * ⚠️ accent (#FF4D3D) fails AA for white TEXT (3.29:1) — it is for strokes/icons/active/tint only.
- * White text on a coral surface (buttons, badges) MUST use accentStrong (#D6361F, 4.77:1). danger is
- * a cool crimson, deliberately hue-separated from the warm coral so destructive ≠ "just the CTA".
+ * Components consume semantic tokens (`colors`, `masterpiece`, `dark`) below instead of reaching
+ * into this scale directly. That keeps the palette consistent across light, dark, and editorial
+ * surfaces while allowing each context to choose an accessible shade.
+ */
+export const brandPalette = {
+  brown950: "#1A120C",
+  brown900: "#241C15",
+  brown850: "#2E251C",
+  brown800: "#221D18",
+  brownInk: "#181412",
+  brownMuted: "#6A6151",
+  blush50: "#FBE8ED",
+  blush200: "#F2BCC8",
+  blush300: "#E59BAD",
+  blush500: "#C9657F",
+  blushMuted: "#B98291",
+  blush700: "#A63D5A",
+  blush800: "#873047",
+  cream: "#F4F1EA",
+  creamText: "#FBF4EC",
+} as const;
+
+/**
+ * Functional light palette — warm paper, dark-brown line work, and one blush-pink point color.
+ *
+ * `accent` is for strokes/icons/active states. White text on filled buttons and badges MUST use
+ * `accentStrong` (6.11:1 against white). Danger stays a cooler crimson so destructive actions do
+ * not read as the primary Mingle action.
  */
 export const colors = {
-  ink: "#181514", // 먹선·본문 (따뜻 니어블랙)
-  paper: "#FBFAF8", // 페이지 그라운드 (살짝 웜 오프화이트)
+  ink: brandPalette.brownInk, // 먹선·본문 (다크 브라운)
+  paper: "#FCF9F8", // 페이지 그라운드 (블러쉬 기가 도는 웜 오프화이트)
   card: "#FFFFFF", // 카드 서피스
-  heading: "#181514", // 라인아트 = 타이틀도 잉크 (색 강조는 코랄 1점만)
+  heading: brandPalette.brown800, // 타이틀 다크 브라운
   grayDark: "#57534E", // 보조 텍스트 (AA)
   grayMid: "#78716C", // 캡션·비활성 (white/paper 위 AA)
-  grayLight: "#E8E5E0", // = line 값 (divider) — 이름 유지
-  line: "#E8E5E0", // 헤어라인 divider·행 구분
-  border: "#E0DBD3", // = outline 값 (카드·인풋 외곽) — 이름 유지
-  outline: "#E0DBD3", // 카드·인풋 외곽선 (신규 별칭)
-  fill: "#F4F2EF", // 중립 연회색 fill (disabled 버튼·notice bg)
-  fillDeep: "#ECE9E4", // 더 진한 중립 fill
+  grayLight: "#E9E2E2", // = line 값 (divider) — 이름 유지
+  line: "#E9E2E2", // 헤어라인 divider·행 구분
+  border: "#E3D9D9", // = outline 값 (카드·인풋 외곽) — 이름 유지
+  outline: "#E3D9D9", // 카드·인풋 외곽선 (신규 별칭)
+  fill: "#F8F1F2", // 연한 블러쉬 뉴트럴 fill
+  fillDeep: "#F0E6E8", // 더 진한 블러쉬 뉴트럴 fill
   partyFloor: "#E9E2D6", // (party game world — disabled; legacy value kept)
   partyRoom: "#FFFDF8",
   partyRoomWarm: "#F8F0E6",
   partyRoomRose: "#F8ECEC",
-  // Point color — the single coral used per screen. accent = strokes/icons/active/tint (NO white
-  // text). accentStrong = coral surfaces carrying white text (buttons, badges).
-  accent: "#FF4D3D", // 브랜드 코랄 — 선·아이콘·활성탭·틴트 전용 (흰글씨 X)
-  accentBright: "#FF6F5E", // 밝은 코랄 — 일러스트·표현
-  accentDeep: "#B92E1A", // pressed (레거시 이름 유지)
-  accentPressed: "#B92E1A", // 눌림 (신규 별칭)
-  accentSoft: "#FF6F5E", // 밝은 코랄 보조
-  accentStrong: "#D6361F", // 흰글씨 얹는 코랄 fill (버튼·배지) — white 4.77:1 AA
-  accentFill: "#FFE7E3", // 연코랄 틴트 (hero 배경·pressed)
-  onAccent: "#FFFFFF", // 코랄 위 글씨
+  // Point color — blush pink. `accentStrong` is reserved for surfaces carrying white text.
+  accent: brandPalette.blush500, // 브랜드 블러쉬 — 선·아이콘·활성탭 (흰글씨 X)
+  accentBright: brandPalette.blush200, // 밝은 블러쉬 — 일러스트·표현
+  accentDeep: brandPalette.blush800, // pressed (레거시 이름 유지)
+  accentPressed: brandPalette.blush800, // 눌림
+  accentSoft: brandPalette.blush300, // 밝은 블러쉬 보조
+  accentStrong: brandPalette.blush700, // 흰글씨 버튼·배지 — white 6.11:1 AA
+  accentFill: brandPalette.blush50, // 연한 블러쉬 틴트
+  onAccent: "#FFFFFF", // 블러쉬 위 글씨
   success: "#257A55",
   warning: "#9A5D00",
   warningFill: "#FFF0D6",
-  // Cool crimson — hue-separated from the warm coral so a destructive action never reads as the CTA.
+  // Cool crimson — separated from blush so a destructive action never reads as the primary CTA.
   danger: "#C4122F",
   dangerFill: "#FCE8EC",
 } as const;
@@ -61,7 +80,7 @@ export const space = {
 } as const;
 
 export const type = {
-  // Pretendard 단일 (2026-07-24 Cafe24Dongdong 폐기 — 라인아트는 클린 모던, 계층은 크기+웨이트+코랄).
+  // Pretendard 단일 — 클린 모던, 계층은 크기+웨이트+블러쉬 포인트.
   display: { fontFamily: "Pretendard_600SemiBold", fontSize: 28, lineHeight: 36 },
   title: { fontFamily: "Pretendard_600SemiBold", fontSize: 22, lineHeight: 29 },
   heading: { fontFamily: "Pretendard_600SemiBold", fontSize: 19, lineHeight: 25 },
@@ -83,37 +102,37 @@ export const control = {
  * functional screens (chat/lists/settings), masterpiece skins brand moments. 2026-07-24.
  */
 export const masterpiece = {
-  cream: "#F4F1EA", // warm paper ground
-  creamDeep: "#EFE9DC", // deeper cream (home hero band)
-  inkDeep: "#221D18", // near-black warm ink — serif headline / pill fill
-  inkSoft: "#6A6151", // muted brown — subhead
-  tag: "#A99A7D", // faded gold — eyebrow/label
-  dot: "#D8CEB9", // halftone dot
-  pill: "#221D18", // black pill CTA fill
-  onPill: "#F4F1EA", // text on pill
-  pillGhostBorder: "#CABFA9", // outline pill border
+  cream: brandPalette.cream, // warm paper ground
+  creamDeep: "#F4E9EC", // blush-washed hero band
+  inkDeep: brandPalette.brown800, // dark-brown serif headline / pill fill
+  inkSoft: brandPalette.brownMuted, // muted brown — subhead
+  tag: brandPalette.blushMuted, // dusty blush — eyebrow/label
+  dot: "#E4C9D0", // blush halftone dot
+  pill: brandPalette.brown800, // dark-brown pill CTA fill
+  onPill: brandPalette.cream, // text on pill
+  pillGhostBorder: "#D5B4BD", // blush outline pill border
 } as const;
 
 /**
- * Dark editorial (홈 테마) — warm near-black cinematic ground with cream serif copy, faded-gold
- * labels, and a cream pill CTA. Applied to brand / entry / gate / flow / immersive screens
+ * Dark editorial (홈 테마) — dark-brown cinematic ground with cream serif copy, blush-pink labels,
+ * and a cream pill CTA. Applied to brand / entry / gate / flow / immersive screens
  * (home·login·onboarding·gate·speed-date). List/data screens stay LIGHT (line-art `colors`) for
  * readability — 사용자 방침 "다크 무드 유지, 리스트만 밝게" (2026-07-24).
  */
 export const dark = {
-  bg: "#1A120C", // warm near-black page ground
-  surface: "#241C15", // dark card/sheet surface
-  surfaceHi: "#2E251C", // raised surface / input fill hint
-  text: "#FBF4EC", // cream body text
+  bg: brandPalette.brown950, // dark-brown page ground
+  surface: brandPalette.brown900, // dark card/sheet surface
+  surfaceHi: brandPalette.brown850, // raised surface / input fill hint
+  text: brandPalette.creamText, // cream body text
   textMuted: "rgba(251,244,236,0.6)", // muted cream
-  heading: "#FBF4EC", // serif heading (cream)
-  label: "#CBB58F", // faded gold — eyebrow / label
+  heading: brandPalette.creamText, // serif heading (cream)
+  label: brandPalette.blush200, // blush — eyebrow / label
   border: "rgba(251,244,236,0.16)", // subtle light hairline on dark
   line: "rgba(251,244,236,0.1)", // divider on dark
   fieldBg: "rgba(251,244,236,0.06)", // input fill on dark
-  pill: "#F4F1EA", // cream pill CTA (primary on dark)
-  onPill: "#221D18", // dark text on the cream pill
-  accent: "#E9C9A0", // warm gold — active / small accent on dark
+  pill: brandPalette.cream, // cream pill CTA (primary on dark)
+  onPill: brandPalette.brown800, // dark text on the cream pill
+  accent: brandPalette.blush200, // bright blush — active / small accent on dark
   danger: "#FF7A6E", // brighter red for legibility on dark
   onDanger: "#221109",
 } as const;

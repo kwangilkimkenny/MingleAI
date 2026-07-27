@@ -2,15 +2,16 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useFonts } from "expo-font";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import "../src/lib/client";
-import { colors, fonts, type } from "../src/lib/theme";
+import { LoginBackdrop } from "../src/components/LoginBackdrop";
+import { colors, dark } from "../src/lib/theme";
 
 export { ErrorBoundary } from "expo-router";
 
 export default function RootLayout() {
   // Pretendard powers the whole type system (2026-07-24 dropped the Cafe24 Dongdong display face —
-  // line-art is clean modern, hierarchy comes from size + weight + coral). Fonts are bundled
+  // line-art is clean modern, hierarchy comes from size + weight + blush). Fonts are bundled
   // locally, so this resolves fast; hold the first frame until ready so text doesn't flash in the
   // system fallback.
   const [fontsLoaded, fontError] = useFonts({
@@ -26,10 +27,8 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) {
     return (
-      <View style={styles.loading} accessibilityLiveRegion="polite">
-        <Text style={styles.brand}>mingle</Text>
-        <ActivityIndicator color={colors.accent} />
-        <Text style={styles.loadingText}>만남을 준비하고 있어요</Text>
+      <View style={styles.loading}>
+        <LoginBackdrop />
       </View>
     );
   }
@@ -46,11 +45,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    backgroundColor: colors.paper,
+    backgroundColor: dark.bg,
   },
-  brand: { fontFamily: fonts.display, fontSize: 38, color: colors.ink },
-  loadingText: { ...type.caption, color: colors.grayDark },
 });

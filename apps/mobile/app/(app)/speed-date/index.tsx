@@ -114,10 +114,26 @@ export default function SpeedDateMatching() {
     }
   }
 
+  /** 진행 중 세션이 있으면 그 세션으로 복귀. 복귀했으면 true. */
+  async function rejoinActiveSession(): Promise<boolean> {
+    try {
+      const s = await getSpeedDateStatus();
+      if (alive.current && s.status === "matched" && s.sessionId) {
+        router.replace({ pathname: "/(app)/speed-date/[id]", params: { id: s.sessionId } });
+        return true;
+      }
+    } catch {
+      // 상태 조회 실패는 무시 — 아래 enqueue가 원래 에러를 보여준다.
+    }
+    return false;
+  }
+
   async function onStart() {
     setPhase("joining");
     setError(null);
     startedAt.current = Date.now();
+    // 실수로 세션에서 나온 경우(뒤로가기 등) — 새 매칭 대신 진행 중인 세션으로 되돌린다.
+    if (await rejoinActiveSession()) return;
     try {
       // 거리를 골랐고 위치가 있으면 반경 매칭, 아니면 좌표 없이 등록(누구나 매칭).
       const geo =
@@ -130,6 +146,7 @@ export default function SpeedDateMatching() {
       poll();
     } catch (e) {
       if (!alive.current) return;
+      if (e instanceof ApiError && e.status === 409 && (await rejoinActiveSession())) return;
       setError(e instanceof ApiError ? e.message : "매칭을 시작하지 못했어요.");
       setPhase("error");
     }

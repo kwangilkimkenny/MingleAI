@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   ServiceUnavailableException,
 } from "@nestjs/common";
@@ -42,6 +43,10 @@ export class IdentityService {
 
     const gender = payload.gender === "female" ? "female" : "male";
     const birth = new Date(payload.birth);
+    // 만 19세 미만 차단 — 나이 보장은 체크박스가 아니라 본인인증이 한다(2026-07-27).
+    if (this.ageFrom(birth) < 19) {
+      throw new ForbiddenException("만 19세 이상만 이용할 수 있습니다");
+    }
     const ci = this.devHash("ci", payload.phone);
     const di = this.devHash("di", payload.phone);
 

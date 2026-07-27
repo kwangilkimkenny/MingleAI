@@ -1,7 +1,7 @@
 /**
  * PartyMapArt — shared PARTY_MAP geometry rendered as a warm doodle game board.
  * Every collidable furniture item is visible at the exact geometry used by movement validation,
- * eliminating invisible obstacles. Ink, paper, and one coral accent match the character stickers.
+ * eliminating invisible obstacles. Brown ink, paper, and one blush accent match the character stickers.
  */
 import { memo, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";

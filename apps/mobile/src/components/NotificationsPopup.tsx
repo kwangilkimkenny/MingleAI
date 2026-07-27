@@ -171,9 +171,9 @@ export function NotificationsPopup({
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(10,7,5,0.55)" },
   panel: {
-    maxHeight: "80%",
-    // 반투명 다크 서피스 — 백드롭 위로 은은히 비친다.
-    backgroundColor: "rgba(26,20,15,0.94)",
+    // 고정 % 높이 — auto+maxHeight 조합은 빈/로딩 상태 콘텐츠를 화면 밖으로 밀어냈다(QA 2026-07-27).
+    height: "62%",
+    backgroundColor: "rgba(26,20,15,0.99)",
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     borderTopWidth: 1,

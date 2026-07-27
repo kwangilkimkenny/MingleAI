@@ -3,9 +3,8 @@ import { colors, fonts } from "../lib/theme";
 import { EnterHero } from "./Motion";
 
 /**
- * Brand hero for entry/auth screens: the line-art sloth logo (contains the "mingle" wordmark)
- * over a short tagline. The transparent logo asset is tightly cropped and losslessly compressed,
- * so the mark stays sharp without shipping the original 1.3 MB empty canvas.
+ * Brand hero for entry/auth screens: the paired-ribbon mingle mark over a short tagline.
+ * The transparent asset is tightly cropped and losslessly compressed so it stays sharp.
  * 진입 시 EnterHero(페이드+살짝 확대)로 "스티커 붙는" 등장 — reduced-motion이면 정적.
  */
 export function DoodleHero({ tagline = "낯가림도 괜찮아요" }: { tagline?: string }) {
@@ -16,7 +15,7 @@ export function DoodleHero({ tagline = "낯가림도 괜찮아요" }: { tagline?
           source={require("../../assets/images/logo.png")}
           style={styles.logo}
           resizeMode="contain"
-          accessibilityLabel="MingleAI"
+          accessibilityLabel="mingle 로고"
         />
         <Text style={styles.tagline}>{tagline}</Text>
       </View>

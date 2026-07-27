@@ -56,3 +56,6 @@ apps/mobile/dist-run/
 # loose screenshots at repo root (throwaway QA/design captures)
 /*.png
 .playwright-mcp/
+
+.claude
+.codex

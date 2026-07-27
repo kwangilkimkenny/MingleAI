@@ -8,8 +8,8 @@ import { DoodleButton, DoodleCard } from "../src/components/Doodle";
 import { InlineNotice } from "../src/components/Foundation";
 import { dark, space, type } from "../src/lib/theme";
 
+// 만 19세 확인은 체크박스가 아니라 본인인증(생년월일)이 보장한다 — age19 항목 없음(2026-07-27).
 const ITEMS: { scope: ConsentScope; title: string; body: string; link?: "/terms" | "/privacy" }[] = [
-  { scope: "age19", title: "만 19세 이상입니다", body: "성인만 이용할 수 있는 서비스예요." },
   { scope: "terms", title: "이용약관 동의 (필수)", body: "서비스 이용을 위한 약관이에요.", link: "/terms" },
   {
     scope: "privacy",
@@ -21,7 +21,7 @@ const ITEMS: { scope: ConsentScope; title: string; body: string; link?: "/terms"
 
 export default function Consent() {
   const [checked, setChecked] = useState<Record<ConsentScope, boolean>>({
-    age19: false,
+    age19: true, // legacy scope — 본인인증이 나이를 보장하므로 UI에 없음
     terms: false,
     privacy: false,
   });

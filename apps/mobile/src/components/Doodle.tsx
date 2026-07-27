@@ -1,5 +1,5 @@
 /**
- * Line-art primitives: white surfaces with thin ink outlines and one persimmon-coral point color.
+ * Line-art primitives: white surfaces with thin dark-brown outlines and one blush-pink point color.
  *
  * Elevation is outline-first — cards read via a thin hairline (WobbleBox in DoodleSvg.tsx, now a
  * plain rounded View), not a shadow. Primary buttons fill with accentStrong + white label (AA-safe;

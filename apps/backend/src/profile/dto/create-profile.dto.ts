@@ -19,13 +19,16 @@ export class CreateProfileDto {
   @MaxLength(80)
   name!: string;
 
+  /** 본인인증 완료 계정은 verified 값이 권위 — 생략 가능. 미인증(레거시/테스트)만 필수. */
+  @IsOptional()
   @IsInt()
   @Min(19)
   @Max(100)
-  age!: number;
+  age?: number;
 
+  @IsOptional()
   @IsEnum(["male", "female", "non_binary", "prefer_not_to_say"])
-  gender!: string;
+  gender?: string;
 
   @IsString()
   @IsNotEmpty()

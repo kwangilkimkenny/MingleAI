@@ -4,8 +4,9 @@ import { getClientConfig, getToken } from "../config.js";
 
 export interface CreateProfileInput {
   name: string;
-  age: number;
-  gender: string;
+  /** 본인인증 완료 계정은 서버가 verified 값을 사용 — 생략. */
+  age?: number;
+  gender?: string;
   occupation: string;
   partyPreferenceText: string;
   bio?: string;

@@ -1,7 +1,7 @@
 /**
  * 파티 월드의 종이 인형형 두들 아바타. 한 장의 4×3 투명 아틀라스를 공유해 메모리를 아끼고,
  * profileId 시드로 같은 사람에게 항상 같은 외형을 배정한다. 흑백 선화와 흰 종이 받침은 복잡한
- * 맵에서도 실루엣을 보존하며, 코랄은 오직 '나' 표시에만 사용한다.
+ * 맵에서도 실루엣을 보존하며, 블러쉬는 오직 '나' 표시에만 사용한다.
  */
 import { Image, StyleSheet, Text, View } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";

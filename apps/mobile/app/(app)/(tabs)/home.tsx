@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Bell, Heart } from "lucide-react-native";
 import Animated, {
   cancelAnimation,
   Easing,
+  Extrapolation,
+  interpolate,
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -23,6 +26,9 @@ import { serifFont } from "../../../src/lib/serif";
 const CAFE_BACKGROUND = require("../../../assets/images/cafe-date-background.png");
 const WOMAN = require("../../../assets/images/cafe-date-character-woman.png");
 const MAN = require("../../../assets/images/cafe-date-character-man.png");
+const CAFE_BACKGROUND_WIDTH = 1023;
+const CAFE_BACKGROUND_HEIGHT = 1537;
+const CAFE_BACKGROUND_ZOOM = 1;
 
 /**
  * Home — a layered cinematic scene (Renaissance-painted couple on a modern café date = the concept
@@ -33,10 +39,13 @@ const MAN = require("../../../assets/images/cafe-date-character-man.png");
 export default function Home() {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
+  const { entrance } = useLocalSearchParams<{ entrance?: string }>();
   const { width, height } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
+  const entranceRequested = entrance === "login" || entrance === "launch";
   const womanShift = useSharedValue(0);
   const manShift = useSharedValue(0);
+  const entranceProgress = useSharedValue(entranceRequested && !reducedMotion ? 0 : 1);
   const [pending, setPending] = useState(0);
   const [unread, setUnread] = useState(0);
   const [popup, setPopup] = useState<null | "proposals" | "notifications">(null);
@@ -49,6 +58,39 @@ export default function Home() {
   const manWidth = manHeight * (1023 / 1537);
   const womanLeft = width * 0.32 - womanWidth * 0.47;
   const manLeft = width * 0.68 - manWidth * 0.49;
+  const backgroundCoverScale = Math.max(
+    width / CAFE_BACKGROUND_WIDTH,
+    height / CAFE_BACKGROUND_HEIGHT,
+  );
+  const backgroundWidth = CAFE_BACKGROUND_WIDTH * backgroundCoverScale * CAFE_BACKGROUND_ZOOM;
+  const backgroundHeight = CAFE_BACKGROUND_HEIGHT * backgroundCoverScale * CAFE_BACKGROUND_ZOOM;
+  const backgroundLeft = (width - backgroundWidth) / 2;
+  const backgroundTop = (height - backgroundHeight) / 2;
+
+  const clearEntranceParam = useCallback(() => {
+    router.setParams({ entrance: "" });
+  }, []);
+
+  useEffect(() => {
+    cancelAnimation(entranceProgress);
+
+    if (!entranceRequested || reducedMotion) {
+      entranceProgress.value = 1;
+      if (entranceRequested) clearEntranceParam();
+      return;
+    }
+
+    entranceProgress.value = 0;
+    entranceProgress.value = withTiming(
+      1,
+      { duration: 1200, easing: Easing.out(Easing.cubic) },
+      (finished) => {
+        if (finished) runOnJS(clearEntranceParam)();
+      },
+    );
+
+    return () => cancelAnimation(entranceProgress);
+  }, [clearEntranceParam, entranceProgress, entranceRequested, reducedMotion]);
 
   useEffect(() => {
     cancelAnimation(womanShift);
@@ -80,12 +122,41 @@ export default function Home() {
     };
   }, [manShift, reducedMotion, width, womanShift]);
 
-  const womanMotion = useAnimatedStyle(() => ({
-    transform: [{ translateX: womanShift.value }],
-  }));
-  const manMotion = useAnimatedStyle(() => ({
-    transform: [{ translateX: manShift.value }],
-  }));
+  const womanMotion = useAnimatedStyle(() => {
+    const progress = entranceProgress.value;
+    return {
+      opacity: interpolate(progress, [0, 0.14, 1], [0, 1, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateX:
+            womanShift.value +
+            interpolate(progress, [0, 1], [-width * 0.9, 0], Extrapolation.CLAMP),
+        },
+        { scale: interpolate(progress, [0, 1], [0.82, 1], Extrapolation.CLAMP) },
+      ],
+    };
+  });
+  const manMotion = useAnimatedStyle(() => {
+    const progress = entranceProgress.value;
+    return {
+      opacity: interpolate(progress, [0, 0.14, 1], [0, 1, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateX:
+            manShift.value + interpolate(progress, [0, 1], [width * 0.9, 0], Extrapolation.CLAMP),
+        },
+        {
+          translateY: interpolate(
+            progress,
+            [0, 1],
+            [availableHeight * 0.38, 0],
+            Extrapolation.CLAMP,
+          ),
+        },
+        { scale: interpolate(progress, [0, 1], [0.82, 1], Extrapolation.CLAMP) },
+      ],
+    };
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -118,8 +189,16 @@ export default function Home() {
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Image
           source={CAFE_BACKGROUND}
-          resizeMode="cover"
-          style={StyleSheet.absoluteFill}
+          resizeMode="stretch"
+          style={[
+            styles.cafeBackground,
+            {
+              left: backgroundLeft,
+              top: backgroundTop,
+              width: backgroundWidth,
+              height: backgroundHeight,
+            },
+          ]}
           accessible={false}
         />
         <Animated.Image
@@ -154,13 +233,14 @@ export default function Home() {
         />
       </View>
 
-      {/* bottom scrim for legible light copy */}
+      {/* edge scrim for legible top copy and bottom action */}
       <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
         <Defs>
           <LinearGradient id="home-scrim" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#1A120C" stopOpacity={0} />
-            <Stop offset="0.55" stopColor="#1A120C" stopOpacity={0} />
-            <Stop offset="1" stopColor="#1A120C" stopOpacity={0.82} />
+            <Stop offset="0" stopColor="#1A120C" stopOpacity={0.58} />
+            <Stop offset="0.3" stopColor="#1A120C" stopOpacity={0} />
+            <Stop offset="0.62" stopColor="#1A120C" stopOpacity={0} />
+            <Stop offset="1" stopColor="#1A120C" stopOpacity={0.76} />
           </LinearGradient>
         </Defs>
         <Rect width="100%" height="100%" fill="url(#home-scrim)" />
@@ -168,14 +248,28 @@ export default function Home() {
 
       {/* top-right: proposals + notifications */}
       <View style={[styles.topbar, { top: insets.top + 6 }]}>
-        <IconDot icon={<Heart color="#FFF" size={20} strokeWidth={2} />} n={pending} label="프로포즈" onPress={() => setPopup("proposals")} />
-        <IconDot icon={<Bell color="#FFF" size={20} strokeWidth={2} />} n={unread} label="알림" onPress={() => setPopup("notifications")} />
+        <IconDot
+          icon={<Heart color="#FFF" size={20} strokeWidth={2} />}
+          n={pending}
+          label="프로포즈"
+          onPress={() => setPopup("proposals")}
+        />
+        <IconDot
+          icon={<Bell color="#FFF" size={20} strokeWidth={2} />}
+          n={unread}
+          label="알림"
+          onPress={() => setPopup("notifications")}
+        />
       </View>
 
-      {/* bottom: concept line + MATCH */}
-      <View style={[styles.bottom, { paddingBottom: clearance + 8 }]}>
+      {/* top: concept line */}
+      <View style={[styles.topCopy, { top: insets.top + 72 }]}>
         <Text style={styles.eyebrow}>로테이션 블라인드 소개팅</Text>
         <Text style={styles.headline}>얼굴보다{"\n"}대화가 먼저</Text>
+      </View>
+
+      {/* bottom-center: primary action */}
+      <View style={[styles.bottomAction, { bottom: clearance + 20 }]}>
         <Pressable
           onPress={onMatch}
           accessibilityRole="button"
@@ -222,7 +316,8 @@ function IconDot({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#1A120C" },
+  root: { flex: 1, overflow: "hidden", backgroundColor: "#1A120C" },
+  cafeBackground: { position: "absolute" },
   character: { position: "absolute" },
   topbar: { position: "absolute", right: 16, flexDirection: "row", gap: 10, zIndex: 5 },
   iconDot: {
@@ -247,8 +342,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { fontFamily: fonts.bodySemibold, fontSize: 10, lineHeight: 13, color: colors.onAccent },
-  bottom: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 24, gap: 4 },
+  badgeText: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 10,
+    lineHeight: 13,
+    color: colors.onAccent,
+  },
+  topCopy: { position: "absolute", left: 24, right: 24, zIndex: 3 },
+  bottomAction: {
+    position: "absolute",
+    left: 24,
+    right: 24,
+    alignItems: "center",
+    zIndex: 3,
+  },
   eyebrow: {
     fontFamily: fonts.bodySemibold,
     fontSize: 11,
@@ -264,8 +371,6 @@ const styles = StyleSheet.create({
     color: "#FFF7F0",
   },
   match: {
-    marginTop: 16,
-    alignSelf: "flex-start",
     minWidth: 200,
     borderRadius: 999,
     paddingVertical: 13,
@@ -274,6 +379,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 1,
   },
-  matchText: { fontFamily: serifFont, fontSize: 20, letterSpacing: 1.5, color: masterpiece.inkDeep },
-  matchSub: { fontFamily: fonts.body, fontSize: 10, letterSpacing: 0.3, color: masterpiece.inkSoft },
+  matchText: {
+    fontFamily: serifFont,
+    fontSize: 20,
+    letterSpacing: 1.5,
+    color: masterpiece.inkDeep,
+  },
+  matchSub: {
+    fontFamily: fonts.body,
+    fontSize: 10,
+    letterSpacing: 0.3,
+    color: masterpiece.inkSoft,
+  },
 });

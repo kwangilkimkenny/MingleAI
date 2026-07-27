@@ -38,6 +38,9 @@ export class ProfileService {
     });
     const gender = verified?.verifiedGender ?? dto.gender;
     const age = verified?.verifiedBirth ? this.ageFrom(verified.verifiedBirth) : dto.age;
+    if (!gender || age == null) {
+      throw new BadRequestException("본인인증을 먼저 완료해 주세요");
+    }
 
     // I2: also catch a concurrent-duplicate P2002 that races past the pre-check
     let profile: { id: string } & Record<string, any>;

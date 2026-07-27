@@ -15,34 +15,18 @@ import { useAuthStore } from "../src/lib/client";
 import { useAuthHydrated } from "../src/lib/use-hydrated";
 import { AppScreen } from "../src/components/AppScreen";
 import { DoodleButton } from "../src/components/Doodle";
-import { DoodleChip } from "../src/components/DoodleSvg";
 import { DoodleAvatar } from "../src/components/DoodleAvatar";
 import { pickAndUploadPhoto } from "../src/lib/photo";
 import { InlineNotice, LabeledInput, StateView } from "../src/components/Foundation";
 
-const GENDER_OPTIONS = [
-  { label: "남성", value: "male" },
-  { label: "여성", value: "female" },
-  { label: "논바이너리", value: "non_binary" },
-  { label: "응답 안 함", value: "prefer_not_to_say" },
-] as const;
-
-type Gender = (typeof GENDER_OPTIONS)[number]["value"];
-
+// 성별·나이는 본인인증(verified) 값이 권위 — 온보딩에서 다시 묻지 않는다(2026-07-27 사용자 지시).
 function validate(fields: {
   name: string;
-  gender: Gender | null;
-  ageText: string;
   occupation: string;
   partyPreferenceText: string;
 }): string | null {
   if (!fields.name.trim()) return "닉네임을 입력해 주세요.";
   if (fields.name.trim().length > 40) return "닉네임은 40자 이하로 입력해 주세요.";
-  if (!fields.gender) return "성별을 선택해 주세요.";
-  if (!fields.ageText.trim()) return "나이를 입력해 주세요.";
-  if (!/^\d+$/.test(fields.ageText.trim())) return "나이를 숫자로 입력해 주세요.";
-  const age = parseInt(fields.ageText.trim(), 10);
-  if (age < 19 || age > 100) return "나이는 19~100 사이여야 합니다.";
   if (!fields.occupation.trim()) return "직업을 입력해 주세요.";
   if (fields.partyPreferenceText.trim().length < 8) return "선호 스타일을 8자 이상 입력해 주세요.";
   return null;
@@ -53,8 +37,6 @@ export default function Onboarding() {
   const token = useAuthStore((s) => s.token);
 
   const [name, setName] = useState("");
-  const [gender, setGender] = useState<Gender | null>(null);
-  const [ageText, setAgeText] = useState("");
   const [occupation, setOccupation] = useState("");
   const [partyPreferenceText, setPartyPreferenceText] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -105,8 +87,6 @@ export default function Onboarding() {
     try {
       const profile = await createProfile({
         name: name.trim(),
-        age: parseInt(ageText, 10),
-        gender: gender!,
         occupation: occupation.trim(),
         partyPreferenceText: partyPreferenceText.trim(),
         ...(photoUrl ? { photoUrl } : {}),
@@ -122,7 +102,7 @@ export default function Onboarding() {
     }
   }
 
-  const valid = !validate({ name, gender, ageText, occupation, partyPreferenceText });
+  const valid = !validate({ name, occupation, partyPreferenceText });
 
   return (
     <KeyboardAvoidingView
@@ -188,31 +168,6 @@ export default function Onboarding() {
             dark
           />
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>성별</Text>
-            <View style={styles.chipRow}>
-              {GENDER_OPTIONS.map((opt) => (
-                <DoodleChip
-                  key={opt.value}
-                  label={opt.label}
-                  on={gender === opt.value}
-                  onPress={() => setGender(opt.value)}
-                  dark
-                />
-              ))}
-            </View>
-            <Text style={styles.fieldHint}>원하지 않으면 ‘응답 안 함’을 선택할 수 있어요.</Text>
-          </View>
-
-          <LabeledInput
-            label="나이"
-            placeholder="예: 25"
-            keyboardType="numeric"
-            value={ageText}
-            onChangeText={setAgeText}
-            dark
-          />
-
           <LabeledInput
             label="직업"
             placeholder="예: 대학원생"
@@ -225,7 +180,7 @@ export default function Onboarding() {
           <LabeledInput
             label="함께 놀고 싶은 분위기"
             placeholder="예: 조용히 보드게임 하면서 천천히 친해지는 분위기"
-            hint="8자 이상 구체적으로 적을수록 취향에 가까운 파티를 찾기 쉬워요."
+            hint="8자 이상 구체적으로 적을수록 취향에 가까운 상대를 만나기 쉬워요."
             multiline
             numberOfLines={4}
             maxLength={1000}
@@ -267,8 +222,4 @@ const styles = StyleSheet.create({
   },
   photoLinkButton: { minHeight: 44, alignItems: "center", justifyContent: "center" },
   photoNotice: { alignSelf: "stretch", marginTop: space.x1 },
-  fieldGroup: { gap: space.x2 },
-  label: { ...type.label, color: dark.text },
-  fieldHint: { ...type.caption, color: dark.textMuted },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: space.x2 },
 });

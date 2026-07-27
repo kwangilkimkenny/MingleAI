@@ -2,13 +2,13 @@ import { StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "../src/components/AppScreen";
 import { dark, space, type } from "../src/lib/theme";
 
-const UPDATED_AT = "2026년 7월 22일";
+const UPDATED_AT = "2026년 7월 27일";
 
 const SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
     title: "1. 서비스와 이용 자격",
     paragraphs: [
-      "MingleAI는 게임, 채팅, 프로포즈와 데이트 계획 기능을 제공하는 성인 대상 소셜 매칭 서비스입니다. 만 19세 이상만 계정을 만들 수 있습니다.",
+      "mingles는 여러 상대와 돌아가며 음성·영상으로 대화하고 단계적으로 서로를 공개하는 성인 대상 블라인드 소개팅 서비스입니다. 상호 선택 시 매칭되며 1:1 채팅, 데이트 계획, 주변 맛집 안내를 제공합니다. 만 19세 이상만 계정을 만들 수 있습니다.",
       "상대방의 동의 없이 개인정보를 수집·공개하거나, 괴롭힘·사칭·불법 행위·상업적 권유에 서비스를 사용할 수 없습니다.",
     ],
   },
@@ -16,7 +16,7 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
     title: "2. 안전과 콘텐츠",
     paragraphs: [
       "사용자는 자신의 콘텐츠에 대한 책임을 집니다. 운영팀은 신고 조사와 안전 확보를 위해 콘텐츠를 제한하거나 계정을 정지할 수 있으며, 긴급한 위해가 의심되면 관련 법령에 따라 대응할 수 있습니다.",
-      "AI 캐릭터의 발언과 게임 결과는 오락을 위한 것이며 실제 사용자의 신원이나 의사를 대변하지 않습니다.",
+      "AI는 선호 분석과 매칭 추천에만 사용되며 사용자를 대신해 대화하지 않습니다. 소개팅에서 만나는 상대는 모두 실제 사용자입니다.",
     ],
   },
   {

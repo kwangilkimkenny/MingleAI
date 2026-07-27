@@ -1,10 +1,13 @@
 import { colors, doodleHeaderOptions } from "../../src/lib/theme";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "../../src/lib/client";
 import { useAuthHydrated } from "../../src/lib/use-hydrated";
-import { getAccountStatus, getMyProfile, nextGate, type GateStep } from "@mingle/client-core";
-import { getCameraMicStatus } from "../../src/lib/permissions";
+import type { GateStep } from "@mingle/client-core";
+import {
+  resolveAccountGate,
+  takePrimedAccountGate,
+} from "../../src/lib/account-gate";
 import { usePushRegistration } from "../../src/lib/push";
 import { StateView } from "../../src/components/Foundation";
 
@@ -14,24 +17,21 @@ export default function AppLayout() {
   const hydrated = useAuthHydrated();
   const token = useAuthStore((s) => s.token);
   const setAuth = useAuthStore((s) => s.setAuth);
-  const [phase, setPhase] = useState<Phase>("loading");
+  const [initialGate] = useState(() => takePrimedAccountGate());
+  const [phase, setPhase] = useState<Phase>(initialGate?.phase ?? "loading");
+  const skipInitialResolve = useRef(initialGate !== null);
 
-  // Onboarding gate ladder: consent → camera/mic permission → identity → profile → ready.
+  // Onboarding gate ladder: identity → consent → camera/mic permission → profile → ready.
   const resolveGate = useCallback(() => {
     if (!hydrated || !token) return;
     let alive = true;
     setPhase("loading");
     (async () => {
       try {
-        const [status, perms] = await Promise.all([getAccountStatus(), getCameraMicStatus()]);
+        const gate = await resolveAccountGate();
         if (!alive) return;
-        const gate = nextGate(status, perms);
-        if (gate === "ready") {
-          const profile = await getMyProfile();
-          if (!alive) return;
-          if (profile) setAuth({ token, profileId: profile.id });
-        }
-        if (alive) setPhase(gate);
+        if (gate.profileId) setAuth({ token, profileId: gate.profileId });
+        if (alive) setPhase(gate.phase);
       } catch {
         if (alive) setPhase("error");
       }
@@ -41,7 +41,13 @@ export default function AppLayout() {
     };
   }, [hydrated, token, setAuth]);
 
-  useEffect(() => resolveGate(), [resolveGate]);
+  useEffect(() => {
+    if (skipInitialResolve.current) {
+      skipInitialResolve.current = false;
+      return;
+    }
+    return resolveGate();
+  }, [resolveGate]);
 
   usePushRegistration(phase === "ready");
 
