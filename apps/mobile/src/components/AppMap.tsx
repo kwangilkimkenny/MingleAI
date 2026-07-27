@@ -2,6 +2,12 @@
  * AppMap (native) — MapLibre GL Native + OpenFreeMap 타일(키·쿼터·비용 없음, 2026-07-27
  * 네이버 지도 유료화로 교체). guarded require라 네이티브 모듈이 없는 환경(Expo Go)에서는
  * 플레이스홀더로 폴백. `center` 주위 반경 원과 장소 핀을 그린다. 웹은 `AppMap.web.tsx`(Leaflet).
+ *
+ * ⚠️ API 버전 주의: v11에서 컴포넌트 이름이 바뀌었다 — `MapView`→`Map`, `ShapeSource`→
+ * `GeoJSONSource`(prop `shape`→`data`), `FillLayer`/`LineLayer`/`CircleLayer`→ 공용 `Layer`
+ * (`type` + style-spec `paint`), Camera `centerCoordinate`/`zoomLevel`→`center`/`zoom`.
+ * v10 이름을 쓰면 require는 성공하는데 컴포넌트가 undefined라 "지도를 준비하고 있어요"에서
+ * 영원히 멈춘다(2026-07-27 버그).
  */
 import { View, Text, StyleSheet } from "react-native";
 import { colors, type as t, space } from "../lib/theme";
@@ -22,15 +28,18 @@ function mapLibre(): any | null {
   }
 }
 
-/** 반경(km) → 화면에 원이 들어오는 대략적 줌 레벨. */
+/** 반경(km) → 원이 화면에 들어오는 대략적 줌 레벨. */
 function zoomForRadius(radiusKm: number | null, lat: number): number {
-  if (!radiusKm) return 12;
-  const metersPerPixel = (radiusKm * 2 * 1000) / 320; // 원 지름이 ~320px 안에 들어오도록
-  return Math.log2((40075016.686 * Math.cos((lat * Math.PI) / 180)) / (metersPerPixel * 512));
+  if (!radiusKm) return 13;
+  const metersPerPixel = (radiusKm * 2 * 1000) / 320; // 지름이 ~320px 안에 들어오도록
+  const zoom = Math.log2(
+    (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (metersPerPixel * 512),
+  );
+  return Math.max(3, Math.min(18, zoom));
 }
 
 /** 반경 원 GeoJSON 폴리곤(64각형). */
-function circlePolygon(center: Coords, radiusKm: number): any {
+function circleFeature(center: Coords, radiusKm: number): any {
   const points: [number, number][] = [];
   const dLat = radiusKm / 110.574;
   const dLng = radiusKm / (111.32 * Math.cos((center.lat * Math.PI) / 180));
@@ -38,11 +47,7 @@ function circlePolygon(center: Coords, radiusKm: number): any {
     const theta = (i / 64) * 2 * Math.PI;
     points.push([center.lng + dLng * Math.cos(theta), center.lat + dLat * Math.sin(theta)]);
   }
-  return {
-    type: "Feature",
-    geometry: { type: "Polygon", coordinates: [points] },
-    properties: {},
-  };
+  return { type: "Feature", geometry: { type: "Polygon", coordinates: [points] }, properties: {} };
 }
 
 export function AppMap({
@@ -55,16 +60,18 @@ export function AppMap({
   places: MapPlace[];
 }) {
   const lib = mapLibre();
-  if (!lib?.MapView) {
+  const MapComponent = lib?.Map;
+  if (!MapComponent) {
     return (
       <View style={styles.placeholder}>
         <Text style={styles.placeholderText}>지도를 준비하고 있어요</Text>
       </View>
     );
   }
-  const { MapView, Camera, ShapeSource, FillLayer, LineLayer, CircleLayer } = lib;
+  const { Camera, GeoJSONSource, Layer } = lib;
+  const zoom = zoomForRadius(radiusKm, center.lat);
 
-  const pinFeatures = {
+  const pinFeatures: any = {
     type: "FeatureCollection",
     features: [
       {
@@ -81,54 +88,62 @@ export function AppMap({
   };
 
   return (
-    <MapView
+    <MapComponent
       style={StyleSheet.absoluteFill}
       mapStyle={STYLE_URL}
-      logoEnabled={false}
-      attributionEnabled={false}
-      compassEnabled={false}
+      logo={false}
+      attribution={false}
+      compass={false}
     >
       <Camera
-        defaultSettings={{
-          centerCoordinate: [center.lng, center.lat],
-          zoomLevel: zoomForRadius(radiusKm, center.lat),
-        }}
-        centerCoordinate={[center.lng, center.lat]}
-        zoomLevel={zoomForRadius(radiusKm, center.lat)}
+        initialViewState={{ center: [center.lng, center.lat], zoom }}
+        center={[center.lng, center.lat]}
+        zoom={zoom}
         animationDuration={350}
       />
+      {radiusKm ? <GeoJSONSource id="radius" data={circleFeature(center, radiusKm)} /> : null}
+      <GeoJSONSource id="pins" data={pinFeatures} />
       {radiusKm ? (
-        <ShapeSource id="radius" shape={circlePolygon(center, radiusKm)}>
-          <FillLayer id="radius-fill" style={{ fillColor: colors.accent, fillOpacity: 0.12 }} />
-          <LineLayer
-            id="radius-line"
-            style={{ lineColor: colors.accent, lineWidth: 2, lineOpacity: 0.9 }}
-          />
-        </ShapeSource>
+        <Layer
+          id="radius-fill"
+          type="fill"
+          source="radius"
+          paint={{ "fill-color": colors.accent, "fill-opacity": 0.12 }}
+        />
       ) : null}
-      <ShapeSource id="pins" shape={pinFeatures}>
-        <CircleLayer
-          id="pin-me"
-          filter={["==", ["get", "kind"], "me"]}
-          style={{
-            circleRadius: 7,
-            circleColor: colors.accentStrong,
-            circleStrokeColor: "#FFFFFF",
-            circleStrokeWidth: 2,
-          }}
+      {radiusKm ? (
+        <Layer
+          id="radius-line"
+          type="line"
+          source="radius"
+          paint={{ "line-color": colors.accent, "line-width": 2, "line-opacity": 0.9 }}
         />
-        <CircleLayer
-          id="pin-place"
-          filter={["==", ["get", "kind"], "place"]}
-          style={{
-            circleRadius: 6,
-            circleColor: colors.ink,
-            circleStrokeColor: "#FFFFFF",
-            circleStrokeWidth: 2,
-          }}
-        />
-      </ShapeSource>
-    </MapView>
+      ) : null}
+      <Layer
+        id="pin-place"
+        type="circle"
+        source="pins"
+        filter={["==", ["get", "kind"], "place"]}
+        paint={{
+          "circle-radius": 6,
+          "circle-color": colors.ink,
+          "circle-stroke-color": "#FFFFFF",
+          "circle-stroke-width": 2,
+        }}
+      />
+      <Layer
+        id="pin-me"
+        type="circle"
+        source="pins"
+        filter={["==", ["get", "kind"], "me"]}
+        paint={{
+          "circle-radius": 7,
+          "circle-color": colors.accentStrong,
+          "circle-stroke-color": "#FFFFFF",
+          "circle-stroke-width": 2,
+        }}
+      />
+    </MapComponent>
   );
 }
 

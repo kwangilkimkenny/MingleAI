@@ -37,7 +37,7 @@ async function bootstrap() {
 
   if (process.env.NODE_ENV !== "production" || process.env.ENABLE_SWAGGER === "true") {
     const config = new DocumentBuilder()
-      .setTitle("MingleAI API")
+      .setTitle("mingles API")
       .setDescription("Another I 소셜 매칭 플랫폼 API")
       .setVersion("0.1.0")
       .addBearerAuth()

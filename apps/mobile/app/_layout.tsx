@@ -34,11 +34,10 @@ export default function RootLayout() {
   }
 
   // 헤더 전면 비표시 — 인증 화면은 DoodleHero가 브랜딩을 담당하고, 탭/상세는 자체 크롬을 가진다.
-  // contentStyle: 내비게이터 기본 배경(#F2F2F2)이 전환 틈에 비치지 않게 종이색으로 고정.
+  // contentStyle: 전 화면이 다크라 내비게이터 배경도 다크로 고정 — 라이트로 두면 로그인→홈 전환
+  // 틈에 크림 배경이 한 프레임 번쩍인다(2026-07-27 버그).
   return (
-    <Stack
-      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}
-    />
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: dark.bg } }} />
   );
 }
 

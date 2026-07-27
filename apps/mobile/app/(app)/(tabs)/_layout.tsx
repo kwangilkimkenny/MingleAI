@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { Home, MessageCircle, MapPin, Settings } from "lucide-react-native";
-import { doodleHeaderOptions } from "../../../src/lib/theme";
+import { dark, doodleHeaderOptions } from "../../../src/lib/theme";
 import { DoodleTabBar } from "../../../src/components/DoodleTabBar";
 
 /**
@@ -12,7 +12,12 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <DoodleTabBar {...props} />}
-      screenOptions={{ ...doodleHeaderOptions, headerShown: false }}
+      screenOptions={{
+        ...doodleHeaderOptions,
+        headerShown: false,
+        // 탭 전환 틈에 라이트 배경이 비치지 않게 다크 고정(전 화면 다크).
+        sceneStyle: { backgroundColor: dark.bg },
+      }}
     >
       <Tabs.Screen
         name="home"

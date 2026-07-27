@@ -13,7 +13,7 @@ export function LegalPage({
 }) {
   return (
     <Container maxWidth="md" sx={{ py: { xs: 5, md: 8 } }}>
-      <Link component={NextLink} href="/" underline="hover">MingleAI</Link>
+      <Link component={NextLink} href="/" underline="hover">mingles</Link>
       <Typography component="h1" variant="h3" fontWeight={800} sx={{ mt: 2, mb: 1 }}>{title}</Typography>
       <Typography color="text.secondary" sx={{ mb: 5 }}>시행일 2026년 7월 22일</Typography>
       <Box sx={{ display: "grid", gap: 4 }}>{children}</Box>

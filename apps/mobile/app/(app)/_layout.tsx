@@ -1,4 +1,4 @@
-import { colors, doodleHeaderOptions } from "../../src/lib/theme";
+import { dark, doodleHeaderOptions } from "../../src/lib/theme";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "../../src/lib/client";
@@ -52,9 +52,9 @@ export default function AppLayout() {
 
   usePushRegistration(phase === "ready");
 
-  if (!hydrated) return <StateView title="계정을 확인하고 있어요" loading />;
+  if (!hydrated) return <StateView title="계정을 확인하고 있어요" loading dark />;
   if (!token) return <Redirect href="/login" />;
-  if (phase === "loading") return <StateView title="준비 상태를 확인하고 있어요" loading />;
+  if (phase === "loading") return <StateView title="준비 상태를 확인하고 있어요" loading dark />;
   if (phase === "error") {
     return (
       <StateView
@@ -62,6 +62,7 @@ export default function AppLayout() {
         body="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
         actionLabel="다시 시도"
         onAction={resolveGate}
+        dark
       />
     );
   }
@@ -74,7 +75,7 @@ export default function AppLayout() {
       screenOptions={{
         ...doodleHeaderOptions,
         headerShown: false,
-        contentStyle: { backgroundColor: colors.paper },
+        contentStyle: { backgroundColor: dark.bg },
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

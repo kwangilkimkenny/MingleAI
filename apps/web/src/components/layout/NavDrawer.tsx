@@ -50,7 +50,7 @@ export default function NavDrawer({
     <Box sx={{ width: 260, py: 2, display: "flex", flexDirection: "column", height: "100%" }}>
       <Box px={3} pb={2}>
         <Typography variant="h6" fontWeight={700} color="primary">
-          MingleAI
+          mingles
         </Typography>
         <Typography variant="caption" color="text.secondary">
           Another I - AI 소셜 매칭

@@ -24,9 +24,12 @@ const WELCOME_ID = "__welcome__";
 export function NotificationsPopup({
   visible,
   onClose,
+  onChanged,
 }: {
   visible: boolean;
   onClose: () => void;
+  /** 읽음 처리로 안읽음 수가 바뀐 직후 — 홈 벨 배지를 즉시 다시 세게 한다. */
+  onChanged?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -63,7 +66,9 @@ export function NotificationsPopup({
       setWelcomeRead(true);
     } else if (!n.read) {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-      markNotificationRead(n.id).catch(() => {});
+      markNotificationRead(n.id)
+        .then(() => onChanged?.())
+        .catch(() => {});
     }
     onClose();
     // 공지 상세(전체화면)로. 제목·본문을 파라미터로 넘긴다.

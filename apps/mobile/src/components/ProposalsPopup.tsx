@@ -27,7 +27,16 @@ import { InlineNotice, StateView } from "./Foundation";
 import { colors, control, dark, space, type } from "../lib/theme";
 import { serifFont } from "../lib/serif";
 
-export function ProposalsPopup({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+export function ProposalsPopup({
+  visible,
+  onClose,
+  onChanged,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  /** 수락·거절·차단으로 목록이 바뀐 직후 — 홈 배지를 즉시 다시 세게 한다. */
+  onChanged?: () => void;
+}) {
   const insets = useSafeAreaInsets();
   const [received, setReceived] = useState<ProposalView[]>([]);
   const [sent, setSent] = useState<ProposalView[]>([]);
@@ -71,6 +80,7 @@ export function ProposalsPopup({ visible, onClose }: { visible: boolean; onClose
       const res = await acceptProposal(id);
       if (!mounted.current) return;
       setReceived((prev) => prev.map((p) => (p.id === id ? { ...p, status: "accepted" } : p)));
+      onChanged?.();
       onClose();
       router.push({ pathname: "/(app)/chat/[roomId]", params: { roomId: res.roomId } });
     } catch (e) {
@@ -83,6 +93,7 @@ export function ProposalsPopup({ visible, onClose }: { visible: boolean; onClose
       await declineProposal(id);
       if (!mounted.current) return;
       setReceived((prev) => prev.map((p) => (p.id === id ? { ...p, status: "declined" } : p)));
+      onChanged?.();
     } catch (e) {
       if (mounted.current) setError(e instanceof ApiError ? e.message : "거절 실패");
     }
@@ -208,6 +219,7 @@ export function ProposalsPopup({ visible, onClose }: { visible: boolean; onClose
                               onBlocked={() => {
                                 setReceived((prev) => prev.filter((p) => p.id !== item.id));
                                 setSent((prev) => prev.filter((p) => p.id !== item.id));
+                                onChanged?.();
                               }}
                             />
                           }

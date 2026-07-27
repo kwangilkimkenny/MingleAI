@@ -44,7 +44,7 @@ export default function LoginForm() {
         관리자 로그인
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3} textAlign="center">
-        MingleAI 운영 콘솔
+        mingles 운영 콘솔
       </Typography>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

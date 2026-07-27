@@ -43,7 +43,7 @@ export default function AccountDeletionPage() {
 
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 5, md: 8 } }}>
-      <Link component={NextLink} href="/">MingleAI</Link>
+      <Link component={NextLink} href="/">mingles</Link>
       <Typography component="h1" variant="h3" fontWeight={800} sx={{ mt: 2 }}>계정 삭제</Typography>
       <Typography color="text.secondary" sx={{ mt: 2, mb: 4 }}>앱을 설치하지 않아도 여기에서 계정과 연결 데이터를 영구 삭제할 수 있습니다.</Typography>
       {deleted ? <Alert severity="success">계정이 삭제되었습니다.</Alert> : (

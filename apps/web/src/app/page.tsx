@@ -72,7 +72,7 @@ export default function Home() {
             mb={2}
             sx={{ fontSize: { xs: "2.5rem", md: "3.5rem" } }}
           >
-            MingleAI
+            mingles
           </Typography>
           <Typography
             variant="h5"
@@ -164,7 +164,7 @@ export default function Home() {
       {/* 푸터 */}
       <Box sx={{ py: 4, textAlign: "center" }}>
         <Typography variant="body2" color="text.secondary">
-          © {new Date().getFullYear()} MingleAI. AI-Powered Social Matching Platform.
+          © {new Date().getFullYear()} mingles. AI-Powered Social Matching Platform.
         </Typography>
       </Box>
     </Box>

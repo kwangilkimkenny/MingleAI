@@ -87,11 +87,9 @@ export default function SpeedDateMatching() {
     return false;
   }
 
-  // 룰 → 다음: 세션 권한 확인 후 지도 단계로 이동하며 현위치를 요청한다(위치는 옵션 권한).
-  async function onNext() {
-    if (!(await ensureAvPermissions())) return;
-    setStep("location");
-    if (coords || locBusy) return;
+  /** 현위치 조회(권한 요청 포함). 실패해도 좌표 없이 진행할 수 있어 조용히 끝낸다. */
+  async function locateMe() {
+    if (locBusy) return;
     setLocBusy(true);
     try {
       const loc = await requestLocation();
@@ -99,6 +97,14 @@ export default function SpeedDateMatching() {
     } finally {
       if (alive.current) setLocBusy(false);
     }
+  }
+
+  // 룰 → 다음: 세션 권한 확인 후 지도 단계로 이동하며 현위치를 요청한다(위치는 옵션 권한).
+  async function onNext() {
+    if (!(await ensureAvPermissions())) return;
+    setStep("location");
+    if (coords) return;
+    void locateMe();
   }
 
   async function poll() {
@@ -192,6 +198,16 @@ export default function SpeedDateMatching() {
                   ? "현위치를 확인하고 있어요…"
                   : "위치를 확인할 수 없어요. ‘제한 없음’으로 시작할 수 있어요."}
               </Text>
+              {locBusy ? null : (
+                <Pressable
+                  onPress={locateMe}
+                  accessibilityRole="button"
+                  accessibilityLabel="위치 다시 확인"
+                  style={({ pressed }) => [styles.retryPill, pressed && { opacity: 0.7 }]}
+                >
+                  <Text style={styles.retryText}>다시 확인</Text>
+                </Pressable>
+              )}
             </View>
           )}
         </View>
@@ -357,6 +373,16 @@ const styles = StyleSheet.create({
     backgroundColor: dark.surface,
   },
   mapFallbackText: { ...type.body, color: dark.textMuted, textAlign: "center" },
+  retryPill: {
+    marginTop: space.x3,
+    paddingHorizontal: space.x5,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+  },
+  retryText: { ...type.label, color: dark.text },
   floatBack: {
     position: "absolute",
     left: space.x4,

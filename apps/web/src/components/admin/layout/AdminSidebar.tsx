@@ -49,7 +49,7 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
     >
       <Box px={3} pb={2}>
         <Typography variant="h6" fontWeight={700} color="primary">
-          MingleAI
+          mingles
         </Typography>
         <Typography variant="caption" color="text.secondary">
           관리자 대시보드

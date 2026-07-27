@@ -49,7 +49,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <MenuIcon />
               </IconButton>
               <Typography variant="h6" fontWeight={700} color="primary" sx={{ flexGrow: 1 }}>
-                MingleAI
+                mingles
               </Typography>
               {token && <NotificationBell />}
             </Toolbar>

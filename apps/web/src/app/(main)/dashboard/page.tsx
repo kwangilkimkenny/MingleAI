@@ -88,7 +88,7 @@ export default function DashboardPage() {
         안녕하세요!
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        MingleAI에 오신 것을 환영합니다. AI 에이전트가 당신을 대신해 소셜
+        mingles에 오신 것을 환영합니다. AI 에이전트가 당신을 대신해 소셜
         매칭에 참여합니다.
       </Typography>
 
@@ -228,7 +228,7 @@ export default function DashboardPage() {
       {/* 사용 안내 */}
       <Box mt={6}>
         <Typography variant="h6" fontWeight={600} mb={2}>
-          MingleAI 이용 방법
+          mingles 이용 방법
         </Typography>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>

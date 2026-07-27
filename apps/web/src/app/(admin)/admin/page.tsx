@@ -19,7 +19,7 @@ export default function AdminDashboardPage() {
         관리자 대시보드
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        MingleAI 서비스 현황을 한눈에 확인하세요
+        mingles 서비스 현황을 한눈에 확인하세요
       </Typography>
 
       <AdminStatsGrid />

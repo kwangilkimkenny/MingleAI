@@ -7,6 +7,9 @@
 export type Coords = { lat: number; lng: number };
 export type LocationPermission = "granted" | "denied" | "undetermined";
 
+/** getCurrentPositionAsync는 fix가 없으면 무한 대기할 수 있다(실내·에뮬레이터) — 상한을 둔다. */
+const FIX_TIMEOUT_MS = 7000;
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function expoLocation(): any | null {
   try {
@@ -19,6 +22,32 @@ function expoLocation(): any | null {
 
 function normalize(status: string): LocationPermission {
   return status === "granted" ? "granted" : status === "denied" ? "denied" : "undetermined";
+}
+
+/** 제한 시간 안에 안 오면 reject — 호출부는 lastKnown 폴백으로 넘어간다. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("location timeout")), ms)),
+  ]);
+}
+
+/** 현재 좌표: 실시간 fix → (실패/지연 시) 마지막 알려진 위치 → null. */
+type NativePosition = { coords: { latitude: number; longitude: number } } | null;
+
+async function resolveCoords(L: any): Promise<Coords | null> {
+  try {
+    const pos = await withTimeout<NativePosition>(L.getCurrentPositionAsync({}), FIX_TIMEOUT_MS);
+    if (pos) return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch {
+    // fall through to the last known position
+  }
+  try {
+    const last = await withTimeout<NativePosition>(L.getLastKnownPositionAsync({}), 2000);
+    return last ? { lat: last.coords.latitude, lng: last.coords.longitude } : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getLocationPermission(): Promise<LocationPermission> {
@@ -39,20 +68,8 @@ export async function requestLocation(): Promise<{ status: LocationPermission; c
   try {
     const { status } = await L.requestForegroundPermissionsAsync();
     if (status !== "granted") return { status: normalize(status) };
-    try {
-      const pos = await L.getCurrentPositionAsync({});
-      return { status: "granted", coords: { lat: pos.coords.latitude, lng: pos.coords.longitude } };
-    } catch {
-      // 프로바이더가 아직 fix를 못 잡은 경우(에뮬레이터·실내) — 마지막 알려진 위치로 폴백.
-      const last = await L.getLastKnownPositionAsync({});
-      if (last) {
-        return {
-          status: "granted",
-          coords: { lat: last.coords.latitude, lng: last.coords.longitude },
-        };
-      }
-      return { status: "granted" };
-    }
+    const coords = await resolveCoords(L);
+    return coords ? { status: "granted", coords } : { status: "granted" };
   } catch {
     return { status: "undetermined" };
   }
@@ -64,14 +81,7 @@ export async function getCurrentCoords(): Promise<Coords | null> {
   try {
     const perm = await L.getForegroundPermissionsAsync();
     if (perm.status !== "granted") return null;
-    try {
-      const pos = await L.getCurrentPositionAsync({});
-      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    } catch {
-      // 첫 fix 전(실내·에뮬레이터) — 마지막 알려진 위치로 폴백.
-      const last = await L.getLastKnownPositionAsync({});
-      return last ? { lat: last.coords.latitude, lng: last.coords.longitude } : null;
-    }
+    return await resolveCoords(L);
   } catch {
     return null;
   }

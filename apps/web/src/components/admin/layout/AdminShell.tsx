@@ -94,7 +94,7 @@ export default function AdminShell({ children }: AdminShellProps) {
                 <MenuIcon />
               </IconButton>
               <Typography variant="h6" fontWeight={700} color="primary">
-                MingleAI Admin
+                mingles Admin
               </Typography>
             </Toolbar>
           </AppBar>

@@ -50,6 +50,7 @@ export default function Home() {
   const [unread, setUnread] = useState(0);
   const [popup, setPopup] = useState<null | "proposals" | "notifications">(null);
   const navigatingRef = useRef(false);
+  const aliveRef = useRef(true);
   const availableHeight = Math.max(480, height - clearance);
   const characterHeight = availableHeight * 0.84;
   const womanHeight = characterHeight * 0.95;
@@ -158,24 +159,29 @@ export default function Home() {
     };
   });
 
+  /** 상단 하트·벨 배지 카운트 재조회 — 화면 포커스 + 팝업 내 변화(수락/거절/읽음) 직후 호출. */
+  const refreshBadges = useCallback(() => {
+    void getReceivedProposals()
+      .then((list) => {
+        if (aliveRef.current) setPending(list.filter((p) => p.status === "pending").length);
+      })
+      .catch(() => {});
+    void getUnreadCount()
+      .then(({ unreadCount }) => {
+        if (aliveRef.current) setUnread(unreadCount);
+      })
+      .catch(() => {});
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       navigatingRef.current = false;
-      let alive = true;
-      void getReceivedProposals()
-        .then((list) => {
-          if (alive) setPending(list.filter((p) => p.status === "pending").length);
-        })
-        .catch(() => {});
-      void getUnreadCount()
-        .then(({ unreadCount }) => {
-          if (alive) setUnread(unreadCount);
-        })
-        .catch(() => {});
+      aliveRef.current = true;
+      refreshBadges();
       return () => {
-        alive = false;
+        aliveRef.current = false;
       };
-    }, []),
+    }, [refreshBadges]),
   );
 
   function onMatch() {
@@ -281,8 +287,17 @@ export default function Home() {
         </Pressable>
       </View>
 
-      <ProposalsPopup visible={popup === "proposals"} onClose={() => setPopup(null)} />
-      <NotificationsPopup visible={popup === "notifications"} onClose={() => setPopup(null)} />
+      {/* 팝업은 홈 위 모달이라 닫아도 focus 이벤트가 없다 — 변화가 생기면 배지를 즉시 다시 센다. */}
+      <ProposalsPopup
+        visible={popup === "proposals"}
+        onClose={() => setPopup(null)}
+        onChanged={refreshBadges}
+      />
+      <NotificationsPopup
+        visible={popup === "notifications"}
+        onClose={() => setPopup(null)}
+        onChanged={refreshBadges}
+      />
     </View>
   );
 }
