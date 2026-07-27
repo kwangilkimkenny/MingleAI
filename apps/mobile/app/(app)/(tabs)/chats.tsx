@@ -6,6 +6,7 @@ import { Search, X } from "lucide-react-native";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { EnterRow } from "../../../src/components/Motion";
 import { AppScreen } from "../../../src/components/AppScreen";
+import { DoodleButton } from "../../../src/components/Doodle";
 import { StateView } from "../../../src/components/Foundation";
 import { colors, control, dark, fonts, space, type } from "../../../src/lib/theme";
 
@@ -139,13 +140,22 @@ export default function Chats() {
           dark
         />
       ) : rooms.length === 0 ? (
-        <StateView
-          title="아직 열린 대화가 없어요"
-          body="블라인드 데이트에서 만나 서로 선택하면 1:1 채팅이 여기에 열려요."
-          actionLabel="블라인드 데이트 시작"
-          onAction={() => router.push("/(app)/speed-date")}
-          dark
-        />
+        // CTA는 하단 고정 — 빈 상태에서도 primary 액션은 썸존에 둔다(2026-07-27 감사).
+        <View style={styles.emptyWrap}>
+          <StateView
+            title="아직 열린 대화가 없어요"
+            body="블라인드 데이트에서 서로를 선택하면 1:1 채팅이 여기에 열려요."
+            dark
+          />
+          <View style={styles.emptyCta}>
+            <DoodleButton
+              title="블라인드 데이트 시작"
+              variant="primary"
+              tone="dark"
+              onPress={() => router.push("/(app)/speed-date")}
+            />
+          </View>
+        </View>
       ) : visibleRooms.length === 0 ? (
         <View style={styles.noResults} accessibilityLiveRegion="polite">
           <View style={styles.noResultsIcon}>
@@ -213,6 +223,8 @@ export default function Chats() {
 
 const styles = StyleSheet.create({
   list: { flex: 1 },
+  emptyWrap: { flex: 1 },
+  emptyCta: { paddingBottom: space.x4 },
   listContent: { paddingBottom: space.x4 },
   headerButton: {
     width: control.minTouch,

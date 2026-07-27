@@ -95,7 +95,7 @@ export default function ReportScreen() {
         <ConfirmDialog
           visible={blockOpen}
           title="이 사용자도 차단할까요?"
-          body="서로의 프로필과 대화가 보이지 않게 됩니다. 설정에서 나중에 해제할 수 있어요."
+          body="서로의 프로필과 대화가 보이지 않게 돼요. 설정에서 나중에 해제할 수 있어요."
           confirmLabel="차단하기"
           destructive
           busy={blocking}
@@ -113,7 +113,7 @@ export default function ReportScreen() {
       header={{ back: true, title: "신고" }}
       footer={
         <DoodleButton
-          title={submitting ? "신고 제출 중..." : "신고 제출"}
+          title={submitting ? "신고 제출 중…" : "신고 제출"}
           variant="danger"
           tone="dark"
           disabled={!reason || submitting}
@@ -143,7 +143,7 @@ export default function ReportScreen() {
           dark
           maxLength={MAX_DETAILS}
           placeholder="자세한 상황을 적어주세요"
-          hint="시간, 장소, 상대의 행동처럼 사실을 중심으로 적어주면 검토에 도움이 돼요."
+          hint="시간, 장소, 상대의 행동처럼 사실을 중심으로 적어 주시면 검토에 도움이 돼요."
         />
         <Text style={styles.counter}>
           {details.length}/{MAX_DETAILS}

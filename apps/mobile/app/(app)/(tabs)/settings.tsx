@@ -1,31 +1,65 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { router } from "expo-router";
-import { Ban, ChevronRight, LogOut, FileText, Trash2, UserRound } from "lucide-react-native";
-import { logoutSession } from "@mingle/client-core";
+import { router, useFocusEffect } from "expo-router";
+import { Ban, ChevronRight, LogOut, FileText, Trash2 } from "lucide-react-native";
+import { logoutSession, getMyProfile } from "@mingle/client-core";
+
+type MyProfile = Awaited<ReturnType<typeof getMyProfile>>;
 import { useAuthStore } from "../../../src/lib/client";
 import { AppScreen } from "../../../src/components/AppScreen";
 import { ConfirmDialog } from "../../../src/components/Foundation";
+import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { dark, space, type } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
+
+const GENDER_LABEL: Record<string, string> = {
+  male: "남성",
+  female: "여성",
+  non_binary: "논바이너리",
+  prefer_not_to_say: "비공개",
+};
 
 export default function SettingsScreen() {
   const logout = useAuthStore((s) => s.logout);
   const refreshToken = useAuthStore((s) => s.refreshToken);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [profile, setProfile] = useState<MyProfile>(null);
+
+  // 상단 = 보는 영역(내 프로필 요약), 하단 = 누르는 영역 — 썸존 재배치(2026-07-27 감사).
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      getMyProfile()
+        .then((p) => {
+          if (alive) setProfile(p);
+        })
+        .catch(() => {});
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
 
   return (
     <AppScreen tone="dark" tabScreen body="scroll" contentStyle={styles.content}>
-      <Section label="프로필">
-        <Row
-          icon={<UserRound color={dark.text} size={19} strokeWidth={1.6} />}
-          title="내 정보"
-          last
-          // new route — Expo Router typegen updates on next `expo start`
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onPress={() => router.push("/(app)/profile-edit" as any)}
-        />
-      </Section>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="내 정보 수정"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onPress={() => router.push("/(app)/profile-edit" as any)}
+        style={({ pressed }) => [styles.profileCard, pressed && { opacity: 0.8 }]}
+      >
+        <DoodleAvatar uri={profile?.photoUrl} name={profile?.name ?? ""} size={56} />
+        <View style={styles.profileText}>
+          <Text style={styles.profileName}>{profile?.name ?? "내 정보"}</Text>
+          <Text style={styles.profileMeta}>
+            {profile
+              ? `${profile.age}세 · ${GENDER_LABEL[profile.gender] ?? profile.gender}${profile.occupation ? ` · ${profile.occupation}` : ""}`
+              : "프로필을 불러오고 있어요"}
+          </Text>
+        </View>
+        <ChevronRight color={dark.textMuted} size={19} strokeWidth={1.6} />
+      </Pressable>
 
       <Section label="안전">
         <Row
@@ -102,6 +136,19 @@ function Row({
 
 const styles = StyleSheet.create({
   content: { paddingTop: space.x4 },
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.x3,
+    padding: space.x4,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+  },
+  profileText: { flex: 1, gap: 2 },
+  profileName: { fontFamily: serifFont, fontSize: 19, color: dark.text },
+  profileMeta: { ...type.caption, color: dark.textMuted },
   section: { marginTop: space.x6 },
   sectionLabel: {
     fontFamily: type.label.fontFamily,

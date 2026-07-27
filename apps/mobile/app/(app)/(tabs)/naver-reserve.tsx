@@ -56,7 +56,7 @@ export default function NaverReserve() {
   if (phase === "unconfigured") {
     return (
       <AppScreen tabScreen tone="dark" body="plain">
-        <StateView title="곧 만나요" body="근처 맛집을 지도에서 찾고 바로 예약할 수 있어요." dark />
+        <StateView title="준비 중이에요" body="곧 근처 맛집을 지도에서 찾고 바로 예약할 수 있게 돼요." dark />
       </AppScreen>
     );
   }

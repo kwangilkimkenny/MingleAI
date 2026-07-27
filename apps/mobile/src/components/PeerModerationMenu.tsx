@@ -122,7 +122,7 @@ export function PeerModerationMenu({
     <ConfirmDialog
         visible={confirmOpen}
         title={`${peer.name}님을 차단할까요?`}
-        body="서로의 프로필과 대화가 보이지 않게 됩니다. 설정의 차단 목록에서 나중에 해제할 수 있어요."
+        body="서로의 프로필과 대화가 보이지 않게 돼요. 설정의 차단 목록에서 나중에 해제할 수 있어요."
         confirmLabel="차단하기"
         destructive
         busy={busy}

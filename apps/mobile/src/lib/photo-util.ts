@@ -25,7 +25,7 @@ export function mimeFromName(name: string): string {
 /** First visible grapheme of a name, uppercased; falls back to a face motif. */
 export function initialOf(name?: string): string {
   const trimmed = (name ?? "").trim();
-  if (!trimmed) return "◡";
+  if (!trimmed) return ""; // 이름 전 = 빈 원(두들 스마일 폐기 — 2026-07-27)
   // Array spread splits by code point so emoji / CJK render as one glyph.
   return [...trimmed][0].toUpperCase();
 }

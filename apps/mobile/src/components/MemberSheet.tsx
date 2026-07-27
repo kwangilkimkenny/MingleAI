@@ -160,7 +160,7 @@ export function MemberSheet({
               </ScrollView>
               <View style={styles.confirmActions}>
                 <DoodleButton
-                  title={sending ? "보내는 중..." : "프로포즈 보내기"}
+                  title={sending ? "보내는 중…" : "프로포즈 보내기"}
                   onPress={() => void confirmProposal(detail.profileId)}
                   disabled={sending}
                   variant="primary"

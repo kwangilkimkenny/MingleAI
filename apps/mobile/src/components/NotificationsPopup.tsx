@@ -79,8 +79,8 @@ export function NotificationsPopup({
   const welcome: AppNotification = {
     id: WELCOME_ID,
     type: "system",
-    title: "가입을 축하드립니다",
-    message: "밍글에 오신 걸 환영해요. 로테이션 블라인드 소개팅으로 인연을 만나보세요.",
+    title: "환영해요!",
+    message: "mingles에 오신 걸 환영해요. 로테이션 블라인드 소개팅으로 인연을 만나보세요.",
     data: null,
     read: welcomeRead,
     createdAt: "",

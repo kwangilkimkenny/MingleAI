@@ -272,7 +272,7 @@ export function ConfirmDialog({
             </View>
             <View style={styles.dialogAction}>
               <DoodleButton
-                title={busy ? "처리 중..." : confirmLabel}
+                title={busy ? "처리 중…" : confirmLabel}
                 onPress={() => {
                   if (destructive) hapticWarning();
                   else hapticImpact();

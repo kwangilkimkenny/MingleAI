@@ -124,7 +124,7 @@ export default function DatePlanScreen() {
         body="scroll"
         footer={
           <DoodleButton
-            title={busy ? "추천 중..." : "함께 볼 코스 추천 받기"}
+            title={busy ? "추천 중…" : "데이트 코스 추천받기"}
             disabled={busy}
             onPress={onCreate}
             variant="primary"
@@ -176,7 +176,7 @@ export default function DatePlanScreen() {
   const footer =
     p.status === "draft" && p.selectedCourseId && !isCreator ? (
       <DoodleButton
-        title={busy ? "확정 중..." : "이 계획 확정하기"}
+        title={busy ? "확정 중…" : "이 계획 확정하기"}
         variant="primary"
         tone="dark"
         disabled={busy}
@@ -246,7 +246,7 @@ export default function DatePlanScreen() {
 
         {p.status === "confirmed" && (
           <>
-            <Text style={s.hint}>데이트 플랜이 확정되었어요!</Text>
+            <Text style={s.hint}>데이트 플랜이 확정됐어요!</Text>
             {selected && <CourseCard course={selected} />}
           </>
         )}

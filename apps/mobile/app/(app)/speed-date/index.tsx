@@ -248,7 +248,7 @@ export default function SpeedDateMatching() {
       {phase === "ineligible" ? (
         <StateView
           title="현재 참여할 수 없어요"
-          body="지금은 남성·여성 매칭만 지원해요."
+          body="아직은 남성·여성 간 매칭만 제공해요."
           actionLabel="홈으로"
           onAction={() => router.replace("/home")}
           dark
@@ -257,7 +257,7 @@ export default function SpeedDateMatching() {
 
       {isConsent && step === "rules" ? (
         <View style={styles.rulesStack}>
-          <Text style={styles.title}>로테이션 데이트 Rule</Text>
+          <Text style={styles.title}>이렇게 진행돼요</Text>
           <View style={styles.rules}>
             {RULES.map((r, i) => (
               <RuleRow key={r.n} rule={r} last={i === RULES.length - 1} />
@@ -275,7 +275,7 @@ export default function SpeedDateMatching() {
           title="상대를 찾고 있어요"
           body={
             phase === "waiting"
-              ? `${Math.floor(elapsed / 1000)}초째 · 남3 여3이 모이면 시작해요`
+              ? `${Math.floor(elapsed / 1000)}초째 · 남녀 3명씩 모이면 시작해요`
               : "대기열에 등록하는 중…"
           }
           loading

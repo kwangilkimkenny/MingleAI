@@ -92,12 +92,12 @@ export default function Onboarding() {
         ...(photoUrl ? { photoUrl } : {}),
       });
       if (!profile.preferenceSignals) {
-        router.replace({ pathname: "/home", params: { notice: "선호 분석은 곧 반영됩니다." } });
+        router.replace({ pathname: "/home", params: { notice: "선호 분석은 곧 반영돼요." } });
       } else {
         router.replace("/home");
       }
     } catch (e) {
-      setSubmitError(e instanceof ApiError ? e.message : "프로필 저장에 실패했습니다.");
+      setSubmitError(e instanceof ApiError ? e.message : "프로필 저장에 실패했어요.");
       setBusy(false);
     }
   }
@@ -133,7 +133,7 @@ export default function Onboarding() {
               accessibilityRole="button"
               accessibilityLabel="프로필 사진 선택"
             >
-              <DoodleAvatar uri={photoUrl} name={name} size={104} />
+              <DoodleAvatar uri={photoUrl} name={name} size={84} />
               {photoBusy ? (
                 <View style={styles.photoBusy}>
                   <ActivityIndicator color={dark.text} />
@@ -178,8 +178,8 @@ export default function Onboarding() {
           />
 
           <LabeledInput
-            label="함께 놀고 싶은 분위기"
-            placeholder="예: 조용히 보드게임 하면서 천천히 친해지는 분위기"
+            label="원하는 만남 분위기"
+            placeholder="예: 조용한 카페에서 천천히 친해지는 분위기"
             hint="8자 이상 구체적으로 적을수록 취향에 가까운 상대를 만나기 쉬워요."
             multiline
             numberOfLines={4}
@@ -202,7 +202,7 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  form: { gap: space.x5, marginTop: space.x5 },
+  form: { gap: space.x4, marginTop: space.x4 },
   photoSection: { alignItems: "center", gap: space.x2, marginBottom: space.x1 },
   photoBusy: {
     position: "absolute",

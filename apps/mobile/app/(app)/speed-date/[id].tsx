@@ -19,14 +19,14 @@ import { colors, dark, layout, space, type } from "../../../src/lib/theme";
 
 const STAGE_HINT: Record<SpeedDateStage, string> = {
   DISGUISED: "목소리는 변조되고 캐릭터 이미지만 보여요.",
-  VOICE: "이제 진짜 목소리가 들려요. 얼굴은 아직 가림.",
+  VOICE: "이제 진짜 목소리가 들려요. 얼굴은 아직 가려져 있어요.",
   FACE: "카메라가 켜지고 얼굴이 공개돼요.",
 };
 
 /** Per-stage "N라운드" announcement copy, shown on the stage_intro screen. */
 const STAGE_INTRO: Record<SpeedDateStage, { label: string; hint: string }> = {
   DISGUISED: { label: "가면 대화", hint: "목소리는 변조되고 캐릭터로 만나요." },
-  VOICE: { label: "목소리 공개", hint: "이제 진짜 목소리가 들려요. 얼굴은 아직 가림." },
+  VOICE: { label: "목소리 공개", hint: "이제 진짜 목소리가 들려요. 얼굴은 아직 가려져 있어요." },
   FACE: { label: "얼굴 공개", hint: "카메라가 켜지고 얼굴이 공개돼요." },
 };
 
@@ -136,7 +136,7 @@ export default function SpeedDateSession() {
       dark
       visible={leaveAsk}
       title="소개팅에서 나갈까요?"
-      body="지금 나가면 이번 로테이션과 선택 기회를 놓쳐요. 세션이 끝날 때까지 다시 참여할 수 있어요."
+      body="지금 나가면 이번 로테이션과 선택 기회를 놓쳐요. 세션이 끝나기 전에는 언제든 다시 돌아올 수 있어요."
       confirmLabel="나가기"
       destructive
       onConfirm={() => {
@@ -390,7 +390,7 @@ function ResultView({ result }: { result: SpeedDateSnapshot["result"] }) {
   return (
     <View style={styles.roundWrap}>
       <Text style={styles.title}>{matches.length}명과 매칭됐어요!</Text>
-      <Text style={styles.sub}>이제 1:1 채팅에서 실제 프로필로 대화를 이어가세요.</Text>
+      <Text style={styles.sub}>이제 서로의 프로필을 보며 1:1 채팅을 이어가세요.</Text>
       {matches.map((m) => (
         <DoodleCard key={m.roomId} tone="dark" style={styles.matchCard} contentStyle={styles.matchInner}>
           <Text style={styles.nickname}>{m.nickname}</Text>

@@ -45,6 +45,7 @@ export default function Consent() {
   return (
     <AppScreen
       tone="dark"
+      body="plain"
       header={{
         title: "시작 전 동의가 필요해요",
         description: "안전한 서비스 운영을 위해 아래 항목에 모두 동의해 주세요.",
@@ -101,7 +102,8 @@ export default function Consent() {
 }
 
 const styles = StyleSheet.create({
-  body: { gap: space.x4, paddingTop: space.x2 },
+  // 썸존 원칙 — 체크(조작 요소)를 하단 CTA 바로 위로 내려 엄지 왕복을 없앤다(2026-07-27 감사).
+  body: { flex: 1, gap: space.x4, paddingTop: space.x2, justifyContent: "flex-end", paddingBottom: space.x2 },
   cardList: { padding: 0 },
   row: {
     flexDirection: "row",

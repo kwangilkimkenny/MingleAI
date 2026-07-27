@@ -41,9 +41,9 @@ describe("initialOf", () => {
     expect(initialOf("🙂 hi")).toBe("🙂");
   });
 
-  it("falls back to a face motif when empty", () => {
-    expect(initialOf("")).toBe("◡");
-    expect(initialOf(undefined)).toBe("◡");
-    expect(initialOf("   ")).toBe("◡");
+  it("falls back to an empty circle when empty (doodle face retired 2026-07-27)", () => {
+    expect(initialOf("")).toBe("");
+    expect(initialOf(undefined)).toBe("");
+    expect(initialOf("   ")).toBe("");
   });
 });

@@ -31,7 +31,7 @@ import { CalendarDays, Send } from "lucide-react-native";
 /** 블라인드 데이트 매치 직후의 첫 메시지 후보 — 방금 대화한 사이라는 맥락에 맞춘 오프너. */
 const OPENERS = [
   "아까 대화 즐거웠어요. 이어서 얘기해요!",
-  "목소리가 기억에 남아요. 다시 만나서 반가워요 :)",
+  "목소리가 기억에 남아요. 다시 만나서 반가워요.",
   "우리 아까 하던 얘기 마저 해요!",
   "서로 골랐네요! 신기하고 반가워요.",
   "얼굴 보고 나니 더 반갑네요. 잘 부탁해요!",
@@ -358,12 +358,14 @@ export default function ChatRoom() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  // 오프너 칩을 composer 바로 위에 — 탭→전송 동선을 한 썸존 안에 둔다(2026-07-27 감사).
   emptyWrap: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-end",
     gap: space.x2,
     paddingHorizontal: space.x6,
+    paddingBottom: space.x4,
   },
   emptyTitle: { ...type.heading, color: dark.text, textAlign: "center" },
   emptyBody: { ...type.body, color: dark.textMuted, textAlign: "center", marginBottom: space.x3 },

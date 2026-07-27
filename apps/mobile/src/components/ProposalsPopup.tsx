@@ -177,7 +177,7 @@ export function ProposalsPopup({ visible, onClose }: { visible: boolean; onClose
                       ? "아직 받은 프로포즈가 없어요"
                       : "아직 보낸 프로포즈가 없어요"
                   }
-                  body="블라인드 데이트에서 대화한 뒤, 마음이 가는 상대에게 직접 선택을 전해보세요."
+                  body="블라인드 데이트에서 대화한 뒤, 마음이 가는 상대를 직접 선택해 보세요."
                   actionLabel="블라인드 데이트 시작"
                   onAction={() => {
                     onClose();

@@ -156,12 +156,12 @@ export default function ProfileEditScreen() {
       <LabeledInput dark label="직업" value={occupation} onChangeText={setOccupation} maxLength={30} />
       <LabeledInput
         dark
-        label="함께 놀고 싶은 분위기"
+        label="원하는 만남 분위기"
         value={pref}
         onChangeText={setPref}
         multiline
         maxLength={300}
-        hint="8자 이상. 어떤 만남을 원하는지 자유롭게 적어주세요."
+        hint="어떤 만남을 원하는지 8자 이상 자유롭게 적어 주세요."
       />
 
       {ageGender ? (
