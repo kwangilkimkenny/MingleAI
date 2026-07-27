@@ -1,23 +1,34 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import Animated, {
+  Easing,
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import { socialLogin, devLogin, ApiError } from "@mingle/client-core";
 import { useAuthStore } from "../src/lib/client";
+import { primeAccountGate, resolveAccountGate } from "../src/lib/account-gate";
 import { startSocialOAuth, socialClientAvailable, type SocialProvider } from "../src/lib/social-auth";
 import { LabeledInput } from "../src/components/Foundation";
 import { DoodleButton } from "../src/components/Doodle";
+import { SocialLoginButton } from "../src/components/SocialLoginButton";
 import { dark, fonts } from "../src/lib/theme";
-import { serifFont } from "../src/lib/serif";
 
 const MAN = require("../assets/images/renaissance-man-cutout.png");
 const WOMAN = require("../assets/images/renaissance-woman-cutout.png");
 
-const PROVIDERS: { key: SocialProvider; label: string }[] = [
-  { key: "kakao", label: "카카오로 시작하기" },
-  { key: "naver", label: "네이버로 시작하기" },
-  { key: "google", label: "구글로 시작하기" },
+const PROVIDERS: { key: SocialProvider }[] = [
+  { key: "kakao" },
+  { key: "naver" },
+  { key: "google" },
 ];
 
 export default function Login() {
@@ -26,13 +37,82 @@ export default function Login() {
   const figW = W * 0.72;
   const manH = figW * (1405 / 1024);
   const womanH = figW * (1400 / 1024);
+  const reducedMotion = useReducedMotion();
+  const exitProgress = useSharedValue(0);
 
   const setAuth = useAuthStore((s) => s.setAuth);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<SocialProvider | "dev" | null>(null);
+  const [transitioning, setTransitioning] = useState(false);
   const [devEmail, setDevEmail] = useState("dev@mingle.test");
 
   const available = PROVIDERS.filter((p) => socialClientAvailable(p.key));
+
+  const womanExitStyle = useAnimatedStyle(() => {
+    const progress = exitProgress.value;
+    return {
+      opacity: interpolate(progress, [0, 0.72, 1], [1, 1, 0], Extrapolation.CLAMP),
+      transform: [
+        { translateX: interpolate(progress, [0, 1], [0, -W * 0.9]) },
+        { translateY: interpolate(progress, [0, 1], [0, H * 0.04]) },
+        { scale: interpolate(progress, [0, 0.7, 1], [1, 0.94, 0.82]) },
+      ],
+    };
+  });
+
+  const manExitStyle = useAnimatedStyle(() => {
+    const progress = exitProgress.value;
+    return {
+      opacity: interpolate(progress, [0, 0.72, 1], [1, 1, 0], Extrapolation.CLAMP),
+      transform: [
+        { translateX: interpolate(progress, [0, 1], [0, W * 0.9]) },
+        { translateY: interpolate(progress, [0, 1], [0, H * 0.38]) },
+        { scale: interpolate(progress, [0, 0.7, 1], [1, 0.94, 0.82]) },
+      ],
+    };
+  });
+
+  const contentExitStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(exitProgress.value, [0, 0.52], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      { scale: interpolate(exitProgress.value, [0, 0.52], [1, 0.98], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  function playExitAnimation(): Promise<void> {
+    if (reducedMotion) return Promise.resolve();
+    setTransitioning(true);
+    return new Promise((resolve) => {
+      exitProgress.value = withTiming(
+        1,
+        { duration: 1000, easing: Easing.inOut(Easing.cubic) },
+        () => runOnJS(resolve)(),
+      );
+    });
+  }
+
+  async function finishLogin({
+    accessToken,
+    refreshToken,
+    role,
+  }: {
+    accessToken: string;
+    refreshToken: string;
+    role?: "user" | "admin" | "super_admin";
+  }) {
+    setAuth({ token: accessToken, refreshToken, role });
+    try {
+      const gate = await resolveAccountGate();
+      if (gate.profileId) {
+        setAuth({ token: accessToken, refreshToken, role, profileId: gate.profileId });
+      }
+      primeAccountGate(gate);
+    } catch {
+      // The authenticated layout retains its normal loading/error path when preflight fails.
+    }
+    await playExitAnimation();
+    router.replace({ pathname: "/home", params: { entrance: "login" } });
+  }
 
   async function onSocial(provider: SocialProvider) {
     setBusy(provider);
@@ -49,8 +129,7 @@ export default function Login() {
         oauth.redirectUri,
         oauth.codeVerifier,
       );
-      setAuth({ token: accessToken, refreshToken, role });
-      router.replace("/home");
+      await finishLogin({ accessToken, refreshToken, role });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "로그인에 실패했어요.");
     } finally {
@@ -63,8 +142,7 @@ export default function Login() {
     setError(null);
     try {
       const { accessToken, refreshToken, role } = await devLogin(devEmail.trim());
-      setAuth({ token: accessToken, refreshToken, role });
-      router.replace("/home");
+      await finishLogin({ accessToken, refreshToken, role });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "dev 로그인 실패(서버 DEV_AUTH_ENABLED 확인).");
     } finally {
@@ -73,9 +151,8 @@ export default function Login() {
   }
 
   return (
-    <View style={styles.root}>
-      {/* subtle light halftone on the dark ground */}
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+    <View style={styles.root} pointerEvents={transitioning ? "none" : "auto"}>
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
         <Defs>
           <Pattern id="login-dots" width={10} height={10} patternUnits="userSpaceOnUse">
             <Circle cx={1.5} cy={1.5} r={1.1} fill="rgba(251,244,236,0.06)" />
@@ -84,29 +161,47 @@ export default function Login() {
         <Rect width="100%" height="100%" fill="url(#login-dots)" />
       </Svg>
 
-      {/* man top-left, woman bottom-right (mirrored) — same composition as home */}
-      <Image
-        source={MAN}
-        resizeMode="contain"
-        style={[styles.fig, { width: figW, height: manH, left: -18, top: insets.top - 6 }]}
-      />
-      <Image
-        source={WOMAN}
-        resizeMode="contain"
+      {/* woman top-left; man bottom-right and mirrored so the pair faces inward */}
+      <Animated.View
+        pointerEvents="none"
         style={[
-          styles.figFlip,
-          { width: figW, height: womanH, right: -18, top: H - insets.bottom - womanH + 40 },
+          styles.figureLayer,
+          { width: figW, height: womanH, left: -18, top: insets.top - 6 },
+          womanExitStyle,
         ]}
-      />
+      >
+        <Image source={WOMAN} resizeMode="contain" style={styles.figureImage} />
+      </Animated.View>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.figureLayer,
+          { width: figW, height: manH, right: -18, top: H - insets.bottom - manH + 40 },
+          manExitStyle,
+        ]}
+      >
+        <Image
+          source={MAN}
+          resizeMode="contain"
+          style={[styles.figureImage, styles.figureImageFlip]}
+        />
+      </Animated.View>
 
-      <ScrollView
+      <Animated.ScrollView
+        style={contentExitStyle}
         contentContainerStyle={[styles.center, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
       >
         {/* brand over the image (not inside the login box) */}
         <View style={styles.brandBlock} pointerEvents="none">
-          <Text style={styles.eyebrow}>로테이션 블라인드 소개팅</Text>
-          <Text style={styles.brand}>mingle</Text>
+          <Text style={styles.eyebrow}>집에서 시작하는 로테이션 소개팅</Text>
+          <Image
+            source={require("../assets/images/mingle-mark.png")}
+            style={styles.brandMark}
+            resizeMode="contain"
+            accessibilityLabel="mingle 로고"
+          />
+          <Text style={styles.brandTagline}>이동 없이, 여러 사람과 가볍게 대화해요</Text>
         </View>
 
         <View style={styles.card}>
@@ -119,15 +214,12 @@ export default function Login() {
           ) : (
             <View style={styles.pills}>
               {available.map((p) => (
-                <Pressable
+                <SocialLoginButton
                   key={p.key}
-                  accessibilityRole="button"
-                  accessibilityLabel={p.label}
+                  provider={p.key}
+                  busy={busy === p.key}
                   onPress={() => (busy === null ? onSocial(p.key) : undefined)}
-                  style={({ pressed }) => [styles.pill, pressed && { opacity: 0.85 }]}
-                >
-                  <Text style={styles.pillText}>{busy === p.key ? "연결 중…" : p.label}</Text>
-                </Pressable>
+                />
               ))}
             </View>
           )}
@@ -153,15 +245,16 @@ export default function Login() {
             </View>
           ) : null}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: dark.bg },
-  fig: { position: "absolute" },
-  figFlip: { position: "absolute", transform: [{ scaleX: -1 }] },
+  figureLayer: { position: "absolute" },
+  figureImage: { width: "100%", height: "100%" },
+  figureImageFlip: { transform: [{ scaleX: -1 }] },
   center: {
     flexGrow: 1,
     alignItems: "center",
@@ -170,6 +263,17 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   brandBlock: { alignItems: "center" },
+  brandMark: { width: 152, height: 152, marginTop: -36, marginBottom: -36 },
+  brandTagline: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 20,
+    color: dark.text,
+    textAlign: "center",
+    textShadowColor: "rgba(10,6,4,0.72)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
+  },
   eyebrow: {
     fontFamily: fonts.bodySemibold,
     fontSize: 11,
@@ -179,16 +283,6 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(10,6,4,0.6)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
-  },
-  brand: {
-    fontFamily: serifFont,
-    fontSize: 46,
-    color: dark.text,
-    textAlign: "center",
-    marginTop: 2,
-    textShadowColor: "rgba(10,6,4,0.5)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 14,
   },
   card: {
     width: "100%",
