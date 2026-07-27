@@ -7,7 +7,7 @@
 
 - 모바일: `src/lib/social-auth.ts` — authorize URL을 브라우저로 열고 **redirect_uri =
   `${API_URL}/auth/callback/<provider>`**(콘솔은 http/https만 허용). 백엔드 콜백이
-  `mingleai://auth?code=…`로 302 반사 → 앱이 딥링크로 code 수신 → `POST /auth/social`.
+  `mingles://auth?code=…`로 302 반사 → 앱이 딥링크로 code 수신 → `POST /auth/social`.
   PKCE(카카오·구글)·state(네이버) 자동 처리.
 - 백엔드: `GET /auth/callback/:provider`(auth.controller — 화이트리스트 파라미터만 고정 스킴으로
   반사) + `auth/social/social.provider.ts` code→token 교환 → `(authProvider, providerId)` upsert.
@@ -17,8 +17,8 @@
 
 | 항목 | 값 |
 |---|---|
-| Android 패키지명 | `com.mingleai.app` |
-| iOS 번들 ID | `com.mingleai.app` |
+| Android 패키지명 | `com.mingles.app` |
+| iOS 번들 ID | `com.mingles.app` |
 | Redirect/Callback URI (dev) | `http://localhost:3000/auth/callback/<provider>` |
 | Redirect/Callback URI (prod) | `https://api.<도메인>/auth/callback/<provider>` (도메인 확정 시 추가) |
 
@@ -53,7 +53,7 @@
 
 ## ⚠️ 알려진 리스크 (등록 시 확인)
 
-- **커스텀 스킴 등록 거부 가능성**: 카카오·네이버 콘솔이 `mingleai://auth` 형식을 거부하면
+- **커스텀 스킴 등록 거부 가능성**: 카카오·네이버 콘솔이 `mingles://auth` 형식을 거부하면
   백엔드 콜백 방식(https redirect → 딥링크 반사)으로 전환해야 한다 — 이 경우 백엔드에
   `GET /auth/callback/:provider` 추가 + 콘솔에는 `https://api.<도메인>/auth/callback/<provider>`
   등록(코드 작업 필요, 요청 시 진행).

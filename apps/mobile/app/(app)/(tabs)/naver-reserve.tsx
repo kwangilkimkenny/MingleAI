@@ -7,7 +7,7 @@ import { dark, doodle, space } from "../../../src/lib/theme";
 import { StateView } from "../../../src/components/Foundation";
 import { AppScreen } from "../../../src/components/AppScreen";
 import { ListRow, RowSeparator } from "../../../src/components/ListRow";
-import { NaverMap, type MapPlace } from "../../../src/components/NaverMap";
+import { AppMap, type MapPlace } from "../../../src/components/AppMap";
 import { getCurrentCoords, type Coords } from "../../../src/lib/location";
 
 
@@ -74,7 +74,7 @@ export default function NaverReserve() {
     <AppScreen tabScreen tone="dark" body="plain">
       {center ? (
         <View style={styles.map}>
-          <NaverMap center={center} radiusKm={null} places={pins} />
+          <AppMap center={center} radiusKm={null} places={pins} />
         </View>
       ) : null}
       <FlatList

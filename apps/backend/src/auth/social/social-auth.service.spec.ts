@@ -23,7 +23,7 @@ describe("SocialAuthService", () => {
       user: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "u1", email: "k@test.com", role: "user" }) },
     } as any;
     const a = auth();
-    await new SocialAuthService(config(kakaoKeys), prisma, a).login("kakao", "code", "mingleai://cb", "verifier");
+    await new SocialAuthService(config(kakaoKeys), prisma, a).login("kakao", "code", "mingles://cb", "verifier");
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ authProvider: "kakao", providerId: "123", email: "k@test.com" }),
     });

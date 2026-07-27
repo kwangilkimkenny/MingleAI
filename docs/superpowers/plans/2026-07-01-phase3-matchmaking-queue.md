@@ -19,7 +19,7 @@
 - **Public projection:** `GET /matchmaking/status` and any party payload return participants WITHOUT `riskScore` and WITHOUT raw `preferenceSignals` — only `preferenceSummary` (= `preferenceSignals.summary`). All matchmaking endpoints are under `JwtAuthGuard`, bound to the caller's profile.
 - **ANSI-safe TS error check:** `pnpm --filter @mingle/backend build 2>&1 | sed -E 's/\x1b\[[0-9;]*m//g' | grep -E "error TS|Found [0-9]+ error"` (grep for "error TS" alone falsely returns 0 due to ANSI codes).
 - `@mingle/client-core` uses **Vitest** (tests in `src/__tests__/*.test.ts`, use `vi` not `jest`). `@mingle/shared` uses **Vitest**. Backend uses **Jest**.
-- Do NOT touch `apps/web` / `@mingle/mingleai-mcp`.
+- Do NOT touch `apps/web` / `@mingle/mingles-mcp`.
 
 ---
 

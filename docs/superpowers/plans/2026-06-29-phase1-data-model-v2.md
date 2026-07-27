@@ -13,7 +13,7 @@
 - Spec of record: `docs/superpowers/specs/2026-06-29-phase1-data-model-v2-design.md`. Where this plan says "the v2 schema", it means **exactly** the Prisma models in that spec's §3 — copy them verbatim.
 - Migration strategy: **clean reset** — delete `apps/backend/prisma/migrations/*` and create a single `v2_baseline`. No data preservation (pre-product, no real users).
 - Scope: **data layer + cleanup only**. New domains (matchmaking, proposal, match, messenger) are **empty skeletons** — no business logic, no routes beyond what compiles. `Block` lives in the existing `safety` module (no separate module).
-- Green targets for this plan: `@mingle/backend`, `@mingle/shared`. Do **NOT** touch or chase `apps/web` (it may break against the new API/types — handled later) or `@mingle/mingleai-mcp` (pre-existing broken).
+- Green targets for this plan: `@mingle/backend`, `@mingle/shared`. Do **NOT** touch or chase `apps/web` (it may break against the new API/types — handled later) or `@mingle/mingles-mcp` (pre-existing broken).
 - Do NOT touch `apps/mobile` / `@mingle/client-core` (must stay green).
 - Env quirks: use `pnpm install --ignore-scripts` (plain install fails on better-sqlite3 native build). Prisma migrate/generate needs a running Postgres → `docker compose up -d` first. The dev DB will be dropped by the clean reset.
 - Removed v1 concepts (must not survive anywhere in backend/shared): AI agent conversation/simulation, `Report` (AI match report), `PartyReservation`, round-based parties, `agentPersona`/`communicationStyle`/`values`/`preferences` profile fields.
@@ -67,7 +67,7 @@ Deletes v1 AI/report/reservation code and all references, while `schema.prisma` 
 
 Run:
 ```bash
-cd /Users/namuneulbo/Desktop/MingleAI/.claude/worktrees/mobile-pivot-plan
+cd /Users/namuneulbo/Desktop/mingles/.claude/worktrees/mobile-pivot-plan
 grep -rln --include=*.ts -e "ReportModule\|ReportService\|report\.service\|ReservationModule\|ReservationService\|party\.gateway\|PartyGateway\|CommunicationStyleDto\|UserPreferencesDto\|UserValuesDto" apps/backend/src
 ```
 Expected: a list including `app.module.ts`, `report/*`, `reservation/*`, `party/*`, possibly `admin/*`, `dashboard/*`, `common/dto/index.ts`. Note every file — each must end up with zero references to the deleted symbols.
@@ -134,7 +134,7 @@ Flip the shared type package to v2. It has no backend dependency, so it builds s
 - [ ] **Step 1: Inventory current shared exports**
 
 ```bash
-cd /Users/namuneulbo/Desktop/MingleAI/.claude/worktrees/mobile-pivot-plan
+cd /Users/namuneulbo/Desktop/mingles/.claude/worktrees/mobile-pivot-plan
 sed -n '1,200p' packages/shared/src/index.ts
 ls packages/shared/src/types
 ```
@@ -214,7 +214,7 @@ Open `docs/superpowers/specs/2026-06-29-phase1-data-model-v2-design.md` §3 and 
 - [ ] **Step 2: Validate the schema**
 
 ```bash
-cd /Users/namuneulbo/Desktop/MingleAI/.claude/worktrees/mobile-pivot-plan
+cd /Users/namuneulbo/Desktop/mingles/.claude/worktrees/mobile-pivot-plan
 pnpm --filter @mingle/backend exec prisma validate
 pnpm --filter @mingle/backend exec prisma format
 ```
@@ -261,7 +261,7 @@ Update every remaining backend module to compile and behave against the v2 clien
 - [ ] **Step 1: Enumerate the compile errors to fix**
 
 ```bash
-cd /Users/namuneulbo/Desktop/MingleAI/.claude/worktrees/mobile-pivot-plan
+cd /Users/namuneulbo/Desktop/mingles/.claude/worktrees/mobile-pivot-plan
 pnpm --filter @mingle/backend build 2>&1 | grep -E "error TS" | sed -E 's/\(.*//' | sort -u
 ```
 Expected: a list of files still referencing removed fields/models (profile DTOs with `preferences`/`values`, date-plan using `profileId1/2`, admin/dashboard touching removed models, party referencing AI/round fields). This list is your worklist.
@@ -407,7 +407,7 @@ Edit `apps/backend/src/app.module.ts`: add `import` lines for `MatchmakingModule
 - [ ] **Step 4: Verify green (build + boot + tests)**
 
 ```bash
-cd /Users/namuneulbo/Desktop/MingleAI/.claude/worktrees/mobile-pivot-plan
+cd /Users/namuneulbo/Desktop/mingles/.claude/worktrees/mobile-pivot-plan
 pnpm --filter @mingle/backend build
 pnpm --filter @mingle/backend test
 docker compose up -d && node -e "require('child_process').execSync('node dist/main.js',{cwd:'apps/backend',timeout:8000,stdio:'inherit'})" 2>&1 | head -20 || true

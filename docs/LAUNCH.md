@@ -1,4 +1,4 @@
-# MingleAI 출시 체크리스트 (2026-07-24 기준)
+# mingles 출시 체크리스트 (2026-07-24 기준)
 
 타깃: **내부 베타 우선**(EAS 빌드 → TestFlight·Google 내부테스트 → 실기기 검증 → 스토어 심사).
 아래 A는 완료(레포에서 검증됨), B는 **운영자만 할 수 있는 일**(계정·계약·인프라), C는 베타 공지용 알려진 한계.
@@ -13,7 +13,7 @@
 - **보안 기본기**: prod에서 dev-login·본인인증 bypass 강제 off, rate limit(전역+auth 강화), CORS allowlist env, 피어 프로젝션 리댁션(실명·연락처 비노출), 신고·차단.
 - **운영도구**: 관리자 로그인 + 신고 모더레이션 웹(목록·상세·기각/경고/정지·복구) — 심사 시 UGC 모더레이션 체계 근거.
 - **정책 페이지**: 웹 `privacy`·`terms`·`account-deletion` 라우트 존재(⚠️ 내용은 법무 검토 필요 — 초안 상태).
-- **빌드 설정**: `apps/mobile/eas.json`(development/preview/production), app.json 번들ID(`com.mingleai.app`)·카메라/마이크/사진/위치 권한 문구·다크 스플래시·어댑티브 아이콘.
+- **빌드 설정**: `apps/mobile/eas.json`(development/preview/production), app.json 번들ID(`com.mingles.app`)·카메라/마이크/사진/위치 권한 문구·다크 스플래시·어댑티브 아이콘.
 - **env 문서**: `apps/backend/.env.example`(전 키·기본값·[PROD] 표기), `apps/mobile/.env.example`.
 
 ## B. 운영자 체크리스트 — 순서대로

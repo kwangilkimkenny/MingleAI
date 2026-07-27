@@ -21,7 +21,7 @@ v1(AI 에이전트 대화 시뮬레이션) 잔재를 걷어내고, v2(실유저 
 
 **경계 결정 (확정)**
 - `apps/web`(구버전 소비자 웹)은 Phase 1에서 **맞추지 않는다**. shared 타입/API 변경으로 web 빌드가 깨질 수 있으나, "웹 최소 유지" 방침에 따라 web은 추후 **Admin 전용 정리** 단계에서 처리한다. Phase 1의 green 대상은 **`@mingle/backend` + `@mingle/shared` + `apps/mobile`/`@mingle/client-core`**.
-- `@mingle/mingleai-mcp`는 이미 깨져 있고(사전 이슈) Phase 1 범위 밖.
+- `@mingle/mingles-mcp`는 이미 깨져 있고(사전 이슈) Phase 1 범위 밖.
 - **Block**은 별도 모듈을 만들지 않고 `safety` 모듈에 포함한다(신고와 응집).
 - 마이그레이션은 클린 리셋 → 개발 DB를 드롭하고 단일 `v2_baseline` 생성.
 
@@ -290,7 +290,7 @@ model Block {
 - 신규 도메인 모듈이 AppModule에 등록되어 컴파일/부팅에 포함.
 
 ## 7. 범위 밖 (명시)
-매칭/프로포즈/매치/메신저/게임 비즈 로직, 실시간 게이트웨이, 리프레시 토큰, `apps/web` 정합성, `mingleai-mcp` 복구, 결제.
+매칭/프로포즈/매치/메신저/게임 비즈 로직, 실시간 게이트웨이, 리프레시 토큰, `apps/web` 정합성, `mingles-mcp` 복구, 결제.
 
 ## 8. 다음 단계
 본 spec 기반으로 writing-plans → 작업 단위(TDD) 구현 계획 작성 → 서브에이전트 구현/리뷰/QA.

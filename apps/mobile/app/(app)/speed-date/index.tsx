@@ -14,7 +14,7 @@ import { AppScreen } from "../../../src/components/AppScreen";
 import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { StateView } from "../../../src/components/Foundation";
-import { NaverMap } from "../../../src/components/NaverMap";
+import { AppMap } from "../../../src/components/AppMap";
 import { isSpeedDateEligibleGender } from "../../../src/lib/speed-date-eligibility";
 import { getCameraMicStatus } from "../../../src/lib/permissions";
 import { requestLocation, type Coords } from "../../../src/lib/location";
@@ -183,7 +183,7 @@ export default function SpeedDateMatching() {
       <View style={styles.mapScreen}>
         <View style={StyleSheet.absoluteFill}>
           {coords ? (
-            <NaverMap center={coords} radiusKm={radiusKm} places={[]} />
+            <AppMap center={coords} radiusKm={radiusKm} places={[]} />
           ) : (
             <View style={styles.mapFallback}>
               {locBusy ? <ActivityIndicator color={dark.textMuted} /> : null}

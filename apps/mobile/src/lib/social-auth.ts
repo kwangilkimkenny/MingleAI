@@ -38,7 +38,7 @@ export interface SocialAuthResult {
 }
 
 /** The app deep link the backend callback bounces to (must stay in sync with auth.controller). */
-const RETURN_URL = "mingleai://auth";
+const RETURN_URL = "mingles://auth";
 
 /**
  * Run the provider's web OAuth (PKCE) and return the authorization code for the backend to
@@ -46,7 +46,7 @@ const RETURN_URL = "mingleai://auth";
  *
  * Redirect flow: Kakao/Naver/Google consoles only accept http(s) redirect URIs, so the provider
  * redirects to the BACKEND (`/auth/callback/:provider`), which 302-bounces the code into the
- * app's `mingleai://auth` deep link. We open the auth URL manually so the browser session closes
+ * app's `mingles://auth` deep link. We open the auth URL manually so the browser session closes
  * on that deep link (AuthRequest.promptAsync would wait for the http redirect instead).
  */
 export async function startSocialOAuth(provider: SocialProvider): Promise<SocialAuthResult | null> {

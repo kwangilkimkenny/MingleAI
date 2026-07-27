@@ -69,7 +69,7 @@ export class AuthController {
     if (error) params.set("error", error);
     if (errorDescription) params.set("error_description", errorDescription);
     params.set("provider", provider);
-    res!.redirect(302, `mingleai://auth?${params.toString()}`);
+    res!.redirect(302, `mingles://auth?${params.toString()}`);
   }
 
   @Throttle({ default: { ttl: 60000, limit: 20 } })

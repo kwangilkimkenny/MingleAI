@@ -224,7 +224,7 @@ Invalid/missing values fall back to these defaults (validated at module construc
 
 ## 10. Boundaries & carry-forward
 
-- Do **not** touch `apps/web` / `@mingle/mingleai-mcp` (out of scope, may stay broken).
+- Do **not** touch `apps/web` / `@mingle/mingles-mcp` (out of scope, may stay broken).
 - Honor the Phase-1 carry-forward when it becomes relevant: **Match** creation (a *later* phase)
   must normalize `(profileId1, profileId2)` ordering — **not** used here (this phase creates
   `Party`/`PartyParticipant`, not `Match`).

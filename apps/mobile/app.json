@@ -5,11 +5,11 @@
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
-    "scheme": "mingleai",
+    "scheme": "mingles",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mingleai.app",
+      "bundleIdentifier": "com.mingles.app",
       "requireFullScreen": true,
       "infoPlist": {
         "NSCameraUsageDescription": "블라인드 데이트 마지막 단계의 얼굴 공개 영상 통화를 위해 카메라 접근이 필요해요.",
@@ -17,7 +17,7 @@
       }
     },
     "android": {
-      "package": "com.mingleai.app",
+      "package": "com.mingles.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
@@ -68,20 +68,7 @@
         }
       ],
       "expo-web-browser",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "extraMavenRepos": ["https://repository.map.naver.com/archive/maven"]
-          }
-        }
-      ],
-      [
-        "@mj-studio/react-native-naver-map",
-        {
-          "client_id": ""
-        }
-      ]
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true

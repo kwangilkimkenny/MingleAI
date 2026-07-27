@@ -31,7 +31,7 @@ IDENTITY_DEV_BYPASS=true
 
 각 provider 개발자 콘솔에서 앱 등록 → client id/secret + redirect URI 등록.
 
-- 리다이렉트 URI(웹 OAuth): `mingleai://auth` (앱 스킴; `app.json` `scheme: "mingleai"`). provider가 커스텀 스킴을 거부하면 Expo proxy(`https://auth.expo.io/...`)나 유니버설 링크 사용 — provider별 정책 확인.
+- 리다이렉트 URI(웹 OAuth): `mingles://auth` (앱 스킴; `app.json` `scheme: "mingles"`). provider가 커스텀 스킴을 거부하면 Expo proxy(`https://auth.expo.io/...`)나 유니버설 링크 사용 — provider별 정책 확인.
 - backend `.env`: `KAKAO_CLIENT_ID/SECRET`, `NAVER_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`.
 - mobile `apps/mobile/.env`: `EXPO_PUBLIC_KAKAO_CLIENT_ID`, `EXPO_PUBLIC_NAVER_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_CLIENT_ID`(public id만; secret은 backend).
 - 버튼은 `EXPO_PUBLIC_*_CLIENT_ID`가 있는 provider만 노출(`socialClientAvailable`). backend 미설정 provider는 `/auth/social`에서 501.

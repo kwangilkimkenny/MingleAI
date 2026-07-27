@@ -1,4 +1,4 @@
-# MingleAI 기획문서 v2 — "가벼운 만남" 소셜 매칭 앱
+# mingles 기획문서 v2 — "가벼운 만남" 소셜 매칭 앱
 
 > 작성일: 2026-06-29 · 상태: 설계 확정 대기(리뷰 요청 중)
 > 이전 버전(v1, AI 에이전트 대화 시뮬레이션 중심)은 본 문서로 대체됨. v1 원문은 git 히스토리 참조.
@@ -146,7 +146,7 @@ mingle-ai/
 ├── packages/
 │   ├── shared/         # 공유 타입 (유지·확장)
 │   ├── client-core/    # ⭐ 신규: API클라이언트·소켓·인증·스토어 (web/mobile 공용)
-│   └── (mcp/ mingleai-mcp/ : 개발 도구로만 선택 유지)
+│   └── (mcp/ mingles-mcp/ : 개발 도구로만 선택 유지)
 ```
 
 **`@mingle/client-core` 추출**: 현재 `apps/web/src/lib/api/*`, `lib/store/*`(Zustand), `hooks/usePartySocket.ts`, `useApi.ts`는 대부분 플랫폼 무관 TS. 플랫폼 의존성은 ① 토큰 저장소(`localStorage` ↔ `expo-secure-store`) ② 환경변수 접근 뿐 → 두 가지를 **주입 인터페이스**로 추상화하면 web/mobile이 데이터 레이어를 공유.

@@ -189,7 +189,7 @@ code change.
 
 ## 9. Boundaries & carry-forward
 
-- Do NOT touch `apps/web` / `@mingle/mingleai-mcp` (out of scope, may stay broken).
+- Do NOT touch `apps/web` / `@mingle/mingles-mcp` (out of scope, may stay broken).
 - Honor Phase 1 carry-forward invariants when they become relevant (they mostly land in later
   phases): Match pair-ordering normalization, date-plan matchId guard, dashboard IDOR
   (auth-hardening phase), User→Profile cascade/RESTRICT (account-deletion phase).

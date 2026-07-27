@@ -42,7 +42,7 @@
 
 ## 소셜 로그인 (웹 OAuth)
 
-- **모바일**: `expo-auth-session`로 provider authorize(PKCE, `expo-crypto`) → code 수신 → 딥링크 `mingleai://` 복귀 → 백엔드로 `{code, redirectUri, codeVerifier}` 전송.
+- **모바일**: `expo-auth-session`로 provider authorize(PKCE, `expo-crypto`) → code 수신 → 딥링크 `mingles://` 복귀 → 백엔드로 `{code, redirectUri, codeVerifier}` 전송.
 - **백엔드** `POST /auth/social/:provider`: code→provider 토큰 교환→유저정보 조회→`(authProvider, providerId)` find-or-create→우리 JWT+refresh. 미설정 provider는 501/비활성.
 - 어댑터 `SocialProvider { exchange(code, redirectUri, codeVerifier): Promise<{ providerId, email?, name? }> }` — Kakao/Naver/Google **REST fetch**(SDK 불필요). Google은 id_token을 tokeninfo로 검증(무의존).
 - env: `KAKAO_CLIENT_ID/SECRET`, `NAVER_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`(빈 값=버튼 숨김·엔드포인트 501).

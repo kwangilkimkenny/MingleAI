@@ -1,9 +1,6 @@
 /**
- * NaverMap (web) — the Naver Maps SDK is native-only, so the web preview (Metro dev surface) renders
- * a real interactive map via Leaflet + OpenStreetMap tiles (no API key). Draws the radius circle and
- * a marker per place, mirroring the native `NaverMap.tsx`. Leaflet is loaded lazily from a CDN the
- * first time a map mounts. This file is web-only; native keeps the Naver SDK. "Native is truth" — this
- * is a preview aid so the location step is visible without an EAS dev build + NAVER_MAP_KEY.
+ * AppMap (web) — 웹 프리뷰용 Leaflet + OpenStreetMap(키 불필요). 반경 원과 장소 핀을 그려
+ * 네이티브 `AppMap.tsx`(MapLibre + OpenFreeMap)와 동형. Leaflet은 첫 마운트 때 CDN에서 lazy 로드.
  */
 import { useEffect, useRef } from "react";
 import { View, Text, StyleSheet } from "react-native";
@@ -41,7 +38,7 @@ function loadLeaflet(): Promise<any> {
   return leafletPromise;
 }
 
-export function NaverMap({
+export function AppMap({
   center,
   radiusKm,
   places,

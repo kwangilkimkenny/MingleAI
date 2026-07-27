@@ -1,5 +1,5 @@
 /**
- * mega-qa.mjs — Full-funnel live E2E harness for MingleAI v2.
+ * mega-qa.mjs — Full-funnel live E2E harness for mingles v2.
  *
  * Exercises the whole designed user journey against an ALREADY-RUNNING backend:
  *   health → signup×4 (social-only: dev-login + consent + 본인인증 gate) → onboarding
@@ -1218,7 +1218,7 @@ async function sectionRateLimit() {
       const r = await post("/auth/social", null, {
         provider: "kakao",
         code: `spam-${attempts}`,
-        redirectUri: "mingleai://auth",
+        redirectUri: "mingles://auth",
       });
       if (r.status === 429) {
         got429 = true;

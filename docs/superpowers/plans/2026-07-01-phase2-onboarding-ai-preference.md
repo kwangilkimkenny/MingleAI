@@ -16,7 +16,7 @@
 - **`PreferenceSignals` shape (exact):** `{ vibe: "calm"|"energetic"|"balanced"; activity: string[]; drinking: "none"|"light"|"social"; pace: "slow"|"medium"|"fast"; tags: string[]; summary: string }`. Prisma column stays `Json?` (NO migration). `null` = not analyzed / needs (re)analysis.
 - **Resilience:** LLM failure/timeout/unrecoverable-parse → `PreferenceAnalysisError`; caller logs a warning and leaves `preferenceSignals: null`. Onboarding never hard-fails on an LLM hiccup.
 - **Env quirks:** `pnpm install --ignore-scripts` only (plain install fails on better-sqlite3). Postgres up via `docker compose up -d`; `apps/backend/.env` present (gitignored). Do NOT run `prisma migrate*` (blocked by env policy; and no migration is needed this phase). `prisma generate` is allowed. Grep for TS errors ANSI-safe: strip `\x1b\[[0-9;]*m` or grep `Found N error` (a naive `grep "error TS"` returns 0 due to ANSI codes).
-- **Green targets:** `@mingle/backend`, `@mingle/shared`, `@mingle/client-core`, `apps/mobile`. Do NOT touch `apps/web` / `@mingle/mingleai-mcp`.
+- **Green targets:** `@mingle/backend`, `@mingle/shared`, `@mingle/client-core`, `apps/mobile`. Do NOT touch `apps/web` / `@mingle/mingles-mcp`.
 - Also fix Phase 1 rollup items in the profile work: `update-profile.dto` `occupation` gets `@IsNotEmpty()`; duplicate-profile create throws `ConflictException` (409) not `BadRequestException`.
 
 ## File Structure
@@ -763,7 +763,7 @@ if (profileState === "none") return <Redirect href="/onboarding" />;
 - [ ] **Step 3: Verify**
 
 ```bash
-pnpm --filter mingleai exec tsc --noEmit    # or the app's typecheck script; expect clean
+pnpm --filter mingles exec tsc --noEmit    # or the app's typecheck script; expect clean
 ```
 Then a web smoke run (Phase 0 method): start the Expo web build, confirm register → onboarding routing renders and the form validates (no console errors). Backend must be running with `LLM_API_URL` unset (stub) or set.
 
