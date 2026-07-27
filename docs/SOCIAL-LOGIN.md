@@ -41,15 +41,16 @@
    - 백엔드 `.env`: `NAVER_CLIENT_ID=<Client ID>` / `NAVER_CLIENT_SECRET=<Client Secret>`
    - (검색 API와 같은 앱이면 `NAVER_SEARCH_CLIENT_*`도 동일 값)
 
-## 3. 구글 (console.cloud.google.com)
+## 3. 구글 — ✅ 완료 (2026-07-27, GCP 프로젝트 mingles-503701)
 
-1. 프로젝트 생성 → OAuth 동의 화면(외부, 이메일·프로필 scope) 구성.
-2. 사용자 인증 정보 → OAuth 클라이언트 ID 생성. **주의: 구글은 "웹 애플리케이션" 타입에
-   커스텀 스킴 redirect를 허용하지 않는다** → iOS 타입(번들 ID) + Android 타입(패키지명+SHA-1)
-   클라이언트를 만들고, 앱이 여는 authorize 요청의 클라이언트로 사용.
-3. 키 반영:
-   - 모바일 `.env`: `EXPO_PUBLIC_GOOGLE_CLIENT_ID=<iOS 또는 Android 클라이언트 ID>`
-   - 백엔드 `.env`: `GOOGLE_CLIENT_ID=<동일>` / `GOOGLE_CLIENT_SECRET=<시크릿(웹/iOS 타입만 발급)>`
+- 프로젝트 "mingles" 생성, OAuth 동의화면 구성(외부·테스트 모드, 지원/연락 이메일 설정).
+- **웹 애플리케이션 클라이언트** "mingles" 생성(콜백 방식이라 웹 타입으로 충분) —
+  redirect `http://localhost:3000/auth/callback/google` 등록.
+- 클라이언트 ID/Secret → 로컬 `.env` 배선 완료(backend GOOGLE_*, mobile EXPO_PUBLIC_*).
+- 테스트 사용자 등록: skdkan31@gmail.com (외부·테스트 모드에선 등록된 계정만 로그인 가능 —
+  베타 테스터 추가 시 대상(audience) 페이지에서 추가, 정식 오픈 시 앱 게시).
+- 에뮬레이터 검증: 구글 버튼 → "Sign in to continue to mingles" 정상 로드(mismatch 없음).
+- 남은 것: prod 도메인 redirect 추가, 스토어 출시 전 동의화면 게시(퍼블리싱).
 
 ## ⚠️ 알려진 리스크 (등록 시 확인)
 
