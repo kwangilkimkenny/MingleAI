@@ -49,10 +49,15 @@ export default function SpeedDateSession() {
   const socketRef = useRef<ReturnType<typeof openSpeedDateSocket> | null>(null);
   const navigation = useNavigation();
   const liveRef = useRef(false);
+  // "나가기" 확정 플래그 — 렌더마다 재계산되는 liveRef와 달리 한 번 서면 유지된다.
+  // (onConfirm에서 liveRef만 내리면 setLeaveAsk 리렌더가 아래 대입으로 즉시 복원해
+  //  beforeRemove가 replace를 다시 막는 레이스가 있었다 — QA 2026-07-27.)
+  const leavingRef = useRef(false);
 
   // 진행 중(ended 전)에는 뒤로가기(하드웨어 백 포함)를 확인 다이얼로그로 가드 — 실수 이탈 방지.
   // native-stack은 하드웨어 백을 네이티브에서 pop하므로 BackHandler가 아니라 beforeRemove로 막는다.
-  liveRef.current = !!snapshot && snapshot.phase !== "ended" && !notFound;
+  liveRef.current =
+    !leavingRef.current && !!snapshot && snapshot.phase !== "ended" && !notFound;
   useEffect(() => {
     const unsub = navigation.addListener("beforeRemove", (e) => {
       if (!liveRef.current) return;
@@ -140,7 +145,8 @@ export default function SpeedDateSession() {
       confirmLabel="나가기"
       destructive
       onConfirm={() => {
-        // beforeRemove 가드가 이 이탈까지 막지 않도록 먼저 내린다.
+        // beforeRemove 가드가 이 이탈까지 막지 않도록 확정 플래그를 먼저 세운다.
+        leavingRef.current = true;
         liveRef.current = false;
         setLeaveAsk(false);
         router.replace("/home");
