@@ -31,15 +31,14 @@
 - 에뮬레이터에서 "카카오로 시작하기" → 카카오 로그인 페이지 정상 로드 검증(KOE 에러 없음).
 - 남은 것: prod 도메인 확정 시 Redirect URI 추가, (선택) 앱 아이콘 등록.
 
-## 2. 네이버 (developers.naver.com)
+## 2. 네이버 — ✅ 완료 (2026-07-27, 앱 "mingles", Client ID 82G13Arxojn0VHxYbAcT)
 
-1. Application → 애플리케이션 등록 → 사용 API: **네이버 로그인**.
-2. 제공 정보: 이메일·별명(필요 범위만).
-3. 환경: 서비스 URL + **Callback URL에 `mingleai://auth`** 등록.
-4. 키 반영:
-   - 모바일 `.env`: `EXPO_PUBLIC_NAVER_CLIENT_ID=<Client ID>`
-   - 백엔드 `.env`: `NAVER_CLIENT_ID=<Client ID>` / `NAVER_CLIENT_SECRET=<Client Secret>`
-   - (검색 API와 같은 앱이면 `NAVER_SEARCH_CLIENT_*`도 동일 값)
+- 앱 등록: 사용 API "네이버 로그인", **제공정보 체크 0개**(이용자 식별자는 기본 제공 — 최소 수집),
+  환경 PC 웹(서비스 URL `http://localhost:3000`, Callback `http://localhost:3000/auth/callback/naver`).
+- Client ID/Secret → 로컬 `.env` 배선 완료(backend NAVER_*, mobile EXPO_PUBLIC_*).
+- 에뮬레이터 검증: 네이버 버튼 → "Signing in to mingles" 정상 로드.
+- 남은 것: prod Callback 추가, **정식 서비스 전 네이버 검수 신청**(검수 통과 전엔 등록 계정
+  위주로 동작 — 공지 참고), 검색 API 쓰려면 같은 앱에 "검색" API 추가 후 `NAVER_SEARCH_*` 동일 값.
 
 ## 3. 구글 — ✅ 완료 (2026-07-27, GCP 프로젝트 mingles-503701)
 
