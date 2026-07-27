@@ -16,6 +16,7 @@ import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { StateView } from "../../../src/components/Foundation";
 import { NaverMap } from "../../../src/components/NaverMap";
 import { isSpeedDateEligibleGender } from "../../../src/lib/speed-date-eligibility";
+import { getCameraMicStatus } from "../../../src/lib/permissions";
 import { requestLocation, type Coords } from "../../../src/lib/location";
 import { dark, space, type } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
@@ -78,8 +79,17 @@ export default function SpeedDateMatching() {
     }
   }
 
-  // 룰 → 다음: 지도 단계로 이동하며 현위치를 요청한다(옵션 권한).
+  /** 세션 필수 권한(카메라·마이크) — 없으면 프라이밍 화면으로 보낸다(허용 후 back으로 복귀). */
+  async function ensureAvPermissions(): Promise<boolean> {
+    const perms = await getCameraMicStatus();
+    if (perms.camera && perms.microphone) return true;
+    router.push("/permissions");
+    return false;
+  }
+
+  // 룰 → 다음: 세션 권한 확인 후 지도 단계로 이동하며 현위치를 요청한다(위치는 옵션 권한).
   async function onNext() {
+    if (!(await ensureAvPermissions())) return;
     setStep("location");
     if (coords || locBusy) return;
     setLocBusy(true);
@@ -129,6 +139,8 @@ export default function SpeedDateMatching() {
   }
 
   async function onStart() {
+    // 안전망 — 룰 단계를 딥링크로 건너뛴 경우에도 세션 권한 없이는 큐에 못 들어간다.
+    if (!(await ensureAvPermissions())) return;
     setPhase("joining");
     setError(null);
     startedAt.current = Date.now();

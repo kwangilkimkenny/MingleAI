@@ -19,7 +19,9 @@ export default function Permissions() {
     try {
       const state = await requestCameraMic();
       if (state.camera && state.microphone) {
-        router.replace("/home");
+        // 세션 진입 직전 프라이밍 화면(2026-07-27) — 허용되면 부른 흐름(스피드데이트)으로 복귀.
+        if (router.canGoBack()) router.back();
+        else router.replace("/home");
         return;
       }
       const need = [!state.camera && "카메라", !state.microphone && "마이크"].filter(Boolean);
@@ -78,7 +80,7 @@ export default function Permissions() {
           </InlineNotice>
         ) : null}
 
-        <Text style={styles.note}>권한 없이는 서비스를 이용할 수 없어요.</Text>
+        <Text style={styles.note}>권한을 허용해야 소개팅을 시작할 수 있어요.</Text>
       </View>
     </AppScreen>
   );

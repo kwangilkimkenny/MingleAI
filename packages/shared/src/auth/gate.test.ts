@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { nextGate, REQUIRED_CONSENTS, type AccountStatus, type PermissionState } from "./gate.js";
+import { nextGate, REQUIRED_CONSENTS, type AccountStatus } from "./gate.js";
 
 const allConsents = { terms: true, privacy: true, age19: false }; // age19 is legacy — never required
-const bothPerms: PermissionState = { camera: true, microphone: true };
 
 function status(over: Partial<AccountStatus> = {}): AccountStatus {
   return {
@@ -16,7 +15,7 @@ function status(over: Partial<AccountStatus> = {}): AccountStatus {
 
 describe("nextGate", () => {
   it("returns ready when everything is satisfied", () => {
-    expect(nextGate(status(), bothPerms)).toBe("ready");
+    expect(nextGate(status())).toBe("ready");
   });
 
   it("requires identity verification before anything else (identity provides verified age)", () => {
@@ -27,30 +26,29 @@ describe("nextGate", () => {
           consents: { terms: false, privacy: false, age19: false },
           hasProfile: false,
         }),
-        { camera: false, microphone: false },
       ),
     ).toBe("identity");
   });
 
   it("requires consent after identity", () => {
-    expect(
-      nextGate(status({ consents: { terms: true, privacy: false, age19: false } }), bothPerms),
-    ).toBe("consent");
-  });
-
-  it("blocks on missing camera OR microphone permission (hard gate) after consent", () => {
-    expect(nextGate(status(), { camera: false, microphone: true })).toBe("permissions");
-    expect(nextGate(status(), { camera: true, microphone: false })).toBe("permissions");
+    expect(nextGate(status({ consents: { terms: true, privacy: false, age19: false } }))).toBe(
+      "consent",
+    );
   });
 
   it("requires a profile last", () => {
-    expect(nextGate(status({ hasProfile: false }), bothPerms)).toBe("profile");
+    expect(nextGate(status({ hasProfile: false }))).toBe("profile");
+  });
+
+  it("does not gate on camera/mic permission (session-entry concern, not onboarding)", () => {
+    // nextGate takes no permission input at all — readiness is account state only.
+    expect(nextGate(status())).toBe("ready");
   });
 
   it("never requires the legacy age19 consent scope", () => {
-    expect(
-      nextGate(status({ consents: { terms: true, privacy: true, age19: false } }), bothPerms),
-    ).toBe("ready");
+    expect(nextGate(status({ consents: { terms: true, privacy: true, age19: false } }))).toBe(
+      "ready",
+    );
   });
 
   it("REQUIRED_CONSENTS covers terms and privacy only", () => {

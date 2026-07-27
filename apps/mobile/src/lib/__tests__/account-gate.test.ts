@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getAccountStatus: vi.fn(),
   getMyProfile: vi.fn(),
-  getCameraMicStatus: vi.fn(),
   nextGate: vi.fn(),
 }));
 
@@ -11,10 +10,6 @@ vi.mock("@mingle/client-core", () => ({
   getAccountStatus: mocks.getAccountStatus,
   getMyProfile: mocks.getMyProfile,
   nextGate: mocks.nextGate,
-}));
-
-vi.mock("../permissions", () => ({
-  getCameraMicStatus: mocks.getCameraMicStatus,
 }));
 
 import {
@@ -36,9 +31,8 @@ describe("account gate transition cache", () => {
     expect(takePrimedAccountGate()).toBeNull();
   });
 
-  it("resolves the ready profile before navigation", async () => {
+  it("resolves the ready profile before navigation (no permission input — session-entry concern)", async () => {
     mocks.getAccountStatus.mockResolvedValue({ ready: true });
-    mocks.getCameraMicStatus.mockResolvedValue({ camera: true, microphone: true });
     mocks.nextGate.mockReturnValue("ready");
     mocks.getMyProfile.mockResolvedValue({ id: "profile-1" });
 
@@ -46,11 +40,11 @@ describe("account gate transition cache", () => {
       phase: "ready",
       profileId: "profile-1",
     });
+    expect(mocks.nextGate).toHaveBeenCalledWith({ ready: true });
   });
 
   it("does not request a profile before the onboarding gates are complete", async () => {
     mocks.getAccountStatus.mockResolvedValue({ ready: false });
-    mocks.getCameraMicStatus.mockResolvedValue({ camera: true, microphone: true });
     mocks.nextGate.mockReturnValue("consent");
 
     await expect(resolveAccountGate()).resolves.toEqual({ phase: "consent" });

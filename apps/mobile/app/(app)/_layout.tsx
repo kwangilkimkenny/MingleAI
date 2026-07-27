@@ -21,7 +21,8 @@ export default function AppLayout() {
   const [phase, setPhase] = useState<Phase>(initialGate?.phase ?? "loading");
   const skipInitialResolve = useRef(initialGate !== null);
 
-  // Onboarding gate ladder: identity → consent → camera/mic permission → profile → ready.
+  // Onboarding gate ladder: identity → consent → profile → ready.
+  // (camera/mic permission is requested right before entering a speed-date session, not here.)
   const resolveGate = useCallback(() => {
     if (!hydrated || !token) return;
     let alive = true;
@@ -65,7 +66,6 @@ export default function AppLayout() {
     );
   }
   if (phase === "consent") return <Redirect href="/consent" />;
-  if (phase === "permissions") return <Redirect href="/permissions" />;
   if (phase === "identity") return <Redirect href="/verify-identity" />;
   if (phase === "profile") return <Redirect href="/onboarding" />;
 

@@ -28,6 +28,25 @@ import { colors, control, dark, doodle, space, type } from "../../../src/lib/the
 import { InlineNotice, StateView } from "../../../src/components/Foundation";
 import { CalendarDays, Send } from "lucide-react-native";
 
+/** 블라인드 데이트 매치 직후의 첫 메시지 후보 — 방금 대화한 사이라는 맥락에 맞춘 오프너. */
+const OPENERS = [
+  "아까 대화 즐거웠어요. 이어서 얘기해요!",
+  "목소리가 기억에 남아요. 다시 만나서 반가워요 :)",
+  "우리 아까 하던 얘기 마저 해요!",
+  "서로 골랐네요! 신기하고 반가워요.",
+  "얼굴 보고 나니 더 반갑네요. 잘 부탁해요!",
+  "아까 못 물어본 게 하나 있어요!",
+];
+
+function pickOpeners(n: number): string[] {
+  const pool = [...OPENERS];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, n);
+}
+
 export default function ChatRoom() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
   const myProfileId = useAuthStore((s) => s.profileId);
@@ -37,6 +56,8 @@ export default function ChatRoom() {
   const [match, setMatch] = useState<MatchSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
+  // 매치 직후 콜드오픈 마찰 제거 — 추천 첫 메시지 3개(탭하면 입력창에 채워짐).
+  const [openers] = useState(() => pickOpeners(3));
   const [peerTyping, setPeerTyping] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -278,11 +299,23 @@ export default function ChatRoom() {
         footer={composeBar}
       >
         {messages.length === 0 ? (
-          <StateView
-            title="첫 인사를 건네보세요"
-            body="가볍게 인사하며 대화를 시작해 보세요."
-            dark
-          />
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyTitle}>첫 인사를 건네보세요</Text>
+            <Text style={styles.emptyBody}>방금 나눈 대화를 이어가도 좋아요.</Text>
+            <View style={styles.openerCol}>
+              {openers.map((o) => (
+                <Pressable
+                  key={o}
+                  accessibilityRole="button"
+                  accessibilityLabel={`추천 첫 메시지: ${o}`}
+                  onPress={() => onChangeText(o)}
+                  style={({ pressed }) => [styles.openerChip, pressed && styles.pressed]}
+                >
+                  <Text style={styles.openerText}>{o}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
         ) : (
           <FlatList
             style={styles.flex}
@@ -325,6 +358,25 @@ export default function ChatRoom() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  emptyWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.x2,
+    paddingHorizontal: space.x6,
+  },
+  emptyTitle: { ...type.heading, color: dark.text, textAlign: "center" },
+  emptyBody: { ...type.body, color: dark.textMuted, textAlign: "center", marginBottom: space.x3 },
+  openerCol: { alignSelf: "stretch", gap: space.x2 },
+  openerChip: {
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+    borderRadius: 16,
+    paddingVertical: space.x3,
+    paddingHorizontal: space.x4,
+  },
+  openerText: { ...type.body, color: dark.text, textAlign: "center" },
   headerActions: { flexDirection: "row", alignItems: "center", gap: space.x1 },
   headerIcon: {
     width: control.minTouch,

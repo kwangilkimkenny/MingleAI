@@ -4,7 +4,6 @@ import {
   nextGate,
   type GateStep,
 } from "@mingle/client-core";
-import { getCameraMicStatus } from "./permissions";
 
 export type AccountGateResolution = {
   phase: GateStep;
@@ -16,14 +15,12 @@ let primedGate: AccountGateResolution | null = null;
 /**
  * Resolve the onboarding gate once. Login primes this result before its exit animation so the
  * authenticated layout can render the correct destination on its first frame instead of flashing
- * an intermediate loading screen.
+ * an intermediate loading screen. Camera/mic permission is no longer part of this ladder —
+ * it is requested right before entering a speed-date session.
  */
 export async function resolveAccountGate(): Promise<AccountGateResolution> {
-  const [status, permissions] = await Promise.all([
-    getAccountStatus(),
-    getCameraMicStatus(),
-  ]);
-  const phase = nextGate(status, permissions);
+  const status = await getAccountStatus();
+  const phase = nextGate(status);
   if (phase !== "ready") return { phase };
 
   const profile = await getMyProfile();

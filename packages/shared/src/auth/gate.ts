@@ -25,24 +25,24 @@ export interface AccountStatus {
   hasProfile: boolean;
 }
 
-/** OS-level permission grants the client checks locally. */
+/** OS-level permission grants the client checks locally (세션 진입 게이트에서 사용 — 온보딩 아님). */
 export interface PermissionState {
   camera: boolean;
   microphone: boolean;
 }
 
 /** The next unmet gate step; "ready" means the account may enter the app. */
-export type GateStep = "consent" | "permissions" | "identity" | "profile" | "ready";
+export type GateStep = "identity" | "consent" | "profile" | "ready";
 
 /**
- * Resolve the next gate the account must clear. Pure. Order is fixed: real-name identity first
- * (provides verified age/gender), then consent (legal), then camera/mic permission (hard block),
- * then profile.
+ * Resolve the next gate the account must clear. Pure. Order: real-name identity first (provides
+ * verified age/gender), then consent (legal), then profile. Camera/mic OS permission is NOT part
+ * of this ladder (2026-07-27) — it is requested with priming right before entering a speed-date
+ * session, where the value is obvious.
  */
-export function nextGate(status: AccountStatus, perms: PermissionState): GateStep {
+export function nextGate(status: AccountStatus): GateStep {
   if (!status.phoneVerifiedAt) return "identity";
   if (!REQUIRED_CONSENTS.every((s) => status.consents[s])) return "consent";
-  if (!perms.camera || !perms.microphone) return "permissions";
   if (!status.hasProfile) return "profile";
   return "ready";
 }
