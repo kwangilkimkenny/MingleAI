@@ -1,8 +1,8 @@
 import { useCallback, useState, type ReactNode } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Switch, Platform } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { Ban, ChevronRight, LogOut, FileText, Trash2 } from "lucide-react-native";
-import { logoutSession, getMyProfile } from "@mingle/client-core";
+import { Ban, Bell, ChevronRight, LogOut, FileText, Trash2 } from "lucide-react-native";
+import { logoutSession, getMyProfile, getPushEnabled, setPushEnabled } from "@mingle/client-core";
 
 type MyProfile = Awaited<ReturnType<typeof getMyProfile>>;
 import { useAuthStore } from "../../../src/lib/client";
@@ -24,6 +24,8 @@ export default function SettingsScreen() {
   const refreshToken = useAuthStore((s) => s.refreshToken);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [profile, setProfile] = useState<MyProfile>(null);
+  // 푸시 수신 토글 — 서버 값을 읽어 초기화하고, 실패하면 이전 값으로 되돌린다.
+  const [push, setPush] = useState<boolean | null>(null);
 
   // 상단 = 보는 영역(내 프로필 요약), 하단 = 누르는 영역 — 썸존 재배치(2026-07-27 감사).
   useFocusEffect(
@@ -32,6 +34,11 @@ export default function SettingsScreen() {
       getMyProfile()
         .then((p) => {
           if (alive) setProfile(p);
+        })
+        .catch(() => {});
+      getPushEnabled()
+        .then((r) => {
+          if (alive) setPush(r.pushEnabled);
         })
         .catch(() => {});
       return () => {
@@ -61,6 +68,30 @@ export default function SettingsScreen() {
         <ChevronRight color={dark.textMuted} size={19} strokeWidth={1.6} />
       </Pressable>
 
+      <Section label="알림">
+        <View style={[styles.row, styles.rowDivider]}>
+          <View style={styles.rowIcon}>
+            <Bell color={dark.text} size={19} strokeWidth={1.6} />
+          </View>
+          <Text style={styles.rowTitle}>알림 받기</Text>
+          <Switch
+            value={push ?? false}
+            disabled={push === null}
+            accessibilityLabel="알림 받기"
+            onValueChange={(next) => {
+              const prev = push;
+              setPush(next);
+              setPushEnabled(next).catch(() => setPush(prev));
+            }}
+            thumbColor={dark.text}
+            trackColor={{ false: dark.border, true: dark.accent }}
+            // RN Web은 trackColor 객체를 무시한다 — 웹 프리뷰에서만 쓰는 보정.
+            {...(Platform.OS === "web" ? { activeTrackColor: dark.accent } : null)}
+          />
+        </View>
+        <Text style={styles.rowNote}>새 매칭·메시지 알림을 받을지 정해요.</Text>
+      </Section>
+
       <Section label="안전">
         <Row
           icon={<Ban color={dark.text} size={19} strokeWidth={1.6} />}
@@ -82,7 +113,7 @@ export default function SettingsScreen() {
         dark
         visible={logoutOpen}
         title="로그아웃할까요?"
-        body="다시 로그인하면 채팅과 프로포즈를 이어서 확인할 수 있어요."
+        body="다시 로그인하면 채팅을 이어서 확인할 수 있어요."
         confirmLabel="로그아웃"
         destructive
         onCancel={() => setLogoutOpen(false)}
@@ -162,4 +193,5 @@ const styles = StyleSheet.create({
   rowDivider: { borderBottomWidth: 1, borderBottomColor: dark.line },
   rowIcon: { width: 22, alignItems: "center" },
   rowTitle: { flex: 1, fontFamily: serifFont, fontSize: 15, color: dark.text },
+  rowNote: { ...type.caption, color: dark.textMuted, paddingTop: space.x2 },
 });

@@ -1,7 +1,7 @@
 /**
  * NotificationsPopup — 운영팀(어드민) 공지 피드. 홈 우상단 벨 아이콘에서 여는 투명 다크 바텀
  * 시트 팝업. 공지 리스트(읽음 처리)·빈/로딩/에러만 — 타이틀·mark-all·푸시 토글·핸들바는 없다
- * (프로포즈/대화 알림 용도가 아님). 탭하면 해당 딥링크로 이동 후 닫힌다.
+ * (대화 알림 용도가 아님). 탭하면 해당 딥링크로 이동 후 닫힌다.
  */
 import { useCallback, useEffect, useState } from "react";
 import { View, FlatList, Pressable, StyleSheet, Modal } from "react-native";

@@ -11,7 +11,7 @@ import { useReducedMotion } from "react-native-reanimated";
 export interface PeerModerationMenuProps {
   peer: { profileId: string; name: string };
   onBlocked?: () => void;
-  /** 홈 테마 다크 화면(채팅 헤더·프로포즈 카드)에서 트리거 아이콘을 크림 톤으로. */
+  /** 홈 테마 다크 화면(채팅 헤더)에서 트리거 아이콘을 크림 톤으로. */
   dark?: boolean;
 }
 

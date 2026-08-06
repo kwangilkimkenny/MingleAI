@@ -47,7 +47,7 @@ export default function DeleteAccountScreen() {
     >
       <View style={styles.form}>
         <InlineNotice tone="error" dark>
-          삭제 후에는 복구할 수 없어요. 프로필, 매칭, 프로포즈, 채팅, 데이트 계획과 소개팅 참여 기록이 계정과 함께 삭제됩니다.
+          삭제 후에는 복구할 수 없어요. 프로필, 매칭, 채팅, 데이트 계획과 소개팅 참여 기록이 계정과 함께 삭제됩니다.
         </InlineNotice>
         <LabeledInput
           label="확인 문구"

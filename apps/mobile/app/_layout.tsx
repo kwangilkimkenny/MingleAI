@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
+import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { StyleSheet, View } from "react-native";
 import "../src/lib/client";
@@ -35,8 +36,12 @@ export default function RootLayout() {
   // 헤더 전면 비표시 — 각 화면이 자체 크롬(백버튼·타이틀)을 가진다.
   // contentStyle: 전 화면이 다크라 내비게이터 배경도 다크로 고정 — 라이트로 두면 로그인→홈 전환
   // 틈에 크림 배경이 한 프레임 번쩍인다(2026-07-27 버그).
+  // 앱은 전면 다크 — 상태바 아이콘은 밝게. 라이트 배경 화면(전폭 지도)은 그 화면에서 뒤집는다.
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: dark.bg } }} />
+    <>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: dark.bg } }} />
+    </>
   );
 }
 

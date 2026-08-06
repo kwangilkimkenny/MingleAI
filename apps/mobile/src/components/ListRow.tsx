@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react-native";
 import { colors, control, dark, layout, space, type } from "../lib/theme";
 
 /**
- * 공용 리스트 행 — List 아키타입(채팅·프로포즈·알림·차단·설정·맛집)과 Hub 허브 카드 내부에서
+ * 공용 리스트 행 — List 아키타입(채팅·알림·차단·설정·맛집)과 Hub 허브 카드 내부에서
  * 동일한 행 구조를 강제한다. leading(아바타/아이콘) · title · subtitle · trailing(배지/버튼/셰브런).
  * onPress 있으면 Pressable, 없으면 정적 View. trailing 미지정 + onPress면 셰브런 자동.
  */

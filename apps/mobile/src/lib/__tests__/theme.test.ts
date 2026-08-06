@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { colors } from "../theme";
+import { colors, dark } from "../theme";
 
 // WCAG relative luminance + contrast (순수 계산).
 function lum(hex: string): number {
@@ -29,5 +29,56 @@ describe("line-art token invariants", () => {
   it("danger hue is separated from accent (not the same red)", () => {
     expect(colors.danger).not.toBe(colors.accent);
     expect(colors.danger).not.toBe(colors.accentStrong);
+  });
+});
+
+/** rgba(...) 반투명 색을 배경 위에 합성 — 다크 hairline/뮤트 텍스트의 실제 색. */
+function flatten(rgba: string, bg: string): string {
+  const m = /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([0-9.]+)\)/.exec(rgba);
+  if (!m) return rgba;
+  const [r, g, b, a] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])];
+  const n = parseInt(bg.slice(1), 16);
+  const back = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const mix = [r, g, b].map((c, i) => Math.round(c * a + back[i] * (1 - a)));
+  return `#${mix.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+describe("dark token invariants", () => {
+  it("body and heading text clear AA on every dark surface", () => {
+    for (const bg of [dark.bg, dark.surface, dark.surfaceHi]) {
+      expect(contrast(dark.text, bg)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(dark.heading, bg)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("muted text stays AA once flattened onto each surface", () => {
+    for (const bg of [dark.bg, dark.surface, dark.surfaceHi]) {
+      expect(contrast(flatten(dark.textMuted, bg), bg)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("blush label and danger stay AA on dark", () => {
+    expect(contrast(dark.label, dark.bg)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(dark.danger, dark.surface)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the cream pill carries its ink label at AA", () => {
+    expect(contrast(dark.pill, dark.onPill)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the reservation-style badge (accent fill, bg text) is readable", () => {
+    expect(contrast(dark.accent, dark.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // 구조 대비 — 2026-08-06 감사에서 카드가 배경에 묻혀 있었다. 회귀 방지 하한.
+  it("cards and selected rows separate from what is behind them", () => {
+    expect(contrast(dark.surface, dark.bg)).toBeGreaterThanOrEqual(1.2);
+    expect(contrast(dark.surfaceHi, dark.surface)).toBeGreaterThanOrEqual(1.2);
+  });
+
+  it("hairlines are visible, and borderStrong meets the 3:1 non-text bar", () => {
+    expect(contrast(flatten(dark.border, dark.surface), dark.surface)).toBeGreaterThanOrEqual(2);
+    expect(contrast(flatten(dark.line, dark.surface), dark.surface)).toBeGreaterThanOrEqual(1.5);
+    expect(contrast(flatten(dark.borderStrong, dark.bg), dark.bg)).toBeGreaterThanOrEqual(3);
   });
 });

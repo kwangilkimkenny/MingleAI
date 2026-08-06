@@ -119,17 +119,25 @@ export const masterpiece = {
  * (home·login·onboarding·gate·speed-date). List/data screens stay LIGHT (line-art `colors`) for
  * readability — 사용자 방침 "다크 무드 유지, 리스트만 밝게" (2026-07-24).
  */
+/**
+ * 다크 토큰. 글자 대비는 원래도 넉넉했지만(크림 13:1+, 뮤트 5.9:1) **면과 선**이 너무 붙어 있어
+ * 카드가 배경에서 뜨지 않았다(2026-08-06 대비 감사: 카드/배경 1.10:1, 테두리 1.62:1, 선택면 1.12:1).
+ * surface·surfaceHi를 한 단씩 올리고 hairline 알파를 키워 구조가 읽히게 했다. 값 변경 시
+ * `theme.test.ts`의 대비 불변식이 지켜지는지 확인할 것.
+ */
 export const dark = {
   bg: brandPalette.brown950, // dark-brown page ground
-  surface: brandPalette.brown900, // dark card/sheet surface
-  surfaceHi: brandPalette.brown850, // raised surface / input fill hint
+  surface: "#2F251D", // 카드/시트 — 배경 대비 1.24:1(구 1.10, 사실상 안 보였다)
+  surfaceHi: "#40342A", // 선택·상승면 — 카드 대비 1.24:1(구 1.00, fill만으론 구분 불가였다)
   text: brandPalette.creamText, // cream body text
   textMuted: "rgba(251,244,236,0.6)", // muted cream
   heading: brandPalette.creamText, // serif heading (cream)
   label: brandPalette.blush200, // blush — eyebrow / label
-  border: "rgba(251,244,236,0.16)", // subtle light hairline on dark
-  line: "rgba(251,244,236,0.1)", // divider on dark
-  fieldBg: "rgba(251,244,236,0.06)", // input fill on dark
+  border: "rgba(251,244,236,0.28)", // 카드 경계 hairline — 카드 대비 2.4:1
+  /** 테두리가 유일한 식별 수단인 컨트롤(고스트 버튼·비활성 칩)용 — 비텍스트 3:1 충족. */
+  borderStrong: "rgba(251,244,236,0.42)",
+  line: "rgba(251,244,236,0.18)", // divider on dark
+  fieldBg: "rgba(251,244,236,0.1)", // input fill on dark
   pill: brandPalette.cream, // cream pill CTA (primary on dark)
   onPill: brandPalette.brown800, // dark text on the cream pill
   accent: brandPalette.blush200, // bright blush — active / small accent on dark
