@@ -210,6 +210,7 @@ export function snapshotFor(
   sessionId: string,
   state: SpeedDateState,
   viewerId: string,
+  now: number = Date.now(),
 ): SpeedDateSnapshot {
   const me = partById(state, viewerId);
   // Expose the current stage during its intro too, so the "N라운드" screen can show the reveal.
@@ -249,6 +250,7 @@ export function snapshotFor(
     roundIndex: state.roundIndex,
     roundCount: roundCount(state),
     phaseEndsAt: state.phaseEndsAt,
+    serverNow: now,
     myProfileId: viewerId,
     myNickname: me?.nickname ?? "",
     myGender: me?.gender ?? "",

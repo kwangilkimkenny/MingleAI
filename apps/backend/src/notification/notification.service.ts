@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { PushService } from "../push/push.service";
@@ -45,11 +45,13 @@ export class NotificationService {
     return { unreadCount: count };
   }
 
-  async markAsRead(id: string, userId: string) {
-    return this.prisma.notification.updateMany({
+  /** 내 알림만 읽음 처리 — 없는/남의 id는 404(조용한 성공 금지). */
+  async markAsRead(id: string, userId: string): Promise<void> {
+    const res = await this.prisma.notification.updateMany({
       where: { id, userId },
       data: { read: true },
     });
+    if (res.count === 0) throw new NotFoundException("알림을 찾을 수 없습니다");
   }
 
   async markAllAsRead(userId: string) {
@@ -94,9 +96,8 @@ export class NotificationService {
     });
   }
 
-  async delete(id: string, userId: string) {
-    return this.prisma.notification.deleteMany({
-      where: { id, userId },
-    });
+  async delete(id: string, userId: string): Promise<void> {
+    const res = await this.prisma.notification.deleteMany({ where: { id, userId } });
+    if (res.count === 0) throw new NotFoundException("알림을 찾을 수 없습니다");
   }
 }

@@ -32,3 +32,27 @@ it("still returns the row when push throws (non-fatal)", async () => {
     svc.create({ userId: "u1", type: "system", title: "t", message: "m" }),
   ).resolves.toEqual({ id: "n1" });
 });
+
+it("rejects read/delete of a notification that is not mine (no silent success)", async () => {
+  const prisma = {
+    notification: {
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+  } as any;
+  const svc = new NotificationService(prisma, { sendToUser: jest.fn() } as any);
+  await expect(svc.markAsRead("nope", "u1")).rejects.toThrow("알림을 찾을 수 없습니다");
+  await expect(svc.delete("nope", "u1")).rejects.toThrow("알림을 찾을 수 없습니다");
+});
+
+it("resolves quietly when the row is mine", async () => {
+  const prisma = {
+    notification: {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+  } as any;
+  const svc = new NotificationService(prisma, { sendToUser: jest.fn() } as any);
+  await expect(svc.markAsRead("n1", "u1")).resolves.toBeUndefined();
+  await expect(svc.delete("n1", "u1")).resolves.toBeUndefined();
+});

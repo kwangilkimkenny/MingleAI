@@ -12,6 +12,9 @@ export type NaverPlace = {
   mapy: string; // WGS84 latitude ×1e7 (string)
 };
 
+/** 사용자가 고른 "갈 동네" 후보 — 이름 + 좌표. */
+export type AreaHit = { label: string; detail: string; lat: number; lng: number };
+
 /**
  * Naver Local Search adapter (seam). Reads `NAVER_SEARCH_CLIENT_ID/SECRET`; when unset it reports
  * `configured=false` and callers show an empty state (no fake data). No public Naver *reservation*
@@ -59,12 +62,59 @@ export class NaverSearchService {
     return area;
   }
 
-  async searchLocal(query: string, display = 10): Promise<NaverPlace[]> {
+  /** 동네 이름으로 좌표 찾기(포워드 지오코딩) — 사용자가 "내가 갈 동네"를 직접 고를 때 쓴다.
+   *  Nominatim은 키가 없고 초당 1회 권고라, 클라이언트가 입력을 디바운스해서 부른다. */
+  async searchAreas(query: string): Promise<AreaHit[]> {
+    const q = query.trim();
+    if (q.length < 2) return [];
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&limit=8` +
+          `&accept-language=ko&q=${encodeURIComponent(q)}`,
+        { headers: { "User-Agent": "mingles/1.0 (date-place search)" } },
+      );
+      if (!res.ok) return [];
+      const rows = (await res.json()) as Array<{
+        display_name?: string;
+        name?: string;
+        lat?: string;
+        lon?: string;
+      }>;
+      const seen = new Set<string>();
+      const hits: AreaHit[] = [];
+      for (const r of rows) {
+        const lat = Number(r.lat);
+        const lng = Number(r.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const parts = (r.display_name ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+        const label = r.name?.trim() || parts[0] || q;
+        // "서초동, 서초구, 서울" 처럼 상위 두 단계까지만 부제로 — 전체 주소는 너무 길다.
+        const detail = parts.slice(1, 3).join(" · ");
+        const key = `${label}|${detail}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        hits.push({ label, detail, lat, lng });
+      }
+      return hits;
+    } catch (e) {
+      this.log.warn(`area search failed: ${(e as Error).message}`);
+      return [];
+    }
+  }
+
+  /** 네이버 지역검색은 한 요청당 최대 5건(display 상한)이라, 목록을 채우려면 질의를 나눠 던져야 한다. */
+  static readonly MAX_PER_QUERY = 5;
+
+  async searchLocal(
+    query: string,
+    display = NaverSearchService.MAX_PER_QUERY,
+    sort: "random" | "comment" = "random",
+  ): Promise<NaverPlace[]> {
     const creds = this.creds();
     if (!creds) throw new ServiceUnavailableException("네이버 검색이 설정되지 않았습니다");
     const url =
       `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}` +
-      `&display=${display}&sort=random`;
+      `&display=${Math.min(display, NaverSearchService.MAX_PER_QUERY)}&sort=${sort}`;
     let res: Response;
     try {
       res = await fetch(url, {
@@ -84,6 +134,19 @@ export class NaverSearchService {
   }
 }
 
+const ENTITIES: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&apos;": "'",
+  "&nbsp;": " ",
+};
+
+/** 네이버는 매칭어를 <b>로 감싸고 특수문자를 HTML 엔티티로 준다 — 화면엔 원문 그대로 보여야 한다. */
 function stripTags(s: string): string {
-  return s.replace(/<[^>]*>/g, "");
+  return s
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(amp|lt|gt|quot|apos|nbsp|#39);/g, (m) => ENTITIES[m] ?? m);
 }

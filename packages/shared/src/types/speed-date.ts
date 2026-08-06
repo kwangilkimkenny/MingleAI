@@ -75,6 +75,8 @@ export interface SpeedDateSnapshot {
   roundCount: number;
   /** epoch ms deadline of the current phase (server-authoritative; client clock display-only). */
   phaseEndsAt: number;
+  /** 서버가 이 스냅샷을 만든 시각(ms). 기기 시계가 틀어져 있어도 남은 시간을 맞게 세기 위한 기준. */
+  serverNow: number;
   myProfileId: string;
   myNickname: string;
   myGender: string;

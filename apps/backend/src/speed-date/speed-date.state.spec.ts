@@ -196,3 +196,10 @@ describe("mutualPairs", () => {
     expect(pairs).toEqual(["m0-f0", "m2-f1"].sort());
   });
 });
+
+it("stamps the server clock so clients can correct for device clock skew", () => {
+  const st = makeState(3);
+  const snap = snapshotFor("sess", st, males[0], 1_700_000_000_000);
+  expect(snap.serverNow).toBe(1_700_000_000_000);
+  expect(snap.phaseEndsAt).toBe(st.phaseEndsAt);
+});

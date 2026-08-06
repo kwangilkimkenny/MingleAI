@@ -29,3 +29,11 @@ export function getNearbyPlaces(
     `/places/nearby${q ? `?${q}` : ""}`,
   );
 }
+
+/** 사용자가 고를 수 있는 "갈 동네" 후보(라벨 + 좌표). */
+export type AreaHit = { label: string; detail: string; lat: number; lng: number };
+
+/** 동네 이름으로 좌표를 찾는다(맛집 탭 위치 지정). 입력은 호출부에서 디바운스할 것. */
+export function searchAreas(query: string): Promise<{ areas: AreaHit[] }> {
+  return apiFetch<{ areas: AreaHit[] }>(`/places/areas?query=${encodeURIComponent(query)}`);
+}

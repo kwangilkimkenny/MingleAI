@@ -4,6 +4,7 @@ import {
   Patch,
   Post,
   Delete,
+  HttpCode,
   Param,
   Query,
   UseGuards,
@@ -43,6 +44,7 @@ export class NotificationController {
   }
 
   @Patch(":id/read")
+  @HttpCode(204)
   @ApiOperation({ summary: "알림 읽음 처리" })
   markAsRead(
     @Request() req: { user: { userId: string } },
@@ -58,6 +60,7 @@ export class NotificationController {
   }
 
   @Delete(":id")
+  @HttpCode(204)
   @ApiOperation({ summary: "알림 삭제" })
   delete(
     @Request() req: { user: { userId: string } },
