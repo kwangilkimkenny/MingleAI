@@ -170,12 +170,6 @@ export class AuthService {
         await tx.block.deleteMany({
           where: { OR: [{ blockerProfileId: profileId }, { blockedProfileId: profileId }] },
         });
-        await tx.proposal.deleteMany({
-          where: { OR: [{ fromProfileId: profileId }, { toProfileId: profileId }] },
-        });
-        await tx.partyMessage.deleteMany({ where: { profileId } });
-        await tx.partyParticipant.deleteMany({ where: { profileId } });
-        await tx.matchmakingQueueEntry.deleteMany({ where: { profileId } });
         await tx.speedDateQueueEntry.deleteMany({ where: { profileId } });
         await tx.match.deleteMany({
           where: { OR: [{ profileId1: profileId }, { profileId2: profileId }] },

@@ -8,7 +8,7 @@ import { AccountAccessService } from "../auth/account-access.service";
  *
  * This closes a race: authenticating inside an async `handleConnection` sets `socket.data.userId`
  * only AFTER an `await` (a DB lookup), but Socket.IO fires the client "connect" event on transport
- * connection. A client that emits an authed event immediately after connect (e.g. `party:join`, or
+ * connection. A client that emits an authed event immediately after connect (e.g. `speeddate:join`, or
  * the auto-rejoin on reconnect) could reach the handler before auth completed → treated as
  * unauthenticated → rejected, and the join silently dropped. Middleware eliminates that window.
  *

@@ -51,7 +51,6 @@ export class SafetyController {
       dto.reportedProfileId,
       dto.reason,
       dto.details,
-      dto.evidencePartyId,
     );
   }
 

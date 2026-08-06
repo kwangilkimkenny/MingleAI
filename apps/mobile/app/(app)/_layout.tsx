@@ -79,13 +79,11 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="matching" options={{ title: "매칭" }} />
       <Stack.Screen name="speed-date/index" options={{ title: "블라인드 데이트" }} />
       <Stack.Screen name="speed-date/[id]" options={{ title: "블라인드 데이트" }} />
       <Stack.Screen name="blocks" options={{ title: "차단 목록" }} />
       <Stack.Screen name="delete-account" options={{ title: "계정 삭제" }} />
       <Stack.Screen name="chat/[roomId]" options={{ title: "채팅" }} />
-      <Stack.Screen name="party/[id]" options={{ title: "파티" }} />
       <Stack.Screen name="date-plan/[matchId]" options={{ title: "데이트 플랜" }} />
       <Stack.Screen name="report/[profileId]" options={{ title: "신고" }} />
       {/* 공지 상세 = 홈 위에 살짝 투명하게 뜨는 오버레이(홈이 뒤로 비침). */}

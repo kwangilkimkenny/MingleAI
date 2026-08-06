@@ -6,7 +6,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 
 /** 신고 목록/상세에 노출하는 최소 프로필 투영 — userId/riskScore 등 민감 필드는 제외. */
-function toReportParty(profile: { id: string; name: string; age: number; gender: string }) {
+function toReportPeer(profile: { id: string; name: string; age: number; gender: string }) {
   return {
     profileId: profile.id,
     name: profile.name,
@@ -18,10 +18,6 @@ function toReportParty(profile: { id: string; name: string; age: number; gender:
 export interface AdminStatsResult {
   totalUsers: number;
   activeUsers: number;
-  totalParties: number;
-  matchingParties: number;
-  activeParties: number;
-  endedParties: number;
   pendingReports: number;
 }
 
@@ -32,13 +28,6 @@ export interface ListUsersOptions {
   offset?: number;
 }
 
-export interface ListPartiesOptions {
-  status?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  limit?: number;
-  offset?: number;
-}
 
 export interface ListReportsOptions {
   status?: string;
@@ -54,28 +43,16 @@ export class AdminService {
     const [
       totalUsers,
       activeUsers,
-      totalParties,
-      matchingParties,
-      activeParties,
-      endedParties,
       pendingReports,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.profile.count({ where: { status: "active" } }),
-      this.prisma.party.count(),
-      this.prisma.party.count({ where: { status: "matching" } }),
-      this.prisma.party.count({ where: { status: "active" } }),
-      this.prisma.party.count({ where: { status: "ended" } }),
       this.prisma.safetyReport.count({ where: { status: "pending" } }),
     ]);
 
     return {
       totalUsers,
       activeUsers,
-      totalParties,
-      matchingParties,
-      activeParties,
-      endedParties,
       pendingReports,
     };
   }
@@ -102,17 +79,7 @@ export class AdminService {
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        include: {
-          profile: {
-            include: {
-              _count: {
-                select: {
-                  partyParticipants: true,
-                },
-              },
-            },
-          },
-        },
+        include: { profile: true },
         orderBy: { createdAt: "desc" },
         take: limit,
         skip: offset,
@@ -135,7 +102,6 @@ export class AdminService {
               location: u.profile.location,
               status: u.profile.status,
               riskScore: u.profile.riskScore,
-              partyCount: u.profile._count.partyParticipants,
             }
           : null,
       })),
@@ -168,11 +134,6 @@ export class AdminService {
             riskScore: true,
             createdAt: true,
             updatedAt: true,
-            partyParticipants: {
-              include: { party: true },
-              orderBy: { joinedAt: "desc" },
-              take: 10,
-            },
             reportsFiled: {
               orderBy: { createdAt: "desc" },
               take: 10,
@@ -259,98 +220,6 @@ export class AdminService {
     return { success: true };
   }
 
-  async listParties(options: ListPartiesOptions = {}) {
-    const { status, limit = 20, offset = 0 } = options;
-
-    const where: { status?: string } = {};
-
-    if (status) {
-      where.status = status;
-    }
-
-    const [parties, total] = await Promise.all([
-      this.prisma.party.findMany({
-        where,
-        include: {
-          _count: {
-            select: {
-              participants: true,
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        take: limit,
-        skip: offset,
-      }),
-      this.prisma.party.count({ where }),
-    ]);
-
-    return {
-      parties: parties.map((p) => ({
-        ...p,
-        participantCount: p._count.participants,
-        _count: undefined,
-      })),
-      total,
-      limit,
-      offset,
-    };
-  }
-
-  async getPartyDetail(partyId: string) {
-    const party = await this.prisma.party.findUnique({
-      where: { id: partyId },
-      include: {
-        participants: {
-          include: {
-            profile: true,
-          },
-        },
-      },
-    });
-
-    if (!party) {
-      throw new NotFoundException("파티를 찾을 수 없습니다");
-    }
-
-    return party;
-  }
-
-  async updateParty(
-    partyId: string,
-    data: {
-      name?: string;
-      maxParticipants?: number;
-      location?: string;
-      status?: string;
-    },
-  ) {
-    const party = await this.prisma.party.findUnique({
-      where: { id: partyId },
-    });
-
-    if (!party) {
-      throw new NotFoundException("파티를 찾을 수 없습니다");
-    }
-
-    const updateData: {
-      name?: string;
-      maxParticipants?: number;
-      location?: string;
-      status?: string;
-    } = {};
-
-    if (data.name) updateData.name = data.name;
-    if (data.maxParticipants) updateData.maxParticipants = data.maxParticipants;
-    if (data.location !== undefined) updateData.location = data.location;
-    if (data.status) updateData.status = data.status;
-
-    return this.prisma.party.update({
-      where: { id: partyId },
-      data: updateData,
-    });
-  }
-
   async listSafetyReports(options: ListReportsOptions = {}) {
     const { status, limit = 20, offset = 0 } = options;
 
@@ -380,8 +249,8 @@ export class AdminService {
         details: r.details,
         status: r.status,
         createdAt: r.createdAt,
-        reporter: toReportParty(r.reporter),
-        reported: toReportParty(r.reported),
+        reporter: toReportPeer(r.reporter),
+        reported: toReportPeer(r.reported),
       })),
       total,
       limit,
@@ -407,12 +276,11 @@ export class AdminService {
       id: report.id,
       reason: report.reason,
       details: report.details,
-      evidencePartyId: report.evidencePartyId,
       status: report.status,
       createdAt: report.createdAt,
-      reporter: toReportParty(report.reporter),
+      reporter: toReportPeer(report.reporter),
       reported: {
-        ...toReportParty(report.reported),
+        ...toReportPeer(report.reported),
         status: report.reported.status,
       },
       // 피신고자가 받은 누적 신고 수(현재 신고 포함) — 반복 가해 판단용.

@@ -10,7 +10,6 @@ import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
-import CelebrationIcon from "@mui/icons-material/Celebration";
 import ReportIcon from "@mui/icons-material/Report";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HomeIcon from "@mui/icons-material/Home";
@@ -19,7 +18,6 @@ import { useAuthStore } from "@/lib/store/auth";
 const NAV_ITEMS = [
   { label: "대시보드", icon: <DashboardIcon />, path: "/admin" },
   { label: "사용자 관리", icon: <PeopleIcon />, path: "/admin/users" },
-  { label: "파티 관리", icon: <CelebrationIcon />, path: "/admin/parties" },
   { label: "신고 관리", icon: <ReportIcon />, path: "/admin/reports" },
 ];
 

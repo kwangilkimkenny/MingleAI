@@ -5,8 +5,7 @@ import { DoodleTabBar } from "../../../src/components/DoodleTabBar";
 
 /**
  * Bottom tab bar (icon-only), shown once the user is past onboarding. Four tabs:
- * 홈 · 채팅 · 네이버예약 · 설정. 프로포즈·알림은 페이지가 아니라 홈의 투명 팝업(ProposalsPopup·
- * NotificationsPopup)으로 열린다.
+ * 홈 · 채팅 · 네이버예약 · 설정. 알림은 페이지가 아니라 홈의 투명 팝업(NotificationsPopup)으로 열린다.
  */
 export default function TabsLayout() {
   return (

@@ -4,7 +4,7 @@ import { ThrottlerGuard } from "@nestjs/throttler";
 /**
  * Global `APP_GUARD` throttler that only applies to HTTP requests.
  *
- * The app also runs two Socket.IO gateways (`PartyGateway`, `MessengerGateway`); Nest's
+ * The app also runs Socket.IO gateways (`MessengerGateway`, `SpeedDateGateway`); Nest's
  * `ThrottlerGuard` assumes an HTTP request/response pair (it reads/writes headers on the
  * response), which does not exist for a `ws` execution context and would throw. Bypass (return
  * `true`) for any non-http context so gateway message handlers are unaffected.

@@ -19,8 +19,7 @@ export default function RootLayout() {
     Pretendard_600SemiBold: require("../assets/fonts/pretendard/Pretendard-SemiBold.otf"),
   });
 
-  // app.json orientation="default"(runtime lock을 위해 필요) 상태에서 앱 전역은 세로 고정.
-  // 파티 화면만 useLandscapeLock으로 가로 전환. 웹은 미지원 — no-op.
+  // 앱 전역 세로 고정(app.json orientation=portrait와 이중 안전벨트). 웹은 미지원 — no-op.
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
   }, []);
@@ -33,7 +32,7 @@ export default function RootLayout() {
     );
   }
 
-  // 헤더 전면 비표시 — 인증 화면은 DoodleHero가 브랜딩을 담당하고, 탭/상세는 자체 크롬을 가진다.
+  // 헤더 전면 비표시 — 각 화면이 자체 크롬(백버튼·타이틀)을 가진다.
   // contentStyle: 전 화면이 다크라 내비게이터 배경도 다크로 고정 — 라이트로 두면 로그인→홈 전환
   // 틈에 크림 배경이 한 프레임 번쩍인다(2026-07-27 버그).
   return (

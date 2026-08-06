@@ -18,8 +18,4 @@ export class ReportUserDto {
   @IsString()
   @MaxLength(1000)
   details?: string;
-
-  @IsOptional()
-  @IsString()
-  evidencePartyId?: string;
 }

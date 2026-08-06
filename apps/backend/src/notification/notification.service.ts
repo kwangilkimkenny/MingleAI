@@ -6,11 +6,9 @@ import { PushService } from "../push/push.service";
 export interface CreateNotificationDto {
   userId: string;
   type:
-    | "party_reminder"
     | "match_result"
     | "reservation"
     | "system"
-    | "proposal_received"
     | "match_made"
     | "message_received";
   title: string;

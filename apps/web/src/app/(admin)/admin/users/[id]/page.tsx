@@ -6,13 +6,6 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Skeleton from "@mui/material/Skeleton";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import Grid from "@mui/material/Grid2";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { getAdminUserDetail, updateUserStatus, deleteUser, type AdminUserDetail } from "@/lib/api/admin";
 import UserDetailCard from "@/components/admin/users/UserDetailCard";
@@ -64,16 +57,6 @@ export default function AdminUserDetailPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   if (loading) {
     return (
       <Box>
@@ -122,53 +105,6 @@ export default function AdminUserDetailPage() {
         </Button>
       </Box>
 
-      <Grid container spacing={3} mt={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardHeader title="최근 파티 참가" />
-            <CardContent>
-              {user.profile?.partyParticipants?.length === 0 ? (
-                <Typography color="text.secondary">
-                  참가한 파티가 없습니다
-                </Typography>
-              ) : (
-                <List dense>
-                  {user.profile?.partyParticipants?.map((pp) => (
-                    <ListItem key={pp.party.id}>
-                      <ListItemText
-                        primary={pp.party.name}
-                        secondary={formatDate(pp.party.scheduledAt)}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardHeader title="최근 예약" />
-            <CardContent>
-              {user.profile?.reservations?.length === 0 ? (
-                <Typography color="text.secondary">예약이 없습니다</Typography>
-              ) : (
-                <List dense>
-                  {user.profile?.reservations?.map((r) => (
-                    <ListItem key={r.id}>
-                      <ListItemText
-                        primary={r.party.name}
-                        secondary={`${r.status} - ${formatDate(r.createdAt)}`}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
     </Box>
   );
 }

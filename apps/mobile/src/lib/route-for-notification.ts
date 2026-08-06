@@ -3,8 +3,6 @@ import type { Href } from "expo-router";
 export interface NotificationData {
   type: string;
   roomId?: string;
-  proposalId?: string;
-  partyId?: string;
   matchId?: string;
 }
 
@@ -16,10 +14,6 @@ export function routeForNotification(data: NotificationData): Href {
         : "/chats";
     case "match_made":
       return "/chats";
-    case "proposal_received":
-      // 프로포즈는 이제 페이지가 아니라 홈의 팝업 — 딥링크는 홈으로 보낸다.
-      return "/home";
-    case "party_reminder":
     case "match_result":
       return "/home";
     case "reservation":

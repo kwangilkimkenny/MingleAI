@@ -7,7 +7,7 @@
 
 - **품질 게이트**: production build·전체 테스트(backend 399+ / mobile 134 / client-core 80 / shared 41)·lint 경고 0 green.
 - **DB**: 마이그레이션 전부 작성·로컬 적용(위치 매칭 컬럼 포함). 배포 시 `prisma migrate deploy`만.
-- **핵심 루프 라이브 검증**: 6인(3:3) 매칭 → 스테이지 인트로("N라운드") → 3스테이지×3로테이션(랜덤 페어링) → 프로포즈 → 상호픽 Match+DM → 채팅방. 1:1 모드(`SPEEDDATE_GROUP_PER_GENDER=1`)도 검증.
+- **핵심 루프 라이브 검증**: 6인(3:3) 매칭 → 스테이지 인트로("N라운드") → 3스테이지×3로테이션(랜덤 페어링) → 비공개 상호선택 → Match+DM → 채팅방. 1:1 모드(`SPEEDDATE_GROUP_PER_GENDER=1`)도 검증.
 - **미디어**: 웹 = LiveKit 실연동(FACE 카메라, DISGUISED 퍼블리셔측 피치 변조 — DSP 측정 검증). 네이티브 = `@livekit/react-native` 코드·플러그인·권한 완료(**동작 검증은 EAS dev build에서**, 런북 §7-3).
 - **인증**: 소셜 전용(카카오·네이버·구글 어댑터, 키만 꽂으면 됨) + 본인인증 어댑터 seam + refresh token 로테이션(+client-core 401 자동 갱신) + granular 동의 + 카메라·마이크 게이트.
 - **보안 기본기**: prod에서 dev-login·본인인증 bypass 강제 off, rate limit(전역+auth 강화), CORS allowlist env, 피어 프로젝션 리댁션(실명·연락처 비노출), 신고·차단.
@@ -37,5 +37,5 @@
 
 - **네이티브 가면 라운드(1라운드) = 음소거**: RN에 Web Audio가 없어 실변조 불가 → 원음 유출 대신 음소거로 가면 약속 유지(웹은 실변조). Phase E(네이티브 DSP 스파이크)가 해소 예정.
 - 단일 서버 인스턴스 전제(매칭 sweep·게이트웨이 인메모리 상태) — 스케일아웃 전 redis-adapter 필요.
-- 파티 게임("AI를 찾아라")은 의도적 비활성(`FEATURES.partyGame=false`) — 블라인드 데이트가 메인.
+- 파티 게임("AI를 찾아라")·프로포즈는 2026-08-06 코드에서 **완전 삭제**(사용자 결정) — 로테이션 블라인드 데이트가 유일 루프.
 - 네이버 지도는 네이티브 빌드 필요(웹 프리뷰는 OSM 대체 지도). **실지도 인증 키 = NCP 콘솔의 Maps Key ID를 `apps/mobile/app.json`의 `@mj-studio/react-native-naver-map` plugin `client_id`에 입력 후 재빌드**(현재 빈 값 — 빌드는 되고 지도 인증만 대기).

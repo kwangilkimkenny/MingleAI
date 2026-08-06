@@ -5,11 +5,9 @@ import Grid from "@mui/material/Grid2";
 import Skeleton from "@mui/material/Skeleton";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import PeopleIcon from "@mui/icons-material/People";
-import CelebrationIcon from "@mui/icons-material/Celebration";
 import EventIcon from "@mui/icons-material/Event";
 import ReportIcon from "@mui/icons-material/Report";
-import StatsCard from "@/components/dashboard/StatsCard";
+import StatsCard from "./StatsCard";
 import { getAdminStats, type AdminStats } from "@/lib/api/admin";
 
 export default function AdminStatsGrid() {
@@ -44,22 +42,6 @@ export default function AdminStatsGrid() {
   return (
     <Grid container spacing={3}>
       <Grid size={{ xs: 6, md: 3 }}>
-        <StatsCard
-          title="전체 사용자"
-          value={stats.totalUsers}
-          icon={PeopleIcon}
-          color="primary"
-          subtitle={`활성: ${stats.activeUsers}명`}
-        />
-      </Grid>
-      <Grid size={{ xs: 6, md: 3 }}>
-        <StatsCard
-          title="전체 파티"
-          value={stats.totalParties}
-          icon={CelebrationIcon}
-          color="success"
-          subtitle={`예정: ${stats.scheduledParties} / 완료: ${stats.completedParties}`}
-        />
       </Grid>
       <Grid size={{ xs: 6, md: 3 }}>
         <StatsCard

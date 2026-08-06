@@ -71,12 +71,7 @@ model Profile {
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  partyParticipants PartyParticipant[]
-  queueEntries      MatchmakingQueueEntry[]
   speedDateEntries  SpeedDateQueueEntry[]
-  partyMessages     PartyMessage[]
-  proposalsSent     Proposal[]              @relation("ProposalFrom")
-  proposalsReceived Proposal[]              @relation("ProposalTo")
   matchesAsFirst    Match[]                 @relation("MatchProfile1")
   matchesAsSecond   Match[]                 @relation("MatchProfile2")
   directMessages    DirectMessage[]
@@ -88,40 +83,6 @@ model Profile {
   riskContributionsReceived SafetyRiskContribution[] @relation("RiskReported")
 
   @@map("profiles")
-}
-
-model Party {
-  id              String    @id @default(uuid())
-  name            String
-  status          String    @default("matching") // matching | active | ended
-  maxParticipants Int       @default(8) @map("max_participants")
-  location        String?
-  startedAt       DateTime? @map("started_at")
-  endedAt         DateTime? @map("ended_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-
-  participants PartyParticipant[]
-  messages     PartyMessage[]
-  games        GameSession[]
-  proposals    Proposal[]
-  matches      Match[]
-
-  @@index([status])
-  @@map("parties")
-}
-
-model PartyParticipant {
-  partyId   String   @map("party_id")
-  profileId String   @map("profile_id")
-  joinedAt  DateTime @default(now()) @map("joined_at")
-
-  party   Party   @relation(fields: [partyId], references: [id])
-  profile Profile @relation(fields: [profileId], references: [id])
-
-  @@id([partyId, profileId])
-  @@index([profileId])
-  @@map("party_participants")
 }
 
 model DatePlan {
@@ -148,7 +109,6 @@ model SafetyReport {
   reportedProfileId String   @map("reported_profile_id")
   reason            String
   details           String?
-  evidencePartyId   String?  @map("evidence_party_id")
   status            String   @default("pending")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -214,58 +174,6 @@ model SystemSettings {
   @@map("system_settings")
 }
 
-model MatchmakingQueueEntry {
-  id                 String   @id @default(uuid())
-  profileId          String   @map("profile_id")
-  status             String   @default("waiting") // waiting | matched | cancelled
-  preferenceSnapshot Json     @map("preference_snapshot") // 큐 진입 시점 선호 신호
-  matchedPartyId     String?  @map("matched_party_id")
-  enqueuedAt         DateTime @default(now()) @map("enqueued_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
-
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  @@index([status])
-  @@index([profileId])
-  // Partial UNIQUE index `matchmaking_queue_entries_profile_waiting_key` (profile_id) WHERE
-  // status='waiting' — one live queue entry per profile. Managed via raw-SQL migration
-  // 20260710000000_qa_unique_invariants (Prisma PSL can't express partial/filtered unique indexes).
-  @@map("matchmaking_queue_entries")
-}
-
-model PartyMessage {
-  id        String   @id @default(uuid())
-  partyId   String   @map("party_id")
-  profileId String   @map("profile_id")
-  content   String
-  createdAt DateTime @default(now()) @map("created_at")
-
-  party   Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  profile Profile @relation(fields: [profileId], references: [id])
-
-  @@index([partyId, createdAt])
-  @@map("party_messages")
-}
-
-model GameSession {
-  id        String    @id @default(uuid())
-  partyId   String    @map("party_id")
-  gameType  String    @map("game_type")
-  state     Json
-  status    String    @default("active") // active | ended
-  result    Json?
-  startedAt DateTime  @default(now()) @map("started_at")
-  endedAt   DateTime? @map("ended_at")
-
-  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
-
-  @@index([partyId])
-  // Partial UNIQUE index `game_sessions_party_active_key` (party_id) WHERE status='active' — one
-  // active game per party. Managed via raw-SQL migration 20260710000000_qa_unique_invariants
-  // (Prisma PSL can't express partial/filtered unique indexes); backs the per-party advisory lock.
-  @@map("game_sessions")
-}
-
 /// Blind Speed Date — gender-aware matching queue (separate from the party matchmaking queue).
 model SpeedDateQueueEntry {
   id                 String   @id @default(uuid())
@@ -306,33 +214,12 @@ model SpeedDateSession {
   @@map("speed_date_sessions")
 }
 
-model Proposal {
-  id            String    @id @default(uuid())
-  partyId       String    @map("party_id")
-  fromProfileId String    @map("from_profile_id")
-  toProfileId   String    @map("to_profile_id")
-  status        String    @default("pending") // pending | accepted | declined
-  createdAt     DateTime  @default(now()) @map("created_at")
-  respondedAt   DateTime? @map("responded_at")
-
-  party Party   @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  from  Profile @relation("ProposalFrom", fields: [fromProfileId], references: [id])
-  to    Profile @relation("ProposalTo", fields: [toProfileId], references: [id])
-
-  @@unique([partyId, fromProfileId, toProfileId])
-  @@index([toProfileId, status])
-  @@map("proposals")
-}
-
 model Match {
   id         String   @id @default(uuid())
-  partyId    String?  @map("party_id")
-  proposalId String?  @unique @map("proposal_id")
   profileId1 String   @map("profile_id_1")
   profileId2 String   @map("profile_id_2")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  party     Party?             @relation(fields: [partyId], references: [id])
   profile1  Profile            @relation("MatchProfile1", fields: [profileId1], references: [id])
   profile2  Profile            @relation("MatchProfile2", fields: [profileId2], references: [id])
   room      DirectMessageRoom?

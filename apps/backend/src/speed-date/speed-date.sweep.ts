@@ -84,11 +84,17 @@ export class SpeedDateSweepService implements OnModuleInit, OnModuleDestroy {
       orderBy: { enqueuedAt: "asc" },
     })) as unknown as Entry[];
 
-    // dedupe: one waiting entry per profile (cancel extras defensively, like the party sweep)
+    // Cancel waiting entries whose owner is already inside an ACTIVE session — a re-enqueue can
+    // race the formation transaction (enqueue's active-session guard passes before the session
+    // row commits), and without this pass the next sweep would pull a mid-session user into a
+    // second session.
+    const inSession = await this.activeParticipantIds();
+
+    // dedupe: one waiting entry per profile (cancel extras defensively)
     const seen = new Set<string>();
     const deduped: Entry[] = [];
     for (const e of waiting) {
-      if (seen.has(e.profileId)) {
+      if (seen.has(e.profileId) || inSession.has(e.profileId)) {
         await this.prisma.speedDateQueueEntry.updateMany({
           where: { id: e.id, status: "waiting" },
           data: { status: "cancelled" },
@@ -137,8 +143,10 @@ export class SpeedDateSweepService implements OnModuleInit, OnModuleDestroy {
     const maleSlots = pick(males, per, []);
     const femaleSlots = pick(females, per, maleSlots);
 
-    // dev-only AI fill for missing slots
-    if (this.cfg.aiFill) {
+    // dev-only AI fill for missing slots — but never form an all-AI session: with an empty queue
+    // that would mint a new session every tick forever (450k-row incident, 2026-08-06).
+    const realCount = maleSlots.length + femaleSlots.length;
+    if (this.cfg.aiFill && realCount > 0) {
       while (maleSlots.length < per) maleSlots.push(this.aiSlot("male"));
       while (femaleSlots.length < per) femaleSlots.push(this.aiSlot("female"));
     }
@@ -169,6 +177,21 @@ export class SpeedDateSweepService implements OnModuleInit, OnModuleDestroy {
       now,
     );
     return { formed: sessionId ? 1 : 0 };
+  }
+
+  /** Profile ids of everyone currently inside an active session (participants live in state JSON). */
+  private async activeParticipantIds(): Promise<Set<string>> {
+    const sessions = await this.prisma.speedDateSession.findMany({
+      where: { status: "active" },
+      select: { state: true },
+    });
+    const ids = new Set<string>();
+    for (const s of sessions) {
+      const participants =
+        (s.state as { participants?: Array<{ profileId: string }> })?.participants ?? [];
+      for (const p of participants) ids.add(p.profileId);
+    }
+    return ids;
   }
 
   private aiSlot(gender: string): Slot {

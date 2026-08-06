@@ -6,9 +6,6 @@ it("routes message_received to the chat room with roomId", () => {
     params: { roomId: "r1" },
   });
 });
-it("routes proposal_received to home (proposals is a home popup now)", () => {
-  expect(routeForNotification({ type: "proposal_received" })).toBe("/home");
-});
 it("routes match_made to chats", () => {
   expect(routeForNotification({ type: "match_made" })).toBe("/chats");
 });

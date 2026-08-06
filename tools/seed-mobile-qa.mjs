@@ -2,7 +2,7 @@
 /**
  * Idempotent mobile QA data for the dev account.
  *
- * Adds realistic profiles, chat rooms/messages, notifications, a pending proposal, and a date
+ * Adds realistic profiles, chat rooms/messages, notifications, and a date
  * plan without deleting user-created data. It also clears only the selected QA accounts' stale
  * speed-date queue/session state so the 3:3 E2E host can start from a reproducible state.
  *
@@ -284,49 +284,6 @@ async function main() {
   const firstRoom = await ensureMatch(human.profile, opposite[0], 1);
   const secondRoom = await ensureMatch(human.profile, opposite[1], 2);
 
-  const party = await prisma.party.upsert({
-    where: { id: "mobile-qa-party" },
-    create: {
-      id: "mobile-qa-party",
-      name: "성수 저녁 로테이션",
-      status: "active",
-      maxParticipants: 6,
-      location: "서울 성수",
-      startedAt: new Date(now.getTime() - 2 * 60 * 60_000),
-    },
-    update: { status: "active", name: "성수 저녁 로테이션", location: "서울 성수" },
-  });
-  await prisma.partyParticipant.upsert({
-    where: {
-      partyId_profileId: { partyId: party.id, profileId: human.profile.id },
-    },
-    create: { partyId: party.id, profileId: human.profile.id },
-    update: {},
-  });
-  await prisma.partyParticipant.upsert({
-    where: {
-      partyId_profileId: { partyId: party.id, profileId: opposite[2].profile.id },
-    },
-    create: { partyId: party.id, profileId: opposite[2].profile.id },
-    update: {},
-  });
-  const proposal = await prisma.proposal.upsert({
-    where: {
-      partyId_fromProfileId_toProfileId: {
-        partyId: party.id,
-        fromProfileId: opposite[2].profile.id,
-        toProfileId: human.profile.id,
-      },
-    },
-    create: {
-      partyId: party.id,
-      fromProfileId: opposite[2].profile.id,
-      toProfileId: human.profile.id,
-      status: "pending",
-    },
-    update: { status: "pending", respondedAt: null },
-  });
-
   await prisma.datePlan.upsert({
     where: { id: "mobile-qa-date-plan" },
     create: {
@@ -427,19 +384,11 @@ async function main() {
       minutesAgo: 33,
     },
     {
-      id: "mobile-qa-notification-proposal",
-      type: "proposal_received",
-      title: "새로운 호감",
-      message: `${opposite[2].name}님이 대화를 더 이어가고 싶어 해요.`,
-      data: { proposalId: proposal.id },
-      minutesAgo: 18,
-    },
-    {
       id: "mobile-qa-notification-reminder",
-      type: "party_reminder",
+      type: "system",
       title: "오늘의 로테이션",
       message: "오늘 오후 8시, 온라인 로테이션이 시작돼요.",
-      data: { partyId: party.id },
+      data: null,
       minutesAgo: 8,
     },
   ];
@@ -486,7 +435,6 @@ async function main() {
           { peer: opposite[0].name, roomId: firstRoom.room.id, unread: 2 },
           { peer: opposite[1].name, roomId: secondRoom.room.id, unread: 1 },
         ],
-        pendingProposal: { from: opposite[2].name, proposalId: proposal.id },
         notifications: notificationSeeds.length,
         speedDateState: "ready",
       },

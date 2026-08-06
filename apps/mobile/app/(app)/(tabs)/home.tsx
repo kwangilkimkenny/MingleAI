@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Bell, Heart } from "lucide-react-native";
+import { Bell } from "lucide-react-native";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -16,9 +16,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { getReceivedProposals, getUnreadCount } from "@mingle/client-core";
+import { getUnreadCount } from "@mingle/client-core";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
-import { ProposalsPopup } from "../../../src/components/ProposalsPopup";
 import { NotificationsPopup } from "../../../src/components/NotificationsPopup";
 import { colors, fonts, masterpiece } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
@@ -34,7 +33,7 @@ const CAFE_BACKGROUND_ZOOM = 1;
  * Home — a layered cinematic scene (Renaissance-painted couple on a modern café date = the concept
  * made literal). The café is a full-bleed plate; each transparent character drifts independently so
  * the scene feels alive without competing with the MATCH CTA. Reduced-motion keeps both figures
- * static. Proposals / notifications remain light top-right actions.
+ * static. Notifications remain a light top-right action.
  */
 export default function Home() {
   const insets = useSafeAreaInsets();
@@ -46,9 +45,8 @@ export default function Home() {
   const womanShift = useSharedValue(0);
   const manShift = useSharedValue(0);
   const entranceProgress = useSharedValue(entranceRequested && !reducedMotion ? 0 : 1);
-  const [pending, setPending] = useState(0);
   const [unread, setUnread] = useState(0);
-  const [popup, setPopup] = useState<null | "proposals" | "notifications">(null);
+  const [popup, setPopup] = useState<null | "notifications">(null);
   const navigatingRef = useRef(false);
   const aliveRef = useRef(true);
   const availableHeight = Math.max(480, height - clearance);
@@ -159,13 +157,8 @@ export default function Home() {
     };
   });
 
-  /** 상단 하트·벨 배지 카운트 재조회 — 화면 포커스 + 팝업 내 변화(수락/거절/읽음) 직후 호출. */
+  /** 상단 벨 배지 카운트 재조회 — 화면 포커스 + 팝업 내 읽음 처리 직후 호출. */
   const refreshBadges = useCallback(() => {
-    void getReceivedProposals()
-      .then((list) => {
-        if (aliveRef.current) setPending(list.filter((p) => p.status === "pending").length);
-      })
-      .catch(() => {});
     void getUnreadCount()
       .then(({ unreadCount }) => {
         if (aliveRef.current) setUnread(unreadCount);
@@ -252,14 +245,8 @@ export default function Home() {
         <Rect width="100%" height="100%" fill="url(#home-scrim)" />
       </Svg>
 
-      {/* top-right: proposals + notifications */}
+      {/* top-right: notifications */}
       <View style={[styles.topbar, { top: insets.top + 6 }]}>
-        <IconDot
-          icon={<Heart color="#FFF" size={20} strokeWidth={2} />}
-          n={pending}
-          label="프로포즈"
-          onPress={() => setPopup("proposals")}
-        />
         <IconDot
           icon={<Bell color="#FFF" size={20} strokeWidth={2} />}
           n={unread}
@@ -287,12 +274,7 @@ export default function Home() {
         </Pressable>
       </View>
 
-      {/* 팝업은 홈 위 모달이라 닫아도 focus 이벤트가 없다 — 변화가 생기면 배지를 즉시 다시 센다. */}
-      <ProposalsPopup
-        visible={popup === "proposals"}
-        onClose={() => setPopup(null)}
-        onChanged={refreshBadges}
-      />
+      {/* 팝업은 홈 위 모달이라 닫아도 focus 이벤트가 없다 — 읽음 변화 시 배지를 즉시 다시 센다. */}
       <NotificationsPopup
         visible={popup === "notifications"}
         onClose={() => setPopup(null)}

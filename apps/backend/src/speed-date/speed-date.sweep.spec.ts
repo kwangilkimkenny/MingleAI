@@ -34,11 +34,14 @@ function entry(id: string, gender: string, vibe: string, ageSec: number, now: Da
   };
 }
 
-function makePrisma(waiting: any[]) {
+function makePrisma(waiting: any[], activeSessions: any[] = []) {
   return {
     speedDateQueueEntry: {
       findMany: jest.fn().mockResolvedValue(waiting),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    speedDateSession: {
+      findMany: jest.fn().mockResolvedValue(activeSessions),
     },
   } as any;
 }
@@ -133,6 +136,36 @@ describe("SpeedDateSweepService.runSweep", () => {
     const aged = incompatible.map((e) => ({ ...e, enqueuedAt: new Date(now.getTime() - 119000) }));
     const later = { createSession: jest.fn().mockResolvedValue("sess-1") };
     expect((await svcWith(makePrisma(aged), later, cfg()).runSweep(now)).formed).toBe(1);
+  });
+
+  it("cancels a waiting entry whose owner is already in an active session (re-enqueue race)", async () => {
+    const waiting = [
+      entry("m1", "male", "calm", 1, now),
+      entry("m2", "male", "calm", 1, now),
+      entry("m3", "male", "calm", 1, now),
+      entry("f1", "female", "calm", 1, now),
+      entry("f2", "female", "calm", 1, now),
+      entry("f3", "female", "calm", 1, now),
+    ];
+    const active = [{ state: { participants: [{ profileId: "prof-m1" }] } }];
+    const prisma = makePrisma(waiting, active);
+    const sessions = { createSession: jest.fn().mockResolvedValue("s1") } as any;
+    const svc = svcWith(prisma, sessions, cfg());
+    const r = await svc.runSweep(now);
+    // m1 is mid-session → his entry is cancelled, leaving 2 males → no formation
+    expect(r.formed).toBe(0);
+    expect(prisma.speedDateQueueEntry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "m1", status: "waiting" } }),
+    );
+  });
+
+  it("never forms an all-AI session (empty queue + aiFill on)", async () => {
+    const prisma = makePrisma([]);
+    const sessions = { createSession: jest.fn() } as any;
+    const svc = svcWith(prisma, sessions, cfg({ aiFill: true }));
+    const r = await svc.runSweep(now);
+    expect(r.formed).toBe(0);
+    expect(sessions.createSession).not.toHaveBeenCalled();
   });
 
   it("times out entries older than maxWaitMs", async () => {

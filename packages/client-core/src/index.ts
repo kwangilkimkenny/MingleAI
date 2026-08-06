@@ -43,23 +43,6 @@ export type {
 export { getMyProfile, createProfile, updateProfile, uploadPhoto } from "./api/profiles.js";
 export type { CreateProfileInput, UpdateProfileInput, UploadPhotoFile } from "./api/profiles.js";
 
-export { enqueueMatchmaking, cancelMatchmaking, getMatchmakingStatus } from "./api/matchmaking.js";
-export type {
-  MatchmakingQueueStatus,
-  MatchmakingQueueEntry,
-  PublicPartyParticipant,
-  PublicParty,
-  MatchmakingStatus,
-} from "@mingle/shared";
-
-export {
-  sendProposal,
-  getReceivedProposals,
-  getSentProposals,
-  acceptProposal,
-  declineProposal,
-} from "./api/proposals.js";
-
 export { getMatches } from "./api/matches.js";
 
 export { getRoomMessages, sendMessage, markRoomRead } from "./api/messenger.js";
@@ -95,10 +78,6 @@ export type {
   MessengerSocketHandle,
 } from "./socket/messenger-socket.js";
 
-export { getPartyMessages } from "./api/party.js";
-export { connectPartySocket } from "./socket/party-socket.js";
-export type { PartySocketHandlers, PartySocketHandle } from "./socket/party-socket.js";
-
 export { enqueueSpeedDate, cancelSpeedDate, getSpeedDateStatus } from "./api/speed-date.js";
 export type { SpeedDateEnqueueOptions } from "./api/speed-date.js";
 export { getNearbyPlaces } from "./api/places.js";
@@ -121,9 +100,6 @@ export type {
 } from "@mingle/shared";
 
 export type {
-  Proposal,
-  ProposalView,
-  ProposalStatus,
   MatchSummary,
   PeerProfile,
   DirectMessageRoom,
@@ -131,13 +107,4 @@ export type {
   NewMessageEvent,
   ReadEvent,
   TypingEvent,
-} from "@mingle/shared";
-export type {
-  PartyMessageView,
-  PartyPresence,
-  PartyMove,
-  GameSnapshot,
-  GameReveal,
-  GameChoice,
-  GameStateEvent,
 } from "@mingle/shared";

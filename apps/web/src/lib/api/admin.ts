@@ -3,9 +3,6 @@ import { apiFetch } from "./client";
 export interface AdminStats {
   totalUsers: number;
   activeUsers: number;
-  totalParties: number;
-  scheduledParties: number;
-  completedParties: number;
   totalReservations: number;
   pendingReports: number;
 }
@@ -35,28 +32,7 @@ export interface AdminUsersResponse {
   offset: number;
 }
 
-export interface AdminParty {
-  id: string;
-  name: string;
-  scheduledAt: string;
-  maxParticipants: number;
-  theme?: string;
-  location?: string;
-  ageMin?: number;
-  ageMax?: number;
-  status: string;
-  participantCount: number;
-  reservationCount: number;
-}
-
-export interface AdminPartiesResponse {
-  parties: AdminParty[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-export interface ReportParty {
+export interface ReportPeer {
   profileId: string;
   name: string;
   age: number;
@@ -69,8 +45,8 @@ export interface SafetyReport {
   details?: string | null;
   status: string;
   createdAt: string;
-  reporter: ReportParty;
-  reported: ReportParty;
+  reporter: ReportPeer;
+  reported: ReportPeer;
 }
 
 export interface SafetyReportsResponse {
@@ -84,11 +60,10 @@ export interface SafetyReportDetail {
   id: string;
   reason: string;
   details?: string | null;
-  evidencePartyId?: string | null;
   status: string;
   createdAt: string;
-  reporter: ReportParty;
-  reported: ReportParty & { status: string };
+  reporter: ReportPeer;
+  reported: ReportPeer & { status: string };
   reportsAgainstReported: number;
 }
 
@@ -129,8 +104,6 @@ export interface AdminUserDetail {
     status: string;
     riskScore: number;
     createdAt: string;
-    partyParticipants?: { party: { id: string; name: string; scheduledAt: string }; joinedAt: string }[];
-    reservations?: { id: string; party: { name: string }; status: string; createdAt: string }[];
     reportsFiled?: { id: string; reason: string; createdAt: string }[];
     reportsReceived?: { id: string; reason: string; createdAt: string }[];
   } | null;
@@ -155,75 +128,6 @@ export async function deleteUser(userId: string) {
   return apiFetch(`/admin/users/${userId}`, { method: "DELETE" });
 }
 
-// 파티 관리
-export async function getAdminParties(options?: {
-  status?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<AdminPartiesResponse> {
-  const params = new URLSearchParams();
-  if (options?.status) params.set("status", options.status);
-  if (options?.dateFrom) params.set("dateFrom", options.dateFrom);
-  if (options?.dateTo) params.set("dateTo", options.dateTo);
-  if (options?.limit) params.set("limit", options.limit.toString());
-  if (options?.offset) params.set("offset", options.offset.toString());
-  const query = params.toString();
-  return apiFetch(`/admin/parties${query ? `?${query}` : ""}`);
-}
-
-export interface AdminPartyDetail {
-  id: string;
-  name: string;
-  scheduledAt: string;
-  maxParticipants: number;
-  theme?: string;
-  location?: string;
-  ageMin?: number;
-  ageMax?: number;
-  status: string;
-  roundCount: number;
-  roundDurationMinutes: number;
-  participants: {
-    party: { id: string };
-    profile: { id: string; name: string; age: number; gender: string };
-    joinedAt: string;
-  }[];
-  reservations: {
-    id: string;
-    status: string;
-    profile: { id: string; name: string; age: number; gender: string };
-    createdAt: string;
-  }[];
-  reports: {
-    id: string;
-    profile: { id: string; name: string };
-  }[];
-}
-
-export async function getAdminPartyDetail(partyId: string): Promise<AdminPartyDetail> {
-  return apiFetch(`/admin/parties/${partyId}`);
-}
-
-export async function updateAdminParty(
-  partyId: string,
-  data: Partial<{
-    name: string;
-    scheduledAt: string;
-    maxParticipants: number;
-    theme: string;
-    location: string;
-    ageMin: number;
-    ageMax: number;
-    status: string;
-  }>,
-) {
-  return apiFetch(`/admin/parties/${partyId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-}
 
 // 신고 관리
 export async function getSafetyReports(options?: {

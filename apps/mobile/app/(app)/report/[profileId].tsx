@@ -19,10 +19,7 @@ import { CheckCircle2, Shield } from "lucide-react-native";
 const MAX_DETAILS = 1000;
 
 export default function ReportScreen() {
-  const { profileId, evidencePartyId } = useLocalSearchParams<{
-    profileId: string;
-    evidencePartyId?: string;
-  }>();
+  const { profileId } = useLocalSearchParams<{ profileId: string }>();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +42,6 @@ export default function ReportScreen() {
         reportedProfileId: profileId,
         reason,
         details: details.trim() || undefined,
-        evidencePartyId: evidencePartyId || undefined,
       });
       setSubmitted(true);
     } catch (e) {

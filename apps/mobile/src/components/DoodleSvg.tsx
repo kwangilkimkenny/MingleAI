@@ -4,10 +4,10 @@
  * (unsupported in react-native-svg on native). Seeds are stable per element so
  * nothing re-wobbles on re-render.
  */
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import Svg, { Circle, Line, Path } from "react-native-svg";
-import { hatchSegments, wobbleRect, type WonkyRadius } from "../lib/doodle-path";
+import Svg, { Line } from "react-native-svg";
+import { type WonkyRadius } from "../lib/doodle-path";
 import { colors, dark, doodle, fonts, shadow as elevation } from "../lib/theme";
 
 const PAD = 12; // svg overdraw margin (used by the remaining SVG primitives)
@@ -50,111 +50,6 @@ export function WobbleBox({
     >
       <View style={[styles.wobbleContent, contentStyle]}>{children}</View>
     </View>
-  );
-}
-
-export function MatchGauge({
-  label,
-  value,
-  seed = 9,
-}: {
-  label: string;
-  value: number;
-  seed?: number;
-}) {
-  const pct = Math.max(0, Math.min(100, value));
-  const [w, setW] = useState(0);
-  const H = 16;
-  const trackD = w > 0 ? wobbleRect(w, H, doodle.radius.chip, seed, { amp: 1.1, step: 12 }) : null;
-  const fillW = (w * pct) / 100;
-  return (
-    <View style={styles.gauge}>
-      <View style={styles.gaugeLab}>
-        <Text style={styles.gaugeLabel}>{label}</Text>
-        <Text style={styles.gaugeValue}>{Math.round(pct)}</Text>
-      </View>
-      <View style={{ height: H }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-        {trackD ? (
-          <Svg
-            width={w + PAD}
-            height={H + PAD}
-            viewBox={`${-PAD / 2} ${-PAD / 2} ${w + PAD} ${H + PAD}`}
-            style={{ position: "absolute", left: -PAD / 2, top: -PAD / 2 }}
-          >
-            <Path d={trackD} fill={colors.paper} stroke={colors.ink} strokeWidth={1.9} />
-            {hatchSegments(fillW, H).map((s, i) => (
-              <Line
-                key={i}
-                x1={s.x1}
-                y1={s.y1}
-                x2={s.x2}
-                y2={s.y2}
-                stroke={colors.ink}
-                strokeWidth={2.2}
-              />
-            ))}
-            {fillW > 2 ? (
-              <Line x1={fillW} y1={0} x2={fillW} y2={H} stroke={colors.ink} strokeWidth={2} />
-            ) : null}
-          </Svg>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-export function DoodleFace({
-  size = 44,
-  variant = "smile",
-  inverted = false,
-  seed = 3,
-  dark: isDark = false,
-}: {
-  size?: number;
-  variant?: "smile" | "flat" | "open";
-  inverted?: boolean;
-  seed?: number;
-  /** 다크 화면용 — 잉크 스트로크는 다크 배경에서 안 보이므로 크림 라인으로 전환. */
-  dark?: boolean;
-}) {
-  const R = 32;
-  // Line-art face: transparent fill + thin ink stroke. Inverted (e.g. my name tag) = blush fill.
-  const line = isDark ? dark.textMuted : colors.ink;
-  const face = inverted ? colors.accentStrong : "transparent";
-  const feat = inverted ? colors.onAccent : line;
-  const ring = inverted ? colors.accentStrong : line;
-  // Hand-drawn circle: wobbleRect with fully-round radii reads as a drawn circle.
-  const circleD = wobbleRect(
-    R * 2,
-    R * 2,
-    {
-      borderTopLeftRadius: R,
-      borderTopRightRadius: R,
-      borderBottomRightRadius: R,
-      borderBottomLeftRadius: R,
-    },
-    seed,
-    { amp: 1.2, step: 9 },
-  );
-  const mouth =
-    variant === "flat"
-      ? `M${R - 9} ${R + 9} h18`
-      : variant === "open"
-        ? `M${R - 7} ${R + 7} a7 6 0 0 0 14 0 Z`
-        : `M${R - 10} ${R + 7} C${R - 5} ${R + 14} ${R + 5} ${R + 14} ${R + 10} ${R + 7}`;
-  return (
-    <Svg width={size} height={size} viewBox={`-3 -3 ${R * 2 + 6} ${R * 2 + 6}`}>
-      <Path d={circleD} fill={face} stroke={ring} strokeWidth={1.8} />
-      <Circle cx={R - 9} cy={R - 5} r={2.2} fill={feat} />
-      <Circle cx={R + 9} cy={R - 5} r={2.2} fill={feat} />
-      <Path
-        d={mouth}
-        fill={variant === "open" ? feat : "none"}
-        stroke={feat}
-        strokeWidth={1.8}
-        strokeLinecap="round"
-      />
-    </Svg>
   );
 }
 

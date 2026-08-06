@@ -19,7 +19,6 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { AdminGuard } from "./guards/admin.guard";
 import { AdminService } from "./admin.service";
 import { UpdateUserStatusDto } from "./dto/update-user-status.dto";
-import { UpdatePartyDto } from "./dto/update-party.dto";
 import { ResolveReportDto } from "./dto/resolve-report.dto";
 
 @ApiTags("admin")
@@ -75,42 +74,6 @@ export class AdminController {
   @ApiOperation({ summary: "사용자 삭제 (소프트)" })
   deleteUser(@Param("id") id: string) {
     return this.adminService.deleteUser(id);
-  }
-
-  // 파티 관리
-  @Get("parties")
-  @ApiOperation({ summary: "파티 목록" })
-  @ApiQuery({ name: "status", required: false })
-  @ApiQuery({ name: "dateFrom", required: false })
-  @ApiQuery({ name: "dateTo", required: false })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiQuery({ name: "offset", required: false, type: Number })
-  listParties(
-    @Query("status") status?: string,
-    @Query("dateFrom") dateFrom?: string,
-    @Query("dateTo") dateTo?: string,
-    @Query("limit") limit?: string,
-    @Query("offset") offset?: string,
-  ) {
-    return this.adminService.listParties({
-      status,
-      dateFrom,
-      dateTo,
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
-    });
-  }
-
-  @Get("parties/:id")
-  @ApiOperation({ summary: "파티 상세" })
-  getPartyDetail(@Param("id") id: string) {
-    return this.adminService.getPartyDetail(id);
-  }
-
-  @Patch("parties/:id")
-  @ApiOperation({ summary: "파티 수정" })
-  updateParty(@Param("id") id: string, @Body() dto: UpdatePartyDto) {
-    return this.adminService.updateParty(id, dto);
   }
 
   // 신고 관리

@@ -10,7 +10,6 @@ import { useReducedMotion } from "react-native-reanimated";
 
 export interface PeerModerationMenuProps {
   peer: { profileId: string; name: string };
-  evidencePartyId?: string;
   onBlocked?: () => void;
   /** 홈 테마 다크 화면(채팅 헤더·프로포즈 카드)에서 트리거 아이콘을 크림 톤으로. */
   dark?: boolean;
@@ -18,7 +17,6 @@ export interface PeerModerationMenuProps {
 
 export function PeerModerationMenu({
   peer,
-  evidencePartyId,
   onBlocked,
   dark: isDark = false,
 }: PeerModerationMenuProps) {
@@ -34,9 +32,7 @@ export function PeerModerationMenu({
       // new route — Expo Router typegen updates on next `expo start`
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pathname: "/(app)/report/[profileId]" as any,
-      params: evidencePartyId
-        ? { profileId: peer.profileId, evidencePartyId }
-        : { profileId: peer.profileId },
+      params: { profileId: peer.profileId },
     });
   }
 
