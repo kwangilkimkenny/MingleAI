@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { Mic, MicOff } from "lucide-react-native";
+import { Check, ChevronRight, Mic, MicOff } from "lucide-react-native";
 import type { SpeedDateSnapshot, SpeedDateStage, PartnerView } from "@mingle/client-core";
-import { DoodleButton, DoodleCard } from "../../../src/components/Doodle";
+import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
 import { SpeedDateAvatar } from "../../../src/components/speed-date/SpeedDateAvatar";
 import { SuggestedQuestion } from "../../../src/components/speed-date/SuggestedQuestion";
@@ -32,8 +32,24 @@ const STAGE_INTRO: Record<SpeedDateStage, { label: string; hint: string }> = {
 
 type Insets = ReturnType<typeof useSafeAreaInsets>;
 
+/** 게이트웨이는 내부 코드("forbidden" 등)를 보낸다 — 화면에는 한국어만 노출한다. */
+function errorCopy(raw?: string): string {
+  if (raw === "forbidden") return "이 소개팅에 참여할 수 없어요.";
+  if (raw === "rate-limited") return "요청이 너무 잦아요. 잠시 후 다시 시도해 주세요.";
+  if (raw && /[가-힣]/.test(raw)) return raw;
+  return "연결에 문제가 생겼어요.";
+}
+
 function genderLabel(g: string): string {
   return g === "male" ? "남성" : g === "female" ? "여성" : g;
+}
+
+/** 받침 유무로 "와/과" 선택 — "달빛 펭귄과", "숲속 수달과", "구름 나비와". */
+function withParticle(word: string): string {
+  const last = word.trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return `${word}와`;
+  return (code - 0xac00) % 28 === 0 ? `${word}와` : `${word}과`;
 }
 
 export default function SpeedDateSession() {
@@ -42,6 +58,10 @@ export default function SpeedDateSession() {
   const token = useAuthStore((s) => s.token);
 
   const [snapshot, setSnapshot] = useState<SpeedDateSnapshot | null>(null);
+  // 스냅샷을 받은 기기 시각 — 서버 시각과 비교해 시계 오차를 보정한다.
+  const [snapshotAt, setSnapshotAt] = useState(() => Date.now());
+  // 스냅샷이 오래 안 오면(세션이 그새 끝났거나 소켓이 막힘) 빠져나갈 길을 준다 — 무한 "연결 중" 방지.
+  const [stalled, setStalled] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -67,6 +87,12 @@ export default function SpeedDateSession() {
     return unsub;
   }, [navigation]);
 
+  useEffect(() => {
+    if (snapshot) return;
+    const t = setTimeout(() => setStalled(true), 8000);
+    return () => clearTimeout(t);
+  }, [snapshot]);
+
   // display-only clock (server-authoritative phaseEndsAt drives the real timing)
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 500);
@@ -79,9 +105,13 @@ export default function SpeedDateSession() {
       onSnapshot: (e) => {
         if (e.sessionId !== id) return;
         if (e.snapshot === null) setNotFound(true);
-        else setSnapshot(e.snapshot);
+        else {
+          setSnapshotAt(Date.now());
+          setSnapshot(e.snapshot);
+          setStalled(false);
+        }
       },
-      onError: (err) => setError((err as { message?: string })?.message ?? "오류가 발생했어요"),
+      onError: (err) => setError(errorCopy((err as { message?: string })?.message)),
       onReconnect: () => socketRef.current?.sync(id),
     });
     socketRef.current = socket;
@@ -101,7 +131,12 @@ export default function SpeedDateSession() {
     snapshot?.room?.publishVideo ?? false,
     snapshot?.partner?.voiceMod ?? false,
   );
-  const remainSec = snapshot ? Math.max(0, Math.ceil((snapshot.phaseEndsAt - now) / 1000)) : 0;
+  // 기기 시계가 서버와 어긋나면 카운트다운이 통째로 틀어진다(에뮬레이터에서 10초 이상 관측).
+  // 스냅샷마다 서버 시각을 받아 오프셋을 잡고, 그 보정된 '지금'으로 남은 시간을 센다.
+  const skew = snapshot ? snapshot.serverNow - snapshotAt : 0;
+  const remainSec = snapshot
+    ? Math.max(0, Math.ceil((snapshot.phaseEndsAt - (now + skew)) / 1000))
+    : 0;
 
   const chosen = useMemo(() => new Set(snapshot?.myChoices ?? []), [snapshot?.myChoices]);
 
@@ -131,6 +166,12 @@ export default function SpeedDateSession() {
         <View style={styles.center}>
           <ActivityIndicator color={dark.accent} />
           <Text style={styles.sub}>{error ?? "연결 중이에요…"}</Text>
+          {stalled ? (
+            <>
+              <Text style={styles.sub}>연결이 오래 걸려요. 잠시 후 다시 시도해 주세요.</Text>
+              <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
+            </>
+          ) : null}
         </View>
       </Screen>
     );
@@ -196,6 +237,31 @@ export default function SpeedDateSession() {
     );
   }
 
+  // 결정·결과는 전용 전체화면 레이아웃(헤드 위 · 선택지 가운데 · 액션 아래) — 스크롤 카드 나열 폐기.
+  if (snapshot.phase === "decision") {
+    return (
+      <View style={styles.screen}>
+        <DecisionView
+          partners={snapshot.metPartners}
+          chosen={chosen}
+          seconds={remainSec}
+          onPick={pickOne}
+          insets={insets}
+        />
+        {leaveDialog}
+      </View>
+    );
+  }
+
+  if (snapshot.phase === "ended") {
+    return (
+      <View style={styles.screen}>
+        <ResultView result={snapshot.result} partners={snapshot.metPartners} insets={insets} />
+        {leaveDialog}
+      </View>
+    );
+  }
+
   return (
     <Screen insets={insets}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -206,17 +272,6 @@ export default function SpeedDateSession() {
         {snapshot.phase === "intermission" ? (
           <Waiting title="다음 상대와 연결 중…" sub="잠시만 기다려 주세요." seconds={remainSec} />
         ) : null}
-
-        {snapshot.phase === "decision" ? (
-          <DecisionView
-            partners={snapshot.metPartners}
-            chosen={chosen}
-            seconds={remainSec}
-            onPick={pickOne}
-          />
-        ) : null}
-
-        {snapshot.phase === "ended" ? <ResultView result={snapshot.result} /> : null}
       </ScrollView>
       {leaveDialog}
     </Screen>
@@ -336,79 +391,179 @@ function RoundView({
   );
 }
 
+/**
+ * 결정 화면 — 만난 순서대로 놓인 전폭 행에서 한 명을 고른다. 카드 그리드(2+1 홀로 남는 배치)와
+ * 행마다 있던 '선택' 버튼을 걷어내고, 행 자체가 탭 타깃이다. 남은 시간은 상단 우측 큰 숫자.
+ */
 function DecisionView({
   partners,
   chosen,
   seconds,
   onPick,
+  insets,
 }: {
   partners: PartnerView[];
   chosen: Set<string>;
   seconds: number;
   onPick: (id: string) => void;
+  insets: Insets;
 }) {
+  const pickedId = partners.find((p) => chosen.has(p.profileId))?.profileId ?? null;
+  const pickedNick = partners.find((p) => p.profileId === pickedId)?.nickname ?? "";
+  const urgent = seconds <= 5;
+
   return (
-    <View style={styles.roundWrap}>
-      <Text style={styles.title}>가장 마음에 든 한 명은?</Text>
-      <Text style={styles.sub}>
-        한 명만 고를 수 있어요. 시간이 끝나면 지금 선택이 제출돼요. 선택은 비공개예요.
-      </Text>
-      <Text style={styles.timer}>{seconds}s</Text>
-      <View style={styles.grid}>
-        {partners.map((p) => {
+    <View
+      style={[
+        styles.decision,
+        { paddingTop: insets.top + space.x6, paddingBottom: insets.bottom + space.x5 },
+      ]}
+    >
+      <View style={styles.decisionHead}>
+        <View style={styles.decisionHeadText}>
+          <Text style={styles.decisionKicker}>비공개 선택</Text>
+          <Text style={styles.decisionTitle}>가장 마음에 든{"\n"}한 명</Text>
+        </View>
+        <Text style={[styles.decisionClock, urgent && styles.decisionClockUrgent]}>{seconds}</Text>
+      </View>
+
+      <View style={styles.decisionList}>
+        {partners.map((p, i) => {
           const on = chosen.has(p.profileId);
           return (
-            <DoodleCard
+            <Pressable
               key={p.profileId}
-              tone="dark"
-              style={[styles.gridCard, on ? styles.gridCardOn : null]}
-              contentStyle={styles.gridInner}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${p.nickname}${on ? ", 선택됨" : ""}`}
+              onPress={() => onPick(p.profileId)}
+              style={({ pressed }) => [
+                styles.pickRow,
+                on && styles.pickRowOn,
+                pressed && styles.pickRowPressed,
+              ]}
             >
-              <SpeedDateAvatar avatarId={p.avatarId} nickname={p.nickname} size={72} />
-              <Text style={styles.gridNick} numberOfLines={1}>
-                {p.nickname}
-              </Text>
-              <DoodleButton
-                title={on ? "선택됨 ✓" : "선택"}
-                onPress={() => onPick(p.profileId)}
-                variant={on ? "primary" : "secondary"}
-                tone="dark"
-              />
-            </DoodleCard>
+              <SpeedDateAvatar avatarId={p.avatarId} nickname={p.nickname} size={56} />
+              <View style={styles.pickText}>
+                <Text style={styles.pickNick} numberOfLines={1}>
+                  {p.nickname}
+                </Text>
+                <Text style={styles.pickMeta}>{i + 1}번째로 만난 상대</Text>
+              </View>
+              <View style={[styles.pickMark, on && styles.pickMarkOn]}>
+                {on ? <Check color={dark.bg} size={18} strokeWidth={2.5} /> : null}
+              </View>
+            </Pressable>
           );
         })}
       </View>
+
+      <Text style={styles.decisionFoot}>
+        {pickedId
+          ? `${pickedNick} 선택 완료 · 서로 골랐을 때만 알려드려요`
+          : "탭하면 바로 제출돼요 · 상대에겐 보이지 않아요"}
+      </Text>
     </View>
   );
 }
 
-function ResultView({ result }: { result: SpeedDateSnapshot["result"] }) {
+/**
+ * 결과 화면 — 성공은 상대 아바타를 크게 세운 히어로 + 하단 고정 CTA, 실패는 같은 골격에
+ * 재도전 액션. 이전 버전은 카드 안에 버튼을 넣어 화면 위쪽에만 몰려 있었다.
+ */
+function ResultView({
+  result,
+  partners,
+  insets,
+}: {
+  result: SpeedDateSnapshot["result"];
+  partners: PartnerView[];
+  insets: Insets;
+}) {
   const matches = result?.matches ?? [];
+  const avatarOf = (profileId: string) =>
+    partners.find((p) => p.profileId === profileId)?.avatarId ?? "av-coral";
+  const pad = {
+    paddingTop: insets.top + space.x6,
+    paddingBottom: insets.bottom + space.x5,
+  };
+
   if (matches.length === 0) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.title}>이번엔 서로 선택이 없었어요</Text>
-        <Text style={styles.sub}>다음 만남에서 더 잘 맞는 상대를 찾아볼게요.</Text>
-        <DoodleButton title="홈으로" onPress={() => router.replace("/home")} variant="primary" tone="dark" />
+      <View style={[styles.result, pad]}>
+        <View style={styles.resultHero}>
+          <Text style={styles.resultKicker}>오늘의 로테이션</Text>
+          <Text style={styles.resultTitle}>이번엔{"\n"}서로 선택이 없었어요</Text>
+          <Text style={styles.resultSub}>다음 자리에서 더 잘 맞는 상대를 찾아볼게요.</Text>
+        </View>
+        <View style={styles.resultDock}>
+          <DoodleButton
+            title="다시 매칭하기"
+            variant="primary"
+            tone="dark"
+            onPress={() => router.replace("/(app)/speed-date")}
+          />
+          <DoodleButton title="홈으로" tone="dark" onPress={() => router.replace("/home")} />
+        </View>
       </View>
     );
   }
+
+  const single = matches.length === 1 ? matches[0] : null;
+
   return (
-    <View style={styles.roundWrap}>
-      <Text style={styles.title}>{matches.length}명과 매칭됐어요!</Text>
-      <Text style={styles.sub}>이제 서로의 프로필을 보며 1:1 채팅을 이어가세요.</Text>
-      {matches.map((m) => (
-        <DoodleCard key={m.roomId} tone="dark" style={styles.matchCard} contentStyle={styles.matchInner}>
-          <Text style={styles.nickname}>{m.nickname}</Text>
+    <View style={[styles.result, pad]}>
+      <View style={styles.resultHero}>
+        <Text style={styles.resultKicker}>서로를 골랐어요</Text>
+        {single ? (
+          <>
+            <SpeedDateAvatar avatarId={avatarOf(single.profileId)} nickname={single.nickname} size={132} />
+            <Text style={styles.resultTitle}>{withParticle(single.nickname)}{"\n"}이어졌어요</Text>
+          </>
+        ) : (
+          <Text style={styles.resultTitle}>{matches.length}명과{"\n"}이어졌어요</Text>
+        )}
+        <Text style={styles.resultSub}>1:1 채팅이 열렸어요. 먼저 인사를 건네 보세요.</Text>
+      </View>
+
+      {single ? null : (
+        <View style={styles.decisionList}>
+          {matches.map((m) => (
+            <Pressable
+              key={m.roomId}
+              accessibilityRole="button"
+              accessibilityLabel={`${m.nickname}와 채팅 시작`}
+              onPress={() =>
+                router.replace({ pathname: "/(app)/chat/[roomId]", params: { roomId: m.roomId } })
+              }
+              style={({ pressed }) => [styles.pickRow, pressed && styles.pickRowPressed]}
+            >
+              <SpeedDateAvatar avatarId={avatarOf(m.profileId)} nickname={m.nickname} size={56} />
+              <View style={styles.pickText}>
+                <Text style={styles.pickNick} numberOfLines={1}>
+                  {m.nickname}
+                </Text>
+                <Text style={styles.pickMeta}>채팅 시작</Text>
+              </View>
+              <ChevronRight color={dark.textMuted} size={20} strokeWidth={1.75} />
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      <View style={styles.resultDock}>
+        {single ? (
           <DoodleButton
             title="채팅 시작"
             variant="primary"
             tone="dark"
-            onPress={() => router.replace({ pathname: "/(app)/chat/[roomId]", params: { roomId: m.roomId } })}
+            onPress={() =>
+              router.replace({ pathname: "/(app)/chat/[roomId]", params: { roomId: single.roomId } })
+            }
           />
-        </DoodleCard>
-      ))}
-      <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
+        ) : null}
+        <DoodleButton title="홈으로" tone="dark" onPress={() => router.replace("/home")} />
+      </View>
     </View>
   );
 }
@@ -501,11 +656,54 @@ const styles = StyleSheet.create({
   title: { ...type.title, color: dark.heading, textAlign: "center" },
   sub: { ...type.body, color: dark.textMuted, textAlign: "center" },
   msg: { ...type.heading, color: dark.heading, textAlign: "center" },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: space.x3, justifyContent: "center" },
-  gridCard: { width: 150 },
-  gridCardOn: { borderColor: dark.accent },
-  gridInner: { alignItems: "center", gap: space.x2, paddingVertical: space.x3 },
-  gridNick: { ...type.label, color: dark.text, maxWidth: 130 },
-  matchCard: { width: "100%" },
-  matchInner: { alignItems: "center", gap: space.x3, paddingVertical: space.x4 },
+  // ── 결정 화면 ──
+  decision: { flex: 1, paddingHorizontal: layout.screenGutter, justifyContent: "space-between" },
+  decisionHead: { flexDirection: "row", alignItems: "flex-start", gap: space.x4 },
+  decisionHeadText: { flex: 1, gap: space.x1 },
+  decisionKicker: { ...type.label, color: dark.label, letterSpacing: 1.5 },
+  decisionTitle: { fontFamily: serifFont, fontSize: 34, lineHeight: 44, color: dark.heading },
+  decisionClock: { fontFamily: serifFont, fontSize: 44, lineHeight: 48, color: dark.textMuted },
+  decisionClockUrgent: { color: dark.accent },
+  decisionList: { gap: space.x2 },
+  pickRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.x3,
+    minHeight: 84,
+    paddingHorizontal: space.x4,
+    paddingVertical: space.x3,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+  },
+  pickRowOn: { borderColor: dark.text, backgroundColor: dark.surfaceHi },
+  pickRowPressed: { opacity: 0.75 },
+  pickText: { flex: 1, gap: 2 },
+  pickNick: { ...type.title, color: dark.heading },
+  pickMeta: { ...type.caption, color: dark.textMuted },
+  pickMark: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: dark.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pickMarkOn: { backgroundColor: dark.text, borderColor: dark.text },
+  decisionFoot: { ...type.caption, color: dark.textMuted, textAlign: "center" },
+  // ── 결과 화면 ──
+  result: { flex: 1, paddingHorizontal: layout.screenGutter, justifyContent: "space-between" },
+  resultHero: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.x4 },
+  resultKicker: { ...type.label, color: dark.label, letterSpacing: 1.5 },
+  resultTitle: {
+    fontFamily: serifFont,
+    fontSize: 34,
+    lineHeight: 46,
+    color: dark.heading,
+    textAlign: "center",
+  },
+  resultSub: { ...type.body, color: dark.textMuted, textAlign: "center", maxWidth: 300 },
+  resultDock: { gap: space.x2, paddingTop: space.x5 },
 });

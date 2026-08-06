@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { ChevronLeft } from "lucide-react-native";
 import {
   enqueueSpeedDate,
@@ -22,7 +23,7 @@ import { dark, space, type } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
 
 const POLL_MS = 2500;
-type Phase = "checking" | "consent" | "ineligible" | "joining" | "waiting" | "error";
+type Phase = "checking" | "consent" | "ineligible" | "joining" | "waiting" | "timeout" | "error";
 type Step = "rules" | "location";
 
 /** Match-distance options; null = no distance limit (skip location entirely). */
@@ -116,8 +117,8 @@ export default function SpeedDateMatching() {
         return;
       }
       if (s.status === "idle") {
-        setError("매칭이 종료됐어요. 다시 시도해 주세요.");
-        setPhase("error");
+        // 큐 스윕이 대기 시간을 넘겨 정리한 경우 — 오류가 아니라 "사람이 안 모였다"는 결과다.
+        setPhase("timeout");
         return;
       }
       setPhase("waiting");
@@ -187,6 +188,8 @@ export default function SpeedDateMatching() {
   if (isConsent && step === "location") {
     return (
       <View style={styles.mapScreen}>
+        {/* 지도는 밝은 배경 — 상태바 아이콘을 어둡게 뒤집지 않으면 흰 아이콘이 지도에 묻힌다. */}
+        <StatusBar style="dark" />
         <View style={StyleSheet.absoluteFill}>
           {coords ? (
             <AppMap center={coords} radiusKm={radiusKm} places={[]} />
@@ -244,6 +247,11 @@ export default function SpeedDateMatching() {
       <DoodleButton title="다음" onPress={onNext} variant="primary" tone="dark" />
     ) : phase === "joining" || phase === "waiting" ? (
       <DoodleButton title="매칭 취소" onPress={onCancel} tone="dark" />
+    ) : phase === "timeout" ? (
+      <View style={styles.footerStack}>
+        <DoodleButton title="다시 찾기" onPress={onStart} variant="primary" tone="dark" />
+        <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
+      </View>
     ) : phase === "error" ? (
       <DoodleButton title="홈으로" onPress={() => router.replace("/home")} tone="dark" />
     ) : undefined;
@@ -299,6 +307,14 @@ export default function SpeedDateMatching() {
         />
       ) : null}
 
+      {phase === "timeout" ? (
+        <StateView
+          title="아직 사람이 모이지 않았어요"
+          body="남녀 3명씩 모여야 자리가 열려요. 조금 뒤에 다시 찾아보세요."
+          dark
+        />
+      ) : null}
+
       {phase === "error" ? (
         <StateView
           title="문제가 생겼어요"
@@ -342,6 +358,7 @@ function RuleRow({ rule, last }: { rule: { n: string; title: string; body: strin
 }
 
 const styles = StyleSheet.create({
+  footerStack: { gap: 8 },
   rulesStack: { gap: space.x4, paddingTop: space.x2 },
   title: { ...type.title, fontFamily: serifFont, color: dark.text, textAlign: "center" },
   rules: { marginTop: space.x2 },
