@@ -7,6 +7,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { buildPreferenceSignals, describePreferences, type PreferenceAnswers } from "@mingle/shared";
 import { CreateProfileDto } from "./dto/create-profile.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import {
@@ -42,6 +43,16 @@ export class ProfileService {
       throw new BadRequestException("본인인증을 먼저 완료해 주세요");
     }
 
+    // 구조화 선호(2026-08-06)가 오면 그것이 진실 — 텍스트도 서버가 생성한다.
+    // 자유서술만 온 경우(레거시/외부 클라)에만 AI 분석기를 태운다.
+    const answers = dto.preferences as PreferenceAnswers | undefined;
+    const preferenceText = answers
+      ? describePreferences(answers)
+      : dto.partyPreferenceText;
+    if (!preferenceText) {
+      throw new BadRequestException("선호 정보를 입력해 주세요");
+    }
+
     // I2: also catch a concurrent-duplicate P2002 that races past the pre-check
     let profile: { id: string } & Record<string, any>;
     try {
@@ -52,12 +63,13 @@ export class ProfileService {
           age,
           gender,
           occupation: dto.occupation,
-          partyPreferenceText: dto.partyPreferenceText,
+          partyPreferenceText: preferenceText,
           bio: dto.bio,
           location: dto.location,
           photoUrl: dto.photoUrl,
           interests: (dto.interests as object) ?? undefined,
-          preferenceSignals: undefined, // server-owned
+          // 구조화 선택은 결정적으로 신호가 된다(분석기 불필요). 텍스트만 온 경우 아래 runAnalysis.
+          preferenceSignals: answers ? (buildPreferenceSignals(answers) as object) : undefined,
         },
         omit: { riskScore: true },
       });
@@ -67,7 +79,16 @@ export class ProfileService {
       }
       throw e;
     }
-    return this.runAnalysis(profile, { ...dto, gender, age });
+    if (answers) {
+      const { riskScore: _r, ...safe } = profile;
+      return safe;
+    }
+    return this.runAnalysis(profile, {
+      ...dto,
+      partyPreferenceText: preferenceText,
+      gender,
+      age,
+    });
   }
 
   private ageFrom(birth: Date): number {
@@ -221,14 +242,23 @@ export class ProfileService {
     if (dto.age !== undefined) data.age = dto.age;
     if (dto.gender !== undefined) data.gender = dto.gender;
     if (dto.occupation !== undefined) data.occupation = dto.occupation;
-    if (dto.partyPreferenceText !== undefined) data.partyPreferenceText = dto.partyPreferenceText;
+    // 구조화 선호가 오면 텍스트·신호 둘 다 서버가 결정적으로 갱신한다(분석기 불필요).
+    const answers = dto.preferences as PreferenceAnswers | undefined;
+    if (answers) {
+      data.partyPreferenceText = describePreferences(answers);
+      data.preferenceSignals = buildPreferenceSignals(answers) as object;
+    } else if (dto.partyPreferenceText !== undefined) {
+      data.partyPreferenceText = dto.partyPreferenceText;
+    }
     if (dto.bio !== undefined) data.bio = dto.bio;
     if (dto.location !== undefined) data.location = dto.location;
     if (dto.photoUrl !== undefined) data.photoUrl = dto.photoUrl;
     if (dto.interests !== undefined) data.interests = dto.interests as object;
 
-    // I3: only re-analyze when the preference text is provided AND actually changed
+    // I3: only re-analyze when the LEGACY free text is provided AND actually changed
+    // (구조화 선호 경로는 위에서 이미 신호를 확정했으므로 분석 불필요)
     const textChanged =
+      !answers &&
       dto.partyPreferenceText !== undefined &&
       dto.partyPreferenceText !== profile.partyPreferenceText;
     // M1: when the text changes, the old signals no longer describe it — clear them so a

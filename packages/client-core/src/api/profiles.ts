@@ -1,4 +1,4 @@
-import type { Profile } from "@mingle/shared";
+import type { Profile, PreferenceAnswers } from "@mingle/shared";
 import { apiFetch, ApiError } from "./client.js";
 import { getClientConfig, getToken } from "../config.js";
 
@@ -8,7 +8,10 @@ export interface CreateProfileInput {
   age?: number;
   gender?: string;
   occupation: string;
-  partyPreferenceText: string;
+  /** 구조화 선호(권장) — 보내면 서버가 신호·요약문을 결정적으로 만든다. */
+  preferences?: PreferenceAnswers;
+  /** 레거시 자유서술 — `preferences`를 보내면 불필요. */
+  partyPreferenceText?: string;
   bio?: string;
   location?: string;
   photoUrl?: string;
@@ -20,6 +23,7 @@ export interface UpdateProfileInput {
   age?: number;
   gender?: string;
   occupation?: string;
+  preferences?: PreferenceAnswers;
   partyPreferenceText?: string;
   bio?: string;
   location?: string;

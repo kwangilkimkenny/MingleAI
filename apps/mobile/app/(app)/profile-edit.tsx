@@ -1,11 +1,17 @@
 import { useCallback, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { getMyProfile, updateProfile, ApiError } from "@mingle/client-core";
+import { getMyProfile, updateProfile, answersFromSignals, ApiError } from "@mingle/client-core";
 import { DoodleAvatar } from "../../src/components/DoodleAvatar";
 import { AppScreen } from "../../src/components/AppScreen";
 import { DoodleButton } from "../../src/components/Doodle";
 import { InlineNotice, LabeledInput, StateView } from "../../src/components/Foundation";
+import {
+  PreferencePicker,
+  EMPTY_ANSWERS,
+  answersComplete,
+  type PreferenceAnswers,
+} from "../../src/components/PreferencePicker";
 import { pickAndUploadPhoto } from "../../src/lib/photo";
 import { dark, space, type } from "../../src/lib/theme";
 
@@ -24,7 +30,7 @@ export default function ProfileEditScreen() {
   const [id, setId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [occupation, setOccupation] = useState("");
-  const [pref, setPref] = useState("");
+  const [answers, setAnswers] = useState<PreferenceAnswers>(EMPTY_ANSWERS);
   const [ageGender, setAgeGender] = useState<{ age: number; gender: string } | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -45,7 +51,7 @@ export default function ProfileEditScreen() {
         setId(p.id);
         setName(p.name);
         setOccupation(p.occupation);
-        setPref(p.partyPreferenceText);
+        setAnswers(answersFromSignals(p.preferenceSignals as never) ?? EMPTY_ANSWERS);
         setAgeGender({ age: p.age, gender: p.gender });
         setPhotoUrl(p.photoUrl);
         setLoadState("ready");
@@ -81,7 +87,7 @@ export default function ProfileEditScreen() {
   }
 
   const valid =
-    name.trim().length > 0 && occupation.trim().length > 0 && pref.trim().length >= 8;
+    name.trim().length > 0 && occupation.trim().length > 0 && answersComplete(answers);
 
   async function onSave() {
     if (!id || !valid || busy) return;
@@ -91,7 +97,7 @@ export default function ProfileEditScreen() {
       await updateProfile(id, {
         name: name.trim(),
         occupation: occupation.trim(),
-        partyPreferenceText: pref.trim(),
+        preferences: { ...answers, note: answers.note?.trim() || undefined },
       });
       router.back();
     } catch (e) {
@@ -154,15 +160,7 @@ export default function ProfileEditScreen() {
 
       <LabeledInput dark label="닉네임 / 이름" value={name} onChangeText={setName} maxLength={20} />
       <LabeledInput dark label="직업" value={occupation} onChangeText={setOccupation} maxLength={30} />
-      <LabeledInput
-        dark
-        label="원하는 만남 분위기"
-        value={pref}
-        onChangeText={setPref}
-        multiline
-        maxLength={300}
-        hint="어떤 만남을 원하는지 8자 이상 자유롭게 적어 주세요."
-      />
+      <PreferencePicker value={answers} onChange={setAnswers} />
 
       {ageGender ? (
         <View style={styles.readonly}>

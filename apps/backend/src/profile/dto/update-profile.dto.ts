@@ -1,3 +1,5 @@
+import { Type } from "class-transformer";
+import { PreferenceAnswersDto } from "./create-profile.dto";
 import {
   IsOptional,
   IsString,
@@ -11,6 +13,7 @@ import {
   MaxLength,
   MinLength,
   ArrayMaxSize,
+  ValidateNested,
 } from "class-validator";
 
 export class UpdateProfileDto {
@@ -41,6 +44,12 @@ export class UpdateProfileDto {
   @MinLength(8)
   @MaxLength(1000)
   partyPreferenceText?: string;
+
+  /** 구조화 선호 — 오면 신호·요약문을 서버가 다시 만든다(2026-08-06). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PreferenceAnswersDto)
+  preferences?: PreferenceAnswersDto;
 
   @IsOptional()
   @IsString()

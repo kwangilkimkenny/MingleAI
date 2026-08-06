@@ -18,17 +18,24 @@ import { DoodleButton } from "../src/components/Doodle";
 import { DoodleAvatar } from "../src/components/DoodleAvatar";
 import { pickAndUploadPhoto } from "../src/lib/photo";
 import { InlineNotice, LabeledInput, StateView } from "../src/components/Foundation";
+import {
+  PreferencePicker,
+  EMPTY_ANSWERS,
+  answersComplete,
+  type PreferenceAnswers,
+} from "../src/components/PreferencePicker";
 
-// 성별·나이는 본인인증(verified) 값이 권위 — 온보딩에서 다시 묻지 않는다(2026-07-27 사용자 지시).
+// 성별·나이는 본인인증(verified) 값이 권위 — 온보딩에서 다시 묻지 않는다(2026-07-27).
+// 선호는 자유서술 대신 구조화 선택(2026-08-06) — 활동 1개 이상이면 유효.
 function validate(fields: {
   name: string;
   occupation: string;
-  partyPreferenceText: string;
+  answers: PreferenceAnswers;
 }): string | null {
   if (!fields.name.trim()) return "닉네임을 입력해 주세요.";
   if (fields.name.trim().length > 40) return "닉네임은 40자 이하로 입력해 주세요.";
   if (!fields.occupation.trim()) return "직업을 입력해 주세요.";
-  if (fields.partyPreferenceText.trim().length < 8) return "선호 스타일을 8자 이상 입력해 주세요.";
+  if (!answersComplete(fields.answers)) return "같이 하고 싶은 것을 하나 이상 골라 주세요.";
   return null;
 }
 
@@ -38,7 +45,7 @@ export default function Onboarding() {
 
   const [name, setName] = useState("");
   const [occupation, setOccupation] = useState("");
-  const [partyPreferenceText, setPartyPreferenceText] = useState("");
+  const [answers, setAnswers] = useState<PreferenceAnswers>(EMPTY_ANSWERS);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -88,7 +95,7 @@ export default function Onboarding() {
       const profile = await createProfile({
         name: name.trim(),
         occupation: occupation.trim(),
-        partyPreferenceText: partyPreferenceText.trim(),
+        preferences: { ...answers, note: answers.note?.trim() || undefined },
         ...(photoUrl ? { photoUrl } : {}),
       });
       if (!profile.preferenceSignals) {
@@ -102,7 +109,7 @@ export default function Onboarding() {
     }
   }
 
-  const valid = !validate({ name, occupation, partyPreferenceText });
+  const valid = !validate({ name, occupation, answers });
 
   return (
     <KeyboardAvoidingView
@@ -177,17 +184,7 @@ export default function Onboarding() {
             dark
           />
 
-          <LabeledInput
-            label="원하는 만남 분위기"
-            placeholder="예: 조용한 카페에서 천천히 친해지는 분위기"
-            hint="8자 이상 구체적으로 적을수록 취향에 가까운 상대를 만나기 쉬워요."
-            multiline
-            numberOfLines={4}
-            maxLength={1000}
-            value={partyPreferenceText}
-            onChangeText={setPartyPreferenceText}
-            dark
-          />
+          <PreferencePicker value={answers} onChange={setAnswers} />
 
           {submitError ? (
             <InlineNotice tone="error" dark>

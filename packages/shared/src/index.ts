@@ -43,6 +43,19 @@ export type {
   PreferencePace,
   PreferenceSignals,
 } from "./types/preference.js";
+export {
+  VIBE_OPTIONS,
+  PACE_OPTIONS,
+  DRINKING_OPTIONS,
+  ACTIVITY_OPTIONS,
+  MIN_ACTIVITIES,
+  MAX_ACTIVITIES,
+  MAX_NOTE_LENGTH,
+  describePreferences,
+  buildPreferenceSignals,
+  answersFromSignals,
+} from "./preference/catalog.js";
+export type { PreferenceOption, PreferenceAnswers } from "./preference/catalog.js";
 
 export type {
   SpeedDateStage,

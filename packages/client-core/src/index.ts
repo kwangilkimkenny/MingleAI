@@ -41,6 +41,18 @@ export type {
 } from "@mingle/shared";
 
 export { getMyProfile, createProfile, updateProfile, uploadPhoto } from "./api/profiles.js";
+export {
+  VIBE_OPTIONS,
+  PACE_OPTIONS,
+  DRINKING_OPTIONS,
+  ACTIVITY_OPTIONS,
+  MIN_ACTIVITIES,
+  MAX_ACTIVITIES,
+  MAX_NOTE_LENGTH,
+  describePreferences,
+  answersFromSignals,
+} from "@mingle/shared";
+export type { PreferenceOption, PreferenceAnswers, PreferenceSignals } from "@mingle/shared";
 export type { CreateProfileInput, UpdateProfileInput, UploadPhotoFile } from "./api/profiles.js";
 
 export { getMatches } from "./api/matches.js";

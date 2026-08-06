@@ -15,7 +15,7 @@ export type ConsentScope = "terms" | "privacy" | "age19";
 export const REQUIRED_CONSENTS: readonly ConsentScope[] = ["terms", "privacy"];
 
 /** Single source of truth for the consent document version stamped on each grant. */
-export const CONSENT_VERSION = "2026-07-22";
+export const CONSENT_VERSION = "2026-08-06";
 
 /** Server-reported account gate status (from GET /auth/account-status). */
 export interface AccountStatus {

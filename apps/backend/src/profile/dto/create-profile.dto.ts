@@ -1,3 +1,4 @@
+import { Type } from "class-transformer";
 import {
   IsString,
   IsInt,
@@ -11,7 +12,40 @@ import {
   MaxLength,
   MinLength,
   ArrayMaxSize,
+  ArrayMinSize,
+  ValidateNested,
 } from "class-validator";
+import {
+  ACTIVITY_OPTIONS,
+  MAX_ACTIVITIES,
+  MAX_NOTE_LENGTH,
+  MIN_ACTIVITIES,
+} from "@mingle/shared";
+
+const ACTIVITY_VALUES = ACTIVITY_OPTIONS.map((o) => o.value);
+
+/** 온보딩 구조화 선호 — 선택지가 곧 매칭 축(vibe·pace·drinking·activity). */
+export class PreferenceAnswersDto {
+  @IsEnum(["calm", "balanced", "energetic"])
+  vibe!: "calm" | "balanced" | "energetic";
+
+  @IsEnum(["slow", "medium", "fast"])
+  pace!: "slow" | "medium" | "fast";
+
+  @IsEnum(["none", "light", "social"])
+  drinking!: "none" | "light" | "social";
+
+  @IsArray()
+  @ArrayMinSize(MIN_ACTIVITIES)
+  @ArrayMaxSize(MAX_ACTIVITIES)
+  @IsEnum(ACTIVITY_VALUES, { each: true })
+  activities!: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_NOTE_LENGTH)
+  note?: string;
+}
 
 export class CreateProfileDto {
   @IsString()
@@ -35,11 +69,19 @@ export class CreateProfileDto {
   @MaxLength(120)
   occupation!: string;
 
+  /** 레거시 자유서술 — 구조화 `preferences`를 보내면 서버가 생성하므로 생략 가능. */
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
   @MaxLength(1000)
-  partyPreferenceText!: string;
+  partyPreferenceText?: string;
+
+  /** 온보딩 구조화 선호(2026-08-06) — 선택지가 곧 매칭 신호가 된다. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PreferenceAnswersDto)
+  preferences?: PreferenceAnswersDto;
 
   @IsOptional()
   @IsString()
