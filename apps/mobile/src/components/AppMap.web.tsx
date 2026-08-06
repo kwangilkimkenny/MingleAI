@@ -42,10 +42,13 @@ export function AppMap({
   center,
   radiusKm,
   places,
+  fitKm,
 }: {
   center: Coords;
   radiusKm: number | null;
   places: MapPlace[];
+  /** 원 없이 줌만 이 반경에 맞춘다(네이티브와 동형). */
+  fitKm?: number | null;
 }) {
   const hostRef = useRef<any>(null);
   const mapRef = useRef<any>(null);
@@ -74,6 +77,10 @@ export function AppMap({
       }).addTo(map);
       overlaysRef.current.push(circle);
       map.fitBounds(circle.getBounds(), { padding: [24, 24] });
+    } else if (fitKm) {
+      // 원은 안 그리되 핀이 다 들어오도록 줌만 맞춘다.
+      const invisible = L.circle([center.lat, center.lng], { radius: fitKm * 1000, opacity: 0, fillOpacity: 0 });
+      map.fitBounds(invisible.getBounds(), { padding: [24, 24] });
     }
     // place markers
     for (const p of places) {
@@ -124,7 +131,7 @@ export function AppMap({
     mapRef.current.setView([center.lat, center.lng], mapRef.current.getZoom() ?? 13);
     drawOverlays(w.L, mapRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center.lat, center.lng, radiusKm, places]);
+  }, [center.lat, center.lng, radiusKm, fitKm, places]);
 
   return (
     <View style={styles.fill}>

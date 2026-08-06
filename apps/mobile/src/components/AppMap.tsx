@@ -54,10 +54,13 @@ export function AppMap({
   center,
   radiusKm,
   places,
+  fitKm,
 }: {
   center: Coords;
   radiusKm: number | null;
   places: MapPlace[];
+  /** 원은 그리지 않고 줌만 이 반경에 맞춘다 — 목록 핀이 화면 안에 들어오게. */
+  fitKm?: number | null;
 }) {
   const lib = mapLibre();
   const MapComponent = lib?.Map;
@@ -69,7 +72,7 @@ export function AppMap({
     );
   }
   const { Camera, GeoJSONSource, Layer } = lib;
-  const zoom = zoomForRadius(radiusKm, center.lat);
+  const zoom = zoomForRadius(radiusKm ?? fitKm ?? null, center.lat);
 
   const pinFeatures: any = {
     type: "FeatureCollection",
