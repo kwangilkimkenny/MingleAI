@@ -127,13 +127,13 @@ export const masterpiece = {
  */
 export const dark = {
   bg: brandPalette.brown950, // dark-brown page ground
-  surface: "#2F251D", // 카드/시트 — 배경 대비 1.24:1(구 1.10, 사실상 안 보였다)
-  surfaceHi: "#40342A", // 선택·상승면 — 카드 대비 1.24:1(구 1.00, fill만으론 구분 불가였다)
+  surface: "#382D23", // 카드/시트 — 배경 대비 1.38:1(구 1.10은 배경에 잠겨 있었다)
+  surfaceHi: "#473A2E", // 선택·상승면 — 카드 대비 1.22:1(구 1.00, fill만으론 구분 불가였다)
   text: brandPalette.creamText, // cream body text
   textMuted: "rgba(251,244,236,0.6)", // muted cream
   heading: brandPalette.creamText, // serif heading (cream)
   label: brandPalette.blush200, // blush — eyebrow / label
-  border: "rgba(251,244,236,0.28)", // 카드 경계 hairline — 카드 대비 2.4:1
+  border: "rgba(251,244,236,0.28)", // 카드 경계 hairline — 카드 대비 2.35:1
   /** 테두리가 유일한 식별 수단인 컨트롤(고스트 버튼·비활성 칩)용 — 비텍스트 3:1 충족. */
   borderStrong: "rgba(251,244,236,0.42)",
   line: "rgba(251,244,236,0.18)", // divider on dark
