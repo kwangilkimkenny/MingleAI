@@ -157,7 +157,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.x4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: dark.border,
+    // 칩은 테두리로만 식별된다 — 비텍스트 3:1을 만족하는 강한 hairline.
+    borderColor: dark.borderStrong,
     backgroundColor: dark.surface,
   },
   chipOn: { backgroundColor: dark.surfaceHi, borderColor: dark.text },

@@ -82,7 +82,7 @@ export default function BlocksScreen() {
           <ListRow
             gutter={0}
             dark
-            leading={<DoodleAvatar uri={item.photoUrl} name={item.name} size={44} />}
+            leading={<DoodleAvatar dark uri={item.photoUrl} name={item.name} size={44} />}
             title={item.name}
             subtitle={`${item.age} · ${item.occupation}`}
             trailing={

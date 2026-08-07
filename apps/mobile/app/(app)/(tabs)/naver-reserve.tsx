@@ -1,5 +1,7 @@
 /**
- * 데이트 맛집 탭 — 예약 앱(캐치테이블·테이블링) 문법으로 다시 짠 화면(2026-08-06).
+ * 데이트 맛집 탭 — 캐치테이블·네이버지도·옐프 같은 맛집 탐색 앱의 익숙한 골격을 따른다
+ * (2026-08-07 벤치마크): 검색 바 → 위치 → 필터·정렬 행 → 지도 → 목록 카드 → 상세 시트.
+ * 없는 정보(사진·평점·가격대)는 만들지 않는다 — 네이버 지역검색이 주지 않기 때문이다.
  *
  * 기준 위치는 현위치가 아니라 **사용자가 지정한 동네**(`place-area`)다. 상단 위치 바를 누르면
  * 동네를 바꾸고, 그 좌표로 서버가 "동네 + 카테고리"를 검색한다. 카드는 탭하면 상세 시트가
@@ -17,9 +19,20 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  TextInput,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { ChevronDown, ChevronRight, MapPin, Navigation, Phone, X } from "lucide-react-native";
+import {
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+  Map as MapIcon,
+  MapPin,
+  Navigation,
+  Phone,
+  Search,
+  X,
+} from "lucide-react-native";
 import { getNearbyPlaces, type NaverPlace } from "@mingle/client-core";
 import { dark, doodle, space, type as t } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
@@ -87,6 +100,11 @@ export default function NaverReserve() {
   const [category, setCategory] = useState("맛집");
   const [refreshing, setRefreshing] = useState(false);
   const [detail, setDetail] = useState<Row | null>(null);
+  // 익숙한 탐색 도구 3종 — 이름으로 찾기 / 예약 가능만 / 정렬.
+  const [query, setQuery] = useState("");
+  const [bookableOnly, setBookableOnly] = useState(false);
+  const [sort, setSort] = useState<"distance" | "recommended">("distance");
+  const [mapOpen, setMapOpen] = useState(false);
   const seq = useRef(0);
 
   /** 기준 좌표: 저장된 지정 위치 → 없으면 현위치를 잡아 지정 위치로 승격. */
@@ -101,20 +119,22 @@ export default function NaverReserve() {
   }, []);
 
   const fetchPlaces = useCallback(
-    async (cat: string, quiet: boolean) => {
+    async (cat: string, quiet: boolean, term = "") => {
       const mySeq = ++seq.current;
       if (!quiet) setPhase("loading");
       try {
         const here = await resolveArea();
         if (mySeq !== seq.current) return;
         setArea(here);
-        const res = await getNearbyPlaces(cat, here ? { lat: here.lat, lng: here.lng } : undefined);
+        // 검색어가 있으면 그걸로 찾고(가게 이름), 없으면 카테고리로 — 맛집 앱의 기본 동작.
+        const q = term.trim() || cat;
+        const res = await getNearbyPlaces(q, here ? { lat: here.lat, lng: here.lng } : undefined);
         if (mySeq !== seq.current) return;
         const withKm: Row[] = res.places.map((p) => {
           const c = coordsOf(p);
           return { ...p, km: here && c ? distanceKm(here, c) : null };
         });
-        withKm.sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
+        // 서버가 준 순서 = 네이버 추천/리뷰 정렬. 거리순은 여기서 다시 세운다.
         setRows(withKm);
         // 서버가 역지오코딩한 동네 이름이 있으면, 현위치로 잡힌 라벨을 그 이름으로 바꿔 보여준다.
         if (here && here.label === "현위치" && res.area) setArea({ ...here, label: res.area });
@@ -128,7 +148,7 @@ export default function NaverReserve() {
 
   useFocusEffect(
     useCallback(() => {
-      void fetchPlaces(category, rows.length > 0);
+      void fetchPlaces(category, rows.length > 0, query);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [category, fetchPlaces]),
   );
@@ -136,14 +156,26 @@ export default function NaverReserve() {
   function onPickCategory(key: string) {
     if (key === category) return;
     setCategory(key);
+    setQuery("");
     void fetchPlaces(key, false);
+  }
+
+  function onSubmitSearch() {
+    void fetchPlaces(category, false, query);
   }
 
   async function onRefresh() {
     setRefreshing(true);
-    await fetchPlaces(category, true);
+    await fetchPlaces(category, true, query);
     setRefreshing(false);
   }
+
+  /** 화면에 보일 목록 — 필터(예약 가능만) → 정렬(거리순/추천순). */
+  const visible = useMemo(() => {
+    const filtered = bookableOnly ? rows.filter((r) => reservationTarget(r).bookable) : rows;
+    if (sort === "recommended") return filtered;
+    return [...filtered].sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
+  }, [rows, bookableOnly, sort]);
 
   // 목록에서 가장 먼 가게까지 담기게 줌을 맞춘다. 지도 카드가 납작해(가로 넓고 세로 150) 반경을
   // 넉넉히 잡아야 위아래 핀이 안 잘린다. 0.6km 하한은 한 건물에 몰렸을 때 과확대 방지.
@@ -185,6 +217,34 @@ export default function NaverReserve() {
 
   return (
     <AppScreen tabScreen tone="dark" body="plain">
+      {/* 검색 바 — 맛집 앱의 첫 줄. 가게 이름으로 바로 찾는다. */}
+      <View style={styles.searchBar}>
+        <Search color={dark.textMuted} size={18} strokeWidth={1.75} />
+        <TextInput
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={onSubmitSearch}
+          placeholder="가게 이름으로 찾기"
+          placeholderTextColor={dark.textMuted}
+          returnKeyType="search"
+          accessibilityLabel="가게 검색"
+        />
+        {query ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="검색어 지우기"
+            hitSlop={8}
+            onPress={() => {
+              setQuery("");
+              void fetchPlaces(category, false);
+            }}
+          >
+            <X color={dark.textMuted} size={16} strokeWidth={2} />
+          </Pressable>
+        ) : null}
+      </View>
+
       {/* 위치 바 — 어디 기준인지 항상 보이고, 눌러서 바꾼다. */}
       <Pressable
         accessibilityRole="button"
@@ -202,15 +262,19 @@ export default function NaverReserve() {
       {area ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="지도에서 위치 바꾸기"
-          onPress={() => router.push("/(app)/place-area")}
+          accessibilityLabel="지도 크게 보기"
+          onPress={() => setMapOpen(true)}
           style={styles.map}
         >
           <AppMap center={{ lat: area.lat, lng: area.lng }} radiusKm={null} fitKm={fitKm} places={pins} />
+          <View style={styles.mapCta}>
+            <MapIcon color={dark.onPill} size={14} strokeWidth={2} />
+            <Text style={styles.mapCtaText}>지도로 보기</Text>
+          </View>
         </Pressable>
       ) : null}
 
-      {/* 카테고리 — 지도 바로 아래에서 목록을 좁힌다. */}
+      {/* 카테고리 — 지도 바로 아래. 굵은 분류를 먼저 고르고 그 다음 정렬·조건을 만진다. */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -233,13 +297,37 @@ export default function NaverReserve() {
         })}
       </ScrollView>
 
+      {/* 정렬·조건 — 목록 바로 위(맛집 앱들의 자리). 결과 수를 함께 보여 준다. */}
+      <View style={styles.toolRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: sort === "distance" }}
+          accessibilityLabel={sort === "distance" ? "거리순 정렬, 눌러서 추천순" : "추천순 정렬, 눌러서 거리순"}
+          onPress={() => setSort((v) => (v === "distance" ? "recommended" : "distance"))}
+          style={({ pressed }) => [styles.tool, pressed && styles.pressed]}
+        >
+          <ArrowUpDown color={dark.text} size={14} strokeWidth={2} />
+          <Text style={styles.toolText}>{sort === "distance" ? "거리순" : "추천순"}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: bookableOnly }}
+          accessibilityLabel="예약 가능한 곳만 보기"
+          onPress={() => setBookableOnly((v) => !v)}
+          style={({ pressed }) => [styles.tool, bookableOnly && styles.toolOn, pressed && styles.pressed]}
+        >
+          <Text style={[styles.toolText, bookableOnly && styles.toolTextOn]}>예약 가능만</Text>
+        </Pressable>
+        <Text style={styles.resultCount}>{visible.length}곳</Text>
+      </View>
+
       {phase === "loading" ? (
         <View style={styles.flex}>
           <StateView title="주변을 둘러보고 있어요" loading dark />
         </View>
       ) : (
         <FlatList
-          data={rows}
+          data={visible}
           keyExtractor={(p, i) => `${p.title}-${i}`}
           style={styles.flex}
           contentContainerStyle={styles.listContent}
@@ -247,7 +335,11 @@ export default function NaverReserve() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={dark.text} />
           }
           ListEmptyComponent={
-            <StateView title="이 카테고리는 근처에 없어요" body="다른 카테고리나 동네로 찾아보세요." dark />
+            <StateView
+              title={bookableOnly ? "예약 가능한 곳이 없어요" : "근처에 결과가 없어요"}
+              body={bookableOnly ? "필터를 끄면 더 많은 곳을 볼 수 있어요." : "다른 카테고리나 동네로 찾아보세요."}
+              dark
+            />
           }
           ItemSeparatorComponent={() => <View style={styles.gap} />}
           renderItem={({ item }) => <PlaceCard row={item} onOpen={() => setDetail(item)} />}
@@ -255,6 +347,28 @@ export default function NaverReserve() {
       )}
 
       <PlaceSheet row={detail} onClose={() => setDetail(null)} />
+
+      {/* 지도 크게 보기 — 목록과 지도를 오가는 건 맛집 앱의 기본 동선이다. */}
+      <Modal
+        visible={mapOpen && !!area}
+        animationType="slide"
+        onRequestClose={() => setMapOpen(false)}
+        statusBarTranslucent
+      >
+        <View style={styles.fullMap}>
+          {area ? (
+            <AppMap center={{ lat: area.lat, lng: area.lng }} radiusKm={null} fitKm={fitKm} places={pins} />
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="지도 닫기"
+            onPress={() => setMapOpen(false)}
+            style={styles.fullMapClose}
+          >
+            <X color={dark.onPill} size={20} strokeWidth={2} />
+          </Pressable>
+        </View>
+      </Modal>
     </AppScreen>
   );
 }
@@ -403,6 +517,59 @@ const styles = StyleSheet.create({
   listContent: { flexGrow: 1, paddingBottom: space.x3 },
   gap: { height: space.x2 },
   pressed: { opacity: 0.72 },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.x2,
+    minHeight: 46,
+    paddingHorizontal: space.x4,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+    marginBottom: space.x2,
+  },
+  searchInput: { flex: 1, ...t.body, color: dark.text, paddingVertical: 0 },
+  toolRow: { flexDirection: "row", alignItems: "center", gap: space.x2, marginBottom: space.x3 },
+  tool: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 34,
+    paddingHorizontal: space.x3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: dark.borderStrong,
+  },
+  toolOn: { backgroundColor: dark.goldFill, borderColor: dark.gold },
+  toolText: { ...t.caption, color: dark.text },
+  toolTextOn: { color: dark.gold },
+  resultCount: { ...t.caption, color: dark.textMuted, marginLeft: "auto" },
+  mapCta: {
+    position: "absolute",
+    right: space.x3,
+    bottom: space.x3,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: space.x3,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: dark.pill,
+  },
+  mapCtaText: { ...t.caption, color: dark.onPill },
+  fullMap: { flex: 1, backgroundColor: dark.bg },
+  fullMapClose: {
+    position: "absolute",
+    top: 48,
+    right: space.x4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: dark.pill,
+  },
   // 위치 바
   areaBar: {
     flexDirection: "row",
@@ -457,13 +624,14 @@ const styles = StyleSheet.create({
   cardText: { flex: 1, gap: 3 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: space.x2 },
   cardTitle: { flexShrink: 1, fontFamily: serifFont, fontSize: 18, color: dark.text },
+  // "예약 가능"은 상태다 — 브랜드 강조(블러시)와 색을 나눠 신호가 되게 한다.
   bookBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 999,
-    backgroundColor: dark.accent,
+    backgroundColor: dark.gold,
   },
-  bookBadgeText: { ...t.caption, fontSize: 11, color: dark.bg },
+  bookBadgeText: { ...t.caption, fontSize: 11, color: dark.onGold },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   leafText: { ...t.caption, color: dark.textMuted },
   dot: { ...t.caption, color: dark.textMuted },
@@ -493,9 +661,9 @@ const styles = StyleSheet.create({
   },
   actionGhostText: { ...t.label, color: dark.text },
   // 상세 시트
-  sheetRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(10,7,5,0.6)" },
+  sheetRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: dark.scrim },
   sheet: {
-    backgroundColor: dark.bg,
+    backgroundColor: dark.surfaceTop,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: 1,

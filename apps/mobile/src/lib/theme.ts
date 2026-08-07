@@ -21,6 +21,13 @@ export const brandPalette = {
   blush800: "#873047",
   cream: "#F4F1EA",
   creamText: "#FBF4EC",
+  // 2차 강조 — 웜 골드(메타·상태)와 세이지(가능/성공). 브라운·블러시와 같은 웜 계열이라
+  // 브랜드를 흐리지 않으면서 화면에 색의 층을 하나씩 더한다(2026-08-07 팔레트 보완).
+  gold200: "#EFCB92",
+  gold400: "#E3B778",
+  gold600: "#C99A55",
+  sage300: "#B7D8BF",
+  sage400: "#9EC7A8",
 } as const;
 
 /**
@@ -143,6 +150,43 @@ export const dark = {
   accent: brandPalette.blush200, // bright blush — active / small accent on dark
   danger: "#FF7A6E", // brighter red for legibility on dark
   onDanger: "#221109",
+
+  // ── 팔레트 보완(2026-08-07) — 기존 값은 그대로 두고 층·램프·2차 강조만 얹었다. ──
+  // 배경 하나에 표면 둘뿐이라 화면이 평평했다. M3의 tonal elevation처럼 위로 갈수록
+  // 밝아지는 계단을 만들고, 강조색도 단계(fill → 색 → 진한 색)를 갖게 했다.
+
+  // 다크에서 '우물'(배경보다 어두운 면)은 만들지 않는다 — bg가 이미 검정에 근접해
+  // 아무리 어둡게 해도 대비가 1.1을 못 넘는다. 들어간 느낌은 색이 아니라 테두리로 낸다.
+  /** 4단 표면 — 시트·다이얼로그·팝오버. 카드(surface)와 겹쳐도 층이 읽힌다. */
+  surfaceTop: "#544437",
+  /** 상승 표면에 얹는 브랜드 틴트(M3 surfaceTint) — 위로 갈수록 살짝 따뜻해진다. */
+  surfaceTint: "rgba(242,188,200,0.05)",
+
+  /** 블러시 램프 — 강조를 하나의 색이 아니라 단계로 쓴다. */
+  accentBright: brandPalette.blush50, // 가장 밝은 강조 텍스트
+  accentDim: brandPalette.blush300, // 보조 아이콘·비활성 강조
+  accentFill: "rgba(242,188,200,0.14)", // 칩·배지의 은은한 채움
+  onAccent: brandPalette.brown800, // 블러시 위 잉크 글씨(10.2:1)
+
+  /** 골드 — 메타·아이브로우·"예약 가능" 같은 상태. 블러시(브랜드·활성)와 역할을 나눈다. */
+  gold: brandPalette.gold400,
+  goldBright: brandPalette.gold200,
+  goldFill: "rgba(227,183,120,0.14)",
+  onGold: brandPalette.brown800,
+
+  /** 세이지 — 성공·가능·확정. 위험(크림슨)의 반대편. */
+  success: brandPalette.sage400,
+  successBright: brandPalette.sage300,
+  successFill: "rgba(158,199,168,0.14)",
+  onSuccess: brandPalette.brown800,
+
+  dangerFill: "rgba(255,122,110,0.14)",
+
+  /** 스크림 — 모달·시트 뒤 배경. 화면마다 흩어져 있던 rgba를 한곳으로. */
+  scrim: "rgba(10,7,5,0.6)",
+  scrimStrong: "rgba(0,0,0,0.94)",
+  /** 히어로·CTA 주변의 은은한 브랜드 광. */
+  glow: "rgba(242,188,200,0.18)",
 } as const;
 
 export const layout = {

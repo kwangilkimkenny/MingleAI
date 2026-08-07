@@ -98,7 +98,8 @@ export function DoodleChip({
     : on
       ? colors.accentStrong
       : colors.card;
-  const chipStroke = isDark ? (on ? dark.pill : dark.border) : on ? colors.accentStrong : colors.border;
+  // 비활성 칩은 테두리로만 식별된다 — 다크에서는 비텍스트 3:1을 만족하는 borderStrong.
+  const chipStroke = isDark ? (on ? dark.pill : dark.borderStrong) : on ? colors.accentStrong : colors.border;
   const chipText = isDark ? (on ? dark.onPill : dark.textMuted) : on ? colors.onAccent : colors.ink;
   const chip = (
     <WobbleBox

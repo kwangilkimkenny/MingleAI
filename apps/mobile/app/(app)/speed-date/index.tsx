@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     justifyContent: "center",
   },
-  pillOff: { backgroundColor: dark.surface, borderColor: dark.border },
+  pillOff: { backgroundColor: dark.surface, borderColor: dark.borderStrong },
   pillOn: { backgroundColor: dark.surfaceHi, borderColor: dark.text },
   pillText: { ...type.caption },
 });

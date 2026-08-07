@@ -82,3 +82,47 @@ describe("dark token invariants", () => {
     expect(contrast(flatten(dark.borderStrong, dark.bg), dark.bg)).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("확장 팔레트 불변식 (2026-08-07)", () => {
+  it("표면이 아래에서 위로 단계적으로 밝아진다", () => {
+    const steps = [dark.bg, dark.surface, dark.surfaceHi, dark.surfaceTop];
+    for (let i = 1; i < steps.length; i++) {
+      // 각 단계는 바로 아래 단계와 구분돼야 한다(층이 읽히는 최소선).
+      expect(contrast(steps[i], steps[i - 1])).toBeGreaterThanOrEqual(1.1);
+    }
+    // 가장 높은 표면에서도 본문이 AA를 지킨다.
+    expect(contrast(dark.text, dark.surfaceTop)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("강조 램프가 밝기 순서를 지킨다", () => {
+    expect(contrast(dark.accentBright, dark.bg)).toBeGreaterThan(contrast(dark.accent, dark.bg));
+    expect(contrast(dark.accent, dark.bg)).toBeGreaterThan(contrast(dark.accentDim, dark.bg));
+  });
+
+  it("2차 강조(골드·세이지)가 다크에서 AA를 넘는다", () => {
+    for (const c of [dark.gold, dark.goldBright, dark.success, dark.successBright]) {
+      expect(contrast(c, dark.bg)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(c, dark.surface)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("색 채움 위에 얹는 잉크 글씨가 AA를 넘는다", () => {
+    expect(contrast(dark.accent, dark.onAccent)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(dark.gold, dark.onGold)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(dark.success, dark.onSuccess)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("의미색이 서로 구분된다(같은 색을 두 뜻으로 쓰지 않는다)", () => {
+    const semantic = [dark.accent, dark.gold, dark.success, dark.danger];
+    expect(new Set(semantic).size).toBe(semantic.length);
+  });
+
+  it("반투명 채움은 배경을 덮지 않을 만큼만 얹는다", () => {
+    for (const fill of [dark.accentFill, dark.goldFill, dark.successFill, dark.dangerFill]) {
+      const flat = flatten(fill, dark.surface);
+      // 살짝 뜨되(1.05+) 카드처럼 무거워지지는 않게(1.6 미만).
+      expect(contrast(flat, dark.surface)).toBeGreaterThanOrEqual(1.05);
+      expect(contrast(flat, dark.surface)).toBeLessThan(1.6);
+    }
+  });
+});

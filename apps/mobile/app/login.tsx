@@ -269,7 +269,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     gap: 20,
   },
-  brandBlock: { alignItems: "center" },
+  // 배경 명화는 밝은 부분이 많아 흰 글씨·블러시 라벨이 묻힌다(로그인 QA 2026-08-06:
+  // 밝은 옷 위 대비 1.3:1). 브랜드 블록 뒤에 얇은 스크림을 깔아 글자 자리만 눌러준다.
+  brandBlock: {
+    alignItems: "center",
+    alignSelf: "center",
+    paddingHorizontal: 24,
+    paddingTop: 14,
+    paddingBottom: 18,
+    borderRadius: 32,
+    backgroundColor: "rgba(10,6,4,0.5)",
+  },
   brandMark: { width: 152, height: 152, marginTop: -36, marginBottom: -36 },
   brandTagline: {
     fontFamily: fonts.body,

@@ -218,6 +218,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel = "취소",
   destructive = false,
+  final = false,
   busy = false,
   onConfirm,
   onCancel,
@@ -229,6 +230,9 @@ export function ConfirmDialog({
   confirmLabel: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /** 되돌릴 수 없는 최종 액션일 때만 솔리드 위험 버튼. 로그아웃·차단처럼 되돌릴 수 있는
+   *  동작은 외곽선 위험 버튼으로 둔다 — 솔리드를 남발하면 진짜 최종 액션의 무게가 사라진다. */
+  final?: boolean;
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -254,7 +258,7 @@ export function ConfirmDialog({
         <View
           style={[
             styles.dialogCard,
-            isDark && { backgroundColor: dark.surface, borderColor: dark.border },
+            isDark && { backgroundColor: dark.surfaceTop, borderColor: dark.border },
           ]}
         >
           <View ref={focusRef} accessible accessibilityRole="header" accessibilityLabel={title}>
@@ -279,7 +283,7 @@ export function ConfirmDialog({
                   onConfirm();
                 }}
                 disabled={busy}
-                variant={destructive ? "dangerSolid" : "primary"}
+                variant={destructive ? (final ? "dangerSolid" : "danger") : "primary"}
                 serious
                 tone={isDark ? "dark" : "light"}
               />
