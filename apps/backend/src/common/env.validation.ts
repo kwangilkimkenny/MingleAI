@@ -8,6 +8,11 @@ const httpOrigin = z
     return (url.protocol === "https:" || url.protocol === "http:") && url.pathname === "/";
   }, "must be an HTTP(S) origin without a path");
 
+const httpsOrigin = httpOrigin.refine(
+  (value) => new URL(value).protocol === "https:",
+  "must use HTTPS in production",
+);
+
 export function validateEnvironment(raw: Record<string, unknown>): Record<string, unknown> {
   const common = z
     .object({
@@ -16,6 +21,12 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
       JWT_SECRET: z.string().min(16),
       PUBLIC_BASE_URL: z.string().url().optional(),
       SOCKET_CORS_ORIGINS: z.string().optional(),
+      KAKAO_CLIENT_ID: z.string().min(1).optional(),
+      KAKAO_CLIENT_SECRET: z.string().min(1).optional(),
+      NAVER_CLIENT_ID: z.string().min(1).optional(),
+      NAVER_CLIENT_SECRET: z.string().min(1).optional(),
+      GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+      GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     })
     .passthrough()
     .parse(raw);
@@ -25,7 +36,7 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
   const production = z
     .object({
       JWT_SECRET: z.string().min(32),
-      PUBLIC_BASE_URL: httpOrigin,
+      PUBLIC_BASE_URL: httpsOrigin,
       SOCKET_CORS_ORIGINS: z.string().min(1),
     })
     .parse(common);
@@ -34,7 +45,15 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
   if (origins.some((value) => !value || value === "*")) {
     throw new Error("SOCKET_CORS_ORIGINS must contain explicit origins in production");
   }
-  for (const origin of origins) httpOrigin.parse(origin);
+  for (const origin of origins) httpsOrigin.parse(origin);
+
+  const hasConfiguredSocialProvider =
+    Boolean(common.KAKAO_CLIENT_ID) ||
+    Boolean(common.GOOGLE_CLIENT_ID) ||
+    Boolean(common.NAVER_CLIENT_ID && common.NAVER_CLIENT_SECRET);
+  if (!hasConfiguredSocialProvider) {
+    throw new Error("At least one social login provider must be configured in production");
+  }
 
   // Dev-only auth bypasses must never be enabled in production.
   if (common.DEV_AUTH_ENABLED === "true")
