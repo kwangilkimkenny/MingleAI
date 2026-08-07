@@ -118,34 +118,55 @@ describe("profiles api", () => {
     expect(JSON.parse(opts.body)).toEqual({ photoUrl: "http://api.test/uploads/z.png" });
   });
 
+  /** XHR 목 — 업로드는 fetch가 아니라 XMLHttpRequest를 쓴다(RN 파일 파트 때문). */
+  function stubXhr(status: number, responseText: string) {
+    const calls: {
+      method?: string;
+      url?: string;
+      headers: Record<string, string>;
+      body?: unknown;
+    } = { headers: {} };
+    class FakeXhr {
+      status = 0;
+      responseText = "";
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      ontimeout: (() => void) | null = null;
+      open(method: string, url: string) {
+        calls.method = method;
+        calls.url = url;
+      }
+      setRequestHeader(k: string, v: string) {
+        calls.headers[k] = v;
+      }
+      send(body: unknown) {
+        calls.body = body;
+        this.status = status;
+        this.responseText = responseText;
+        this.onload?.();
+      }
+    }
+    vi.stubGlobal("XMLHttpRequest", FakeXhr);
+    return calls;
+  }
+
   it("uploadPhoto POSTs multipart to /uploads/photo without a forced Content-Type", async () => {
-    const f = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 201,
-      json: async () => ({ url: "http://api.test/uploads/new.png" }),
-    } as Response);
-    vi.stubGlobal("fetch", f);
+    const calls = stubXhr(201, JSON.stringify({ url: "http://api.test/uploads/new.png" }));
 
     const blob = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: "image/png" });
     const result = await uploadPhoto(blob);
     expect(result).toEqual({ url: "http://api.test/uploads/new.png" });
 
-    const [url, opts] = f.mock.calls[0];
-    expect(String(url)).toBe("http://api.test/uploads/photo");
-    expect(opts.method).toBe("POST");
-    expect(opts.body).toBeInstanceOf(FormData);
-    // Must NOT set Content-Type — fetch derives the multipart boundary itself.
-    expect(opts.headers["Content-Type"]).toBeUndefined();
-    expect(opts.headers.Authorization).toBe("Bearer test-token");
+    expect(calls.method).toBe("POST");
+    expect(calls.url).toBe("http://api.test/uploads/photo");
+    expect(calls.body).toBeInstanceOf(FormData);
+    // Content-Type을 직접 넣으면 multipart boundary가 깨진다 — 절대 넣지 않는다.
+    expect(calls.headers["Content-Type"]).toBeUndefined();
+    expect(calls.headers.Authorization).toBe("Bearer test-token");
   });
 
   it("uploadPhoto accepts a React-Native {uri,name,type} part and hits the endpoint", async () => {
-    const f = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 201,
-      json: async () => ({ url: "http://api.test/uploads/rn.jpg" }),
-    } as Response);
-    vi.stubGlobal("fetch", f);
+    const calls = stubXhr(201, JSON.stringify({ url: "http://api.test/uploads/rn.jpg" }));
 
     const result = await uploadPhoto({
       uri: "file:///tmp/photo.jpg",
@@ -153,16 +174,11 @@ describe("profiles api", () => {
       type: "image/jpeg",
     });
     expect(result).toEqual({ url: "http://api.test/uploads/rn.jpg" });
-    expect(String(f.mock.calls[0][0])).toBe("http://api.test/uploads/photo");
+    expect(calls.url).toBe("http://api.test/uploads/photo");
   });
 
   it("uploadPhoto throws ApiError with the server message on failure", async () => {
-    const f = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({ message: "JPEG, PNG, WEBP 이미지만 업로드할 수 있습니다." }),
-    } as Response);
-    vi.stubGlobal("fetch", f);
+    stubXhr(400, JSON.stringify({ message: "JPEG, PNG, WEBP 이미지만 업로드할 수 있습니다." }));
 
     const blob = new Blob([new Uint8Array([0x00])], { type: "text/plain" });
     await expect(uploadPhoto(blob)).rejects.toMatchObject({
@@ -170,4 +186,23 @@ describe("profiles api", () => {
       message: "JPEG, PNG, WEBP 이미지만 업로드할 수 있습니다.",
     });
   });
+
+  it("uploadPhoto reports a network failure instead of hanging", async () => {
+    class DeadXhr {
+      status = 0;
+      responseText = "";
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      ontimeout: (() => void) | null = null;
+      open() {}
+      setRequestHeader() {}
+      send() {
+        this.onerror?.();
+      }
+    }
+    vi.stubGlobal("XMLHttpRequest", DeadXhr);
+    const blob = new Blob([new Uint8Array([0x89])], { type: "image/png" });
+    await expect(uploadPhoto(blob)).rejects.toMatchObject({ status: 0 });
+  });
+
 });

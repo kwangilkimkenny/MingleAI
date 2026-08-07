@@ -2,6 +2,7 @@ import { Injectable, Inject, ForbiddenException, BadRequestException, NotFoundEx
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { SafetyService } from "../safety/safety.service";
+import { REPLY_SUGGESTER, type ReplySuggester } from "../ai/reply-suggester.interface";
 import { NotificationService } from "../notification/notification.service";
 import { MESSENGER_EMITTER, type MessengerEmitter } from "./messenger.emitter";
 import type { DirectMessage } from "@mingle/shared";
@@ -16,6 +17,7 @@ export class MessengerService {
     private readonly safety: SafetyService,
     private readonly notifications: NotificationService,
     @Inject(MESSENGER_EMITTER) private readonly emitter: MessengerEmitter,
+    @Inject(REPLY_SUGGESTER) private readonly suggester: ReplySuggester,
   ) {}
 
   /** Public authz check for the Socket.IO gateway — returns the caller's profile id, or null if not a member. */
@@ -51,6 +53,7 @@ export class MessengerService {
     roomId: string;
     senderProfileId: string;
     content: string;
+    imageUrl?: string | null;
     readAt: Date | null;
     createdAt: Date;
   }): DirectMessage {
@@ -59,19 +62,29 @@ export class MessengerService {
       roomId: m.roomId,
       senderProfileId: m.senderProfileId,
       content: m.content,
+      imageUrl: m.imageUrl ?? null,
       readAt: m.readAt?.toISOString() ?? null,
       createdAt: m.createdAt.toISOString(),
     };
   }
 
-  async send(userId: string, roomId: string, content: string): Promise<DirectMessage> {
+  async send(
+    userId: string,
+    roomId: string,
+    content: string,
+    imageUrl?: string,
+  ): Promise<DirectMessage> {
     // Guard order: member + block (both in memberContext) → length (authz before content validation)
     const { me, peer } = await this.memberContext(userId, roomId);
     const trimmed = (content ?? "").trim();
-    if (!trimmed || trimmed.length > this.maxLen()) throw new BadRequestException("메시지 길이가 올바르지 않습니다");
+    const image = normalizeAttachmentUrl(imageUrl);
+    if (imageUrl && !image) throw new BadRequestException("첨부할 수 없는 이미지입니다");
+    // 사진만 보내는 게 흔하다 — 텍스트나 이미지 중 하나만 있으면 된다.
+    if (!trimmed && !image) throw new BadRequestException("메시지 길이가 올바르지 않습니다");
+    if (trimmed.length > this.maxLen()) throw new BadRequestException("메시지 길이가 올바르지 않습니다");
 
     const row = await this.prisma.directMessage.create({
-      data: { roomId, senderProfileId: me, content: trimmed },
+      data: { roomId, senderProfileId: me, content: trimmed, imageUrl: image },
     });
     const dto = this.toDto(row);
 
@@ -86,7 +99,7 @@ export class MessengerService {
           userId: peerProfile.userId,
           type: "message_received",
           title: "새 메시지",
-          message: trimmed.slice(0, 80),
+          message: trimmed ? trimmed.slice(0, 80) : "사진을 보냈어요",
           data: { roomId },
         });
     } catch (notifyErr) {
@@ -109,6 +122,42 @@ export class MessengerService {
     return { lastReadAt };
   }
 
+  /**
+   * 다음에 보낼 만한 문장 3개. LLM이 최근 대화를 읽고 만든다(미설정·실패 시 규칙 폴백).
+   *
+   * 프라이버시: 이름·profileId는 프롬프트에 넣지 않고 "나/상대" 역할로만 보낸다. 최근 12줄,
+   * 줄당 300자까지만 — 대화 전체를 외부로 흘리지 않는다. 차단 상태면 애초에 막힌다.
+   */
+  async suggestReplies(userId: string, roomId: string): Promise<{ suggestions: string[]; source: "ai" | "fallback" }> {
+    const { me } = await this.memberContext(userId, roomId);
+    const rows = await this.prisma.directMessage.findMany({
+      where: { roomId },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    });
+    const turns = rows
+      .reverse()
+      .map((m) => ({
+        role: (m.senderProfileId === me ? "me" : "peer") as "me" | "peer",
+        content: m.content.slice(0, 300),
+      }));
+
+    try {
+      const suggestions = await this.suggester.suggest({ turns });
+      if (suggestions.length > 0) return { suggestions, source: this.suggester.kind === "ai" ? "ai" : "fallback" };
+    } catch (e) {
+      this.log.warn(`reply suggestion failed for room ${roomId}: ${(e as Error).message}`);
+    }
+    const { suggestReplies: ruleSuggest } = await import("@mingle/shared");
+    return {
+      suggestions: ruleSuggest({
+        myProfileId: "me",
+        messages: turns.map((t) => ({ senderProfileId: t.role === "me" ? "me" : "peer", content: t.content })),
+      }),
+      source: "fallback",
+    };
+  }
+
   async history(userId: string, roomId: string, before: string | undefined, limit: number): Promise<DirectMessage[]> {
     await this.memberContext(userId, roomId);
     const rows = await this.prisma.directMessage.findMany({
@@ -118,4 +167,28 @@ export class MessengerService {
     });
     return rows.reverse().map((m) => this.toDto(m));
   }
+}
+
+/**
+ * 첨부 이미지 URL 검증. `POST /uploads/photo`가 돌려준 **우리 업로드 경로**만 통과시킨다 —
+ * 임의 URL을 허용하면 채팅이 외부 이미지를 불러오는 통로가 되어 상대의 IP가 새고
+ * (추적 픽셀), 우리와 무관한 콘텐츠가 대화창에 뜬다.
+ * 절대 URL이면 호스트를 보지 않고 경로만 확인한다(dev는 LAN IP, prod는 PUBLIC_BASE_URL이라
+ * 호스트가 환경마다 달라진다). 경로가 `/uploads/<파일명>` 한 칸이어야 하고 상위 이동은 막는다.
+ */
+export function normalizeAttachmentUrl(raw?: string | null): string | null {
+  const value = (raw ?? "").trim();
+  if (!value) return null;
+  let path = value;
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      path = new URL(value).pathname;
+    } catch {
+      return null;
+    }
+  } else if (!value.startsWith("/")) {
+    return null;
+  }
+  if (path.includes("..")) return null;
+  return /^\/uploads\/[A-Za-z0-9._-]+$/.test(path) ? value : null;
 }

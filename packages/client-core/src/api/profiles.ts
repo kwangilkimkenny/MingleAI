@@ -61,41 +61,56 @@ export function updateProfile(profileId: string, input: UpdateProfileInput): Pro
 }
 
 /**
- * Upload an image to POST /uploads/photo and return its public URL. Uses a raw
- * multipart request (NOT apiFetch, which forces application/json) so fetch can
- * set the multipart boundary itself — setting Content-Type manually breaks it.
+ * Upload an image to POST /uploads/photo and return its public URL.
+ *
+ * 파일 파트는 **XMLHttpRequest**로 보낸다. React Native의 `{uri,name,type}` 파트는 네이티브
+ * 네트워킹 계층이 직접 읽어 스트리밍하는데, Expo SDK 56의 fetch 구현은 그 파트를 거부한다
+ * ("Unsupported FormDataPart implementation" — 채팅 사진 첨부 QA 2026-08-07). XHR은 RN·브라우저
+ * 양쪽에 있고 multipart 경계도 스스로 만든다 — Content-Type을 손으로 넣으면 boundary가 깨진다.
  */
-export async function uploadPhoto(file: UploadPhotoFile): Promise<{ url: string }> {
+export function uploadPhoto(file: UploadPhotoFile): Promise<{ url: string }> {
   const { baseUrl, onUnauthorized } = getClientConfig();
   const token = getToken();
 
   const form = new FormData();
   if (typeof (file as { uri?: string }).uri === "string") {
-    // React Native FormData accepts the {uri,name,type} part object directly.
+    // RN 파트 객체 — 타입만 Blob으로 맞춰 준다(런타임 형태는 그대로여야 한다).
     form.append("file", file as unknown as Blob);
   } else {
     const blob = file as Blob;
-    const name = (blob as File).name || "photo.jpg";
-    form.append("file", blob, name);
+    form.append("file", blob, (blob as File).name || "photo.jpg");
   }
 
-  const headers: Record<string, string> = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-
-  const res = await fetch(`${baseUrl}/uploads/photo`, {
-    method: "POST",
-    body: form,
-    headers,
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${baseUrl}/uploads/photo`);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.onload = () => {
+      if (xhr.status === 401 && token) {
+        onUnauthorized?.();
+        reject(new ApiError(401, "인증이 만료되었습니다."));
+        return;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        let message = `업로드 실패 (${xhr.status})`;
+        try {
+          const body = JSON.parse(xhr.responseText) as { message?: string | string[] };
+          const raw = Array.isArray(body.message) ? body.message.join("\n") : body.message;
+          if (raw) message = raw;
+        } catch {
+          // 본문이 JSON이 아니면 기본 문구를 쓴다.
+        }
+        reject(new ApiError(xhr.status, message));
+        return;
+      }
+      try {
+        resolve(JSON.parse(xhr.responseText) as { url: string });
+      } catch {
+        reject(new ApiError(xhr.status, "업로드 응답을 읽지 못했어요."));
+      }
+    };
+    xhr.onerror = () => reject(new ApiError(0, "네트워크 오류로 업로드하지 못했어요."));
+    xhr.ontimeout = () => reject(new ApiError(0, "업로드가 시간 초과됐어요."));
+    xhr.send(form);
   });
-
-  if (res.status === 401 && token) {
-    onUnauthorized?.();
-    throw new ApiError(401, "인증이 만료되었습니다.");
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}) as { message?: string | string[] });
-    const rawMessage = Array.isArray(body.message) ? body.message.join("\n") : body.message;
-    throw new ApiError(res.status, rawMessage || `업로드 실패 (${res.status})`);
-  }
-  return res.json();
 }

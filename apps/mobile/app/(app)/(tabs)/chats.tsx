@@ -6,6 +6,7 @@ import { Search, X } from "lucide-react-native";
 import { DoodleAvatar } from "../../../src/components/DoodleAvatar";
 import { EnterRow } from "../../../src/components/Motion";
 import { AppScreen } from "../../../src/components/AppScreen";
+import { messagePreview } from "../../../src/lib/chat-preview";
 import { DoodleButton } from "../../../src/components/Doodle";
 import { StateView } from "../../../src/components/Foundation";
 import { colors, control, dark, fonts, space, type } from "../../../src/lib/theme";
@@ -31,9 +32,7 @@ function formatChatTime(value?: string): string {
   return `${String(date.getFullYear()).slice(2)}.${date.getMonth() + 1}.${date.getDate()}`;
 }
 
-function messagePreview(item: MatchSummary): string {
-  return (item.lastMessage?.content ?? "새로운 대화를 시작해 보세요").replace(/\s+/g, " ").trim();
-}
+
 
 export default function Chats() {
   const [rooms, setRooms] = useState<MatchSummary[]>([]);
@@ -69,7 +68,7 @@ export default function Chats() {
     const keyword = query.trim().toLocaleLowerCase("ko-KR");
     if (!keyword) return rooms;
     return rooms.filter((item) => {
-      const searchable = `${item.peer.name} ${messagePreview(item)}`.toLocaleLowerCase("ko-KR");
+      const searchable = `${item.peer.name} ${messagePreview(item.lastMessage)}`.toLocaleLowerCase("ko-KR");
       return searchable.includes(keyword);
     });
   }, [query, rooms]);
@@ -184,10 +183,10 @@ export default function Chats() {
                 style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               >
                 <DoodleAvatar
+                  dark
                   uri={item.peer.photoUrl}
                   name={item.peer.name}
                   size={52}
-                  style={styles.avatar}
                 />
                 <View style={styles.rowContent}>
                   <View style={styles.rowTop}>
@@ -201,7 +200,7 @@ export default function Chats() {
                       style={[styles.preview, item.unreadCount > 0 && styles.previewUnread]}
                       numberOfLines={1}
                     >
-                      {messagePreview(item)}
+                      {messagePreview(item.lastMessage)}
                     </Text>
                     {item.unreadCount > 0 ? (
                       <View style={styles.badge}>
@@ -261,7 +260,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatar: { borderColor: dark.border, backgroundColor: dark.surfaceHi },
   row: {
     minHeight: 78,
     flexDirection: "row",

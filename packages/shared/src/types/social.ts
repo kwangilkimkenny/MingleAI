@@ -22,7 +22,10 @@ export interface DirectMessage {
   id: string;
   roomId: string;
   senderProfileId: string;
+  /** 이미지만 보낸 메시지는 빈 문자열. */
   content: string;
+  /** 첨부 이미지 URL(자체 업로드 경로). 없으면 텍스트 메시지. */
+  imageUrl?: string | null;
   readAt?: string | null;
   createdAt: string;
 }

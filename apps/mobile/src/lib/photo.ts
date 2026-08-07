@@ -17,14 +17,18 @@ export type PickPhotoResult =
  * Prompt for a square image from the library, upload it, and return the hosted URL.
  * Permission denial and user cancellation are returned as non-error statuses.
  */
-export async function pickAndUploadPhoto(): Promise<PickPhotoResult> {
+export async function pickAndUploadPhoto(
+  options: { square?: boolean } = {},
+): Promise<PickPhotoResult> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) return { status: "denied" };
 
+  // 프로필 사진은 정사각으로 자르지만, 채팅 첨부는 원본 비율 그대로 보낸다.
+  const square = options.square ?? true;
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
-    allowsEditing: true,
-    aspect: [1, 1],
+    allowsEditing: square,
+    ...(square ? { aspect: [1, 1] as [number, number] } : null),
     quality: 0.8,
   });
   if (result.canceled) return { status: "cancelled" };

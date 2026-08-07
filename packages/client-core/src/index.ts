@@ -57,7 +57,7 @@ export type { CreateProfileInput, UpdateProfileInput, UploadPhotoFile } from "./
 
 export { getMatches } from "./api/matches.js";
 
-export { getRoomMessages, sendMessage, markRoomRead } from "./api/messenger.js";
+export { getRoomMessages, sendMessage, markRoomRead, suggestReplies } from "./api/messenger.js";
 
 export { createBlock, getBlocks, removeBlock } from "./api/blocks.js";
 
