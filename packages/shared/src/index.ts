@@ -31,6 +31,7 @@ export type {
 export type {
   DateConstraints,
   DateStop,
+  DateStopPlace,
   DateCourse,
   DatePlanStatus,
   DatePlan,
@@ -85,3 +86,6 @@ export type {
 export { buildRotationSchedule } from "./speed-date/schedule.js";
 export { stageReveal, projectPartner } from "./speed-date/projection.js";
 export type { PartnerIdentity } from "./speed-date/projection.js";
+
+export { suggestReplies } from "./chat/suggest.js";
+export type { SuggestMessage, SuggestRepliesInput } from "./chat/suggest.js";

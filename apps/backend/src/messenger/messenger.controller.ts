@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Param, Body, Query, ParseIntPipe, DefaultValuePipe, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CurrentUser, type JwtPayload } from "../common/decorators/current-user.decorator";
 import { MessengerService } from "./messenger.service";
@@ -42,7 +43,15 @@ export class MessengerController {
     @Param("roomId") roomId: string,
     @Body() dto: SendMessageDto,
   ) {
-    return this.messenger.send(user.userId, roomId, dto.content);
+    return this.messenger.send(user.userId, roomId, dto.content, dto.imageUrl);
+  }
+
+  // LLM 호출이라 비싸다 — 분당 10회로 제한(연타로 토큰을 태우지 않게).
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Post("rooms/:roomId/suggestions")
+  @ApiOperation({ summary: "대화 내용 기반 다음 멘트 추천 (LLM, 미설정 시 규칙 폴백)" })
+  suggest(@CurrentUser() user: JwtPayload, @Param("roomId") roomId: string) {
+    return this.messenger.suggestReplies(user.userId, roomId);
   }
 
   @Post("rooms/:roomId/read")

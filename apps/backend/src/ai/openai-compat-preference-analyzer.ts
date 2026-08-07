@@ -1,9 +1,12 @@
 import type { PreferenceSignals } from "@mingle/shared";
 import { AnalyzeInput, PreferenceAnalyzer, PreferenceAnalysisError } from "./preference-analyzer.interface";
 import { parsePreferenceSignals } from "./preference-signals.schema";
+import { buildChatBody } from "./openai-compat-reply-suggester";
 
 export interface OpenAICompatConfig {
   url: string; chatPath: string; apiKey: string; model: string; timeoutMs: number;
+  /** 추론형 모델의 사고량. 설정하면 temperature 대신 이 값을 보낸다. */
+  reasoningEffort?: string;
 }
 
 const SYSTEM = [
@@ -51,7 +54,7 @@ export class OpenAICompatPreferenceAnalyzer implements PreferenceAnalyzer {
     const path = this.cfg.chatPath.startsWith("/") ? this.cfg.chatPath : `/${this.cfg.chatPath}`;
     const res = await fetch(`${base}${path}`, {
       method: "POST", headers,
-      body: JSON.stringify({ model: this.cfg.model, temperature: 0, response_format: { type: "json_object" }, messages }),
+      body: JSON.stringify(buildChatBody(this.cfg, messages, 0)),
       signal: AbortSignal.timeout(this.cfg.timeoutMs),
     });
     if (!res.ok) throw new Error(`LLM ${res.status}`);
