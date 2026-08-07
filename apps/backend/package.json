@@ -12,7 +12,9 @@
     "prisma:migrate": "prisma migrate dev",
     "test": "jest",
     "test:cov": "jest --coverage",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:deploy": "prisma migrate deploy",
+    "start:container": "prisma migrate deploy && node dist/main.js"
   },
   "dependencies": {
     "@keyv/redis": "^5.1.6",

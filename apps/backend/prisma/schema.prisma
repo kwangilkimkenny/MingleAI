@@ -1,5 +1,8 @@
 generator client {
   provider = "prisma-client-js"
+  // native = 개발 머신, debian/linux-arm64 openssl-3.0.x = 운영 컨테이너(node:20-bookworm-slim,
+  // amd64/arm64 양쪽). 배포 아키텍처가 뭐든 런타임 엔진이 매칭되도록 둘 다 생성한다.
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
 }
 
 datasource db {
