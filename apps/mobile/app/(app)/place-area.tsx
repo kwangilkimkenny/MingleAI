@@ -5,14 +5,14 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { LocateFixed, MapPin, Search, X } from "lucide-react-native";
 import { searchAreas, type AreaHit } from "@mingle/client-core";
 import { AppScreen } from "../../src/components/AppScreen";
 import { LabeledInput, StateView } from "../../src/components/Foundation";
 import { AppMap } from "../../src/components/AppMap";
 import { getCurrentCoords } from "../../src/lib/location";
-import { savePlaceArea, loadPlaceArea, type PlaceArea } from "../../src/lib/place-area";
+import { savePlaceArea, loadPlaceArea, type AreaScope, type PlaceArea } from "../../src/lib/place-area";
 import { dark, doodle, space, type as t } from "../../src/lib/theme";
 import { serifFont } from "../../src/lib/serif";
 
@@ -20,6 +20,9 @@ import { serifFont } from "../../src/lib/serif";
 const DEBOUNCE_MS = 600;
 
 export default function PlaceAreaScreen() {
+  // scope=date면 데이트 약속 장소를 고르는 것 — 맛집 탭의 동네와 따로 저장된다.
+  const params = useLocalSearchParams<{ scope?: string }>();
+  const scope: AreaScope = params.scope === "date" ? "date" : "places";
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<AreaHit[]>([]);
   const [busy, setBusy] = useState(false);
@@ -30,7 +33,7 @@ export default function PlaceAreaScreen() {
 
   useEffect(() => {
     alive.current = true;
-    void loadPlaceArea().then((a) => {
+    void loadPlaceArea(scope).then((a) => {
       if (alive.current && a) setPicked(a);
     });
     return () => {
@@ -61,10 +64,13 @@ export default function PlaceAreaScreen() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const commit = useCallback(async (area: PlaceArea) => {
-    await savePlaceArea(area);
-    router.back();
-  }, []);
+  const commit = useCallback(
+    async (area: PlaceArea) => {
+      await savePlaceArea(area, scope);
+      router.back();
+    },
+    [scope],
+  );
 
   async function useCurrent() {
     setLocating(true);
@@ -78,7 +84,7 @@ export default function PlaceAreaScreen() {
   }
 
   return (
-    <AppScreen tone="dark" header={{ title: "어디서 만나요?", back: true }}>
+    <AppScreen tone="dark" header={{ title: scope === "date" ? "어디서 만날까요?" : "어디서 만나요?", back: true }}>
       <View style={styles.searchRow}>
         <Search color={dark.textMuted} size={18} strokeWidth={1.75} />
         <View style={styles.searchInput}>
@@ -127,7 +133,11 @@ export default function PlaceAreaScreen() {
           ) : (
             <StateView
               title="만날 동네를 골라 주세요"
-              body="지정한 동네를 기준으로 데이트 맛집을 찾아드려요."
+              body={
+                scope === "date"
+                  ? "고른 동네의 실제 가게로 데이트 코스를 짜드려요."
+                  : "지정한 동네를 기준으로 데이트 맛집을 찾아드려요."
+              }
               dark
             />
           )}

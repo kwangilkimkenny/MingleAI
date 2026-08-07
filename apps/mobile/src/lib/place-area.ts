@@ -4,7 +4,13 @@
  */
 export type PlaceArea = { label: string; lat: number; lng: number };
 
-const KEY = "mingles.place-area";
+/** 용도별 저장 키 — 맛집 탭이 보는 동네와 데이트 약속 장소는 다를 수 있다. */
+export type AreaScope = "places" | "date";
+
+const KEYS: Record<AreaScope, string> = {
+  places: "mingles.place-area",
+  date: "mingles.date-area",
+};
 
 /** 저장소는 네이티브 모듈(expo-secure-store)에 붙어 있어 지연 로드한다 —
  *  순수 로직(parseArea)을 노드 테스트에서 그대로 부를 수 있도록. */
@@ -13,26 +19,27 @@ async function storage() {
   return mod.secureStorage;
 }
 
-let cache: PlaceArea | null = null;
+const cache = new Map<AreaScope, PlaceArea>();
 
 /** 저장된 지정 위치. 없으면 null(호출부가 현위치로 폴백). */
-export async function loadPlaceArea(): Promise<PlaceArea | null> {
-  if (cache) return cache;
-  const raw = await (await storage()).getItem(KEY);
+export async function loadPlaceArea(scope: AreaScope = "places"): Promise<PlaceArea | null> {
+  const hit = cache.get(scope);
+  if (hit) return hit;
+  const raw = await (await storage()).getItem(KEYS[scope]);
   if (!raw) return null;
   const parsed = parseArea(raw);
-  cache = parsed;
+  if (parsed) cache.set(scope, parsed);
   return parsed;
 }
 
-export async function savePlaceArea(area: PlaceArea): Promise<void> {
-  cache = area;
-  await (await storage()).setItem(KEY, JSON.stringify(area));
+export async function savePlaceArea(area: PlaceArea, scope: AreaScope = "places"): Promise<void> {
+  cache.set(scope, area);
+  await (await storage()).setItem(KEYS[scope], JSON.stringify(area));
 }
 
-export async function clearPlaceArea(): Promise<void> {
-  cache = null;
-  await (await storage()).removeItem(KEY);
+export async function clearPlaceArea(scope: AreaScope = "places"): Promise<void> {
+  cache.delete(scope);
+  await (await storage()).removeItem(KEYS[scope]);
 }
 
 /** 저장 문자열 → 위치. 형식이 깨졌으면 null(다음 저장 때 덮어쓴다). */

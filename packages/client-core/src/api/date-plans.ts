@@ -4,7 +4,8 @@ import { apiFetch } from "./client.js";
 export interface CreateDatePlanInput {
   matchId: string;
   budget: { total: number; currency?: string };
-  location: { city: string; district?: string; maxTravelMinutes?: number };
+  /** lat/lng를 주면 서버가 그 동네의 실제 가게로 코스를 채운다. */
+  location: { city: string; district?: string; maxTravelMinutes?: number; lat?: number; lng?: number };
   dateTime: { preferredDate: string; durationHours?: number };
   preferences?: { cuisineTypes?: string[]; activityTypes?: string[]; avoidTypes?: string[] };
 }

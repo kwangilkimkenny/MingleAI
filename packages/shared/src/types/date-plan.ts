@@ -7,6 +7,9 @@ export interface DateConstraints {
     city: string;
     district?: string;
     maxTravelMinutes: number;
+    /** 지도에서 고른 만날 지역의 좌표 — 있으면 코스에 실제 장소가 붙는다. */
+    lat?: number;
+    lng?: number;
   };
   dateTime: {
     preferredDate: string;
@@ -19,6 +22,17 @@ export interface DateConstraints {
   };
 }
 
+/** 코스 한 칸에 붙는 실제 가게 — 좌표가 주어졌을 때만 채워진다(네이버 지역검색). */
+export interface DateStopPlace {
+  name: string;
+  category: string;
+  address: string;
+  /** 네이버 지도 장소 페이지 — 예약·전화·길찾기가 붙어 있다. */
+  mapUrl: string;
+  lat: number;
+  lng: number;
+}
+
 export interface DateStop {
   order: number;
   type: string;
@@ -26,6 +40,8 @@ export interface DateStop {
   estimatedCost: number;
   estimatedMinutes: number;
   rationale: string;
+  /** 실제 가게. 없으면 name이 유형 예시(“아늑한 카페”)라는 뜻. */
+  place?: DateStopPlace;
 }
 
 export interface DateCourse {

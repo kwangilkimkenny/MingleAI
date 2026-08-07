@@ -4,7 +4,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SafetyService } from "../safety/safety.service";
 import { NotificationService } from "../notification/notification.service";
 import { CreateDatePlanDto } from "./dto/create-date-plan.dto";
-import type { DateCourse, DateStop, DateConstraints, DatePlanView } from "@mingle/shared";
+import type { DateCourse, DateStop, DateStopPlace, DateConstraints, DatePlanView } from "@mingle/shared";
+import { NaverSearchService, type NaverPlace } from "../naver/naver-search.service";
 
 interface VenueTemplate {
   type: string;
@@ -30,6 +31,18 @@ const COURSE_THEMES = [
   { label: "액티브 & 펀 데이트", types: ["activity", "restaurant", "bar"] },
 ];
 
+/** 코스 유형 → 네이버 지역검색어. 유형별로 한 번만 검색해 코스들이 나눠 쓴다. */
+const SEARCH_TERMS: Record<string, string> = {
+  cafe: "카페",
+  restaurant: "맛집",
+  walk: "공원",
+  museum: "미술관",
+  movie: "영화관",
+  concert: "공연장",
+  activity: "보드게임 카페",
+  bar: "와인바",
+};
+
 const RATIONALE_MAP: Record<string, string> = {
   cafe: "편안한 분위기에서 대화를 시작하기 좋습니다",
   restaurant: "함께 맛있는 식사를 즐기며 친밀감을 높일 수 있습니다",
@@ -48,6 +61,7 @@ export class DatePlanService {
     private prisma: PrismaService,
     private readonly safety: SafetyService,
     private readonly notifications: NotificationService,
+    private readonly naver: NaverSearchService,
   ) {}
 
   toView(plan: {
@@ -126,12 +140,30 @@ export class DatePlanService {
       throw new ForbiddenException("차단된 상대와는 데이트 플랜을 만들 수 없습니다");
     }
 
+    // 한 매치에 살아 있는 플랜은 하나만 둔다. 확정·완료된 계획은 함부로 지울 수 없고(상대와
+    // 합의된 약속이다), 아직 draft인 것은 "다시 추천받기"로 보고 조용히 정리한다.
+    const live = await this.prisma.datePlan.findMany({
+      where: { matchId: dto.matchId, status: { in: ["draft", "confirmed"] } },
+      select: { id: true, status: true },
+    });
+    if (live.some((p) => p.status === "confirmed")) {
+      throw new ConflictException("이미 확정된 데이트 계획이 있습니다");
+    }
+    if (live.length > 0) {
+      await this.prisma.datePlan.updateMany({
+        where: { id: { in: live.map((p) => p.id) } },
+        data: { status: "cancelled" },
+      });
+    }
+
     const constraints: DateConstraints = {
       budget: { total: dto.budget.total, currency: dto.budget.currency ?? "KRW" },
       location: {
         city: dto.location.city,
         district: dto.location.district,
         maxTravelMinutes: dto.location.maxTravelMinutes ?? 30,
+        lat: dto.location.lat,
+        lng: dto.location.lng,
       },
       dateTime: {
         preferredDate: dto.dateTime.preferredDate,
@@ -167,6 +199,9 @@ export class DatePlanService {
         totalEstimatedMinutes: 70,
       });
     }
+
+    // 좌표를 줬다면 각 칸을 그 동네의 실제 가게로 채운다 — 그래야 코스를 그대로 쓸 수 있다.
+    await this.attachRealPlaces(courses, constraints.location.lat, constraints.location.lng);
 
     const created = await this.prisma.datePlan.create({
       data: {
@@ -272,6 +307,68 @@ export class DatePlanService {
     }
   }
 
+  /**
+   * 코스의 각 칸에 실제 가게를 붙인다. 유형별로 한 번만 검색하고, 코스마다 다른 가게가 걸리도록
+   * 결과를 돌려 쓴다. 좌표가 없거나 네이버 키가 없으면 조용히 아무것도 하지 않는다 —
+   * 그때는 기존 유형 예시 이름("아늑한 카페")이 그대로 남는다.
+   */
+  private async attachRealPlaces(
+    courses: DateCourse[],
+    lat?: number,
+    lng?: number,
+  ): Promise<void> {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !this.naver.configured) return;
+    const types = [...new Set(courses.flatMap((c) => c.stops.map((s) => s.type)))];
+    if (types.length === 0) return;
+
+    let area: string | null = null;
+    try {
+      area = await this.naver.reverseArea(lat as number, lng as number);
+    } catch {
+      area = null;
+    }
+
+    const found = await Promise.all(
+      types.map(async (type) => {
+        const term = SEARCH_TERMS[type];
+        if (!term) return [type, [] as NaverPlace[]] as const;
+        try {
+          const query = area ? `${area} ${term}` : term;
+          return [type, await this.naver.searchLocal(query)] as const;
+        } catch (e) {
+          this.log.warn(`date-plan place lookup failed for ${type}: ${(e as Error).message}`);
+          return [type, [] as NaverPlace[]] as const;
+        }
+      }),
+    );
+    const byType = new Map(found);
+
+    // 코스 순서대로 후보를 하나씩 나눠 준다(같은 유형이 여러 코스에 있어도 다른 가게가 걸린다).
+    const cursor = new Map<string, number>();
+    for (const course of courses) {
+      // 한 코스 안에서 같은 가게가 두 번 나오면 코스가 아니다 — 유형이 달라도(카페/맛집 검색이
+      // 같은 가게를 주는 일이 있다) 이름이 겹치면 다음 후보로 넘긴다.
+      const usedHere = new Set<string>();
+      for (const stop of course.stops) {
+        const candidates = byType.get(stop.type) ?? [];
+        if (candidates.length === 0) continue;
+        const start = cursor.get(stop.type) ?? 0;
+        let picked: DateStopPlace | null = null;
+        for (let step = 0; step < candidates.length; step++) {
+          const cand = toStopPlace(candidates[(start + step) % candidates.length]);
+          if (!cand || usedHere.has(cand.name)) continue;
+          picked = cand;
+          cursor.set(stop.type, start + step + 1);
+          break;
+        }
+        if (!picked) continue;
+        usedHere.add(picked.name);
+        stop.place = picked;
+        stop.name = picked.name;
+      }
+    }
+  }
+
   private buildCourse(
     venueTypes: string[],
     budget: number,
@@ -309,4 +406,19 @@ export class DatePlanService {
 
     return stops;
   }
+}
+
+/** 네이버 지역검색 항목 → 코스에 실을 장소. 좌표가 없으면 지도에 못 찍으니 버린다. */
+function toStopPlace(p: NaverPlace): DateStopPlace | null {
+  const lat = Number(p.mapy) / 1e7;
+  const lng = Number(p.mapx) / 1e7;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return null;
+  return {
+    name: p.title,
+    category: p.category,
+    address: p.roadAddress || p.address,
+    mapUrl: `https://map.naver.com/p/search/${encodeURIComponent(p.title)}`,
+    lat,
+    lng,
+  };
 }
