@@ -1,41 +1,36 @@
-# mingles 출시 체크리스트 (2026-07-24 기준)
+# mingles 출시 체크리스트
 
-타깃: **내부 베타 우선**(EAS 빌드 → TestFlight·Google 내부테스트 → 실기기 검증 → 스토어 심사).
-아래 A는 완료(레포에서 검증됨), B는 **운영자만 할 수 있는 일**(계정·계약·인프라), C는 베타 공지용 알려진 한계.
+최종 갱신: 2026-08-07
+배포 전략: EAS preview → Android 내부 테스트/iOS TestFlight → 실기기 승인 → production 빌드 → 스토어 심사.
 
-## A. 완료 — 레포에서 검증됨
+상세 명령, 장애 대응, 데이터·권한 신고 기준은 [RELEASE-RUNBOOK.md](./RELEASE-RUNBOOK.md)를 따른다.
 
-- **품질 게이트**: production build·전체 테스트(backend 399+ / mobile 134 / client-core 80 / shared 41)·lint 경고 0 green.
-- **DB**: 마이그레이션 전부 작성·로컬 적용(위치 매칭 컬럼 포함). 배포 시 `prisma migrate deploy`만.
-- **핵심 루프 라이브 검증**: 6인(3:3) 매칭 → 스테이지 인트로("N라운드") → 3스테이지×3로테이션(랜덤 페어링) → 비공개 상호선택 → Match+DM → 채팅방. 1:1 모드(`SPEEDDATE_GROUP_PER_GENDER=1`)도 검증.
-- **미디어**: 웹 = LiveKit 실연동(FACE 카메라, DISGUISED 퍼블리셔측 피치 변조 — DSP 측정 검증). 네이티브 = `@livekit/react-native` 코드·플러그인·권한 완료(**동작 검증은 EAS dev build에서**, 런북 §7-3).
-- **인증**: 소셜 전용(카카오·네이버·구글 어댑터, 키만 꽂으면 됨) + 본인인증 어댑터 seam + refresh token 로테이션(+client-core 401 자동 갱신) + granular 동의 + 카메라·마이크 게이트.
-- **보안 기본기**: prod에서 dev-login·본인인증 bypass 강제 off, rate limit(전역+auth 강화), CORS allowlist env, 피어 프로젝션 리댁션(실명·연락처 비노출), 신고·차단.
-- **운영도구**: 관리자 로그인 + 신고 모더레이션 웹(목록·상세·기각/경고/정지·복구) — 심사 시 UGC 모더레이션 체계 근거.
-- **정책 페이지**: 웹 `privacy`·`terms`·`account-deletion` 라우트 존재(⚠️ 내용은 법무 검토 필요 — 초안 상태).
-- **빌드 설정**: `apps/mobile/eas.json`(development/preview/production), app.json 번들ID(`com.mingles.app`)·카메라/마이크/사진/위치 권한 문구·다크 스플래시·어댑티브 아이콘.
-- **env 문서**: `apps/backend/.env.example`(전 키·기본값·[PROD] 표기), `apps/mobile/.env.example`.
+## 저장소에서 자동 검증되는 항목
 
-## B. 운영자 체크리스트 — 순서대로
+- `pnpm release:check`: production 의존성 audit, lint, 전체 test, 전체 build, 모바일 출시 설정·병합 권한 검사.
+- GitHub `Release gate`: `megahuni` push 및 PR마다 위 품질 게이트, 깨끗한 Postgres에 `prisma migrate deploy/status`, Android JS export, secret scan 실행.
+- EAS preview/production: EAS Environment에서 변수를 읽으며 저장소에 운영 URL을 하드코딩하지 않는다.
+- EAS production: 원격 서명 자격증명과 Android App Bundle을 사용하고, submit은 먼저 Google Play `internal` 트랙으로 제한한다.
+- 출시 환경 검증: HTTPS 공개 API URL과 최소 1개 소셜 로그인 Client ID가 없으면 EAS 빌드가 시작 단계에서 실패한다.
+- 권한 최소화: Android 화면 오버레이·광범위 외부 저장소 권한 차단, iOS 임의 HTTP 허용 차단, 사용하지 않는 상시 위치·동작·Face ID 설명 제거.
 
-1. **EAS 계정 연결**: `npx eas-cli login` → `cd apps/mobile && npx eas-cli init` (projectId 발급 — push 알림에도 필수).
-2. **개발자 계정**: Apple Developer Program($99/년), Google Play Console($25 1회).
-3. **EAS dev build + 실기기 E2E**: `npx eas-cli build --profile development --platform ios`(및 android) → 실기기 2대로 런북 `docs/qa/2026-07-22-blind-speed-date-runbook.md` §4-3·§7 절차(네이티브 카메라/음성 첫 실검증 지점).
-4. **소셜 로그인 실키**(상세 절차 = `docs/SOCIAL-LOGIN.md` — 콘솔 입력값·redirect URI·리스크 포함): 카카오·네이버·구글 개발자 콘솔에서 앱 생성 + redirect URI 등록 → backend `KAKAO/NAVER/GOOGLE_CLIENT_ID/SECRET`, 모바일 `EXPO_PUBLIC_*_CLIENT_ID`.
-5. **본인인증 실계약**: PASS/포트원 등 본인확인 서비스 계약 → `auth/identity` 어댑터 seam에 실装(현재 `IDENTITY_DEV_BYPASS` 스텁). **데이팅 앱 특성상 심사·법무 관점 필수.**
-6. **인프라**:
-   - backend 호스팅 + Postgres + Redis(다중 인스턴스 시 socket.io redis-adapter 작업 필요 — 현재 단일 인스턴스 전제)
-   - LiveKit: **LiveKit Cloud 권장**(자체 호스팅 대비 간단) → `LIVEKIT_URL/API_KEY/API_SECRET`
-   - 도메인 + HTTPS, `PUBLIC_BASE_URL`, `SOCKET_CORS_ORIGINS`, `JWT_SECRET` 강한 값 교체
-   - 업로드 스토리지: 현재 로컬 디스크(`uploads/`) — 규모 전 S3 계열 검토
-7. **eas.json** preview/production의 `EXPO_PUBLIC_API_URL`을 실 API 도메인으로 교체.
-8. **관리자 계정**: `ADMIN_EMAIL` + `ADMIN_PASSWORD_HASH`(생성: `node -e "console.log(require('bcrypt').hashSync(process.argv[1],10))" '비밀번호'`).
-9. **스토어 제출물**: 스크린샷(6.7"/6.1"/태블릿), 앱 설명, 연령 등급(데이팅 = 17+/18+), 개인정보처리방침 URL(웹 privacy 페이지 배포 후 URL — **법무 검토 후**), 데이팅 카테고리 심사 요건(UGC 신고·차단·모더레이션 운영 정책 설명 — A의 운영도구가 근거).
-10. **베타 배포**: `eas build --profile preview` → TestFlight/내부 테스트 트랙 → 피드백 사이클 → `--profile production` + 심사 제출.
+## 출시 전 운영자가 완료해야 하는 항목
 
-## C. 알려진 베타 한계 (테스터 공지용)
+- [ ] EAS `preview`, `production` 환경 변수 등록 및 `eas env:list` 결과 확인.
+- [ ] 운영 backend, Postgres, Redis, LiveKit, HTTPS 도메인과 업로드 영속 스토리지 준비.
+- [ ] 운영 DB 백업 후 같은 커밋에서 `prisma migrate status`와 `prisma migrate deploy` 성공.
+- [ ] 카카오·네이버·구글 중 실제 제공할 로그인 콘솔/redirect URI와 backend·mobile Client ID 일치 확인.
+- [ ] 실 본인확인 사업자 연동. `IDENTITY_DEV_BYPASS`는 production에서 사용할 수 없다.
+- [ ] preview 빌드를 최소 Android 1대/iPhone 1대에 설치해 가입→본인확인→매칭→3개 라운드→상호선택→채팅→신고/차단→탈퇴를 검증.
+- [ ] LiveKit 카메라·마이크, 블루투스 장치 전환, 백그라운드/복귀, 권한 거부·재허용을 실기기에서 검증.
+- [ ] 개인정보 처리방침·이용약관의 사업자명, 연락처, 위탁사, 국외 이전, 보유기간을 법무 검토 후 공개 URL로 배포.
+- [ ] Google Play Data safety/App Store Privacy 답변을 실제 운영 데이터 흐름과 대조하고 심사 제출물 준비.
+- [ ] 오류 로그·가용성·5xx·DB·Redis·LiveKit 알림 수신자와 롤백 담당자를 지정한 뒤 모의 롤백 수행.
+- [ ] 서명된 `.aab`/`.ipa`를 내부 트랙에 올리고 설치 가능한 빌드 번호와 Git SHA를 기록.
 
-- **네이티브 가면 라운드(1라운드) = 음소거**: RN에 Web Audio가 없어 실변조 불가 → 원음 유출 대신 음소거로 가면 약속 유지(웹은 실변조). Phase E(네이티브 DSP 스파이크)가 해소 예정.
-- 단일 서버 인스턴스 전제(매칭 sweep·게이트웨이 인메모리 상태) — 스케일아웃 전 redis-adapter 필요.
-- 파티 게임("AI를 찾아라")·프로포즈는 2026-08-06 코드에서 **완전 삭제**(사용자 결정) — 로테이션 블라인드 데이트가 유일 루프.
-- 네이버 지도는 네이티브 빌드 필요(웹 프리뷰는 OSM 대체 지도). **실지도 인증 키 = NCP 콘솔의 Maps Key ID를 `apps/mobile/app.json`의 `@mj-studio/react-native-naver-map` plugin `client_id`에 입력 후 재빌드**(현재 빈 값 — 빌드는 되고 지도 인증만 대기).
+## 알려진 출시 제약
+
+- 네이티브 가면 라운드는 원음 유출 방지를 위해 음소거된다. 웹만 퍼블리셔 측 음성 변조를 제공한다.
+- 매칭 sweep과 일부 gateway 상태가 단일 서버 인스턴스를 전제로 한다. 다중 인스턴스 전에는 Socket.IO Redis adapter와 분산 작업 소유권이 필요하다.
+- 업로드가 로컬 디스크이면 재배포/스케일아웃 때 손실될 수 있으므로 production은 영속 볼륨 또는 객체 스토리지를 사용해야 한다.
+- 정책 페이지의 문구는 제품 초안이며 법률 자문을 대체하지 않는다.

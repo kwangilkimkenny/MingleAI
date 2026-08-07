@@ -57,6 +57,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "eas-build-pre-install": "node tools/validate-release-env.mjs",
+    "release:permissions": "expo config --type introspect --json | node tools/validate-native-permissions.mjs",
+    "release:validate": "node --test tools/release-env.test.mjs && node tools/validate-release-config.mjs && pnpm release:permissions",
     "test": "vitest run",
     "test:watch": "vitest"
   },
