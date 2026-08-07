@@ -1,7 +1,7 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { View, Text, Pressable, StyleSheet, Switch, Platform } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { Ban, Bell, ChevronRight, LogOut, FileText, Trash2 } from "lucide-react-native";
+import { Ban, Bell, ChevronRight, LogOut, FileText } from "lucide-react-native";
 import { logoutSession, getMyProfile, getPushEnabled, setPushEnabled } from "@mingle/client-core";
 
 type MyProfile = Awaited<ReturnType<typeof getMyProfile>>;
@@ -105,9 +105,20 @@ export default function SettingsScreen() {
       <Section label="계정">
         <Row icon={<FileText color={dark.text} size={19} strokeWidth={1.6} />} title="이용약관" onPress={() => router.push("/terms")} />
         <Row icon={<FileText color={dark.text} size={19} strokeWidth={1.6} />} title="개인정보 처리 안내" onPress={() => router.push("/privacy")} />
-        <Row icon={<LogOut color={dark.danger} size={19} strokeWidth={1.6} />} title="로그아웃" danger noChevron onPress={() => setLogoutOpen(true)} />
-        <Row icon={<Trash2 color={dark.danger} size={19} strokeWidth={1.6} />} title="계정 삭제" danger last onPress={() => router.push("/(app)/delete-account")} />
+        <Row icon={<LogOut color={dark.danger} size={19} strokeWidth={1.6} />} title="로그아웃" danger last noChevron onPress={() => setLogoutOpen(true)} />
       </Section>
+
+      {/* 회원탈퇴는 다른 앱들처럼 맨 아래 작은 글씨로 — 실수로 누르기 어렵게 두되 숨기지는 않는다
+          (전자상거래법상 가입만큼 쉬운 해지 경로가 있어야 한다). */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="회원탈퇴"
+        hitSlop={8}
+        onPress={() => router.push("/(app)/delete-account")}
+        style={({ pressed }) => [styles.withdraw, pressed && { opacity: 0.6 }]}
+      >
+        <Text style={styles.withdrawText}>회원탈퇴</Text>
+      </Pressable>
 
       <ConfirmDialog
         dark
@@ -194,4 +205,10 @@ const styles = StyleSheet.create({
   rowIcon: { width: 22, alignItems: "center" },
   rowTitle: { flex: 1, fontFamily: serifFont, fontSize: 15, color: dark.text },
   rowNote: { ...type.caption, color: dark.textMuted, paddingTop: space.x2 },
+  withdraw: { alignSelf: "center", marginTop: space.x8, paddingVertical: space.x2, paddingHorizontal: space.x4 },
+  withdrawText: {
+    ...type.caption,
+    color: dark.textMuted,
+    textDecorationLine: "underline",
+  },
 });

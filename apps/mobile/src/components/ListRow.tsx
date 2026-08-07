@@ -27,7 +27,7 @@ export function ListRow({
   accessibilityLabel?: string;
   /** Horizontal inset. Default = screen gutter (full-bleed lists); pass 0 inside a card. */
   gutter?: number;
-  /** "danger" tints the title crimson (destructive rows — 계정 삭제 등). */
+  /** "danger" tints the title crimson (destructive rows — 차단 해제 등). */
   tone?: "default" | "danger";
   /** 홈 테마 다크 화면용 행. */
   dark?: boolean;

@@ -83,7 +83,7 @@ export default function AppLayout() {
       <Stack.Screen name="speed-date/[id]" options={{ title: "블라인드 데이트" }} />
       <Stack.Screen name="blocks" options={{ title: "차단 목록" }} />
       <Stack.Screen name="place-area" options={{ title: "위치 지정" }} />
-      <Stack.Screen name="delete-account" options={{ title: "계정 삭제" }} />
+      <Stack.Screen name="delete-account" options={{ title: "회원탈퇴" }} />
       <Stack.Screen name="chat/[roomId]" options={{ title: "채팅" }} />
       <Stack.Screen name="date-plan/[matchId]" options={{ title: "데이트 플랜" }} />
       <Stack.Screen name="report/[profileId]" options={{ title: "신고" }} />

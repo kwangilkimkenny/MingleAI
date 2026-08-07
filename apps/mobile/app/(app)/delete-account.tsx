@@ -23,7 +23,7 @@ export default function DeleteAccountScreen() {
       logout();
       router.replace("/login");
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.message : "계정을 삭제하지 못했어요.");
+      setError(reason instanceof ApiError ? reason.message : "탈퇴 처리를 하지 못했어요.");
     } finally {
       setBusy(false);
     }
@@ -33,10 +33,10 @@ export default function DeleteAccountScreen() {
     <AppScreen
       tone="dark"
       keyboardAware
-      header={{ back: true, title: "계정 삭제" }}
+      header={{ back: true, title: "회원탈퇴" }}
       footer={
         <DoodleButton
-          title={busy ? "삭제 중…" : "계정 영구 삭제"}
+          title={busy ? "처리 중…" : "회원탈퇴"}
           onPress={submit}
           disabled={busy || confirmation.trim() !== "탈퇴"}
           variant="dangerSolid"
@@ -47,7 +47,7 @@ export default function DeleteAccountScreen() {
     >
       <View style={styles.form}>
         <InlineNotice tone="error" dark>
-          삭제 후에는 복구할 수 없어요. 프로필, 매칭, 채팅, 데이트 계획과 소개팅 참여 기록이 계정과 함께 삭제됩니다.
+          탈퇴하면 되돌릴 수 없어요. 프로필, 매칭, 채팅, 데이트 계획과 소개팅 참여 기록이 계정과 함께 삭제됩니다.
         </InlineNotice>
         <LabeledInput
           label="확인 문구"
