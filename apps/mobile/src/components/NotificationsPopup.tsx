@@ -12,6 +12,7 @@ import { getNotifications, markNotificationRead, type AppNotification } from "@m
 import { EnterRow } from "./Motion";
 import { ListRow, RowSeparator } from "./ListRow";
 import { StateView } from "./Foundation";
+import { notificationRowAppearance } from "../lib/notification-appearance";
 import { dark, space } from "../lib/theme";
 
 const ListSep = () => <RowSeparator gutter={0} dark />;
@@ -134,7 +135,7 @@ export function NotificationsPopup({
                 renderItem={({ item, index }) =>
                   item ? (
                     <EnterRow index={index}>
-                      <View style={item.read ? styles.readRow : styles.unreadRow}>
+                      <View style={notificationRowAppearance(item.read)}>
                         <ListRow
                           dark
                           title={item.title}
@@ -190,9 +191,6 @@ const styles = StyleSheet.create({
   listContent: { flexGrow: 1 },
   // 빈 슬롯 — 공지가 아직 없는 칸. 알림 행과 같은 높이로 두어 리스트 구조가 보인다.
   emptySlot: { minHeight: 62 },
-  // 안읽음 = 밝게(풀 크림 + 살짝 밝은 서피스로 강조). 읽음 = 진하게(딤 처리로 배경에 가라앉음).
-  unreadRow: { backgroundColor: dark.surfaceHi },
-  readRow: { opacity: 0.45 },
   // 트레일링 슬롯 폭을 고정해 읽음/안읽음 행의 제목 정렬을 맞춘다(읽음=빈 슬롯).
   dotSlot: { width: 10, alignItems: "center", justifyContent: "center" },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: dark.accent },
