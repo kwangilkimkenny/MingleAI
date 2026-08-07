@@ -386,8 +386,9 @@ async function main() {
     {
       id: "mobile-qa-notification-reminder",
       type: "system",
-      title: "오늘의 로테이션",
-      message: "오늘 오후 8시, 온라인 로테이션이 시작돼요.",
+      // 시더 문구도 실제 동작과 맞아야 한다 — 정해진 시작 시각은 없다(6명 모이면 열린다).
+      title: "로테이션 안내",
+      message: "남녀 3명씩 모이면 자리가 열려요. 지금 매칭을 시작해 보세요.",
       data: null,
       minutesAgo: 8,
     },

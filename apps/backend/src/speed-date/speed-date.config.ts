@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { SpeedDateStage } from "@mingle/shared";
 
@@ -38,6 +38,7 @@ function boolOr(raw: string | undefined, def: boolean): boolean {
 
 @Injectable()
 export class SpeedDateConfigProvider {
+  private readonly log = new Logger(SpeedDateConfigProvider.name);
   readonly value: SpeedDateConfig;
   constructor(config: ConfigService) {
     // Full 3-stage reveal (DISGUISED→VOICE→FACE) is the product; slice down via env for dev/testing.
@@ -55,7 +56,7 @@ export class SpeedDateConfigProvider {
       sweepMs: intOr(config.get("SPEEDDATE_SWEEP_MS"), 2500, { min: 250 }),
       maxWaitMs: intOr(config.get("SPEEDDATE_MAX_WAIT_MS"), 120000, { min: 1000 }),
       baseThreshold: floatUnit(config.get("SPEEDDATE_BASE_THRESHOLD"), 0.4),
-      aiFill: boolOr(config.get("SPEEDDATE_AI_FILL"), false),
+      aiFill: resolveAiFill(config, (m) => this.log.error(m)),
       livekit: {
         url: config.get<string>("LIVEKIT_URL") ?? "",
         apiKey: config.get<string>("LIVEKIT_API_KEY") ?? "",
@@ -63,4 +64,24 @@ export class SpeedDateConfigProvider {
       },
     };
   }
+}
+
+/**
+ * AI 슬롯 채움은 **개발 전용**이다. 켜지면 사람과 구분되지 않는 참가자가 세션에 섞이는데,
+ * 사용자는 상대가 사람이라고 믿는다(게다가 그 참가자는 말을 하지 못한다). 운영에서 켜지는
+ * 사고를 막으려고 `dev-login`과 같은 방식으로 production에서는 env를 무시하고 끈다.
+ */
+export function resolveAiFill(
+  config: { get(key: string): string | undefined },
+  onForcedOff: (message: string) => void = () => {},
+): boolean {
+  const requested = boolOr(config.get("SPEEDDATE_AI_FILL"), false);
+  const isProduction = (config.get("NODE_ENV") ?? process.env.NODE_ENV) === "production";
+  if (requested && isProduction) {
+    onForcedOff(
+      "SPEEDDATE_AI_FILL=true는 production에서 무시됩니다 — AI 참가자를 실제 사용자와 섞지 않습니다.",
+    );
+    return false;
+  }
+  return requested;
 }

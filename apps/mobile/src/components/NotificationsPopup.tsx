@@ -18,8 +18,6 @@ const ListSep = () => <RowSeparator gutter={0} dark />;
 
 /** 최소 슬롯 수 — 공지가 없어도 빈 칸이 구분선으로 나뉜 리스트 UI가 보이도록. */
 const MIN_SLOTS = 8;
-/** 클라 기본 환영 공지의 고정 id. */
-const WELCOME_ID = "__welcome__";
 
 export function NotificationsPopup({
   visible,
@@ -34,8 +32,6 @@ export function NotificationsPopup({
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
-  // 기본 환영 공지 — 백엔드 행이 아니라 클라 기본 항목. 읽음 상태만 로컬로 추적.
-  const [welcomeRead, setWelcomeRead] = useState(false);
 
   const load = useCallback(() => {
     let alive = true;
@@ -62,9 +58,7 @@ export function NotificationsPopup({
   }, [visible, load]);
 
   function onTapItem(n: AppNotification) {
-    if (n.id === WELCOME_ID) {
-      setWelcomeRead(true);
-    } else if (!n.read) {
+    if (!n.read) {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       markNotificationRead(n.id)
         .then(() => onChanged?.())
@@ -80,20 +74,11 @@ export function NotificationsPopup({
     });
   }
 
-  // 기본 환영 공지(맨 아래) + 실제 공지(위) + 빈 슬롯 패딩. 구분선으로 나뉜 리스트에 위부터 찬다.
-  const welcome: AppNotification = {
-    id: WELCOME_ID,
-    type: "system",
-    title: "환영해요!",
-    message: "mingles에 오신 걸 환영해요. 로테이션 블라인드 소개팅으로 인연을 만나보세요.",
-    data: null,
-    read: welcomeRead,
-    createdAt: "",
-  };
-  const feed = [...items, welcome];
+  // 서버가 준 공지만 목록에 올린다. 클라가 만든 "환영해요" 항목을 섞으면 운영 공지처럼
+  // 보이는데 실제로는 아무도 보낸 적이 없다(가짜 정보 감사 2026-08-07).
   const rows: (AppNotification | null)[] = [
-    ...feed,
-    ...Array(Math.max(0, MIN_SLOTS - feed.length)).fill(null),
+    ...items,
+    ...Array(Math.max(0, MIN_SLOTS - items.length)).fill(null),
   ];
 
   return (
@@ -134,6 +119,11 @@ export function NotificationsPopup({
             </View>
           ) : (
             <View style={styles.content}>
+              {items.length === 0 ? (
+                <View style={styles.stateWrap}>
+                  <StateView title="아직 도착한 알림이 없어요" dark />
+                </View>
+              ) : null}
               {/* 고정 슬롯 리스트 — 빈 칸이 구분선으로 나뉘어 보이고, 공지가 오면 위부터 하나씩 찬다. */}
               <FlatList
                 style={styles.list}
@@ -174,11 +164,11 @@ export function NotificationsPopup({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(10,7,5,0.55)" },
+  root: { flex: 1, justifyContent: "flex-end", backgroundColor: dark.scrim },
   panel: {
     // 고정 % 높이 — auto+maxHeight 조합은 빈/로딩 상태 콘텐츠를 화면 밖으로 밀어냈다(QA 2026-07-27).
     height: "62%",
-    backgroundColor: "rgba(26,20,15,0.99)",
+    backgroundColor: dark.surfaceTop,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     borderTopWidth: 1,
