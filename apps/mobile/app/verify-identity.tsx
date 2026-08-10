@@ -10,6 +10,7 @@ import { DoodleButton } from "../src/components/Doodle";
 import { AppScreen } from "../src/components/AppScreen";
 import { InlineNotice, LabeledInput, StateView } from "../src/components/Foundation";
 import { dark, space, type } from "../src/lib/theme";
+import { resolveIdentityVerificationMode } from "../src/lib/identity-verification-mode";
 
 type Mode = "loading" | "dev" | "unavailable";
 
@@ -27,7 +28,7 @@ export default function VerifyIdentity() {
     startIdentityVerification()
       .then((r) => {
         if (!alive) return;
-        setMode(r.mode === "dev" && __DEV__ ? "dev" : "unavailable");
+        setMode(resolveIdentityVerificationMode(r.mode, __DEV__));
       })
       .catch(() => alive && setMode("unavailable"));
     return () => {
