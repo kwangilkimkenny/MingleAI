@@ -66,7 +66,7 @@ export default function Permissions() {
           <Row
             icon={<Mic color={dark.accent} size={20} strokeWidth={1.75} />}
             title="마이크"
-            body="모든 대화의 음성에 사용해요."
+            body="스피드데이트 통화 중, 음성을 전송할 때만 사용해요."
           />
         </DoodleCard>
 
@@ -80,7 +80,7 @@ export default function Permissions() {
           </InlineNotice>
         ) : null}
 
-        <Text style={styles.note}>권한을 허용해야 소개팅을 시작할 수 있어요.</Text>
+        <Text style={styles.note}>권한은 소개팅을 시작할 때만 필요하며, 설정에서 언제든 변경할 수 있어요.</Text>
       </View>
     </AppScreen>
   );

@@ -26,6 +26,7 @@ import { DevLoginDto } from "./dto/dev-login.dto";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import { ConsentDto } from "./dto/consent.dto";
 import { IdentityCompleteDto } from "./dto/identity-complete.dto";
+import { IdentityProviderCompleteDto } from "./dto/identity-provider-complete.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CurrentUser, type JwtPayload } from "../common/decorators/current-user.decorator";
@@ -136,13 +137,22 @@ export class AuthController {
 
   @Post("identity/start")
   @UseGuards(JwtAuthGuard)
-  startIdentity() {
-    return this.identity.start();
+  startIdentity(@CurrentUser() user: JwtPayload) {
+    return this.identity.start(user.userId);
   }
 
   @Post("identity/complete")
   @UseGuards(JwtAuthGuard)
   completeIdentity(@CurrentUser() user: JwtPayload, @Body() dto: IdentityCompleteDto) {
     return this.identity.complete(user.userId, dto);
+  }
+
+  @Post("identity/complete-provider")
+  @UseGuards(JwtAuthGuard)
+  completeProviderIdentity(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: IdentityProviderCompleteDto,
+  ) {
+    return this.identity.completePortOne(user.userId, dto.identityVerificationId);
   }
 }

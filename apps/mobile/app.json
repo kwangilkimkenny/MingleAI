@@ -51,6 +51,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/with-compatible-gradle",
       "expo-router",
       [
         "expo-splash-screen",
@@ -86,6 +87,7 @@
         }
       ],
       "@livekit/react-native-expo-plugin",
+      "@portone/react-native-sdk/plugin",
       [
         "@config-plugins/react-native-webrtc",
         {

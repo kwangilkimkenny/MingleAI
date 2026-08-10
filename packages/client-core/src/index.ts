@@ -22,11 +22,12 @@ export {
   submitConsents,
   startIdentityVerification,
   completeIdentityVerification,
+  completeProviderIdentityVerification,
   refreshSession,
   logoutSession,
   deleteAccount,
 } from "./api/auth.js";
-export type { AuthResponse, IdentityPayload } from "./api/auth.js";
+export type { AuthResponse, IdentityPayload, IdentityVerificationStart } from "./api/auth.js";
 export {
   REQUIRED_CONSENTS,
   CONSENT_VERSION,

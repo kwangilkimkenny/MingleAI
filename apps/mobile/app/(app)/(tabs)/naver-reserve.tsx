@@ -197,14 +197,24 @@ export default function NaverReserve() {
 
   if (phase === "unconfigured") {
     return (
-      <AppScreen tabScreen tone="dark" body="plain">
+      <AppScreen
+        tabScreen
+        tone="dark"
+        body="plain"
+        header={{ title: "데이트 장소", description: "만나기 좋은 곳을 찾고 예약까지 이어가요" }}
+      >
         <StateView title="준비 중이에요" body="곧 근처 맛집을 지도에서 찾고 바로 예약할 수 있게 돼요." dark />
       </AppScreen>
     );
   }
   if (phase === "error") {
     return (
-      <AppScreen tabScreen tone="dark" body="plain">
+      <AppScreen
+        tabScreen
+        tone="dark"
+        body="plain"
+        header={{ title: "데이트 장소", description: "만나기 좋은 곳을 찾고 예약까지 이어가요" }}
+      >
         <StateView
           title="맛집을 불러오지 못했어요"
           actionLabel="다시 시도"
@@ -216,7 +226,12 @@ export default function NaverReserve() {
   }
 
   return (
-    <AppScreen tabScreen tone="dark" body="plain">
+    <AppScreen
+      tabScreen
+      tone="dark"
+      body="plain"
+      header={{ title: "데이트 장소", description: "만나기 좋은 곳을 찾고 예약까지 이어가요" }}
+    >
       {/* 검색 바 — 맛집 앱의 첫 줄. 가게 이름으로 바로 찾는다. */}
       <View style={styles.searchBar}>
         <Search color={dark.textMuted} size={18} strokeWidth={1.75} />

@@ -1,0 +1,137 @@
+diff --git a/android/src/main/java/com/livekit/reactnative/LivekitReactNativeModule.kt b/android/src/main/java/com/livekit/reactnative/LivekitReactNativeModule.kt
+index f78e72896c2acc6ff60a44b1d330c17fd9fc0931..d0843dda15cb337fc651f33e97f0c8cd580291ea 100644
+--- a/android/src/main/java/com/livekit/reactnative/LivekitReactNativeModule.kt
++++ b/android/src/main/java/com/livekit/reactnative/LivekitReactNativeModule.kt
+@@ -17,6 +17,7 @@ import com.livekit.reactnative.audio.processing.AudioSinkManager
+ import com.livekit.reactnative.audio.processing.AudioSinkProcessor
+ import com.livekit.reactnative.audio.processing.MultibandVolumeProcessor
+ import com.livekit.reactnative.audio.processing.VolumeProcessor
++import com.livekit.reactnative.audio.processing.VoiceDisguiseProcessor
+ import com.oney.WebRTCModule.WebRTCModuleOptions
+ import org.webrtc.audio.WebRtcAudioTrackHelper
+ import java.lang.Thread.sleep
+@@ -31,6 +32,7 @@ class LivekitReactNativeModule(reactContext: ReactApplicationContext) : ReactCon
+ 
+     val audioSinkManager = AudioSinkManager(reactContext)
+     val audioManager = AudioSwitchManager(reactContext.applicationContext)
++    private val voiceDisguiseProcessor = VoiceDisguiseProcessor()
+     override fun getName(): String {
+         return "LivekitReactNativeModule"
+     }
+@@ -126,6 +128,25 @@ class LivekitReactNativeModule(reactContext: ReactApplicationContext) : ReactCon
+         audioManager.stop()
+     }
+ 
++    /**
++     * Installs publisher-side PCM processing before WebRTC encoding. A failed install rejects the
++     * promise so callers can keep the microphone unpublished (privacy fail-closed).
++     */
++    @ReactMethod
++    fun setVoiceDisguiseEnabled(enabled: Boolean, promise: Promise) {
++        try {
++            val controller = LiveKitReactNative.audioProcessingController
++            if (controller.capturePostProcessor !== voiceDisguiseProcessor) {
++                controller.capturePostProcessor = voiceDisguiseProcessor
++            }
++            voiceDisguiseProcessor.enabled = enabled
++            controller.bypassCapturePostProcessing = !enabled
++            promise.resolve(true)
++        } catch (error: Throwable) {
++            promise.reject("VOICE_DISGUISE_UNAVAILABLE", "Voice disguise processor is unavailable", error)
++        }
++    }
++
+     @ReactMethod
+     fun getAudioOutputs(promise: Promise) {
+         val deviceIds = audioManager.availableAudioDevices()
+diff --git a/android/src/main/java/com/livekit/reactnative/audio/processing/VoiceDisguiseProcessor.kt b/android/src/main/java/com/livekit/reactnative/audio/processing/VoiceDisguiseProcessor.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..e53e0675873e39c6c51b469553631d154e60421f
+--- /dev/null
++++ b/android/src/main/java/com/livekit/reactnative/audio/processing/VoiceDisguiseProcessor.kt
+@@ -0,0 +1,85 @@
++package com.livekit.reactnative.audio.processing
++
++import java.nio.ByteBuffer
++import java.nio.ByteOrder
++import kotlin.math.floor
++
++/**
++ * Lightweight publisher-side granular pitch shifter. WebRTC gives this processor 10 ms planar
++ * float PCM frames; two cross-faded circular-buffer taps change pitch without changing packet
++ * duration. The short warm-up is intentionally silent so raw speech is never exposed while the
++ * disguise buffer is being primed.
++ */
++class VoiceDisguiseProcessor : AudioProcessorInterface {
++    @Volatile
++    var enabled: Boolean = false
++        set(value) {
++            if (value && !field) resetState()
++            field = value
++        }
++
++    private var ring = FloatArray(8192)
++    private var writePosition = 0
++    private var readPosition = 0.0
++    private var filled = 0
++    private var sampleRate = 48_000
++    private val pitchRatio = 0.72
++
++    override fun isEnabled(): Boolean = enabled
++
++    override fun getName(): String = "mingles-voice-disguise"
++
++    override fun initializeAudioProcessing(sampleRateHz: Int, numChannels: Int) {
++        sampleRate = sampleRateHz
++        val required = (sampleRateHz * numChannels.coerceAtLeast(1) / 6).coerceAtLeast(2048)
++        var capacity = 1
++        while (capacity < required) capacity = capacity shl 1
++        ring = FloatArray(capacity)
++        resetState()
++    }
++
++    override fun resetAudioProcessing(newRate: Int) {
++        initializeAudioProcessing(newRate, 1)
++    }
++
++    override fun processAudio(numBands: Int, numFrames: Int, buffer: ByteBuffer) {
++        if (!enabled) return
++        val floatBuffer = buffer.order(ByteOrder.nativeOrder()).asFloatBuffer()
++        val sampleCount = minOf(floatBuffer.remaining(), numBands.coerceAtLeast(1) * numFrames)
++        val grain = ring.size / 2
++
++        for (index in 0 until sampleCount) {
++            val input = floatBuffer.get(index)
++            ring[writePosition] = input
++            writePosition = (writePosition + 1) % ring.size
++            if (filled < grain) filled++
++
++            if (filled < grain) {
++                floatBuffer.put(index, 0f)
++                continue
++            }
++
++            val first = interpolate(readPosition)
++            val secondPosition = (readPosition + grain) % ring.size
++            val second = interpolate(secondPosition)
++            val phase = ((readPosition % grain) / grain).toFloat()
++            floatBuffer.put(index, (first * phase + second * (1f - phase)).coerceIn(-1f, 1f))
++            readPosition += pitchRatio
++            if (readPosition >= ring.size) readPosition -= ring.size
++        }
++    }
++
++    private fun interpolate(position: Double): Float {
++        val base = floor(position).toInt() % ring.size
++        val next = (base + 1) % ring.size
++        val fraction = (position - floor(position)).toFloat()
++        return ring[base] * (1f - fraction) + ring[next] * fraction
++    }
++
++    private fun resetState() {
++        ring.fill(0f)
++        writePosition = 0
++        readPosition = 0.0
++        filled = 0
++    }
++}

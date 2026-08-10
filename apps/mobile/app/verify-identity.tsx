@@ -4,18 +4,25 @@ import { router } from "expo-router";
 import {
   startIdentityVerification,
   completeIdentityVerification,
+  completeProviderIdentityVerification,
   ApiError,
+  type IdentityVerificationStart,
 } from "@mingle/client-core";
+import { IdentityVerification } from "@portone/react-native-sdk";
+import type { IdentityVerificationResponse } from "@portone/browser-sdk/v2";
 import { DoodleButton } from "../src/components/Doodle";
 import { AppScreen } from "../src/components/AppScreen";
 import { InlineNotice, LabeledInput, StateView } from "../src/components/Foundation";
 import { dark, space, type } from "../src/lib/theme";
 import { resolveIdentityVerificationMode } from "../src/lib/identity-verification-mode";
 
-type Mode = "loading" | "dev" | "unavailable";
+type Mode = "loading" | "dev" | "portone" | "unavailable";
 
 export default function VerifyIdentity() {
   const [mode, setMode] = useState<Mode>("loading");
+  const [providerRequest, setProviderRequest] = useState<
+    Extract<IdentityVerificationStart, { mode: "portone" }> | null
+  >(null);
   const [name, setName] = useState("");
   const [birth, setBirth] = useState("");
   const [gender, setGender] = useState<"male" | "female" | null>(null);
@@ -28,6 +35,7 @@ export default function VerifyIdentity() {
     startIdentityVerification()
       .then((r) => {
         if (!alive) return;
+        if (r.mode === "portone") setProviderRequest(r);
         setMode(resolveIdentityVerificationMode(r.mode, __DEV__));
       })
       .catch(() => alive && setMode("unavailable"));
@@ -53,6 +61,27 @@ export default function VerifyIdentity() {
     }
   }
 
+  async function onProviderComplete(response: IdentityVerificationResponse) {
+    if (!providerRequest) return;
+    if (response.code) {
+      setError(response.message ?? "본인인증을 완료하지 못했어요.");
+      return;
+    }
+    if (response.identityVerificationId !== providerRequest.identityVerificationId) {
+      setError("인증 요청 정보가 일치하지 않아요. 다시 시도해 주세요.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await completeProviderIdentityVerification(response.identityVerificationId);
+      router.replace("/home");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "인증 결과를 확인하지 못했어요.");
+      setBusy(false);
+    }
+  }
+
   if (mode === "loading") {
     return (
       <AppScreen body="plain" tone="dark">
@@ -73,6 +102,44 @@ export default function VerifyIdentity() {
           onAction={() => setMode("loading")}
           dark
         />
+      </AppScreen>
+    );
+  }
+
+  if (mode === "portone" && providerRequest) {
+    return (
+      <AppScreen
+        body="plain"
+        tone="dark"
+        header={{
+          title: "본인인증",
+          description: "인증 정보는 안전한 가입과 중복 계정 방지에만 사용해요.",
+        }}
+      >
+        {busy ? (
+          <View style={styles.providerLoading}>
+            <ActivityIndicator color={dark.accent} />
+            <Text style={styles.providerLoadingText}>인증 결과를 안전하게 확인하고 있어요</Text>
+          </View>
+        ) : (
+          <>
+            <IdentityVerification
+              style={styles.provider}
+              request={{
+                storeId: providerRequest.storeId as `store-${string}`,
+                channelKey: providerRequest.channelKey as `channel-key-${string}`,
+                identityVerificationId: providerRequest.identityVerificationId,
+              }}
+              onComplete={(response) => void onProviderComplete(response)}
+              onError={(e) => setError(e.message || "본인인증 창을 열지 못했어요.")}
+            />
+            {error ? (
+              <View style={styles.providerError}>
+                <InlineNotice tone="error" dark>{error}</InlineNotice>
+              </View>
+            ) : null}
+          </>
+        )}
       </AppScreen>
     );
   }
@@ -162,4 +229,8 @@ const styles = StyleSheet.create({
   genderText: { ...type.label, color: dark.textMuted },
   genderTextOn: { color: dark.onPill },
   note: { ...type.caption, color: dark.textMuted, textAlign: "center" },
+  provider: { flex: 1, minHeight: 480 },
+  providerLoading: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.x3 },
+  providerLoadingText: { ...type.body, color: dark.textMuted },
+  providerError: { position: "absolute", left: space.x4, right: space.x4, bottom: space.x4 },
 });

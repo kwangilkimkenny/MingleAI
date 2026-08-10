@@ -11,9 +11,10 @@ import { serifFont } from "../../src/lib/serif";
  */
 export default function AnnouncementScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ title?: string; message?: string }>();
+  const params = useLocalSearchParams<{ title?: string; message?: string; createdAt?: string }>();
   const title = typeof params.title === "string" ? params.title : "";
   const message = typeof params.message === "string" ? params.message : "";
+  const createdAt = typeof params.createdAt === "string" ? new Date(params.createdAt) : null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -33,6 +34,11 @@ export default function AnnouncementScreen() {
         {title ? (
           <Text accessibilityRole="header" style={styles.title}>
             {title}
+          </Text>
+        ) : null}
+        {createdAt && !Number.isNaN(createdAt.getTime()) ? (
+          <Text style={styles.time}>
+            {createdAt.toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" })}
           </Text>
         ) : null}
         <View style={styles.rule} />
@@ -55,6 +61,7 @@ const styles = StyleSheet.create({
   },
   content: { paddingHorizontal: layout.screenGutter, paddingTop: space.x4 },
   title: { fontFamily: serifFont, fontSize: 28, lineHeight: 38, color: dark.text, letterSpacing: -0.3 },
+  time: { ...type.caption, color: dark.textMuted, marginTop: space.x2 },
   rule: { height: 1, backgroundColor: dark.line, marginVertical: space.x5 },
   body: { ...type.body, fontSize: 16, lineHeight: 27, color: dark.text },
 });

@@ -23,6 +23,7 @@ const prisma = new PrismaClient();
 
 const base = process.env.MINGLE_QA_API ?? "http://127.0.0.1:3000";
 const humanEmail = process.argv[2] ?? "dev@mingle.test";
+const autoChooseHuman = process.env.MINGLE_QA_AUTO_CHOOSE_HUMAN === "true";
 const botEmails = [
   "qa.speed.seoyeon@mingle.test",
   "qa.speed.haeun@mingle.test",
@@ -169,6 +170,32 @@ async function connectBot(bot, sessionId, human) {
   });
 }
 
+/**
+ * Optional unattended E2E driver. It signs in as the same QA human and sends the exact socket
+ * event used by the app, allowing CI/emulator runs to cover mutual-match creation without racing
+ * a deliberately short decision timer.
+ */
+async function connectHumanChoice(token, sessionId, target) {
+  const socket = io(base, {
+    auth: { token },
+    transports: ["websocket"],
+    reconnection: true,
+  });
+  sockets.push(socket);
+  let chosen = false;
+  socket.on("connect", () => socket.emit("speeddate:join", { sessionId }));
+  socket.on("speeddate:snapshot", ({ snapshot }) => {
+    if (snapshot?.phase !== "decision" || chosen) return;
+    chosen = true;
+    socket.emit("speeddate:choose", {
+      sessionId,
+      targetProfileId: target.profileId,
+      on: true,
+    });
+    log("human", `${target.name}님을 앱과 동일한 소켓 이벤트로 비공개 선택`);
+  });
+}
+
 async function main() {
   await request("/health");
   const humanUser = await prisma.user.findUnique({
@@ -231,6 +258,10 @@ async function main() {
   ]);
   log("matched", `3:3 세션 생성: ${sessionId}`);
   for (const bot of selected) await connectBot(bot, sessionId, human);
+  if (autoChooseHuman) {
+    const humanToken = await login(humanEmail);
+    await connectHumanChoice(humanToken, sessionId, opposite[0]);
+  }
 }
 
 function shutdown(signal) {

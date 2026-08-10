@@ -10,6 +10,7 @@ import {
   getSpeedDateStatus,
   getMyProfile,
   ApiError,
+  type SpeedDateStatus,
 } from "@mingle/client-core";
 import { AppScreen } from "../../../src/components/AppScreen";
 import { DoodleButton } from "../../../src/components/Doodle";
@@ -50,6 +51,7 @@ export default function SpeedDateMatching() {
   const [step, setStep] = useState<Step>("rules");
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [queueInfo, setQueueInfo] = useState<SpeedDateStatus | null>(null);
   const [radiusKm, setRadiusKm] = useState<number | null>(10);
   const [coords, setCoords] = useState<Coords | null>(null);
   const [locBusy, setLocBusy] = useState(false);
@@ -122,7 +124,8 @@ export default function SpeedDateMatching() {
         return;
       }
       setPhase("waiting");
-      setElapsed(Date.now() - startedAt.current);
+      setQueueInfo(s);
+      setElapsed(Date.now() - (s.since ?? startedAt.current));
       timer.current = setTimeout(poll, POLL_MS);
     } catch (e) {
       if (!alive.current) return;
@@ -282,6 +285,12 @@ export default function SpeedDateMatching() {
       {isConsent && step === "rules" ? (
         <View style={styles.rulesStack}>
           <Text style={styles.title}>이렇게 진행돼요</Text>
+          <View style={styles.sessionSummary}>
+            <Text style={styles.sessionSummaryTitle}>약 45분 · 총 9회 대화</Text>
+            <Text style={styles.sessionSummaryBody}>
+              3개 공개 단계를 거치며 각 단계에서 3명과 대화해요. 중간에 나가면 해당 세션 선택에는 참여할 수 없어요.
+            </Text>
+          </View>
           <View style={styles.rules}>
             {RULES.map((r, i) => (
               <RuleRow key={r.n} rule={r} last={i === RULES.length - 1} />
@@ -295,16 +304,34 @@ export default function SpeedDateMatching() {
       ) : null}
 
       {phase === "joining" || phase === "waiting" ? (
-        <StateView
-          title="상대를 찾고 있어요"
-          body={
-            phase === "waiting"
-              ? `${Math.floor(elapsed / 1000)}초째 · 남녀 3명씩 모이면 시작해요`
-              : "대기열에 등록하는 중…"
-          }
-          loading
-          dark
-        />
+        <View style={styles.queueState} accessibilityLiveRegion="polite">
+          <ActivityIndicator size="large" color={dark.accent} />
+          <Text accessibilityRole="header" style={styles.queueTitle}>상대를 찾고 있어요</Text>
+          {phase === "waiting" && queueInfo?.waitingCount != null ? (
+            <View style={styles.queueCard}>
+              <Text style={styles.queueCount}>
+                {Math.min(queueInfo?.waitingCount ?? 0, queueInfo?.requiredCount ?? 6)}
+                <Text style={styles.queueTotal}> / {queueInfo?.requiredCount ?? 6}명</Text>
+              </Text>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.min(100, ((queueInfo?.waitingCount ?? 0) / (queueInfo?.requiredCount ?? 6)) * 100)}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.queueEstimate}>
+                예상 {queueInfo?.estimatedWaitMinutes ?? 1}분 내외 · {Math.floor(elapsed / 1000)}초 경과
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.queueBody}>대기열에 안전하게 등록하는 중…</Text>
+          )}
+          <Text style={styles.queueHint}>앱을 잠시 내려도 매칭 알림을 받을 수 있어요.</Text>
+        </View>
       ) : null}
 
       {phase === "timeout" ? (
@@ -379,6 +406,16 @@ const styles = StyleSheet.create({
   ruleTitle: { ...type.label, color: dark.text },
   ruleBody: { ...type.caption, color: dark.textMuted },
   chips: { flexDirection: "row", gap: space.x2, flexWrap: "wrap", justifyContent: "center" },
+  sessionSummary: {
+    padding: space.x4,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: dark.gold,
+    backgroundColor: dark.goldFill,
+    gap: space.x1,
+  },
+  sessionSummaryTitle: { ...type.label, color: dark.goldBright },
+  sessionSummaryBody: { ...type.caption, color: dark.textMuted },
   // Full-bleed location step
   mapScreen: { flex: 1, backgroundColor: dark.bg },
   mapFallback: {
@@ -431,4 +468,23 @@ const styles = StyleSheet.create({
   pillOff: { backgroundColor: dark.surface, borderColor: dark.borderStrong },
   pillOn: { backgroundColor: dark.surfaceHi, borderColor: dark.text },
   pillText: { ...type.caption },
+  queueState: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.x3 },
+  queueTitle: { ...type.title, color: dark.text, textAlign: "center" },
+  queueBody: { ...type.body, color: dark.textMuted, textAlign: "center" },
+  queueCard: {
+    width: "100%",
+    maxWidth: 360,
+    padding: space.x5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+    gap: space.x3,
+  },
+  queueCount: { ...type.display, color: dark.accentBright, textAlign: "center" },
+  queueTotal: { ...type.body, color: dark.textMuted },
+  progressTrack: { height: 8, borderRadius: 4, overflow: "hidden", backgroundColor: dark.fieldBg },
+  progressFill: { height: "100%", borderRadius: 4, backgroundColor: dark.accent },
+  queueEstimate: { ...type.caption, color: dark.text, textAlign: "center" },
+  queueHint: { ...type.caption, color: dark.textMuted, textAlign: "center" },
 });

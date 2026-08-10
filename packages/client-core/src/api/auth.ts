@@ -16,6 +16,15 @@ export interface IdentityPayload {
   phone: string;
 }
 
+export type IdentityVerificationStart =
+  | { mode: "dev" }
+  | {
+      mode: "portone";
+      storeId: string;
+      channelKey: string;
+      identityVerificationId: string;
+    };
+
 /** Which social providers are usable (keys configured server-side) — used to show buttons. */
 export function getSocialProviders(): Promise<{ providers: string[] }> {
   return apiFetch<{ providers: string[] }>("/auth/social/providers");
@@ -51,8 +60,17 @@ export function submitConsents(scopes: ConsentScope[]): Promise<void> {
   return apiFetch<void>("/auth/consent", { method: "POST", body: JSON.stringify({ scopes }) });
 }
 
-export function startIdentityVerification(): Promise<{ mode: "dev" | "redirect"; redirectUrl?: string }> {
+export function startIdentityVerification(): Promise<IdentityVerificationStart> {
   return apiFetch("/auth/identity/start", { method: "POST" });
+}
+
+export function completeProviderIdentityVerification(
+  identityVerificationId: string,
+): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>("/auth/identity/complete-provider", {
+    method: "POST",
+    body: JSON.stringify({ identityVerificationId }),
+  });
 }
 
 export function completeIdentityVerification(payload: IdentityPayload): Promise<{ ok: true }> {

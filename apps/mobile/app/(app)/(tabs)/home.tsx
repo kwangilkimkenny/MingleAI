@@ -1,391 +1,282 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Bell } from "lucide-react-native";
-import Animated, {
-  cancelAnimation,
-  Easing,
-  Extrapolation,
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { getUnreadCount } from "@mingle/client-core";
+import { router, useFocusEffect } from "expo-router";
+import {
+  Bell,
+  ChevronRight,
+  MapPin,
+  MessageCircle,
+  Mic2,
+  ShieldCheck,
+  Sparkles,
+  Video,
+} from "lucide-react-native";
+import {
+  getMyProfile,
+  getSpeedDateStatus,
+  getUnreadCount,
+  type SpeedDateStatus,
+} from "@mingle/client-core";
+import { DoodleButton } from "../../../src/components/Doodle";
 import { useTabBarClearance } from "../../../src/components/DoodleTabBar";
 import { NotificationsPopup } from "../../../src/components/NotificationsPopup";
-import { colors, fonts, masterpiece } from "../../../src/lib/theme";
+import { dark, layout, space, type } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
 
-const CAFE_BACKGROUND = require("../../../assets/images/cafe-date-background.png");
-const WOMAN = require("../../../assets/images/cafe-date-character-woman.png");
-const MAN = require("../../../assets/images/cafe-date-character-man.png");
-const CAFE_BACKGROUND_WIDTH = 1023;
-const CAFE_BACKGROUND_HEIGHT = 1537;
-const CAFE_BACKGROUND_ZOOM = 1;
-
-/**
- * Home — a layered cinematic scene (Renaissance-painted couple on a modern café date = the concept
- * made literal). The café is a full-bleed plate; each transparent character drifts independently so
- * the scene feels alive without competing with the MATCH CTA. Reduced-motion keeps both figures
- * static. Notifications remain a light top-right action.
- */
+/** Operational home: current matching state first, brand atmosphere second. */
 export default function Home() {
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
-  const { entrance } = useLocalSearchParams<{ entrance?: string }>();
-  const { width, height } = useWindowDimensions();
-  const reducedMotion = useReducedMotion();
-  const entranceRequested = entrance === "login" || entrance === "launch";
-  const womanShift = useSharedValue(0);
-  const manShift = useSharedValue(0);
-  const entranceProgress = useSharedValue(entranceRequested && !reducedMotion ? 0 : 1);
+  const alive = useRef(true);
+  const [name, setName] = useState("회원");
   const [unread, setUnread] = useState(0);
-  const [popup, setPopup] = useState<null | "notifications">(null);
-  const navigatingRef = useRef(false);
-  const aliveRef = useRef(true);
-  const availableHeight = Math.max(480, height - clearance);
-  const characterHeight = availableHeight * 0.84;
-  const womanHeight = characterHeight * 0.95;
-  const womanWidth = womanHeight * (1023 / 1537);
-  const manHeight = characterHeight * 1.06;
-  const manWidth = manHeight * (1023 / 1537);
-  const womanLeft = width * 0.32 - womanWidth * 0.47;
-  const manLeft = width * 0.68 - manWidth * 0.49;
-  const backgroundCoverScale = Math.max(
-    width / CAFE_BACKGROUND_WIDTH,
-    height / CAFE_BACKGROUND_HEIGHT,
-  );
-  const backgroundWidth = CAFE_BACKGROUND_WIDTH * backgroundCoverScale * CAFE_BACKGROUND_ZOOM;
-  const backgroundHeight = CAFE_BACKGROUND_HEIGHT * backgroundCoverScale * CAFE_BACKGROUND_ZOOM;
-  const backgroundLeft = (width - backgroundWidth) / 2;
-  const backgroundTop = (height - backgroundHeight) / 2;
+  const [status, setStatus] = useState<SpeedDateStatus | null>(null);
+  const [popup, setPopup] = useState(false);
 
-  const clearEntranceParam = useCallback(() => {
-    router.setParams({ entrance: "" });
-  }, []);
-
-  useEffect(() => {
-    cancelAnimation(entranceProgress);
-
-    if (!entranceRequested || reducedMotion) {
-      entranceProgress.value = 1;
-      if (entranceRequested) clearEntranceParam();
-      return;
-    }
-
-    entranceProgress.value = 0;
-    entranceProgress.value = withTiming(
-      1,
-      { duration: 1200, easing: Easing.out(Easing.cubic) },
-      (finished) => {
-        if (finished) runOnJS(clearEntranceParam)();
+  const refresh = useCallback(() => {
+    alive.current = true;
+    void Promise.allSettled([getMyProfile(), getUnreadCount(), getSpeedDateStatus()]).then(
+      ([profile, notices, queue]) => {
+        if (!alive.current) return;
+        if (profile.status === "fulfilled" && profile.value?.name) setName(profile.value.name);
+        if (notices.status === "fulfilled") setUnread(notices.value.unreadCount);
+        if (queue.status === "fulfilled") setStatus(queue.value);
       },
     );
-
-    return () => cancelAnimation(entranceProgress);
-  }, [clearEntranceParam, entranceProgress, entranceRequested, reducedMotion]);
-
-  useEffect(() => {
-    cancelAnimation(womanShift);
-    cancelAnimation(manShift);
-
-    if (reducedMotion) {
-      womanShift.value = 0;
-      manShift.value = 0;
-      return;
-    }
-
-    const sway = Math.max(7, Math.min(width * 0.025, 12));
-    womanShift.value = -sway;
-    manShift.value = sway * 0.8;
-    womanShift.value = withRepeat(
-      withTiming(sway, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true,
-    );
-    manShift.value = withRepeat(
-      withTiming(-sway * 0.8, { duration: 5100, easing: Easing.inOut(Easing.sin) }),
-      -1,
-      true,
-    );
-
-    return () => {
-      cancelAnimation(womanShift);
-      cancelAnimation(manShift);
-    };
-  }, [manShift, reducedMotion, width, womanShift]);
-
-  const womanMotion = useAnimatedStyle(() => {
-    const progress = entranceProgress.value;
-    return {
-      opacity: interpolate(progress, [0, 0.14, 1], [0, 1, 1], Extrapolation.CLAMP),
-      transform: [
-        {
-          translateX:
-            womanShift.value +
-            interpolate(progress, [0, 1], [-width * 0.9, 0], Extrapolation.CLAMP),
-        },
-        { scale: interpolate(progress, [0, 1], [0.82, 1], Extrapolation.CLAMP) },
-      ],
-    };
-  });
-  const manMotion = useAnimatedStyle(() => {
-    const progress = entranceProgress.value;
-    return {
-      opacity: interpolate(progress, [0, 0.14, 1], [0, 1, 1], Extrapolation.CLAMP),
-      transform: [
-        {
-          translateX:
-            manShift.value + interpolate(progress, [0, 1], [width * 0.9, 0], Extrapolation.CLAMP),
-        },
-        {
-          translateY: interpolate(
-            progress,
-            [0, 1],
-            [availableHeight * 0.38, 0],
-            Extrapolation.CLAMP,
-          ),
-        },
-        { scale: interpolate(progress, [0, 1], [0.82, 1], Extrapolation.CLAMP) },
-      ],
-    };
-  });
-
-  /** 상단 벨 배지 카운트 재조회 — 화면 포커스 + 팝업 내 읽음 처리 직후 호출. */
-  const refreshBadges = useCallback(() => {
-    void getUnreadCount()
-      .then(({ unreadCount }) => {
-        if (aliveRef.current) setUnread(unreadCount);
-      })
-      .catch(() => {});
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      navigatingRef.current = false;
-      aliveRef.current = true;
-      refreshBadges();
+      refresh();
       return () => {
-        aliveRef.current = false;
+        alive.current = false;
       };
-    }, [refreshBadges]),
+    }, [refresh]),
   );
 
-  function onMatch() {
-    if (navigatingRef.current) return;
-    navigatingRef.current = true;
+  function openMatch() {
+    if (status?.status === "matched" && status.sessionId) {
+      router.push({ pathname: "/(app)/speed-date/[id]", params: { id: status.sessionId } });
+      return;
+    }
     router.push("/(app)/speed-date");
   }
 
+  const actionLabel =
+    status?.status === "matched"
+      ? "진행 중인 데이트로 돌아가기"
+      : status?.status === "waiting"
+        ? "대기 현황 확인하기"
+        : "블라인드 로테이션 시작";
+
   return (
     <View style={styles.root}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Image
-          source={CAFE_BACKGROUND}
-          resizeMode="stretch"
-          style={[
-            styles.cafeBackground,
-            {
-              left: backgroundLeft,
-              top: backgroundTop,
-              width: backgroundWidth,
-              height: backgroundHeight,
-            },
-          ]}
-          accessible={false}
-        />
-        <Animated.Image
-          source={WOMAN}
-          resizeMode="contain"
-          style={[
-            styles.character,
-            {
-              left: womanLeft,
-              bottom: characterHeight - womanHeight,
-              width: womanWidth,
-              height: womanHeight,
-            },
-            womanMotion,
-          ]}
-          accessible={false}
-        />
-        <Animated.Image
-          source={MAN}
-          resizeMode="contain"
-          style={[
-            styles.character,
-            {
-              left: manLeft,
-              bottom: characterHeight * 0.04,
-              width: manWidth,
-              height: manHeight,
-            },
-            manMotion,
-          ]}
-          accessible={false}
-        />
-      </View>
+      <View style={styles.glow} pointerEvents="none" />
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + space.x4, paddingBottom: clearance + space.x6 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.topRow}>
+          <View>
+            <Text style={styles.brand}>MINGLES</Text>
+            <Text accessibilityRole="header" style={styles.greeting}>{name}님, 오늘도 반가워요</Text>
+          </View>
+          <Pressable
+            onPress={() => setPopup(true)}
+            accessibilityRole="button"
+            accessibilityLabel={unread ? `알림 ${unread}건` : "알림"}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          >
+            <Bell color={dark.text} size={21} />
+            {unread > 0 ? (
+              <View style={styles.badge}><Text style={styles.badgeText}>{Math.min(unread, 99)}</Text></View>
+            ) : null}
+          </Pressable>
+        </View>
 
-      {/* edge scrim for legible top copy and bottom action */}
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-        <Defs>
-          <LinearGradient id="home-scrim" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#1A120C" stopOpacity={0.58} />
-            <Stop offset="0.3" stopColor="#1A120C" stopOpacity={0} />
-            <Stop offset="0.62" stopColor="#1A120C" stopOpacity={0} />
-            <Stop offset="1" stopColor="#1A120C" stopOpacity={0.76} />
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill="url(#home-scrim)" />
-      </Svg>
+        <View style={styles.heroCard}>
+          <View style={styles.heroMeta}>
+            <View style={styles.liveDot} />
+            <Text style={styles.heroEyebrow}>
+              {status?.status === "waiting" ? "MATCHING NOW" : "BLIND ROTATION"}
+            </Text>
+          </View>
+          <Text style={styles.heroTitle}>얼굴보다{"\n"}대화가 먼저</Text>
+          <Text style={styles.heroBody}>
+            {status?.status === "waiting"
+              ? `현재 ${status.waitingCount ?? 1}/${status.requiredCount}명 · 예상 ${status.estimatedWaitMinutes ?? 1}분 내외`
+              : "가려진 목소리에서 시작해 서로 원할 때만 한 단계씩 가까워져요."}
+          </Text>
+          <DoodleButton title={actionLabel} onPress={openMatch} variant="primary" tone="dark" />
+          <View style={styles.trustRow}>
+            <TrustStep icon={<Mic2 color={dark.accent} size={16} />} label="변조 음성" />
+            <View style={styles.trustLine} />
+            <TrustStep icon={<Sparkles color={dark.gold} size={16} />} label="목소리" />
+            <View style={styles.trustLine} />
+            <TrustStep icon={<Video color={dark.success} size={16} />} label="얼굴 공개" />
+          </View>
+        </View>
 
-      {/* top-right: notifications */}
-      <View style={[styles.topbar, { top: insets.top + 6 }]}>
-        <IconDot
-          icon={<Bell color="#FFF" size={20} strokeWidth={2} />}
-          n={unread}
-          label="알림"
-          onPress={() => setPopup("notifications")}
-        />
-      </View>
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionTitle}>이어서 하기</Text>
+          <ShieldCheck color={dark.success} size={18} />
+        </View>
+        <View style={styles.quickGrid}>
+          <QuickAction
+            icon={<MessageCircle color={dark.accent} size={22} />}
+            title="매칭 채팅"
+            body="서로 선택한 인연과 대화"
+            onPress={() => router.push("/(app)/(tabs)/chats")}
+          />
+          <QuickAction
+            icon={<MapPin color={dark.gold} size={22} />}
+            title="데이트 장소"
+            body="주변 장소 찾기와 예약"
+            onPress={() => router.push("/(app)/(tabs)/naver-reserve")}
+          />
+        </View>
 
-      {/* top: concept line */}
-      <View style={[styles.topCopy, { top: insets.top + 72 }]}>
-        <Text style={styles.eyebrow}>로테이션 블라인드 소개팅</Text>
-        <Text style={styles.headline}>얼굴보다{"\n"}대화가 먼저</Text>
-      </View>
+        <View style={styles.safetyNote}>
+          <ShieldCheck color={dark.successBright} size={20} />
+          <View style={styles.safetyText}>
+            <Text style={styles.safetyTitle}>안전이 먼저예요</Text>
+            <Text style={styles.safetyBody}>실명 인증 · 상호 선택 · 언제든 신고 및 차단</Text>
+          </View>
+        </View>
+      </ScrollView>
 
-      {/* bottom-center: primary action */}
-      <View style={[styles.bottomAction, { bottom: clearance + 20 }]}>
-        <Pressable
-          onPress={onMatch}
-          accessibilityRole="button"
-          accessibilityLabel="블라인드 데이트 매칭 시작"
-          style={({ pressed }) => [styles.match, pressed && { opacity: 0.9 }]}
-        >
-          <Text style={styles.matchText}>MATCH</Text>
-          <Text style={styles.matchSub}>로테이션 소개팅 시작</Text>
-        </Pressable>
-      </View>
-
-      {/* 팝업은 홈 위 모달이라 닫아도 focus 이벤트가 없다 — 읽음 변화 시 배지를 즉시 다시 센다. */}
       <NotificationsPopup
-        visible={popup === "notifications"}
-        onClose={() => setPopup(null)}
-        onChanged={refreshBadges}
+        visible={popup}
+        onClose={() => setPopup(false)}
+        onChanged={refresh}
       />
     </View>
   );
 }
 
-function IconDot({
+function TrustStep({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return <View style={styles.trustStep}>{icon}<Text style={styles.trustLabel}>{label}</Text></View>;
+}
+
+function QuickAction({
   icon,
-  n,
-  label,
+  title,
+  body,
   onPress,
 }: {
   icon: React.ReactNode;
-  n: number;
-  label: string;
+  title: string;
+  body: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={n > 0 ? `${label} ${n}건` : label}
-      style={({ pressed }) => [styles.iconDot, pressed && { opacity: 0.7 }]}
+      accessibilityLabel={`${title}, ${body}`}
+      style={({ pressed }) => [styles.quickCard, pressed && styles.pressed]}
     >
-      {icon}
-      {n > 0 ? (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{n}</Text>
-        </View>
-      ) : null}
+      <View style={styles.quickIcon}>{icon}</View>
+      <Text style={styles.quickTitle}>{title}</Text>
+      <Text style={styles.quickBody}>{body}</Text>
+      <ChevronRight color={dark.textMuted} size={18} style={styles.chevron} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, overflow: "hidden", backgroundColor: "#1A120C" },
-  cafeBackground: { position: "absolute" },
-  character: { position: "absolute" },
-  topbar: { position: "absolute", right: 16, flexDirection: "row", gap: 10, zIndex: 5 },
-  iconDot: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "rgba(20,15,10,0.32)",
+  root: { flex: 1, backgroundColor: dark.bg },
+  glow: {
+    position: "absolute",
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    top: -120,
+    right: -90,
+    backgroundColor: dark.glow,
+    opacity: 0.45,
+  },
+  content: {
+    width: "100%",
+    maxWidth: layout.contentMax,
+    alignSelf: "center",
+    paddingHorizontal: layout.screenGutter,
+    gap: space.x5,
+  },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  brand: { ...type.caption, color: dark.label, letterSpacing: 2 },
+  greeting: { ...type.heading, color: dark.text, marginTop: 2 },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   badge: {
     position: "absolute",
-    top: -3,
-    right: -3,
+    top: -2,
+    right: -2,
     minWidth: 18,
     height: 18,
-    paddingHorizontal: 4,
     borderRadius: 9,
-    backgroundColor: colors.accentStrong,
+    paddingHorizontal: 4,
+    backgroundColor: dark.danger,
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 10,
-    lineHeight: 13,
-    color: colors.onAccent,
+  badgeText: { ...type.caption, fontSize: 10, lineHeight: 13, color: dark.onDanger },
+  heroCard: {
+    padding: space.x5,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+    gap: space.x4,
+    overflow: "hidden",
   },
-  topCopy: { position: "absolute", left: 24, right: 24, zIndex: 3 },
-  bottomAction: {
-    position: "absolute",
-    left: 24,
-    right: 24,
+  heroMeta: { flexDirection: "row", alignItems: "center", gap: space.x2 },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: dark.accent },
+  heroEyebrow: { ...type.caption, color: dark.accent, letterSpacing: 1.2 },
+  heroTitle: { fontFamily: serifFont, fontSize: 35, lineHeight: 43, color: dark.heading },
+  heroBody: { ...type.body, color: dark.textMuted },
+  trustRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  trustStep: { alignItems: "center", gap: space.x1, minWidth: 64 },
+  trustLabel: { ...type.caption, fontSize: 11, color: dark.textMuted },
+  trustLine: { flex: 1, height: 1, backgroundColor: dark.line, marginHorizontal: space.x1 },
+  sectionHeading: { flexDirection: "row", alignItems: "center", gap: space.x2 },
+  sectionTitle: { ...type.heading, color: dark.text },
+  quickGrid: { flexDirection: "row", gap: space.x3 },
+  quickCard: {
+    flex: 1,
+    minHeight: 150,
+    padding: space.x4,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+  },
+  quickIcon: { marginBottom: space.x4 },
+  quickTitle: { ...type.label, color: dark.text, paddingRight: space.x5 },
+  quickBody: { ...type.caption, color: dark.textMuted, marginTop: space.x1 },
+  chevron: { position: "absolute", top: space.x4, right: space.x3 },
+  safetyNote: {
+    flexDirection: "row",
     alignItems: "center",
-    zIndex: 3,
+    gap: space.x3,
+    padding: space.x4,
+    borderRadius: 16,
+    backgroundColor: dark.successFill,
   },
-  eyebrow: {
-    fontFamily: fonts.bodySemibold,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    color: "rgba(255,247,240,0.75)",
-    marginBottom: 4,
-  },
-  headline: {
-    fontFamily: serifFont,
-    fontSize: 34,
-    lineHeight: 42,
-    letterSpacing: -0.4,
-    color: "#FFF7F0",
-  },
-  match: {
-    minWidth: 200,
-    borderRadius: 999,
-    paddingVertical: 13,
-    paddingHorizontal: 26,
-    backgroundColor: masterpiece.cream,
-    alignItems: "center",
-    gap: 1,
-  },
-  matchText: {
-    fontFamily: serifFont,
-    fontSize: 20,
-    letterSpacing: 1.5,
-    color: masterpiece.inkDeep,
-  },
-  matchSub: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    letterSpacing: 0.3,
-    color: masterpiece.inkSoft,
-  },
+  safetyText: { flex: 1 },
+  safetyTitle: { ...type.label, color: dark.successBright },
+  safetyBody: { ...type.caption, color: dark.textMuted, marginTop: 2 },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
 });

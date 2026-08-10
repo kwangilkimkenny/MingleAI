@@ -39,6 +39,9 @@ docker run -d -p 3000:3000 --env-file apps/backend/.env.production mingles-backe
 4. **업로드 영속화(중요)** — 업로드는 컨테이너 로컬 `apps/backend/uploads`에 쓴다. 재배포·
    스케일아웃 때 유실된다. 둘 중 하나 필수:
    - (a) 그 경로에 **영속 볼륨** 마운트 — 단일 인스턴스면 가장 간단.
+     ⚠️ PaaS 볼륨은 **root:root 0755로 마운트**된다(Railway 실측 2026-08-10). 이미지가 비루트로
+     돌면 업로드가 전부 EACCES. `docker/entrypoint.sh`가 root로 시작해 chown 후 setpriv로
+     uid 10001로 내려가는 이유다 — 마운트 경로를 바꾸면 `UPLOAD_DIR`도 같이 넘겨야 한다.
    - (b) **객체 스토리지**(S3/R2 등)로 전환 — 다중 인스턴스·CDN 필요 시. 코드 변경 필요
      (`upload.controller.ts`가 현재 `fs.writeFile`). 다중 인스턴스 계획이면 이쪽.
 5. **인스턴스 수 = 1** (당분간) — 매칭 sweep과 일부 게이트웨이 상태가 단일 서버 전제.

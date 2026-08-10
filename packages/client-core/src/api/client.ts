@@ -1,6 +1,7 @@
 import { getClientConfig, getToken } from "../config.js";
 
 let refreshInFlight: Promise<string | null> | null = null;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 async function refreshOnce(): Promise<string | null> {
   const refresh = getClientConfig().refreshAccessToken;
@@ -37,7 +38,28 @@ export async function apiFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${baseUrl}${path}`, { ...options, headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const upstreamSignal = options?.signal;
+  const abortFromUpstream = () => controller.abort();
+  upstreamSignal?.addEventListener("abort", abortFromUpstream, { once: true });
+
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted && !upstreamSignal?.aborted) {
+      throw new ApiError(408, "요청 시간이 초과되었습니다. 네트워크를 확인하고 다시 시도해주세요.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    upstreamSignal?.removeEventListener("abort", abortFromUpstream);
+  }
 
   if (res.status === 401 && token) {
     if (!retried) {

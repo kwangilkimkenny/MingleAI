@@ -11,6 +11,7 @@ import type { SpeedDateStatus } from "@mingle/shared";
 /** Genders eligible for the v1 hetero 3×3 mode. Non-binary / other = separate future scope. */
 const ELIGIBLE_GENDERS = new Set(["male", "female"]);
 const MIN_AGE = 19;
+const REQUIRED_PARTICIPANTS = 6;
 
 @Injectable()
 export class SpeedDateQueueService {
@@ -86,17 +87,41 @@ export class SpeedDateQueueService {
 
   async getStatus(userId: string): Promise<SpeedDateStatus> {
     const profile = await this.prisma.profile.findUnique({ where: { userId }, select: { id: true } });
-    if (!profile) return { status: "idle", sessionId: null, since: null };
+    if (!profile) return this.emptyStatus("idle");
 
     const sessionId = await this.findActiveSessionId(profile.id);
-    if (sessionId) return { status: "matched", sessionId, since: null };
+    if (sessionId) return { ...this.emptyStatus("matched"), sessionId };
 
     const entry = await this.prisma.speedDateQueueEntry.findFirst({
       where: { profileId: profile.id, status: "waiting" },
       orderBy: { enqueuedAt: "desc" },
     });
-    if (entry) return { status: "waiting", sessionId: null, since: new Date(entry.enqueuedAt).getTime() };
-    return { status: "idle", sessionId: null, since: null };
+    if (entry) {
+      const waitingCount = await this.prisma.speedDateQueueEntry.count({ where: { status: "waiting" } });
+      const missing = Math.max(0, REQUIRED_PARTICIPANTS - waitingCount);
+      return {
+        status: "waiting",
+        sessionId: null,
+        since: new Date(entry.enqueuedAt).getTime(),
+        waitingCount,
+        requiredCount: REQUIRED_PARTICIPANTS,
+        estimatedWaitMinutes: Math.max(1, missing * 2),
+        canWaitInBackground: true,
+      };
+    }
+    return this.emptyStatus("idle");
+  }
+
+  private emptyStatus(status: "idle" | "matched"): SpeedDateStatus {
+    return {
+      status,
+      sessionId: null,
+      since: null,
+      waitingCount: null,
+      requiredCount: REQUIRED_PARTICIPANTS,
+      estimatedWaitMinutes: null,
+      canWaitInBackground: false,
+    };
   }
 
   /** Scan active sessions for this profile (participants live in state JSON). */

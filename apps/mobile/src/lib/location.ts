@@ -66,7 +66,14 @@ export async function requestLocation(): Promise<{ status: LocationPermission; c
   const L = expoLocation();
   if (!L) return { status: "undetermined" };
   try {
-    const { status } = await L.requestForegroundPermissionsAsync();
+    // Android's approximate grant is still a foreground "granted" permission. Asking again
+    // immediately opens an unwanted precise-location upgrade dialog, so only prompt when the
+    // user has not made a choice yet.
+    const existing = await L.getForegroundPermissionsAsync();
+    const { status } =
+      existing.status === "granted"
+        ? existing
+        : await L.requestForegroundPermissionsAsync();
     if (status !== "granted") return { status: normalize(status) };
     const coords = await resolveCoords(L);
     return coords ? { status: "granted", coords } : { status: "granted" };

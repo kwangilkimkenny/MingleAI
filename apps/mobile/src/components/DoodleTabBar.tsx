@@ -2,15 +2,15 @@
  * Bottom tab bar — a full-width bar anchored to the bottom edge (replaces the earlier floating
  * rounded pill). White card surface with a soft rose top hairline + a subtle upward shadow; the
  * bar background fills all the way to the screen edge and reserves safe-area padding so the row
- * sits above the home indicator. Tabs stay exactly the 5 from _layout.tsx (routing untouched).
+ * sits above the home indicator. Tabs stay exactly the 4 from _layout.tsx (routing untouched).
  * Active = colors.accent icon+label, inactive = colors.grayMid.
  */
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, dark, fonts } from "../lib/theme";
+import { colors, componentTokens, dark, fonts } from "../lib/theme";
 
-export const TAB_BAR_ROW_HEIGHT = 60;
+export const TAB_BAR_ROW_HEIGHT = componentTokens.tabBar.rowHeight;
 
 /** Bottom clearance tab screens must reserve so content scrolls clear of the bottom bar. */
 export function useTabBarClearance(): number {
@@ -49,7 +49,13 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
               }}
               style={styles.tab}
             >
-              {options.tabBarIcon ? options.tabBarIcon({ focused, color, size: 26 }) : null}
+              {focused ? <View style={styles.activeMark} /> : null}
+              {options.tabBarIcon
+                ? options.tabBarIcon({ focused, color, size: componentTokens.tabBar.iconSize })
+                : null}
+              <Text numberOfLines={1} style={[styles.label, focused && styles.labelFocused]}>
+                {label}
+              </Text>
               {options.tabBarBadge !== undefined ? (
                 <View style={styles.badge} accessibilityLabel={`읽지 않은 알림 ${options.tabBarBadge}개`}>
                   <Text style={styles.badgeText}>{options.tabBarBadge}</Text>
@@ -80,8 +86,23 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   row: { flexDirection: "row", alignItems: "stretch", height: TAB_BAR_ROW_HEIGHT },
-  // 아이콘만 — 행 전체(60px)를 채워 44px 최소 터치 타깃 보장. 활성 = 아이콘 색(블러쉬)으로만 표시.
-  tab: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 5 },
+  tab: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 3 },
+  activeMark: {
+    position: "absolute",
+    top: 0,
+    width: 28,
+    height: 3,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+    backgroundColor: dark.accent,
+  },
+  label: {
+    fontFamily: fonts.body,
+    fontSize: componentTokens.tabBar.labelSize,
+    lineHeight: 15,
+    color: dark.textMuted,
+  },
+  labelFocused: { fontFamily: fonts.bodySemibold, color: dark.accentBright },
   badge: {
     position: "absolute",
     top: 8,

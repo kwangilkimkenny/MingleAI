@@ -4,8 +4,8 @@ import { dark, doodleHeaderOptions } from "../../../src/lib/theme";
 import { DoodleTabBar } from "../../../src/components/DoodleTabBar";
 
 /**
- * Bottom tab bar (icon-only), shown once the user is past onboarding. Four tabs:
- * 홈 · 채팅 · 네이버예약 · 설정. 알림은 페이지가 아니라 홈의 투명 팝업(NotificationsPopup)으로 열린다.
+ * Bottom tab bar with persistent icon + text labels, shown once the user is past onboarding. Four tabs:
+ * 홈 · 채팅 · 장소 · 설정. 알림은 페이지가 아니라 홈의 투명 팝업(NotificationsPopup)으로 열린다.
  */
 export default function TabsLayout() {
   return (
@@ -37,7 +37,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="naver-reserve"
         options={{
-          title: "네이버 예약",
+          title: "장소",
           tabBarIcon: ({ color, size }) => <MapPin color={color} size={size} strokeWidth={2} />,
         }}
       />

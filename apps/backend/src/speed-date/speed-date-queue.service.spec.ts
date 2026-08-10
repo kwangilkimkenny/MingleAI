@@ -9,7 +9,7 @@ const baseProfile = {
   preferenceSignals: { vibe: "calm", drinking: "light", pace: "slow", activity: [], tags: [], summary: "s" },
 };
 
-function makePrisma(over: { profile?: any; activeSessions?: any[]; waiting?: any } = {}) {
+function makePrisma(over: { profile?: any; activeSessions?: any[]; waiting?: any; waitingCount?: number } = {}) {
   const tx = {
     speedDateQueueEntry: {
       findFirst: jest.fn().mockResolvedValue(over.waiting ?? null),
@@ -23,6 +23,7 @@ function makePrisma(over: { profile?: any; activeSessions?: any[]; waiting?: any
     speedDateQueueEntry: {
       findFirst: jest.fn().mockResolvedValue(over.waiting ?? null),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      count: jest.fn().mockResolvedValue(over.waitingCount ?? 1),
     },
     $transaction: jest.fn(async (fn: any) => fn(tx)),
   } as any;
@@ -70,16 +71,24 @@ describe("SpeedDateQueueService.getStatus", () => {
       status: "matched",
       sessionId: "s1",
       since: null,
+      waitingCount: null,
+      requiredCount: 6,
+      estimatedWaitMinutes: null,
+      canWaitInBackground: false,
     });
   });
 
   it("reports waiting with an enqueue timestamp", async () => {
     const enqueuedAt = new Date("2026-07-22T00:00:00Z");
-    const prisma = makePrisma({ waiting: { id: "e1", enqueuedAt } });
+    const prisma = makePrisma({ waiting: { id: "e1", enqueuedAt }, waitingCount: 4 });
     expect(await new SpeedDateQueueService(prisma).getStatus("u1")).toEqual({
       status: "waiting",
       sessionId: null,
       since: enqueuedAt.getTime(),
+      waitingCount: 4,
+      requiredCount: 6,
+      estimatedWaitMinutes: 4,
+      canWaitInBackground: true,
     });
   });
 
@@ -88,6 +97,10 @@ describe("SpeedDateQueueService.getStatus", () => {
       status: "idle",
       sessionId: null,
       since: null,
+      waitingCount: null,
+      requiredCount: 6,
+      estimatedWaitMinutes: null,
+      canWaitInBackground: false,
     });
   });
 });

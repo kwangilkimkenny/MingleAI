@@ -48,7 +48,13 @@ export default function SettingsScreen() {
   );
 
   return (
-    <AppScreen tone="dark" tabScreen body="scroll" contentStyle={styles.content}>
+    <AppScreen
+      tone="dark"
+      tabScreen
+      body="scroll"
+      contentStyle={styles.content}
+      header={{ title: "설정", description: "내 정보와 안전·알림을 관리해요" }}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="내 정보 수정"

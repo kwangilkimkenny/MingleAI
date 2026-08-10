@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 import type { SpeedDateRoomInfo } from "@mingle/client-core";
+import { setNativeVoiceDisguiseEnabled } from "./native-voice-disguise";
 
 /**
  * Media seam for the blind speed date. The session UI (matching, rotation, reveal stages,
@@ -12,11 +14,9 @@ import type { SpeedDateRoomInfo } from "@mingle/client-core";
  *   `livekit-client` Room API works in RN; tracks exposed here are livekit-client VideoTrack
  *   objects, rendered by the native `VideoView`.
  *
- * ⚠️ Native voice disguise: RN has no Web Audio, so the DISGUISED pitch-shift is not available
- * (Phase E spike = native DSP). To keep the "가면" privacy promise the native mic is MUTED during
- * DISGUISED instead of leaking the raw voice. Flip to "raw" only as a deliberate product call.
+ * Android DISGUISED audio is processed publisher-side by the pinned LiveKit PCM processor. Any
+ * setup failure is fail-closed: the microphone stays unpublished instead of exposing raw speech.
  */
-const DISGUISED_NATIVE_MIC: "mute" | "raw" = "mute";
 
 export type SpeedDateMediaStatus = "idle" | "connecting" | "connected" | "unavailable";
 
@@ -42,6 +42,13 @@ export interface SpeedDateMedia {
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
 let globalsReady: boolean | null = null;
+
+/** Android emulators reach services on the development host through 10.0.2.2, not localhost. */
+export function reachableLiveKitUrl(url: string): string {
+  if (Platform.OS !== "android") return url;
+  return url.replace(/^(wss?:\/\/)(?:localhost|127\.0\.0\.1)(?=[:/]|$)/, "$110.0.2.2");
+}
+
 /** Load @livekit/react-native + registerGlobals once; false when the native module is absent. */
 function ensureLiveKit(): { lk: any; client: any } | null {
   if (globalsReady === false) return null;
@@ -82,11 +89,12 @@ export function useSpeedDateMedia(
   modRef.current = modulateVoice;
   const userMicRef = useRef(true);
   const userCameraRef = useRef(true);
+  const disguiseReadyRef = useRef(false);
 
   const setMicrophoneEnabled = useCallback(async (enabled: boolean) => {
     userMicRef.current = enabled;
     const room = roomRef.current;
-    const allowedByPrivacy = DISGUISED_NATIVE_MIC === "raw" || !modRef.current;
+    const allowedByPrivacy = !modRef.current || disguiseReadyRef.current;
     const actual = enabled && allowedByPrivacy;
     if (room?.state === "connected") await room.localParticipant.setMicrophoneEnabled(actual);
     setMedia((m) => ({ ...m, microphoneEnabled: actual }));
@@ -148,7 +156,7 @@ export function useSpeedDateMedia(
       setMedia((m) => ({
         ...m,
         status: "connected",
-        canToggleMicrophone: DISGUISED_NATIVE_MIC === "raw" || !modRef.current,
+        canToggleMicrophone: !modRef.current || disguiseReadyRef.current,
         canToggleCamera: publishVideo,
         hasRemoteVideo: !!remote,
         remoteVideoTrack: remote,
@@ -159,10 +167,12 @@ export function useSpeedDateMedia(
     (async () => {
       setMedia((m) => ({ ...m, status: "connecting" }));
       await lk.AudioSession.startAudioSession();
-      await room.connect(roomInfo.url, roomInfo.token);
+      await room.connect(reachableLiveKitUrl(roomInfo.url), roomInfo.token);
       if (cancelled) return void room.disconnect();
-      // No native pitch-shift (Phase E): keep the disguise by muting instead of leaking raw voice.
-      const micOn = userMicRef.current && (DISGUISED_NATIVE_MIC === "raw" || !modRef.current);
+      disguiseReadyRef.current = modRef.current
+        ? await setNativeVoiceDisguiseEnabled(true)
+        : await setNativeVoiceDisguiseEnabled(false);
+      const micOn = userMicRef.current && (!modRef.current || disguiseReadyRef.current);
       const cameraOn = userCameraRef.current && publishVideo;
       await room.localParticipant.setMicrophoneEnabled(micOn);
       await room.localParticipant.setCameraEnabled(cameraOn);
@@ -196,6 +206,8 @@ export function useSpeedDateMedia(
       cancelled = true;
       room.disconnect();
       roomRef.current = null;
+      disguiseReadyRef.current = false;
+      void setNativeVoiceDisguiseEnabled(false);
       void lk.AudioSession.stopAudioSession();
     };
     // Reconnect only when the ROOM changes; publishVideo/modulateVoice apply live below.
@@ -214,17 +226,28 @@ export function useSpeedDateMedia(
     }));
   }, [publishVideo]);
 
-  // Mic mute follows the disguise stage (see DISGUISED_NATIVE_MIC above).
+  // Stage transitions mute first, then install/remove DSP, then republish only on success.
   useEffect(() => {
     const room = roomRef.current;
     if (!room || room.state !== "connected") return;
-    const micOn = userMicRef.current && (DISGUISED_NATIVE_MIC === "raw" || !modulateVoice);
-    void room.localParticipant.setMicrophoneEnabled(micOn);
-    setMedia((m) => ({
-      ...m,
-      microphoneEnabled: micOn,
-      canToggleMicrophone: DISGUISED_NATIVE_MIC === "raw" || !modulateVoice,
-    }));
+    let alive = true;
+    void (async () => {
+      await room.localParticipant.setMicrophoneEnabled(false);
+      const ready = await setNativeVoiceDisguiseEnabled(modulateVoice);
+      if (!alive) return;
+      disguiseReadyRef.current = modulateVoice ? ready : false;
+      const micOn = userMicRef.current && (!modulateVoice || ready);
+      await room.localParticipant.setMicrophoneEnabled(micOn);
+      if (!alive) return;
+      setMedia((m) => ({
+        ...m,
+        microphoneEnabled: micOn,
+        canToggleMicrophone: !modulateVoice || ready,
+      }));
+    })();
+    return () => {
+      alive = false;
+    };
   }, [modulateVoice]);
 
   return { ...media, setMicrophoneEnabled, setCameraEnabled };

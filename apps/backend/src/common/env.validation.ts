@@ -27,6 +27,10 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
       NAVER_CLIENT_SECRET: z.string().min(1).optional(),
       GOOGLE_CLIENT_ID: z.string().min(1).optional(),
       GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+      PORTONE_STORE_ID: z.string().min(1).optional(),
+      PORTONE_IDENTITY_CHANNEL_KEY: z.string().min(1).optional(),
+      PORTONE_API_SECRET: z.string().min(20).optional(),
+      PORTONE_IDENTITY_STATE_SECRET: z.string().min(32).optional(),
     })
     .passthrough()
     .parse(raw);
@@ -60,6 +64,15 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
     throw new Error("DEV_AUTH_ENABLED must not be true in production");
   if (common.IDENTITY_DEV_BYPASS === "true")
     throw new Error("IDENTITY_DEV_BYPASS must not be true in production");
+
+  const hasIdentityProvider =
+    Boolean(common.PORTONE_STORE_ID) &&
+    Boolean(common.PORTONE_IDENTITY_CHANNEL_KEY) &&
+    Boolean(common.PORTONE_API_SECRET) &&
+    Boolean(common.PORTONE_IDENTITY_STATE_SECRET);
+  if (!hasIdentityProvider) {
+    throw new Error("PortOne identity verification must be fully configured in production");
+  }
 
   return common;
 }

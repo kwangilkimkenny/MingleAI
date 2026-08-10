@@ -11,8 +11,8 @@ describe("identity verification release guard regression", () => {
     expect(resolveIdentityVerificationMode("dev", false)).toBe("unavailable");
   });
 
-  it("keeps redirect mode unavailable until the provider flow is implemented", () => {
-    expect(resolveIdentityVerificationMode("redirect", true)).toBe("unavailable");
-    expect(resolveIdentityVerificationMode("redirect", false)).toBe("unavailable");
+  it("opens configured PortOne verification in development and release builds", () => {
+    expect(resolveIdentityVerificationMode("portone", true)).toBe("portone");
+    expect(resolveIdentityVerificationMode("portone", false)).toBe("portone");
   });
 });

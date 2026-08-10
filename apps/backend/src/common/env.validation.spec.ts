@@ -7,6 +7,10 @@ const productionEnv = {
   PUBLIC_BASE_URL: "https://api.mingles.kr",
   SOCKET_CORS_ORIGINS: "https://app.mingles.kr,https://admin.mingles.kr",
   KAKAO_CLIENT_ID: "public-client-id",
+  PORTONE_STORE_ID: "store-test",
+  PORTONE_IDENTITY_CHANNEL_KEY: "channel-key-test",
+  PORTONE_API_SECRET: "portone-api-secret-at-least-twenty-characters",
+  PORTONE_IDENTITY_STATE_SECRET: "portone-state-secret-at-least-thirty-two-characters",
 };
 
 describe("validateEnvironment", () => {
@@ -32,6 +36,10 @@ describe("validateEnvironment", () => {
     ["cleartext CORS", { SOCKET_CORS_ORIGINS: "http://app.mingles.kr" }],
     ["dev login", { DEV_AUTH_ENABLED: "true" }],
     ["identity bypass", { IDENTITY_DEV_BYPASS: "true" }],
+    ["missing PortOne store", { PORTONE_STORE_ID: undefined }],
+    ["missing PortOne channel", { PORTONE_IDENTITY_CHANNEL_KEY: undefined }],
+    ["missing PortOne API secret", { PORTONE_API_SECRET: undefined }],
+    ["missing PortOne state secret", { PORTONE_IDENTITY_STATE_SECRET: undefined }],
   ])("rejects production configuration with %s", (_label, override) => {
     expect(() => validateEnvironment({ ...productionEnv, ...override })).toThrow();
   });

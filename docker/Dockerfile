@@ -55,9 +55,12 @@ WORKDIR /app
 # --chown: 추가 레이어 없이 소유권 이전. root 소유면 Prisma가 @prisma/engines에 못 써서 기동 실패.
 COPY --chown=app:app --from=builder /app /app
 
-USER app
-# 업로드 디렉터리(볼륨 마운트 지점) — app 유저로 생성.
-RUN mkdir -p /app/apps/backend/uploads
+# ⚠️ USER app을 여기서 지정하지 않는다 — 엔트리포인트가 root로 시작해 볼륨 소유권을 고친 뒤
+# setpriv로 uid 10001(app)로 내려간다. PaaS 볼륨은 root:root 0755로 마운트되기 때문에
+# 비루트로 시작하면 업로드가 EACCES로 죽는다(운영 컨테이너 실측, 2026-08-10).
+RUN mkdir -p /app/apps/backend/uploads \
+ && chown app:app /app/apps/backend/uploads \
+ && chmod +x /app/docker/entrypoint.sh
 
 # 플랫폼이 주입하는 PORT를 존중(없으면 3000).
 ENV PORT=3000
@@ -67,5 +70,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# 기동: 마이그레이션 적용(멱등) → 프로덕션 서버. cwd=apps/backend(uploads·schema 경로 기준).
-CMD ["dumb-init","pnpm","--filter","@mingle/backend","start:container"]
+# 기동: (root) 업로드 볼륨 chown → uid 10001로 강등 → 마이그레이션 적용(멱등) → 프로덕션 서버.
+ENTRYPOINT ["dumb-init","--","/app/docker/entrypoint.sh"]
+CMD ["pnpm","--filter","@mingle/backend","start:container"]

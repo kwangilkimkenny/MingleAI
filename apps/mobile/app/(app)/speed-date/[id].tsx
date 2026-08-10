@@ -39,7 +39,7 @@ const STAGE_HINT: Record<SpeedDateStage, string> = {
   FACE: "카메라가 켜지고 얼굴이 공개돼요.",
 };
 
-/** Per-stage "N라운드" announcement copy, shown on the stage_intro screen. */
+/** Per-stage announcement copy; stages and partner conversations are deliberately named separately. */
 const STAGE_INTRO: Record<SpeedDateStage, { label: string; hint: string }> = {
   DISGUISED: { label: "가면 대화", hint: "목소리는 변조되고 캐릭터로 만나요." },
   VOICE: { label: "목소리 공개", hint: "이제 진짜 목소리가 들려요. 얼굴은 아직 가려져 있어요." },
@@ -283,7 +283,7 @@ export default function SpeedDateSession() {
     );
   }
 
-  // Stage intro = full-bleed "N라운드" announcement + countdown, shown to everyone before each stage.
+  // Stage intro = full-bleed stage announcement + countdown, shown to everyone before each stage.
   if (snapshot.phase === "stage_intro" && snapshot.stage) {
     return (
       <View style={styles.introScreen}>
@@ -394,9 +394,9 @@ function StageIntroView({
     <View style={[styles.intro, { paddingTop: insets.top + space.x6, paddingBottom: insets.bottom + space.x6 }]}>
       <View style={styles.introTop}>
         <Text style={styles.introKicker}>
-          ROUND {stageIndex + 1} / {stageCount}
+          STAGE {stageIndex + 1} / {stageCount}
         </Text>
-        <Text style={styles.introRound}>{stageIndex + 1}라운드</Text>
+        <Text style={styles.introRound}>{stageIndex + 1}/{stageCount} 단계</Text>
         <Text style={styles.introLabel}>{info.label}</Text>
         <Text style={styles.introHint}>{info.hint}</Text>
       </View>

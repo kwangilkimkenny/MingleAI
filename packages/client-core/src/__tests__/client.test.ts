@@ -17,6 +17,7 @@ describe("apiFetch", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -91,5 +92,25 @@ describe("apiFetch", () => {
       } as unknown as Response),
     );
     await expect(apiFetch("/empty-ok")).resolves.toBeUndefined();
+  });
+
+  it("fails a stalled request instead of leaving the UI loading forever", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+        }),
+      ),
+    );
+
+    const request = apiFetch("/slow");
+    const rejection = expect(request).rejects.toMatchObject({
+      status: 408,
+      message: "요청 시간이 초과되었습니다. 네트워크를 확인하고 다시 시도해주세요.",
+    });
+    await vi.advanceTimersByTimeAsync(15_000);
+    await rejection;
   });
 });

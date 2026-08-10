@@ -54,6 +54,7 @@ export default function Onboarding() {
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   useEffect(() => {
     if (!hydrated || !token) return;
@@ -110,6 +111,37 @@ export default function Onboarding() {
   }
 
   const valid = !validate({ name, occupation, answers });
+  const stepValid =
+    step === 1
+      ? Boolean(name.trim()) && name.trim().length <= 40 && Boolean(occupation.trim())
+      : step === 2
+        ? answersComplete(answers)
+        : valid;
+
+  const footer = (
+    <View style={styles.footerRow}>
+      {step > 1 ? (
+        <View style={styles.footerSecondary}>
+          <DoodleButton
+            title="이전"
+            onPress={() => setStep((step - 1) as 1 | 2)}
+            tone="dark"
+            disabled={busy}
+          />
+        </View>
+      ) : null}
+      <View style={styles.footerPrimary}>
+        <DoodleButton
+          title={step === 3 ? "프로필 완성" : "다음"}
+          onPress={step === 3 ? onSubmit : () => setStep((step + 1) as 2 | 3)}
+          variant="primary"
+          tone="dark"
+          disabled={!stepValid || busy}
+          busy={busy}
+        />
+      </View>
+    </View>
+  );
 
   return (
     <KeyboardAvoidingView
@@ -119,20 +151,19 @@ export default function Onboarding() {
       <AppScreen
         tone="dark"
         body="scroll"
-        header={{ title: "당신을 소개해요" }}
-        footer={
-          <DoodleButton
-            title="시작하기"
-            onPress={onSubmit}
-            variant="primary"
-            tone="dark"
-            disabled={!valid || busy}
-            busy={busy}
-          />
-        }
+        header={{
+          title: step === 1 ? "기본 프로필" : step === 2 ? "취향과 템포" : "마지막 확인",
+          description: `${step}/3 · ${step === 1 ? "상대에게 보일 정보를 입력해요" : step === 2 ? "더 잘 맞는 대화를 찾아드려요" : "이 모습으로 밍글을 시작해요"}`,
+        }}
+        footer={footer}
       >
         <View style={styles.form}>
-          <View style={styles.photoSection}>
+          <View style={styles.progressTrack} accessibilityLabel={`프로필 작성 ${step}/3 단계`}>
+            <View style={[styles.progressFill, { width: `${(step / 3) * 100}%` }]} />
+          </View>
+
+          {step === 1 ? <>
+            <View style={styles.photoSection}>
             <TouchableOpacity
               onPress={onPickPhoto}
               disabled={photoBusy}
@@ -163,7 +194,7 @@ export default function Onboarding() {
                 </InlineNotice>
               </View>
             ) : null}
-          </View>
+            </View>
 
           <LabeledInput
             label="닉네임 / 이름"
@@ -184,7 +215,24 @@ export default function Onboarding() {
             dark
           />
 
-          <PreferencePicker value={answers} onChange={setAnswers} />
+          </> : null}
+
+          {step === 2 ? <PreferencePicker value={answers} onChange={setAnswers} /> : null}
+
+          {step === 3 ? (
+            <View style={styles.previewCard}>
+              <DoodleAvatar uri={photoUrl} name={name} size={76} />
+              <View style={styles.previewText}>
+                <Text style={styles.previewName}>{name.trim()}</Text>
+                <Text style={styles.previewOccupation}>{occupation.trim()}</Text>
+              </View>
+              <View style={styles.previewDivider} />
+              <Text style={styles.previewLabel}>매칭 프로필 준비 완료</Text>
+              <Text style={styles.previewBody}>
+                선택한 대화 분위기와 활동 취향을 바탕으로 상대를 찾아드려요. 이름과 사진은 얼굴 공개 전까지 숨겨져요.
+              </Text>
+            </View>
+          ) : null}
 
           {submitError ? (
             <InlineNotice tone="error" dark>
@@ -200,6 +248,11 @@ export default function Onboarding() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   form: { gap: space.x4, marginTop: space.x4 },
+  footerRow: { flexDirection: "row", gap: space.x2 },
+  footerSecondary: { flex: 0.38 },
+  footerPrimary: { flex: 1 },
+  progressTrack: { height: 6, borderRadius: 3, overflow: "hidden", backgroundColor: dark.fieldBg },
+  progressFill: { height: "100%", borderRadius: 3, backgroundColor: dark.accent },
   photoSection: { alignItems: "center", gap: space.x2, marginBottom: space.x1 },
   photoBusy: {
     position: "absolute",
@@ -219,4 +272,19 @@ const styles = StyleSheet.create({
   },
   photoLinkButton: { minHeight: 44, alignItems: "center", justifyContent: "center" },
   photoNotice: { alignSelf: "stretch", marginTop: space.x1 },
+  previewCard: {
+    alignItems: "center",
+    padding: space.x5,
+    gap: space.x2,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: dark.border,
+    backgroundColor: dark.surface,
+  },
+  previewText: { alignItems: "center" },
+  previewName: { ...type.title, color: dark.text },
+  previewOccupation: { ...type.body, color: dark.textMuted },
+  previewDivider: { width: "100%", height: 1, backgroundColor: dark.line, marginVertical: space.x2 },
+  previewLabel: { ...type.label, color: dark.successBright },
+  previewBody: { ...type.body, color: dark.textMuted, textAlign: "center" },
 });

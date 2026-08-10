@@ -107,4 +107,10 @@ export interface SpeedDateStatus {
   sessionId: string | null;
   /** Present when waiting: epoch ms the entry was enqueued. */
   since: number | null;
+  /** Privacy-safe aggregate only; no participant identity or gender split is exposed. */
+  waitingCount: number | null;
+  requiredCount: number;
+  /** Coarse estimate, not a promise. Null when not waiting. */
+  estimatedWaitMinutes: number | null;
+  canWaitInBackground: boolean;
 }

@@ -65,6 +65,7 @@ export default function DatePlanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [pendingCourse, setPendingCourse] = useState<DateCourse | null>(null);
 
   const load = useCallback(() => {
     let alive = true;
@@ -289,7 +290,7 @@ export default function DatePlanScreen() {
                     variant="primary"
                     tone="dark"
                     disabled={busy}
-                    onPress={() => run(() => selectCourse(p.id, c.courseId))}
+                    onPress={() => setPendingCourse(c)}
                   />
                 }
               />
@@ -343,6 +344,20 @@ export default function DatePlanScreen() {
         )}
       </View>
 
+      <ConfirmDialog
+        dark
+        visible={pendingCourse !== null}
+        title="이 코스를 제안할까요?"
+        body={`${pendingCourse?.label ?? "선택한 코스"}을(를) 선택하면 상대에게 확정 요청이 전송돼요.`}
+        confirmLabel="이 코스로 제안"
+        busy={busy}
+        onCancel={() => setPendingCourse(null)}
+        onConfirm={() => {
+          const courseId = pendingCourse?.courseId;
+          setPendingCourse(null);
+          if (courseId) void run(() => selectCourse(p.id, courseId));
+        }}
+      />
       <ConfirmDialog
         dark
         visible={cancelOpen}

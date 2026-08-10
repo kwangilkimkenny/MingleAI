@@ -56,6 +56,9 @@
       "esbuild",
       "prisma",
       "@prisma/engines"
-    ]
+    ],
+    "patchedDependencies": {
+      "@livekit/react-native@2.12.0": "patches/@livekit__react-native@2.12.0.patch"
+    }
   }
 }

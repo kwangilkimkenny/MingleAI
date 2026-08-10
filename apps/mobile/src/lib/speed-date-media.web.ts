@@ -12,7 +12,7 @@ import type { SpeedDateMedia } from "./speed-date-media";
  * AudioWorklet BEFORE publishing, so the raw voice never leaves this device (publisher-side =
  * privacy-preserving; a listener can't recover the original). The graph is always connected; only
  * the `pitchRatio` param changes — 1.0 = passthrough (VOICE/FACE), shifted for DISGUISED — so stage
- * changes never republish the track. Falls back to the plain mic if the audio graph can't be built.
+ * changes never republish the track. Setup failures are fail-closed; raw speech is never published.
  */
 const DISGUISED_PITCH_RATIO = 0.72; // lower the voice to disguise identity
 
@@ -174,7 +174,7 @@ export function useSpeedDateMedia(
       await room.connect(roomInfo.url, roomInfo.token);
       if (cancelled) return void room.disconnect();
 
-      // Publish a pitch-shiftable mic; fall back to the plain mic if the audio graph can't be built.
+      // Publish only the pitch-shiftable track. A plain-mic fallback would break the privacy promise.
       try {
         const { track, chain } = await buildPitchedMic();
         chain.node.parameters.get("pitchRatio")!.value = modRef.current ? DISGUISED_PITCH_RATIO : 1;
@@ -183,8 +183,9 @@ export function useSpeedDateMedia(
         track.enabled = userMicRef.current;
         await room.localParticipant.publishTrack(track, { source: Track.Source.Microphone });
       } catch (e) {
-        console.warn("[speed-date] pitch mic failed, using plain mic:", e);
-        await room.localParticipant.setMicrophoneEnabled(true);
+        console.warn("[speed-date] pitch mic failed; microphone remains unpublished:", e);
+        await room.localParticipant.setMicrophoneEnabled(false);
+        throw e;
       }
       if (cancelled) return void room.disconnect();
 

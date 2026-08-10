@@ -210,6 +210,7 @@ export default function Login() {
               resizeMode="contain"
               accessibilityLabel="mingle 로고"
             />
+            <Text style={styles.brandName}>MINGLES</Text>
             <Text style={styles.brandTagline}>이동 없이, 여러 사람과 가볍게 대화해요</Text>
           </View>
 
@@ -254,6 +255,7 @@ export default function Login() {
               </View>
             ) : null}
           </View>
+          <Text style={styles.trustLine}>실명 인증 · 상호 선택 · 인앱 신고 및 차단</Text>
         </Animated.ScrollView>
       ) : null}
     </View>
@@ -291,6 +293,14 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
   },
+  brandName: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: 4,
+    color: dark.text,
+    marginBottom: 2,
+  },
   eyebrow: {
     fontFamily: fonts.bodySemibold,
     fontSize: 11,
@@ -314,6 +324,7 @@ const styles = StyleSheet.create({
   error: { fontFamily: fonts.body, fontSize: 13, color: dark.danger, lineHeight: 19 },
   notice: { fontFamily: fonts.body, fontSize: 13, color: dark.textMuted, lineHeight: 20 },
   pills: { gap: 10 },
+  trustLine: { fontFamily: fonts.body, fontSize: 12, lineHeight: 18, color: dark.textMuted, textAlign: "center" },
   pill: {
     borderRadius: 999,
     paddingVertical: 14,

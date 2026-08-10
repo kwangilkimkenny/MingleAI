@@ -39,7 +39,9 @@ services:
   livekit:
     image: livekit/livekit-server:latest
     container_name: mingle-livekit
-    command: --dev --bind 0.0.0.0
+    # A single mapped UDP port keeps WebRTC reachable from Android emulators. The emulator's
+    # 10.0.2.2 alias points back to the development host, where Docker forwards port 7882.
+    command: --dev --bind 0.0.0.0 --node-ip 10.0.2.2 --udp-port 7882
     ports:
       - "7880:7880"
       - "7881:7881"

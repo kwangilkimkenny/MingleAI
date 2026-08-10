@@ -309,3 +309,47 @@ export const doodleHeaderOptions = {
   headerTintColor: colors.ink,
   headerShadowVisible: false,
 };
+
+/** Explicit three-layer token contract used by new work. Legacy named exports above stay stable. */
+export const primitiveTokens = {
+  color: brandPalette,
+  spacing: space,
+  fontFamily: fonts,
+} as const;
+
+export const semanticTokens = {
+  color: {
+    light: colors,
+    dark,
+  },
+  typography: type,
+  layout,
+  elevation: shadow,
+  control,
+} as const;
+
+export const componentTokens = {
+  button: {
+    minHeight: control.buttonHeight,
+    radius: doodle.radius.button,
+    horizontalPadding: 18,
+  },
+  input: {
+    minHeight: control.buttonHeight,
+    radius: doodle.radius.input,
+    horizontalPadding: 14,
+  },
+  card: {
+    radius: doodle.radius.card,
+    padding: space.x4,
+  },
+  chip: {
+    minHeight: control.compactHeight,
+    radius: doodle.radius.chip,
+  },
+  tabBar: {
+    rowHeight: 68,
+    iconSize: 23,
+    labelSize: 11,
+  },
+} as const;

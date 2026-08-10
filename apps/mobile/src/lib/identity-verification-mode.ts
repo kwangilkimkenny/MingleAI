@@ -1,6 +1,7 @@
 export function resolveIdentityVerificationMode(
-  serverMode: "dev" | "redirect",
+  serverMode: "dev" | "portone",
   isDevelopmentBuild: boolean,
-): "dev" | "unavailable" {
-  return serverMode === "dev" && isDevelopmentBuild ? "dev" : "unavailable";
+): "dev" | "portone" | "unavailable" {
+  if (serverMode === "portone") return "portone";
+  return isDevelopmentBuild ? "dev" : "unavailable";
 }
