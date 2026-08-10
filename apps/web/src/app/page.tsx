@@ -97,18 +97,31 @@ export default function Home() {
     const root = rootRef.current;
     if (!root) return;
 
-    const targets = root.querySelectorAll(`.${styles.reveal}`);
+    const targets = [...root.querySelectorAll(`.${styles.reveal}`)];
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (!e.isIntersecting) continue;
-          e.target.classList.add(styles.revealed);
+          e.target.setAttribute("data-revealed", "");
           io.unobserve(e.target); // 한 번 나타나면 끝 — 스크롤 되감기에 깜빡이지 않는다.
         }
       },
       { threshold: 0.18 },
     );
     targets.forEach((t) => io.observe(t));
+
+    /** 관측기를 못 믿는 경우의 안전망. 큰 폭으로 점프 스크롤하면(앵커 이동, 트랙패드 플링)
+     *  교차 콜백이 한 프레임도 안 걸려 섹션이 통째로 빈 화면으로 남는다 — 실제로 재현됐다.
+     *  스크롤마다 아직 안 뜬 것 중 화면에 들어온 것을 직접 켠다. */
+    const sweep = () => {
+      for (const el of targets) {
+        if (el.hasAttribute("data-revealed")) continue;
+        if (el.getBoundingClientRect().top < window.innerHeight * 0.9) {
+          el.setAttribute("data-revealed", "");
+          io.unobserve(el);
+        }
+      }
+    };
 
     let raf = 0;
     const onScroll = () => {
@@ -118,6 +131,10 @@ export default function Home() {
         // 0→1로 정규화한 히어로 진행도. CSS가 이 값으로 컷아웃을 민다.
         const p = Math.min(1, window.scrollY / Math.max(1, window.innerHeight));
         root.style.setProperty("--p", String(p));
+        // 문서 전체 진행도 — 섹션 경계와 무관하게 이어지는 스파인이 이 값으로 그려진다.
+        const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+        root.style.setProperty("--s", String(Math.min(1, window.scrollY / max)));
+        sweep();
       });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -134,16 +151,33 @@ export default function Home() {
 
   return (
     <div className={styles.page} ref={rootRef}>
+      <div className={styles.spine} aria-hidden />
       {/* 히어로 — 타이틀+설명+버튼 스택이 아니라, 활자 자체가 레이아웃이다.
           세 줄이 좌/우로 엇갈리고 판화 컷아웃이 행 사이에 끼어든다. */}
       {/* 히어로 — 워드마크가 곧 헤드라인이다. 별도 헤더 바 없음.
           워드마크 라인을 따라 핑크 텍스트가 한 방향으로 계속 흘러간다. */}
       <header className={styles.hero}>
-        <div className={styles.brandRow}>
+        {/* 워드마크가 화면 폭을 꽉 채운다. 위에는 작은 텍스트가 오른쪽으로,
+            아래에는 뒤집힌 텍스트가 왼쪽으로 흐른다. */}
+        <div className={styles.brandBlock}>
+          <div className={`${styles.ticker} ${styles.tickerTop}`} aria-hidden>
+            <div className={styles.trackRight}>
+              {[0, 1].map((dup) => (
+                <span className={styles.tickerSet} key={dup}>
+                  {Array.from({ length: 8 }, (_, i) => (
+                    <span className={styles.tickerSmall} key={i}>
+                      한자리에서 여러 사람과
+                    </span>
+                  ))}
+                </span>
+              ))}
+            </div>
+          </div>
+
           <h1 className={styles.brand}>mingles</h1>
-          {/* 무한 마퀴 — 트랙을 두 벌 이어붙여 -50% 지점에서 이음매 없이 반복된다. */}
-          <div className={styles.ticker} aria-hidden>
-            <div className={styles.tickerTrack}>
+
+          <div className={`${styles.ticker} ${styles.tickerBottom}`} aria-hidden>
+            <div className={styles.trackLeft}>
               {[0, 1].map((dup) => (
                 <span className={styles.tickerSet} key={dup}>
                   {Array.from({ length: 6 }, (_, i) => (

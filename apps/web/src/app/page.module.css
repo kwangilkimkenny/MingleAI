@@ -11,6 +11,7 @@
  */
 
 .page {
+  position: relative; /* .spine의 기준 — static이면 스파인이 뷰포트에 붙어버린다 */
   --paper: #ede3d5; /* 연한 갈색 종이 */
   --paper-deep: #e4d7c5; /* 한 단 진한 밴드 */
   --ink: #221d18; /* brown800 — 헤드라인·pill */
@@ -54,6 +55,35 @@
 .page > * {
   position: relative;
   z-index: 1;
+}
+
+/* 스크롤 스파인 — 히어로부터 푸터까지 한 줄로 이어지고, 스크롤 진행도(--s)에 따라
+ * 블러시 선이 위에서 아래로 계속 그려진다. 섹션이 바뀌어도 애니메이션이 끊기지 않는
+ * 유일한 연결선이다. */
+.spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: clamp(20px, 5vw, 56px);
+  width: 2px;
+  z-index: 0;
+  border-left: 2px dashed var(--hair);
+  pointer-events: none;
+}
+.spine::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 0;
+  width: 2px;
+  height: calc(var(--s, 0) * 100%);
+  background: var(--blush);
+  opacity: 0.55;
+}
+@media (max-width: 860px) {
+  .spine {
+    display: none;
+  }
 }
 
 /* MUI CssBaseline이 h1~h6에 element 규칙으로 폰트를 박아서 .page의 상속을 덮는다.
@@ -151,63 +181,99 @@
   padding: clamp(24px, 5vw, 64px) clamp(20px, 5vw, 56px) clamp(36px, 6vw, 72px);
 }
 
-.brandRow {
+/* 워드마크 블록 — 히어로 패딩을 뚫고 화면 양 끝까지 쓴다(full-bleed). */
+.brandBlock {
   position: relative;
   z-index: 1;
-  display: flex;
-  align-items: baseline;
-  gap: clamp(16px, 3vw, 40px);
-  /* 마퀴가 화면 밖으로 나가는 부분을 잘라낸다. */
-  overflow: hidden;
-  /* 좌우 여백을 뚫고 화면 끝까지 흐르게 한다. */
   margin: 0 calc(-1 * clamp(20px, 5vw, 56px));
-  padding: 0 clamp(20px, 5vw, 56px);
 }
+
+/* 'mingles' 7글자가 뷰포트 폭을 채우도록 vw로 크기를 잡고 자간으로 미세 조정한다. */
 .brand {
   margin: 0;
-  flex: 0 0 auto;
-  font-size: clamp(64px, 15vw, 210px);
-  line-height: 0.85;
+  display: block;
+  /* 글자의 잉크가 화면 양 끝에 닿아야 한다 — 폰트 박스에는 좌우 사이드베어링이 있어서
+     박스 폭(100vw)만 맞추면 실제 글자는 안쪽에서 끝난다. 그만큼 더 키우고 자간을 조인다. */
+  font-size: 29.6vw;
+  line-height: 0.72;
   letter-spacing: -0.045em;
   font-weight: 600;
   color: var(--ink);
+  text-align: center;
+  white-space: nowrap;
 }
 
 .ticker {
-  flex: 1 1 auto;
-  min-width: 0;
   overflow: hidden;
-  /* 워드마크 옆에서 시작해 화면 끝으로 사라진다 — 끝을 흐려 잘린 티를 없앤다. */
-  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
-.tickerTrack {
+.tickerTop {
+  margin-bottom: clamp(4px, 0.8vw, 12px);
+}
+.tickerBottom {
+  margin-top: clamp(2px, 0.6vw, 10px);
+  /* 뒤집힌 텍스트 — 워드마크 아래에서 거울처럼 흐른다. */
+  transform: scaleY(-1);
+}
+
+/* 트랙 두 벌을 이어 붙여 -50%에서 겹치게 한다 = 이음매 없는 무한 루프.
+   위는 오른쪽으로(-50% → 0), 아래는 왼쪽으로(0 → -50%). */
+.trackRight,
+.trackLeft {
   display: flex;
   width: max-content;
-  animation: marquee 26s linear infinite;
 }
+.trackRight {
+  animation: marqueeRight 30s linear infinite;
+}
+.trackLeft {
+  animation: marqueeLeft 26s linear infinite;
+}
+@keyframes marqueeRight {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes marqueeLeft {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 .tickerSet {
   display: flex;
   flex: 0 0 auto;
 }
+.tickerSmall,
 .tickerItem {
   flex: 0 0 auto;
-  padding-right: 0.8em;
-  font-size: clamp(20px, 3.4vw, 48px);
+  white-space: nowrap;
   line-height: 1;
+}
+.tickerSmall {
+  padding-right: 1em;
+  font-size: clamp(11px, 1.1vw, 15px);
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+}
+.tickerSmall::after {
+  content: "—";
+  padding-left: 1em;
+  opacity: 0.45;
+}
+.tickerItem {
+  padding-right: 0.7em;
+  font-size: clamp(15px, 2.2vw, 34px);
   letter-spacing: 0.01em;
   color: var(--blush-ink);
-  white-space: nowrap;
 }
 .tickerItem::after {
   content: "·";
-  padding-left: 0.8em;
+  padding-left: 0.7em;
   opacity: 0.5;
-}
-/* 트랙이 두 벌이라 -50%에서 처음과 정확히 겹친다 = 이음매 없음. */
-@keyframes marquee {
-  to {
-    transform: translateX(-50%);
-  }
 }
 
 /* 판화 컷아웃 — 히어로 좌우 하단. 활자 아래 레이어. */
@@ -288,24 +354,27 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tickerTrack {
+  .trackRight,
+  .trackLeft {
     animation: none;
   }
 }
 
 /* ── 섹션 공통 ──────────────────────────────────── */
+/* 섹션 사이 여백이 커서 스크롤 중간에 빈 화면이 생겼다(실측 ~540px). 리듬은 여백이 아니라
+   스파인과 활자가 만든다 — 패딩을 줄인다. */
 .section {
-  padding: clamp(64px, 10vw, 140px) clamp(20px, 5vw, 56px);
+  padding: clamp(44px, 6vw, 88px) clamp(20px, 5vw, 56px);
   max-width: 1120px;
   margin: 0 auto;
 }
-/* 밴드는 전폭 배경만 담당한다 — 안쪽 .section이 패딩·폭을 갖는다(중첩 패딩 금지). */
+/* 섹션 구분을 두지 않는다 — 배경도 경계선도 없이 한 장의 종이로 이어진다(2026-08-10 지시).
+ * 밴드는 이제 폭/패딩만 정리하는 껍데기다. */
 .band {
-  background: var(--paper-deep);
-  border-top: 1px solid var(--hair);
-  border-bottom: 1px solid var(--hair);
+  background: transparent;
 }
 .sectionHead {
+  margin-top: 0;
   /* 히어로만 가운데. 나머지는 왼쪽 정렬 — 전부 center는 AI 슬롭 패턴이다. */
   max-width: 34ch;
   margin-bottom: clamp(36px, 5vw, 64px);
@@ -335,6 +404,8 @@
  * 오른쪽에 이름·설명을 두는 행을 세로로 쌓고 세로 점선으로 잇는다. */
 .stages {
   border-top: 1px solid var(--hair);
+  /* 섹션 경계처럼 보이지 않게 좌우로 살짝 안쪽에서 시작한다. */
+  margin-left: clamp(0px, 2vw, 24px);
 }
 .stage {
   position: relative;
@@ -433,7 +504,7 @@
   transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease;
 }
 /* 좌석이 시계 방향으로 하나씩 앉는다(딜레이는 JS가 인덱스로 준다). */
-.revealed .seat {
+.reveal[data-revealed] .seat {
   transform: translate(-50%, -50%) scale(1);
   opacity: 1;
 }
@@ -476,10 +547,10 @@
   font-size: 14px;
   transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.revealed .matchCardLeft {
+.reveal[data-revealed] .matchCardLeft {
   transform: translateX(min(3vw, 18px)) rotate(-3deg);
 }
-.revealed .matchCardRight {
+.reveal[data-revealed] .matchCardRight {
   transform: translateX(max(-3vw, -18px)) rotate(3deg);
 }
 .matchHeart {
@@ -497,7 +568,7 @@
   transform: scale(0.7);
   transition: opacity 0.5s ease 0.7s, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.7s;
 }
-.revealed .matchHeart {
+.reveal[data-revealed] .matchHeart {
   opacity: 1;
   transform: scale(1);
 }
@@ -558,7 +629,10 @@
   transform: translateY(22px);
   transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.reveal.revealed {
+/* ⚠️ 등장 표식은 클래스가 아니라 data 속성이다. CSS 모듈은 복합 선택자로만 쓰인 이름을
+ * export하지 않아서 `styles.revealed`가 undefined였고, JS가 "undefined" 문자열 클래스를
+ * 붙이는 바람에 등장 애니메이션이 통째로 죽어 있었다(2026-08-10). 속성은 해싱되지 않는다. */
+.reveal[data-revealed] {
   opacity: 1;
   transform: none;
 }
@@ -572,21 +646,21 @@
 /* 모션 최소화 — 앱과 같은 규칙. 등장/그리기/회전 전부 끈다. */
 @media (prefers-reduced-motion: reduce) {
   .reveal,
-  .reveal.revealed,
+  .reveal[data-revealed],
   .matchCard,
   .matchHeart {
     opacity: 1;
     transform: none;
     transition: none;
   }
-  .revealed .seat,
+  .reveal[data-revealed] .seat,
   .seat {
     transform: translate(-50%, -50%);
     opacity: 1;
     transition: none;
   }
   .stageLine,
-  .revealed .stageLine {
+  .reveal[data-revealed] .stageLine {
     clip-path: none;
     transition: none;
   }
