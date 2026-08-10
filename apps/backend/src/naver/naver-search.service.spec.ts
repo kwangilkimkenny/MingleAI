@@ -80,6 +80,25 @@ describe("NaverSearchService", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("display=5");
   });
 
+  it("serves a repeated query from cache instead of spending Naver quota", async () => {
+    process.env.NAVER_SEARCH_CLIENT_ID = "id";
+    process.env.NAVER_SEARCH_CLIENT_SECRET = "secret";
+    const fetchMock = jest.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [{ title: "<b>강남</b> 맛집", category: "한식" }] }),
+    } as unknown as Response);
+
+    const first = await svc.searchLocal("강남 맛집", 5, "comment");
+    const second = await svc.searchLocal("강남 맛집", 5, "comment");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(second).toEqual(first);
+
+    // 정렬이나 질의가 다르면 별개의 결과 — 캐시가 섞이면 안 된다.
+    await svc.searchLocal("강남 맛집", 5, "random");
+    await svc.searchLocal("홍대 맛집", 5, "comment");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   describe("searchAreas", () => {
     it("turns Nominatim rows into labeled coordinates and drops duplicates", async () => {
       jest.spyOn(globalThis, "fetch").mockResolvedValue({
