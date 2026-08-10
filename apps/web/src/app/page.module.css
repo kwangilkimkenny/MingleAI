@@ -56,6 +56,16 @@
   z-index: 1;
 }
 
+/* MUI CssBaseline이 h1~h6에 element 규칙으로 폰트를 박아서 .page의 상속을 덮는다.
+ * 클래스+엘리먼트 선택자로 되찾는다(클래스만으로는 이겼어야 하는데 실측상 안 이겼다). */
+.page h1,
+.page h2,
+.page h3,
+.page dt,
+.page dd {
+  font-family: var(--font-serif), "Apple SD Gothic Neo", serif;
+}
+
 /* ── 상단 바 ─────────────────────────────────────── */
 .nav {
   display: flex;
@@ -128,79 +138,158 @@
   pointer-events: none;
 }
 
-/* ── 히어로 ─────────────────────────────────────── */
+/* ── 히어로: 워드마크 + 흐르는 라인 ─────────────────
+ * 헤더 바를 두지 않는다. 워드마크가 곧 헤드라인이고, 그 라인을 따라 핑크 텍스트가
+ * 한 방향으로 끝없이 흘러간다(레퍼런스의 large type + scrolling animation). */
 .hero {
   position: relative;
-  min-height: min(88vh, 780px);
-  display: grid;
-  place-items: center;
-  text-align: center;
-  padding: clamp(40px, 8vw, 96px) 20px clamp(80px, 12vw, 140px);
+  min-height: min(100vh, 900px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(28px, 5vw, 56px);
+  padding: clamp(24px, 5vw, 64px) clamp(20px, 5vw, 56px) clamp(36px, 6vw, 72px);
 }
-.eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.22em;
+
+.brandRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: clamp(16px, 3vw, 40px);
+  /* 마퀴가 화면 밖으로 나가는 부분을 잘라낸다. */
+  overflow: hidden;
+  /* 좌우 여백을 뚫고 화면 끝까지 흐르게 한다. */
+  margin: 0 calc(-1 * clamp(20px, 5vw, 56px));
+  padding: 0 clamp(20px, 5vw, 56px);
+}
+.brand {
+  margin: 0;
+  flex: 0 0 auto;
+  font-size: clamp(64px, 15vw, 210px);
+  line-height: 0.85;
+  letter-spacing: -0.045em;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ticker {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  /* 워드마크 옆에서 시작해 화면 끝으로 사라진다 — 끝을 흐려 잘린 티를 없앤다. */
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 88%, transparent);
+}
+.tickerTrack {
+  display: flex;
+  width: max-content;
+  animation: marquee 26s linear infinite;
+}
+.tickerSet {
+  display: flex;
+  flex: 0 0 auto;
+}
+.tickerItem {
+  flex: 0 0 auto;
+  padding-right: 0.8em;
+  font-size: clamp(20px, 3.4vw, 48px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--blush-ink);
+  white-space: nowrap;
+}
+.tickerItem::after {
+  content: "·";
+  padding-left: 0.8em;
+  opacity: 0.5;
+}
+/* 트랙이 두 벌이라 -50%에서 처음과 정확히 겹친다 = 이음매 없음. */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* 판화 컷아웃 — 히어로 좌우 하단. 활자 아래 레이어. */
+.figureMan,
+.figureWoman {
+  position: absolute;
+  bottom: 0;
+  height: auto;
+  z-index: 0;
+  pointer-events: none;
+  filter: grayscale(1) contrast(1.05);
+  opacity: 0.42;
+}
+.figureMan {
+  right: 6vw;
+  width: clamp(130px, 18vw, 280px);
+  transform: translateY(calc(var(--p, 0) * 40px));
+}
+.figureWoman {
+  right: 26vw;
+  width: clamp(120px, 16vw, 250px);
+  transform: translateY(calc(var(--p, 0) * 24px)) scaleX(-1);
+}
+@media (max-width: 900px) {
+  .figureMan,
+  .figureWoman {
+    opacity: 0.18;
+    width: 38vw;
+  }
+  .figureWoman {
+    right: 44vw;
+  }
+}
+
+/* 숫자가 카피를 대신한다 — 설명 문단 없음. */
+.facts {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, auto));
+  gap: clamp(16px, 3vw, 44px);
+  justify-content: start;
+  border-top: 1px solid var(--hair);
+  padding-top: 18px;
+}
+.facts dt {
+  font-size: 11px;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--blush-ink);
-  margin-bottom: 22px;
+  margin-bottom: 6px;
 }
-.heroTitle {
-  font-size: clamp(38px, 7.4vw, 84px);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+.facts dd {
+  margin: 0;
+  font-size: clamp(17px, 1.8vw, 21px);
   color: var(--ink);
-  font-weight: 600;
-  margin: 0 0 20px;
-  word-break: keep-all;
 }
-.heroTitle em {
-  font-style: normal;
-  color: var(--blush-ink);
-}
-.heroSub {
-  font-size: clamp(15px, 1.6vw, 18px);
-  line-height: 1.75;
-  max-width: 30ch;
-  margin: 0 auto 34px;
-  word-break: keep-all;
+
+.heroFoot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
 }
 .heroCtas {
   display: flex;
   gap: 12px;
-  justify-content: center;
   flex-wrap: wrap;
 }
 .storeNote {
-  margin-top: 16px;
-  font-size: 12px;
+  margin: 0;
+  font-size: 13px;
   color: var(--ink-soft);
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
-/* 히어로 양옆 판화 컷아웃 — 스크롤 패럴랙스는 JS가 --p 변수를 넣는다. */
-.heroFigure {
-  position: absolute;
-  bottom: -2%;
-  width: clamp(150px, 19vw, 290px);
-  height: auto;
-  pointer-events: none;
-  /* 판화 톤 — 흑백 + 살짝 눌러서 종이에 인쇄된 느낌. 카피와 경쟁하지 않게 옅게. */
-  filter: grayscale(1) contrast(1.05);
-  opacity: 0.5;
-  transform: translateY(calc(var(--p, 0) * 40px));
-}
-.heroFigureLeft {
-  left: clamp(-40px, 1vw, 40px);
-}
-.heroFigureRight {
-  right: clamp(-40px, 1vw, 40px);
-  transform: translateY(calc(var(--p, 0) * 26px)) scaleX(-1);
-}
-/* 좁은 화면에선 카피를 가리므로 더 옅게. */
-@media (max-width: 1100px) {
-  .heroFigure {
-    opacity: 0.22;
-    width: 30vw;
+@media (prefers-reduced-motion: reduce) {
+  .tickerTrack {
+    animation: none;
   }
 }
 
@@ -222,6 +311,8 @@
   margin-bottom: clamp(36px, 5vw, 64px);
 }
 .sectionTitle {
+  font-family: inherit;
+  text-wrap: balance;
   font-size: clamp(26px, 3.6vw, 44px);
   line-height: 1.25;
   color: var(--ink);
@@ -230,6 +321,8 @@
   word-break: keep-all;
 }
 .sectionLead {
+  /* 마지막 줄에 한 단어만 남는 고아를 막는다. */
+  text-wrap: pretty;
   font-size: 17px;
   line-height: 1.8;
   max-width: 46ch;
@@ -246,7 +339,8 @@
 .stage {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(72px, 12%) 1fr minmax(0, 46%);
+  /* 번호는 줄바꿈 금지(→ "1라 / 운드" 방지), 나머지 폭은 이름/설명이 나눈다. */
+  grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1.3fr);
   gap: clamp(12px, 3vw, 40px);
   align-items: baseline;
   padding: clamp(22px, 3vw, 34px) 0;
@@ -264,7 +358,7 @@
 .stage::before {
   content: "";
   position: absolute;
-  left: clamp(20px, 6%, 44px);
+  left: 3.2em;
   top: 0;
   bottom: 0;
   border-left: 2px dashed var(--blush);
@@ -277,6 +371,7 @@
   bottom: 50%;
 }
 .stageIndex {
+  white-space: nowrap;
   position: relative;
   z-index: 1;
   font-size: clamp(15px, 1.6vw, 17px);
@@ -285,12 +380,16 @@
   padding: 4px 0;
 }
 .stageName {
+  font-family: inherit;
+  text-wrap: balance;
   font-size: clamp(20px, 2.4vw, 26px);
   color: var(--ink);
   font-weight: 600;
   margin: 0;
 }
 .stageDesc {
+  /* 마지막 줄에 한 단어만 남는 고아를 막는다. */
+  text-wrap: pretty;
   font-size: 16px;
   line-height: 1.75;
   margin: 0;
@@ -414,12 +513,14 @@
   padding-top: 18px;
 }
 .safetyItem h3 {
+  font-family: inherit;
   font-size: 17px;
   color: var(--ink);
   font-weight: 600;
   margin: 0 0 8px;
 }
 .safetyItem p {
+  text-wrap: pretty;
   font-size: 16px;
   line-height: 1.75;
   margin: 0;
@@ -491,5 +592,99 @@
   }
   .heroFigure {
     transform: none;
+  }
+}
+
+/* ── 문장 단위 줄바꿈 ──────────────────────────────
+ * 한국어는 어절 사이 어디서든 끊겨서, 브라우저에 맡기면 "대화가 / 먼저"처럼
+ * 의미가 갈라진다. 문장을 블록으로 만들어 **문장 경계에서만** 줄을 넘긴다.
+ * 문장 안쪽 줄바꿈은 위의 text-wrap: pretty/balance가 처리한다. */
+.sentence {
+  display: block;
+}
+
+/* ── 레퍼런스 동작 구현 ─────────────────────────────
+ * Heart Aerospace: 초대형 타입 + 스크롤 연동 + 긴 스크롤에서 제목 고정.
+ * Spring/Summer: 크림 + 단일 강조색, 문장 자체를 컬러 대형 텍스트로, 초대형 숫자.
+ * 라이브러리는 쓰지 않는다 — sticky, clip-path, IntersectionObserver로 충분하다. */
+
+/* 히어로 줄 등장: 아래에서 밀려 올라오되 줄 바깥은 잘린다(활판 인쇄가 찍히듯). */
+.mask {
+  display: inline-block;
+  clip-path: inset(-0.2em -0.1em 0 -0.1em);
+}
+.mask > span,
+.lineA .mask,
+.lineB .mask,
+.lineC .mask {
+  will-change: transform;
+}
+.lineA .mask,
+.lineB .mask,
+.lineC .mask {
+  transform: translateY(105%);
+  animation: riseIn 0.95s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.lineA .mask {
+  animation-delay: 0.05s;
+}
+.lineB .mask {
+  animation-delay: 0.18s;
+}
+.lineC .mask {
+  animation-delay: 0.31s;
+}
+@keyframes riseIn {
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* 제목 고정 스크롤 — 왼쪽 제목이 붙어 있고 오른쪽 단계가 지나간다. */
+.pinned {
+  display: grid;
+  grid-template-columns: minmax(280px, 38%) 1fr;
+  gap: clamp(24px, 5vw, 72px);
+  align-items: start;
+}
+.pinnedHead {
+  position: sticky;
+  top: clamp(80px, 14vh, 160px);
+}
+@media (max-width: 860px) {
+  .pinned {
+    grid-template-columns: 1fr;
+  }
+  .pinnedHead {
+    position: static;
+  }
+}
+
+/* 컬러 대형 문장 — 설명 문단을 시각 요소로 승격. */
+.statement {
+  margin: 0;
+  font-size: clamp(19px, 2.1vw, 26px);
+  line-height: 1.45;
+  color: var(--blush-ink);
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+/* 초대형 숫자 — 원 안에서 활자가 주인공. */
+.bigNumeral {
+  display: block;
+  font-size: clamp(88px, 13vw, 190px);
+  line-height: 0.82;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lineA .mask,
+  .lineB .mask,
+  .lineC .mask {
+    transform: none;
+    animation: none;
   }
 }

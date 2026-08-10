@@ -61,6 +61,24 @@ const SAFETY = [
   },
 ];
 
+/**
+ * 문장 경계에서만 줄을 넘긴다. 한국어는 어절 사이 어디서든 끊겨서 브라우저에 맡기면
+ * "대화가 / 먼저"처럼 의미가 갈라진다. 문장을 블록으로 쪼개고, 문장 **안쪽** 줄바꿈은
+ * CSS의 text-wrap: pretty/balance에 맡긴다.
+ */
+function Sentences({ text }: { text: string }) {
+  const parts = text.split(/(?<=\.)\s+/).filter(Boolean);
+  return (
+    <>
+      {parts.map((s) => (
+        <span className={styles.sentence} key={s}>
+          {s}
+        </span>
+      ))}
+    </>
+  );
+}
+
 /** 6인 좌석 배치 — 남3·여3이 번갈아 앉는다(앱의 성별 인지 매칭과 같은 구성). */
 const SEATS = [0, 60, 120, 180, 240, 300];
 
@@ -116,24 +134,31 @@ export default function Home() {
 
   return (
     <div className={styles.page} ref={rootRef}>
-      <nav className={styles.nav}>
-        <span className={styles.wordmark}>mingles</span>
-        <div className={styles.navLinks}>
-          <a href="#how">진행 방식</a>
-          <a href="#safety">안전</a>
-          <button
-            type="button"
-            className={`${styles.pillGhost} ${styles.pillSmall}`}
-            onClick={() => router.push("/login")}
-          >
-            로그인
-          </button>
-        </div>
-      </nav>
-
+      {/* 히어로 — 타이틀+설명+버튼 스택이 아니라, 활자 자체가 레이아웃이다.
+          세 줄이 좌/우로 엇갈리고 판화 컷아웃이 행 사이에 끼어든다. */}
+      {/* 히어로 — 워드마크가 곧 헤드라인이다. 별도 헤더 바 없음.
+          워드마크 라인을 따라 핑크 텍스트가 한 방향으로 계속 흘러간다. */}
       <header className={styles.hero}>
+        <div className={styles.brandRow}>
+          <h1 className={styles.brand}>mingles</h1>
+          {/* 무한 마퀴 — 트랙을 두 벌 이어붙여 -50% 지점에서 이음매 없이 반복된다. */}
+          <div className={styles.ticker} aria-hidden>
+            <div className={styles.tickerTrack}>
+              {[0, 1].map((dup) => (
+                <span className={styles.tickerSet} key={dup}>
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <span className={styles.tickerItem} key={i}>
+                      blind rotation meeting
+                    </span>
+                  ))}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <Image
-          className={`${styles.heroFigure} ${styles.heroFigureLeft}`}
+          className={styles.figureMan}
           src="/renaissance-man-cutout.png"
           alt=""
           aria-hidden
@@ -142,7 +167,7 @@ export default function Home() {
           priority
         />
         <Image
-          className={`${styles.heroFigure} ${styles.heroFigureRight}`}
+          className={styles.figureWoman}
           src="/renaissance-woman-cutout.png"
           alt=""
           aria-hidden
@@ -150,17 +175,24 @@ export default function Home() {
           height={520}
           priority
         />
-        <div>
-          <p className={styles.eyebrow}>로테이션 블라인드 소개팅</p>
-          <h1 className={styles.heroTitle}>
-            한자리에서 여러 사람과,
-            <br />
-            <em>얼굴보다 대화로 먼저</em>
-          </h1>
-          <p className={styles.heroSub}>
-            남녀 세 명씩 모이면 한 자리가 열립니다. 돌아가며 이야기하고, 마음이 가는 한 사람을
-            비공개로 고릅니다.
-          </p>
+
+        {/* 숫자가 곧 카피 — 문장으로 설명하지 않는다. */}
+        <dl className={styles.facts}>
+          <div>
+            <dt>한 자리</dt>
+            <dd>남 3 · 여 3</dd>
+          </div>
+          <div>
+            <dt>공개 순서</dt>
+            <dd>가면 → 목소리 → 얼굴</dd>
+          </div>
+          <div>
+            <dt>한 번의 모임</dt>
+            <dd>9번의 대화</dd>
+          </div>
+        </dl>
+
+        <div className={styles.heroFoot}>
           <div className={styles.heroCtas}>
             <a
               className={`${styles.pill} ${STORE_LINKS.google ? "" : styles.pillDisabled}`}
@@ -176,18 +208,28 @@ export default function Home() {
             >
               App Store
             </a>
+            <button
+              type="button"
+              className={`${styles.pillGhost} ${styles.pillSmall}`}
+              onClick={() => router.push("/login")}
+            >
+              웹으로 로그인
+            </button>
           </div>
           <p className={styles.storeNote}>출시 준비 중입니다. 스토어 링크는 공개되면 열립니다.</p>
         </div>
       </header>
 
-      <section className={styles.section} id="how">
-        <div className={`${styles.sectionHead} ${styles.reveal}`}>
-          <h2 className={styles.sectionTitle}>세 번에 걸쳐 조금씩 열립니다</h2>
-          <p className={styles.sectionLead}>
-            처음부터 얼굴을 보지 않습니다. 목소리도 처음엔 변조됩니다. 대화가 먼저 쌓이도록
-            순서를 정해두었습니다.
-          </p>
+      {/* 제목 컬럼을 화면에 고정(sticky)하고 오른쪽 단계만 흘려보낸다 — 레퍼런스의 pinned 스크롤. */}
+      <section className={`${styles.section} ${styles.pinned}`} id="how">
+        <div className={styles.pinnedHead}>
+          <div className={`${styles.sectionHead} ${styles.reveal}`}>
+            <h2 className={styles.sectionTitle}>세 번에 걸쳐 조금씩 열립니다</h2>
+            {/* 컬러 대형 문장 — 작은 회색 설명 대신 문장 자체를 시각 요소로 쓴다. */}
+            <p className={styles.statement}>
+              <Sentences text="처음부터 얼굴을 보지 않습니다. 대화가 먼저 쌓이도록 순서를 정해두었습니다." />
+            </p>
+          </div>
         </div>
 
         <div className={`${styles.stageWrap} ${styles.reveal}`}>
@@ -196,7 +238,9 @@ export default function Home() {
               <div className={styles.stage} key={s.name}>
                 <span className={styles.stageIndex}>{s.badge}</span>
                 <h3 className={styles.stageName}>{s.name}</h3>
-                <p className={styles.stageDesc}>{s.desc}</p>
+                <p className={styles.stageDesc}>
+                  <Sentences text={s.desc} />
+                </p>
               </div>
             ))}
           </div>
@@ -208,8 +252,7 @@ export default function Home() {
           <div className={`${styles.sectionHead} ${styles.reveal}`}>
             <h2 className={styles.sectionTitle}>여섯 명이 모이면 한 자리</h2>
             <p className={styles.sectionLead}>
-              남성 셋, 여성 셋. 한 라운드가 끝나면 자리를 옮겨 다음 사람과 이야기합니다. 아홉 번의
-              대화가 한 자리 안에서 일어납니다.
+              <Sentences text="남성 셋, 여성 셋. 한 라운드가 끝나면 자리를 옮겨 다음 사람과 이야기합니다. 아홉 번의 대화가 한 자리 안에서 일어납니다." />
             </p>
           </div>
           <div className={`${styles.circle} ${styles.reveal}`}>
@@ -232,8 +275,8 @@ export default function Home() {
             </div>
             <div className={styles.circleCenter}>
               <div>
-                <strong>9번의 대화</strong>
-                <span>3라운드 × 3명</span>
+                <strong className={styles.bigNumeral}>9</strong>
+                <span>번의 대화 · 3라운드 × 3명</span>
               </div>
             </div>
           </div>
@@ -244,8 +287,7 @@ export default function Home() {
         <div className={`${styles.sectionHead} ${styles.reveal}`}>
           <h2 className={styles.sectionTitle}>서로 골랐을 때만 이어집니다</h2>
           <p className={styles.sectionLead}>
-            마지막에 한 사람을 비공개로 고릅니다. 상대도 나를 골랐을 때만 채팅이 열립니다. 고르지
-            않았다는 사실은 누구에게도 알려지지 않습니다.
+            <Sentences text="마지막에 한 사람을 비공개로 고릅니다. 상대도 나를 골랐을 때만 채팅이 열립니다. 고르지 않았다는 사실은 누구에게도 알려지지 않습니다." />
           </p>
         </div>
         <div className={`${styles.matchRow} ${styles.reveal}`}>
@@ -268,7 +310,9 @@ export default function Home() {
             {SAFETY.map((s) => (
               <div className={styles.safetyItem} key={s.title}>
                 <h3>{s.title}</h3>
-                <p>{s.body}</p>
+                <p>
+                  <Sentences text={s.body} />
+                </p>
               </div>
             ))}
           </div>
@@ -278,7 +322,7 @@ export default function Home() {
       <section className={`${styles.section} ${styles.closing} ${styles.reveal}`}>
         <h2 className={styles.sectionTitle}>얼굴보다 대화가 먼저인 소개팅</h2>
         <p className={styles.sectionLead}>
-          소개팅은 mingles 앱에서 진행됩니다. 웹에서는 프로필·데이트 계획·알림을 볼 수 있습니다.
+          <Sentences text="소개팅은 mingles 앱에서 진행됩니다. 웹에서는 프로필·데이트 계획·알림을 볼 수 있습니다." />
         </p>
         <div className={styles.heroCtas} style={{ marginTop: 28 }}>
           <button type="button" className={styles.pill} onClick={() => router.push("/login")}>
