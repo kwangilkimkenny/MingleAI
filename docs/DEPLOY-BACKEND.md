@@ -44,16 +44,25 @@ docker run -d -p 3000:3000 --env-file apps/backend/.env.production mingles-backe
 5. **인스턴스 수 = 1** (당분간) — 매칭 sweep과 일부 게이트웨이 상태가 단일 서버 전제.
    수평 확장 전에 Socket.IO Redis adapter + 분산 작업 소유권이 필요하다.
 6. **LiveKit** — 자체 호스팅 또는 LiveKit Cloud. `LIVEKIT_URL/API_KEY/API_SECRET`.
-7. **HTTPS·도메인** — 플랫폼 TLS 또는 리버스 프록시. `PUBLIC_BASE_URL`을 그 도메인으로.
+7. **HTTPS·도메인** — 도메인은 `mingles.cloud`(보유). DNS 배치:
+
+   | 호스트 | 대상 | 용도 |
+   |---|---|---|
+   | `api.mingles.cloud` | backend 컨테이너(Railway 등) | REST + WebSocket |
+   | `mingles.cloud`, `www` | apps/web(Next.js) | 소개·관리자 콘솔 |
+   | (선택) `livekit.mingles.cloud` | 자체 호스팅 LiveKit | LiveKit Cloud 쓰면 불필요 |
+
+   플랫폼에서 커스텀 도메인 추가 → 안내하는 CNAME을 등록사에 등록하면 TLS는 자동 발급된다.
+   `PUBLIC_BASE_URL=https://api.mingles.cloud`, `SOCKET_CORS_ORIGINS`에 웹 오리진.
 8. **DB 마이그레이션 운영** — 기동 시 자동 `migrate deploy`. 첫 배포 전 **백업 후**
    `prisma migrate status`로 정합 확인. 파괴적 마이그레이션은 별도 검토.
 
 ## 검증 방법(배포 후)
 
 ```bash
-curl https://<도메인>/health          # {"status":"ok"}
-curl https://<도메인>/health/ready    # {"status":"ready"} = DB 연결 정상
-curl https://<도메인>/auth/social/providers   # 설정한 provider 목록
+curl https://api.mingles.cloud/health          # {"status":"ok"}
+curl https://api.mingles.cloud/health/ready    # {"status":"ready"} = DB 연결 정상
+curl https://api.mingles.cloud/auth/social/providers   # 설정한 provider 목록
 ```
 
 ## 알려진 한계

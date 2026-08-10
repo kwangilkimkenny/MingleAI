@@ -84,7 +84,7 @@
 
 ```bash
 # 운영 URL·소셜키 등록(예시)
-eas env:create --environment production --name EXPO_PUBLIC_API_URL --value https://<운영도메인>
+eas env:create --environment production --name EXPO_PUBLIC_API_URL --value https://api.mingles.cloud
 # production AAB 빌드(원격 서명 자동)
 eas build --profile production --platform android
 # Play internal 트랙 제출(서비스 계정 JSON 필요)
