@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   Pressable,
   ScrollView,
   useWindowDimensions,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { router } from "expo-router";
 import { Check } from "lucide-react-native";
@@ -20,6 +23,10 @@ import {
   TERMS_SECTIONS,
   type LegalSection,
 } from "../src/lib/legal-content";
+import {
+  hasReachedConsentEnd,
+  type ConsentScrollMetrics,
+} from "../src/lib/consent-scroll";
 
 // 만 19세 확인은 체크박스가 아니라 본인인증(생년월일)이 보장한다 — age19 항목 없음(2026-07-27).
 const ITEMS: {
@@ -49,6 +56,16 @@ export default function Consent() {
     terms: false,
     privacy: false,
   });
+  const [readToEnd, setReadToEnd] = useState<Record<ConsentScope, boolean>>({
+    age19: true,
+    terms: false,
+    privacy: false,
+  });
+  const scrollMetrics = useRef<Record<ConsentScope, ConsentScrollMetrics>>({
+    age19: { layoutHeight: 0, contentHeight: 0, offsetY: 0 },
+    terms: { layoutHeight: 0, contentHeight: 0, offsetY: 0 },
+    privacy: { layoutHeight: 0, contentHeight: 0, offsetY: 0 },
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +73,16 @@ export default function Consent() {
   // Give each native ScrollView an explicit viewport. Two flex-sized ScrollViews in one React
   // Native Fabric screen can lose their Android clipping bounds after repeated overscroll.
   const documentHeight = Math.max(88, Math.min(210, (windowHeight - 420) / 2));
+
+  function updateScrollMetrics(scope: ConsentScope, patch: Partial<ConsentScrollMetrics>) {
+    const next = { ...scrollMetrics.current[scope], ...patch };
+    scrollMetrics.current[scope] = next;
+    if (hasReachedConsentEnd(next)) {
+      setReadToEnd((current) =>
+        current[scope] ? current : { ...current, [scope]: true },
+      );
+    }
+  }
 
   async function onSubmit() {
     setBusy(true);
@@ -90,6 +117,7 @@ export default function Consent() {
       <View style={styles.body}>
         {ITEMS.map((item) => {
           const on = checked[item.scope];
+          const canAgree = readToEnd[item.scope];
           return (
             <View key={item.scope} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -113,6 +141,20 @@ export default function Consent() {
                   showsVerticalScrollIndicator
                   accessibilityLabel={`${item.title} 전문`}
                   accessibilityHint="위아래로 스크롤해 전체 내용을 확인할 수 있습니다."
+                  onLayout={(event: LayoutChangeEvent) =>
+                    updateScrollMetrics(item.scope, {
+                      layoutHeight: event.nativeEvent.layout.height,
+                    })
+                  }
+                  onContentSizeChange={(_width, height) =>
+                    updateScrollMetrics(item.scope, { contentHeight: height })
+                  }
+                  onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) =>
+                    updateScrollMetrics(item.scope, {
+                      offsetY: event.nativeEvent.contentOffset.y,
+                    })
+                  }
+                  scrollEventThrottle={16}
                 >
                   {item.sections.map((section) => (
                     <View key={section.title} style={styles.section}>
@@ -132,14 +174,30 @@ export default function Consent() {
               <Pressable
                 accessibilityRole="checkbox"
                 accessibilityLabel={item.agreementLabel}
-                accessibilityState={{ checked: on }}
+                accessibilityHint={
+                  canAgree ? "두 번 탭해 동의 상태를 바꿉니다." : "약관을 끝까지 읽으면 활성화됩니다."
+                }
+                accessibilityState={{ checked: on, disabled: !canAgree }}
+                disabled={!canAgree}
                 onPress={() => setChecked((c) => ({ ...c, [item.scope]: !c[item.scope] }))}
-                style={({ pressed }) => [styles.agreeRow, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.agreeRow,
+                  !canAgree && styles.agreeRowDisabled,
+                  pressed && styles.pressed,
+                ]}
               >
                 <View style={[styles.box, on && styles.boxOn]}>
                   {on ? <Check color={dark.onPill} size={16} strokeWidth={1.75} /> : null}
                 </View>
-                <Text style={styles.agreeText}>{item.agreementLabel}</Text>
+                <View style={styles.agreeTextGroup}>
+                  <Text style={styles.agreeText}>{item.agreementLabel}</Text>
+                  <Text
+                    style={[styles.readStatus, canAgree && styles.readStatusDone]}
+                    accessibilityLiveRegion="polite"
+                  >
+                    {canAgree ? "내용 확인 완료" : "끝까지 읽으면 동의할 수 있어요"}
+                  </Text>
+                </View>
               </Pressable>
             </View>
           );
@@ -203,6 +261,7 @@ const styles = StyleSheet.create({
     borderTopColor: dark.line,
     backgroundColor: dark.surface,
   },
+  agreeRowDisabled: { opacity: 0.58 },
   box: {
     width: 26,
     height: 26,
@@ -213,6 +272,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   boxOn: { backgroundColor: dark.pill, borderColor: dark.pill },
-  agreeText: { ...type.label, color: dark.text, flex: 1 },
+  agreeTextGroup: { flex: 1, gap: 2 },
+  agreeText: { ...type.label, color: dark.text },
+  readStatus: { ...type.caption, fontSize: 11, lineHeight: 15, color: dark.textMuted },
+  readStatusDone: { color: dark.success },
   pressed: { opacity: 0.72 },
 });
