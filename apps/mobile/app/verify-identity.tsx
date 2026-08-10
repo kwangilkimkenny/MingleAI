@@ -25,7 +25,10 @@ export default function VerifyIdentity() {
   useEffect(() => {
     let alive = true;
     startIdentityVerification()
-      .then((r) => alive && setMode(r.mode === "dev" ? "dev" : "unavailable"))
+      .then((r) => {
+        if (!alive) return;
+        setMode(r.mode === "dev" && __DEV__ ? "dev" : "unavailable");
+      })
       .catch(() => alive && setMode("unavailable"));
     return () => {
       alive = false;
@@ -35,7 +38,9 @@ export default function VerifyIdentity() {
   const valid = name.trim() && /^\d{4}-\d{2}-\d{2}$/.test(birth) && gender && /^[0-9]{9,11}$/.test(phone);
 
   async function onSubmit() {
-    if (!gender) return;
+    // Defense in depth: a production bundle must never call the developer-only completion API,
+    // even if a stale or misconfigured backend responds with mode="dev".
+    if (!__DEV__ || !gender) return;
     setBusy(true);
     setError(null);
     try {
