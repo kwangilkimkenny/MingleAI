@@ -97,6 +97,8 @@ export default function Home() {
     const root = rootRef.current;
     if (!root) return;
 
+    // JS가 살아있음을 CSS에 알린다 — 이 표식이 있을 때만 등장 전 상태(숨김)가 적용된다.
+    root.setAttribute("data-anim", "");
     const targets = [...root.querySelectorAll(`.${styles.reveal}`)];
     const io = new IntersectionObserver(
       (entries) => {
@@ -353,8 +355,14 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 마무리 — 줄마다 글자 수가 줄고 폭은 넓어져서, 활자가 대각선으로 커지며
+          화면 밖으로 삐져나가려는 덩어리가 된다. */}
       <section className={`${styles.section} ${styles.closing} ${styles.reveal}`}>
-        <h2 className={styles.sectionTitle}>얼굴보다 대화가 먼저인 소개팅</h2>
+        <h2 className={styles.ramp}>
+          <span className={styles.ramp1}>한자리에서 여러 사람과 돌아가며</span>
+          <span className={styles.ramp2}>얼굴보다 대화로</span>
+          <span className={styles.ramp3}>먼저</span>
+        </h2>
         <p className={styles.sectionLead}>
           <Sentences text="소개팅은 mingles 앱에서 진행됩니다. 웹에서는 프로필·데이트 계획·알림을 볼 수 있습니다." />
         </p>

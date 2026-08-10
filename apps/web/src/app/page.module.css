@@ -12,20 +12,25 @@
 
 .page {
   position: relative; /* .spine의 기준 — static이면 스파인이 뷰포트에 붙어버린다 */
-  --paper: #ede3d5; /* 연한 갈색 종이 */
-  --paper-deep: #e4d7c5; /* 한 단 진한 밴드 */
-  --ink: #221d18; /* brown800 — 헤드라인·pill */
-  --ink-soft: #6a6151; /* brownMuted — 본문 */
-  --blush: #c9657f; /* blush500 — 선·노드 */
-  --blush-ink: #a63d5a; /* blush700 — 종이 위 글자용(AA) */
-  --blush-fill: #f2bcc8; /* blush200 — 채움 */
-  --cream: #f4f1ea;
-  --grid: rgba(34, 29, 24, 0.055);
-  --hair: rgba(34, 29, 24, 0.14);
+  /* 2026-08-10 지시: 검정 배경 + 흰색·핑크 텍스트만. 앱의 웜 톤은 유지하려고
+     순수 #000 대신 아주 살짝 따뜻한 블랙을 쓴다(앱 dark.bg #1A120C 계열). */
+  --paper: #000000; /* 완전 검정 */
+  --paper-deep: #000000;
+  --ink: #ffffff; /* 헤드라인·pill 채움 */
+  --on-ink: #000000; /* 흰 pill 위 글씨 */
+  --ink-soft: rgba(255, 255, 255, 0.72); /* 본문 */
+  --blush: #e59bad; /* blush300 — 선·노드 */
+  --blush-ink: #f2bcc8; /* blush200 — 어두운 바탕 위 글자(대비 확보) */
+  --blush-fill: rgba(242, 188, 200, 0.16);
+  --cream: #ffffff;
+  --hair: rgba(255, 255, 255, 0.18);
 
   background-color: var(--paper);
   color: var(--ink-soft);
   font-family: var(--font-serif), "Apple SD Gothic Neo", serif;
+  /* MUI CssBaseline이 body에 크림색을 깔아서, 페이지 밖(오버스크롤 영역)이 밝게 뜬다.
+     랜딩은 검정이므로 뷰포트 전체를 덮는다. */
+  min-height: 100vh;
   overflow-x: hidden;
 }
 
@@ -36,10 +41,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 64px 64px;
+  /* 격자 제거(2026-08-10 지시). 배경은 완전한 검정 한 장이다. */
 }
 .page::after {
   content: "";
@@ -47,8 +49,8 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.35;
-  mix-blend-mode: multiply;
+  opacity: 0.16;
+  mix-blend-mode: screen;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
 }
 
@@ -142,7 +144,7 @@
 }
 .pill {
   background: var(--ink);
-  color: var(--cream);
+  color: var(--on-ink);
   border: 1px solid var(--ink);
 }
 .pillGhost {
@@ -284,8 +286,8 @@
   height: auto;
   z-index: 0;
   pointer-events: none;
-  filter: grayscale(1) contrast(1.05);
-  opacity: 0.42;
+  filter: grayscale(1) brightness(1.9) contrast(0.95);
+  opacity: 0.3;
 }
 .figureMan {
   right: 6vw;
@@ -509,7 +511,7 @@
   opacity: 1;
 }
 .seatF {
-  background: rgba(242, 188, 200, 0.4);
+  background: var(--blush-fill);
   border-color: var(--blush);
 }
 .circleCenter {
@@ -623,8 +625,13 @@
   color: var(--ink);
 }
 
-/* ── 스크롤 등장 ────────────────────────────────── */
+/* ── 스크롤 등장 ──────────────────────────────────
+ * ⚠️ 기본값은 **보임**이다. 숨기는 건 JS가 관측기를 붙인 뒤(page에 data-anim)에만 한다.
+ * 반대로 짜면 번들이 한 번이라도 어긋날 때 콘텐츠가 통째로 사라진다 — 실제로 그랬다. */
 .reveal {
+  opacity: 1;
+}
+[data-anim] .reveal {
   opacity: 0;
   transform: translateY(22px);
   transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
@@ -632,7 +639,7 @@
 /* ⚠️ 등장 표식은 클래스가 아니라 data 속성이다. CSS 모듈은 복합 선택자로만 쓰인 이름을
  * export하지 않아서 `styles.revealed`가 undefined였고, JS가 "undefined" 문자열 클래스를
  * 붙이는 바람에 등장 애니메이션이 통째로 죽어 있었다(2026-08-10). 속성은 해싱되지 않는다. */
-.reveal[data-revealed] {
+[data-anim] .reveal[data-revealed] {
   opacity: 1;
   transform: none;
 }
@@ -760,5 +767,56 @@
   .lineC .mask {
     transform: none;
     animation: none;
+  }
+}
+
+/* ── 대각선으로 커지는 활자 덩어리 ─────────────────
+ * 줄마다 글자 수는 줄고 크기는 커진다 → 아래로 갈수록 활자가 넓어지며 화면 밖으로
+ * 삐져나가려는 쐐기가 된다.
+ *
+ * 크기를 JS로 재지 않는다. 문구가 고정이라 글자 수로 vw를 계산해 박는 편이 더 튼튼하다
+ * (측정 기반 getBBox는 폰트 로드·리사이즈·dev 캐시 상태에 계속 물렸다). 한글은 글자 폭이
+ * 대략 1em이므로 `목표폭(vw) ÷ 글자수`가 그대로 font-size가 된다. 문구를 바꾸면 여기도 바꾼다.
+ */
+.ramp {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  width: 100%;
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+}
+/* "한자리에서 여러 사람과 돌아가며" 15자 → 86vw / 15 ≈ 5.7 */
+.ramp1 {
+  font-size: 5.7vw;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+/* "얼굴보다 대화로" 7자 → 104vw / 7 ≈ 14.8 */
+.ramp2 {
+  font-size: 14.8vw;
+  margin-left: -2vw;
+  color: var(--blush-ink);
+}
+/* "먼저" 2자 → 글자가 화면보다 커서 좌우로 삐져나간다. */
+.ramp3 {
+  font-size: 38vw;
+  margin-left: -4vw;
+  line-height: 0.78;
+}
+@media (max-width: 720px) {
+  .ramp1 {
+    font-size: 6.2vw;
+  }
+  .ramp2 {
+    font-size: 15.5vw;
+    margin-left: 0;
+  }
+  .ramp3 {
+    font-size: 34vw;
+    margin-left: -4vw;
   }
 }
