@@ -121,7 +121,7 @@ export class SpeedDateSessionService {
     }
   }
 
-  /** Toggle a private choice. Validates participant + opposite-gender target + open session. */
+  /** Submit or clear one private choice. The server enforces the product's single-pick contract. */
   async choose(
     sessionId: string,
     chooserId: string,
@@ -129,9 +129,9 @@ export class SpeedDateSessionService {
     on: boolean,
   ): Promise<SpeedDateState | null> {
     // The whole session lives in one `state` JSON, so a plain read-modify-write loses updates
-    // when choices race — which they do constantly: 6 people picking in the decision window, and
-    // the single-pick UI firing choose(prev,off)+choose(new,on) back-to-back. Serialize the RMW in
-    // a Serializable tx with P2034 retry so concurrent choices are applied one-on-top-of-another.
+    // when choices race — which they do constantly with 6 people picking in the decision window.
+    // Serialize the RMW in a Serializable tx with P2034 retry so concurrent choices are applied
+    // one-on-top-of-another. An "on" submission replaces the chooser's previous target atomically.
     const MAX_ATTEMPTS = 6;
     for (let attempt = 1; ; attempt++) {
       try {
@@ -147,10 +147,9 @@ export class SpeedDateSessionService {
             if (!state.participants.some((p) => p.profileId === targetId)) return null;
             if (!isOppositeGender(state, chooserId, targetId)) return null;
 
-            const current = new Set(state.choices[chooserId] ?? []);
-            if (on) current.add(targetId);
-            else current.delete(targetId);
-            state.choices[chooserId] = [...current];
+            state.choices[chooserId] = on
+              ? [targetId]
+              : (state.choices[chooserId] ?? []).filter((id) => id !== targetId);
 
             await tx.speedDateSession.update({
               where: { id: sessionId },

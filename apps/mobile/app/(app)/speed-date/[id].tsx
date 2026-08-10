@@ -82,6 +82,10 @@ export default function SpeedDateSession() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [leaveAsk, setLeaveAsk] = useState(false);
+  const [pendingChoice, setPendingChoice] = useState<{
+    targetId: string | null;
+    nickname: string;
+  } | null>(null);
   const socketRef = useRef<ReturnType<typeof openSpeedDateSocket> | null>(null);
   const navigation = useNavigation();
   const liveRef = useRef(false);
@@ -156,14 +160,31 @@ export default function SpeedDateSession() {
 
   const chosen = useMemo(() => new Set(snapshot?.myChoices ?? []), [snapshot?.myChoices]);
 
-  // Final decision is single-pick: choosing one target clears any previous pick.
-  function pickOne(targetId: string) {
-    const socket = socketRef.current;
-    if (!socket || !id) return;
+  function requestChoice(targetId: string) {
+    const partner = snapshot?.metPartners.find((candidate) => candidate.profileId === targetId);
+    if (!partner || chosen.has(targetId)) return;
     hapticSelect();
-    const wasSelected = chosen.has(targetId);
-    for (const cid of chosen) if (cid !== targetId) socket.choose(id, cid, false);
-    socket.choose(id, targetId, !wasSelected);
+    setPendingChoice({ targetId, nickname: partner.nickname });
+  }
+
+  function requestChoiceClear() {
+    const targetId = chosen.values().next().value as string | undefined;
+    const partner = snapshot?.metPartners.find((candidate) => candidate.profileId === targetId);
+    if (!targetId || !partner) return;
+    hapticSelect();
+    setPendingChoice({ targetId: null, nickname: partner.nickname });
+  }
+
+  function confirmChoice() {
+    const socket = socketRef.current;
+    const pending = pendingChoice;
+    if (!socket || !id || !pending) return;
+    if (pending.targetId) socket.choose(id, pending.targetId, true);
+    else {
+      const currentId = chosen.values().next().value as string | undefined;
+      if (currentId) socket.choose(id, currentId, false);
+    }
+    setPendingChoice(null);
   }
 
   if (notFound) {
@@ -280,14 +301,35 @@ export default function SpeedDateSession() {
 
   // 결정·결과는 전용 전체화면 레이아웃(헤드 위 · 선택지 가운데 · 액션 아래) — 스크롤 카드 나열 폐기.
   if (snapshot.phase === "decision") {
+    const replacing = chosen.size > 0 && pendingChoice?.targetId !== null;
     return (
       <View style={styles.screen}>
         <DecisionView
           partners={snapshot.metPartners}
           chosen={chosen}
           seconds={remainSec}
-          onPick={pickOne}
+          onPick={requestChoice}
+          onClear={requestChoiceClear}
           insets={insets}
+        />
+        <ConfirmDialog
+          dark
+          visible={pendingChoice !== null}
+          title={
+            pendingChoice?.targetId === null
+              ? "제출한 선택을 취소할까요?"
+              : `${pendingChoice?.nickname ?? "이 상대"}님을 선택할까요?`
+          }
+          body={
+            pendingChoice?.targetId === null
+              ? "결정 시간이 끝나기 전에는 다시 선택할 수 있어요."
+              : replacing
+                ? "확인하면 기존 선택 대신 이 상대가 제출돼요. 결정 시간이 끝나기 전에는 다시 바꿀 수 있어요."
+                : "확인해야 선택이 제출돼요. 결정 시간이 끝나기 전에는 다시 바꿀 수 있어요."
+          }
+          confirmLabel={pendingChoice?.targetId === null ? "선택 취소" : "선택 확정"}
+          onConfirm={confirmChoice}
+          onCancel={() => setPendingChoice(null)}
         />
         {leaveDialog}
       </View>
@@ -574,12 +616,14 @@ function DecisionView({
   chosen,
   seconds,
   onPick,
+  onClear,
   insets,
 }: {
   partners: PartnerView[];
   chosen: Set<string>;
   seconds: number;
   onPick: (id: string) => void;
+  onClear: () => void;
   insets: Insets;
 }) {
   const pickedId = partners.find((p) => chosen.has(p.profileId))?.profileId ?? null;
@@ -632,11 +676,23 @@ function DecisionView({
         })}
       </View>
 
-      <Text style={styles.decisionFoot}>
-        {pickedId
-          ? `${pickedNick} 선택 완료 · 서로 골랐을 때만 알려드려요`
-          : "탭하면 바로 제출돼요 · 상대에겐 보이지 않아요"}
-      </Text>
+      <View style={styles.decisionFootArea}>
+        <Text style={styles.decisionFoot}>
+          {pickedId
+            ? `${pickedNick} 선택 완료 · 결정 전까지 변경할 수 있어요`
+            : "상대를 고른 뒤 확인해야 제출돼요 · 선택은 비공개예요"}
+        </Text>
+        {pickedId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${pickedNick} 선택 취소`}
+            onPress={onClear}
+            style={({ pressed }) => [styles.choiceUndo, pressed && styles.pickRowPressed]}
+          >
+            <Text style={styles.choiceUndoText}>제출한 선택 취소</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -930,7 +986,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   pickMarkOn: { backgroundColor: dark.text, borderColor: dark.text },
+  decisionFootArea: { alignItems: "center", gap: space.x2 },
   decisionFoot: { ...type.caption, color: dark.textMuted, textAlign: "center" },
+  choiceUndo: { minHeight: 44, justifyContent: "center", paddingHorizontal: space.x4 },
+  choiceUndoText: { ...type.label, color: dark.accent, textDecorationLine: "underline" },
   // ── 결과 화면 ──
   result: { flex: 1, paddingHorizontal: layout.screenGutter, justifyContent: "space-between" },
   resultHero: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.x4 },
