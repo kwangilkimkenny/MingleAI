@@ -11,7 +11,8 @@
     "dev:mobile": "pnpm --filter @mingle/mobile exec expo start",
     "seed:mobile-qa": "node tools/seed-mobile-qa.mjs",
     "qa:speed-date-bots": "node tools/speed-date-qa-bots.mjs",
-    "release:check": "pnpm --filter @mingle/backend prisma:generate && pnpm audit --prod --audit-level high && pnpm lint && pnpm test && pnpm build && pnpm --filter @mingle/mobile release:validate",
+    "release:security": "node --test tools/security-patches.test.mjs && pnpm audit --prod --audit-level high --ignore CVE-2025-71329 --ignore CVE-2025-71330",
+    "release:check": "pnpm --filter @mingle/backend prisma:generate && pnpm release:security && pnpm lint && pnpm test && pnpm build && pnpm --filter @mingle/mobile release:validate",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
@@ -27,6 +28,7 @@
   "pnpm": {
     "overrides": {
       "@babel/core": ">=7.29.6 <8.0.0",
+      "@expo/dom-webview": "56.0.6",
       "@modelcontextprotocol/sdk>@hono/node-server": ">=2.0.5",
       "body-parser": ">=2.3.0",
       "defu": ">=6.1.5",
@@ -58,7 +60,14 @@
       "@prisma/engines"
     ],
     "patchedDependencies": {
-      "@livekit/react-native@2.12.0": "patches/@livekit__react-native@2.12.0.patch"
+      "@livekit/react-native@2.12.0": "patches/@livekit__react-native@2.12.0.patch",
+      "image-size@1.2.1": "patches/image-size@1.2.1.patch"
+    },
+    "auditConfig": {
+      "ignoreCves": [
+        "CVE-2025-71329",
+        "CVE-2025-71330"
+      ]
     }
   }
 }
