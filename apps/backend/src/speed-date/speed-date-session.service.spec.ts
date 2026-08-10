@@ -68,6 +68,24 @@ describe("SpeedDateSessionService.choose", () => {
     expect(update).toHaveBeenCalled();
   });
 
+  it("atomically replaces the chooser's previous target", async () => {
+    const st = state({ choices: { m1: ["f1"] } });
+    const update = jest.fn().mockResolvedValue({});
+    const prisma = txPrisma({ findFirst: jest.fn().mockResolvedValue({ id: "s", state: st }), update });
+    const out = await makeSvc(prisma, {}).choose("s", "m1", "f2", true);
+    expect(out?.choices["m1"]).toEqual(["f2"]);
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the submitted target without affecting another chooser", async () => {
+    const st = state({ choices: { m1: ["f1"], m2: ["f2"] } });
+    const update = jest.fn().mockResolvedValue({});
+    const prisma = txPrisma({ findFirst: jest.fn().mockResolvedValue({ id: "s", state: st }), update });
+    const out = await makeSvc(prisma, {}).choose("s", "m1", "f1", false);
+    expect(out?.choices["m1"]).toEqual([]);
+    expect(out?.choices["m2"]).toEqual(["f2"]);
+  });
+
   it("rejects a same-gender target", async () => {
     const prisma = txPrisma({ findFirst: jest.fn().mockResolvedValue({ id: "s", state: state() }), update: jest.fn() });
     expect(await makeSvc(prisma, {}).choose("s", "m1", "m2", true)).toBeNull();
