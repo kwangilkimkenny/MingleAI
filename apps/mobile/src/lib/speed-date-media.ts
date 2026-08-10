@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { SpeedDateRoomInfo } from "@mingle/client-core";
 
 /**
@@ -22,12 +22,22 @@ export type SpeedDateMediaStatus = "idle" | "connecting" | "connected" | "unavai
 
 export interface SpeedDateMedia {
   status: SpeedDateMediaStatus;
+  /** Actual outgoing microphone state after privacy-stage policy and the user's mute choice. */
+  microphoneEnabled: boolean;
+  /** Actual outgoing camera state after the server stage policy and the user's camera choice. */
+  cameraEnabled: boolean;
+  /** Native disguise currently protects the raw voice by locking the mic off. */
+  canToggleMicrophone: boolean;
+  /** Camera can only be controlled in the server-authorized FACE stage. */
+  canToggleCamera: boolean;
   /** True when a remote partner video track is present (FACE stage, both cameras on). */
   hasRemoteVideo: boolean;
   /** Remote partner's video track (platform-specific object); null in the avatar-only fallback. */
   remoteVideoTrack: unknown | null;
   /** The viewer's own camera track for the self-view PiP; null in the avatar-only fallback. */
   localVideoTrack: unknown | null;
+  setMicrophoneEnabled(enabled: boolean): Promise<void>;
+  setCameraEnabled(enabled: boolean): Promise<void>;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
@@ -56,24 +66,69 @@ export function useSpeedDateMedia(
 ): SpeedDateMedia {
   const [media, setMedia] = useState<SpeedDateMedia>({
     status: "idle",
+    microphoneEnabled: false,
+    cameraEnabled: false,
+    canToggleMicrophone: false,
+    canToggleCamera: false,
     hasRemoteVideo: false,
     remoteVideoTrack: null,
     localVideoTrack: null,
+    setMicrophoneEnabled: async () => {},
+    setCameraEnabled: async () => {},
   });
   const roomRef = useRef<any>(null);
   const lkRef = useRef<any>(null);
   const modRef = useRef(modulateVoice);
   modRef.current = modulateVoice;
+  const userMicRef = useRef(true);
+  const userCameraRef = useRef(true);
+
+  const setMicrophoneEnabled = useCallback(async (enabled: boolean) => {
+    userMicRef.current = enabled;
+    const room = roomRef.current;
+    const allowedByPrivacy = DISGUISED_NATIVE_MIC === "raw" || !modRef.current;
+    const actual = enabled && allowedByPrivacy;
+    if (room?.state === "connected") await room.localParticipant.setMicrophoneEnabled(actual);
+    setMedia((m) => ({ ...m, microphoneEnabled: actual }));
+  }, []);
+
+  const setCameraEnabled = useCallback(async (enabled: boolean) => {
+    userCameraRef.current = enabled;
+    const room = roomRef.current;
+    const actual = enabled && publishVideo;
+    if (room?.state === "connected") await room.localParticipant.setCameraEnabled(actual);
+    setMedia((m) => ({ ...m, cameraEnabled: actual }));
+  }, [publishVideo]);
 
   useEffect(() => {
     if (!roomInfo?.url || !roomInfo?.token) {
-      setMedia({ status: "idle", hasRemoteVideo: false, remoteVideoTrack: null, localVideoTrack: null });
+      setMedia((m) => ({
+        ...m,
+        status: "idle",
+        microphoneEnabled: false,
+        cameraEnabled: false,
+        canToggleMicrophone: false,
+        canToggleCamera: false,
+        hasRemoteVideo: false,
+        remoteVideoTrack: null,
+        localVideoTrack: null,
+      }));
       return;
     }
     const env = ensureLiveKit();
     if (!env) {
       // Native module not in this build (Expo Go / web bundle) — avatar-only fallback.
-      setMedia({ status: "unavailable", hasRemoteVideo: false, remoteVideoTrack: null, localVideoTrack: null });
+      setMedia((m) => ({
+        ...m,
+        status: "unavailable",
+        microphoneEnabled: false,
+        cameraEnabled: false,
+        canToggleMicrophone: false,
+        canToggleCamera: false,
+        hasRemoteVideo: false,
+        remoteVideoTrack: null,
+        localVideoTrack: null,
+      }));
       return;
     }
     const { lk, client } = env;
@@ -90,7 +145,15 @@ export function useSpeedDateMedia(
       });
       const localPub = room.localParticipant.getTrackPublication(client.Track.Source.Camera);
       const local = localPub?.videoTrack ?? null;
-      setMedia({ status: "connected", hasRemoteVideo: !!remote, remoteVideoTrack: remote, localVideoTrack: local });
+      setMedia((m) => ({
+        ...m,
+        status: "connected",
+        canToggleMicrophone: DISGUISED_NATIVE_MIC === "raw" || !modRef.current,
+        canToggleCamera: publishVideo,
+        hasRemoteVideo: !!remote,
+        remoteVideoTrack: remote,
+        localVideoTrack: local,
+      }));
     };
 
     (async () => {
@@ -99,9 +162,10 @@ export function useSpeedDateMedia(
       await room.connect(roomInfo.url, roomInfo.token);
       if (cancelled) return void room.disconnect();
       // No native pitch-shift (Phase E): keep the disguise by muting instead of leaking raw voice.
-      const micOn = DISGUISED_NATIVE_MIC === "raw" || !modRef.current;
+      const micOn = userMicRef.current && (DISGUISED_NATIVE_MIC === "raw" || !modRef.current);
+      const cameraOn = userCameraRef.current && publishVideo;
       await room.localParticipant.setMicrophoneEnabled(micOn);
-      await room.localParticipant.setCameraEnabled(publishVideo);
+      await room.localParticipant.setCameraEnabled(cameraOn);
       const E = client.RoomEvent;
       room
         .on(E.TrackSubscribed, sync)
@@ -111,10 +175,21 @@ export function useSpeedDateMedia(
         .on(E.ParticipantConnected, sync)
         .on(E.ParticipantDisconnected, sync);
       sync();
+      setMedia((m) => ({ ...m, microphoneEnabled: micOn, cameraEnabled: cameraOn }));
     })().catch((e) => {
       console.warn("[speed-date] native livekit connect failed:", e);
       if (!cancelled)
-        setMedia({ status: "unavailable", hasRemoteVideo: false, remoteVideoTrack: null, localVideoTrack: null });
+        setMedia((m) => ({
+          ...m,
+          status: "unavailable",
+          microphoneEnabled: false,
+          cameraEnabled: false,
+          canToggleMicrophone: false,
+          canToggleCamera: false,
+          hasRemoteVideo: false,
+          remoteVideoTrack: null,
+          localVideoTrack: null,
+        }));
     });
 
     return () => {
@@ -130,16 +205,27 @@ export function useSpeedDateMedia(
   // Camera follows the stage's publish permission (server-enforced via token grant).
   useEffect(() => {
     const room = roomRef.current;
-    if (room && room.state === "connected") void room.localParticipant.setCameraEnabled(publishVideo);
+    const actual = publishVideo && userCameraRef.current;
+    if (room && room.state === "connected") void room.localParticipant.setCameraEnabled(actual);
+    setMedia((m) => ({
+      ...m,
+      cameraEnabled: room?.state === "connected" ? actual : false,
+      canToggleCamera: room?.state === "connected" && publishVideo,
+    }));
   }, [publishVideo]);
 
   // Mic mute follows the disguise stage (see DISGUISED_NATIVE_MIC above).
   useEffect(() => {
     const room = roomRef.current;
     if (!room || room.state !== "connected") return;
-    const micOn = DISGUISED_NATIVE_MIC === "raw" || !modulateVoice;
+    const micOn = userMicRef.current && (DISGUISED_NATIVE_MIC === "raw" || !modulateVoice);
     void room.localParticipant.setMicrophoneEnabled(micOn);
+    setMedia((m) => ({
+      ...m,
+      microphoneEnabled: micOn,
+      canToggleMicrophone: DISGUISED_NATIVE_MIC === "raw" || !modulateVoice,
+    }));
   }, [modulateVoice]);
 
-  return media;
+  return { ...media, setMicrophoneEnabled, setCameraEnabled };
 }

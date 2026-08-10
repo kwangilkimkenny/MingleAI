@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import type { SpeedDateRoomInfo } from "@mingle/client-core";
 import type { SpeedDateMedia } from "./speed-date-media";
@@ -93,19 +93,57 @@ export function useSpeedDateMedia(
 ): SpeedDateMedia {
   const [media, setMedia] = useState<SpeedDateMedia>({
     status: "idle",
+    microphoneEnabled: false,
+    cameraEnabled: false,
+    canToggleMicrophone: false,
+    canToggleCamera: false,
     hasRemoteVideo: false,
     remoteVideoTrack: null,
     localVideoTrack: null,
+    setMicrophoneEnabled: async () => {},
+    setCameraEnabled: async () => {},
   });
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<AudioChain | null>(null);
   // Latest modulateVoice, so the async connect applies the right initial pitch without a re-run.
   const modRef = useRef(modulateVoice);
   modRef.current = modulateVoice;
+  const publishedMicRef = useRef<MediaStreamTrack | null>(null);
+  const userMicRef = useRef(true);
+  const userCameraRef = useRef(true);
+
+  const setMicrophoneEnabled = useCallback(async (enabled: boolean) => {
+    userMicRef.current = enabled;
+    const publishedMic = publishedMicRef.current;
+    if (publishedMic) publishedMic.enabled = enabled;
+    else {
+      const room = roomRef.current;
+      if (room?.state === "connected") await room.localParticipant.setMicrophoneEnabled(enabled);
+    }
+    setMedia((m) => ({ ...m, microphoneEnabled: enabled }));
+  }, []);
+
+  const setCameraEnabled = useCallback(async (enabled: boolean) => {
+    userCameraRef.current = enabled;
+    const room = roomRef.current;
+    const actual = enabled && publishVideo;
+    if (room?.state === "connected") await room.localParticipant.setCameraEnabled(actual);
+    setMedia((m) => ({ ...m, cameraEnabled: actual }));
+  }, [publishVideo]);
 
   useEffect(() => {
     if (!roomInfo?.url || !roomInfo?.token) {
-      setMedia({ status: "idle", hasRemoteVideo: false, remoteVideoTrack: null, localVideoTrack: null });
+      setMedia((m) => ({
+        ...m,
+        status: "idle",
+        microphoneEnabled: false,
+        cameraEnabled: false,
+        canToggleMicrophone: false,
+        canToggleCamera: false,
+        hasRemoteVideo: false,
+        remoteVideoTrack: null,
+        localVideoTrack: null,
+      }));
       return;
     }
     const room = new Room();
@@ -120,7 +158,15 @@ export function useSpeedDateMedia(
       });
       const localPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
       const local = localPub?.videoTrack?.mediaStreamTrack ?? null;
-      setMedia({ status: "connected", hasRemoteVideo: !!remote, remoteVideoTrack: remote, localVideoTrack: local });
+      setMedia((m) => ({
+        ...m,
+        status: "connected",
+        canToggleMicrophone: true,
+        canToggleCamera: publishVideo,
+        hasRemoteVideo: !!remote,
+        remoteVideoTrack: remote,
+        localVideoTrack: local,
+      }));
     };
 
     (async () => {
@@ -133,6 +179,8 @@ export function useSpeedDateMedia(
         const { track, chain } = await buildPitchedMic();
         chain.node.parameters.get("pitchRatio")!.value = modRef.current ? DISGUISED_PITCH_RATIO : 1;
         audioRef.current = chain;
+        publishedMicRef.current = track;
+        track.enabled = userMicRef.current;
         await room.localParticipant.publishTrack(track, { source: Track.Source.Microphone });
       } catch (e) {
         console.warn("[speed-date] pitch mic failed, using plain mic:", e);
@@ -140,7 +188,8 @@ export function useSpeedDateMedia(
       }
       if (cancelled) return void room.disconnect();
 
-      await room.localParticipant.setCameraEnabled(publishVideo);
+      const cameraOn = publishVideo && userCameraRef.current;
+      await room.localParticipant.setCameraEnabled(cameraOn);
       room
         .on(RoomEvent.TrackSubscribed, sync)
         .on(RoomEvent.TrackUnsubscribed, sync)
@@ -149,10 +198,25 @@ export function useSpeedDateMedia(
         .on(RoomEvent.ParticipantConnected, sync)
         .on(RoomEvent.ParticipantDisconnected, sync);
       sync();
+      setMedia((m) => ({
+        ...m,
+        microphoneEnabled: userMicRef.current,
+        cameraEnabled: cameraOn,
+      }));
     })().catch((e) => {
       console.warn("[speed-date] livekit connect failed:", e);
       if (!cancelled)
-        setMedia({ status: "unavailable", hasRemoteVideo: false, remoteVideoTrack: null, localVideoTrack: null });
+        setMedia((m) => ({
+          ...m,
+          status: "unavailable",
+          microphoneEnabled: false,
+          cameraEnabled: false,
+          canToggleMicrophone: false,
+          canToggleCamera: false,
+          hasRemoteVideo: false,
+          remoteVideoTrack: null,
+          localVideoTrack: null,
+        }));
     });
 
     return () => {
@@ -163,6 +227,7 @@ export function useSpeedDateMedia(
         void chain.ctx.close();
         audioRef.current = null;
       }
+      publishedMicRef.current = null;
       room.disconnect();
       roomRef.current = null;
     };
@@ -173,7 +238,13 @@ export function useSpeedDateMedia(
   // Toggle camera when the stage's publish permission changes (no room teardown).
   useEffect(() => {
     const room = roomRef.current;
-    if (room && room.state === "connected") void room.localParticipant.setCameraEnabled(publishVideo);
+    const actual = publishVideo && userCameraRef.current;
+    if (room && room.state === "connected") void room.localParticipant.setCameraEnabled(actual);
+    setMedia((m) => ({
+      ...m,
+      cameraEnabled: room?.state === "connected" ? actual : false,
+      canToggleCamera: room?.state === "connected" && publishVideo,
+    }));
   }, [publishVideo]);
 
   // Retune the pitch shift when the stage's voiceMod changes (just a param — no republish).
@@ -183,5 +254,5 @@ export function useSpeedDateMedia(
     if (p) p.value = modulateVoice ? DISGUISED_PITCH_RATIO : 1;
   }, [modulateVoice]);
 
-  return media;
+  return { ...media, setMicrophoneEnabled, setCameraEnabled };
 }

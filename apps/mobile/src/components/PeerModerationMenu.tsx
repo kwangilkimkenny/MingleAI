@@ -11,6 +11,8 @@ import { useReducedMotion } from "react-native-reanimated";
 export interface PeerModerationMenuProps {
   peer: { profileId: string; name: string };
   onBlocked?: () => void;
+  /** Lets live sessions leave safely before navigating to the report form. */
+  onReport?: (peer: { profileId: string; name: string }) => void;
   /** 홈 테마 다크 화면(채팅 헤더)에서 트리거 아이콘을 크림 톤으로. */
   dark?: boolean;
 }
@@ -18,6 +20,7 @@ export interface PeerModerationMenuProps {
 export function PeerModerationMenu({
   peer,
   onBlocked,
+  onReport,
   dark: isDark = false,
 }: PeerModerationMenuProps) {
   const reducedMotion = useReducedMotion();
@@ -28,6 +31,10 @@ export function PeerModerationMenu({
 
   function openReport() {
     setMenuOpen(false);
+    if (onReport) {
+      onReport(peer);
+      return;
+    }
     router.push({
       // new route — Expo Router typegen updates on next `expo start`
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -2,7 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { Check, ChevronRight, Mic, MicOff } from "lucide-react-native";
+import {
+  Camera,
+  CameraOff,
+  Check,
+  ChevronRight,
+  LogOut,
+  Mic,
+  MicOff,
+  Wifi,
+  WifiOff,
+} from "lucide-react-native";
 import type { SpeedDateSnapshot, SpeedDateStage, PartnerView } from "@mingle/client-core";
 import { DoodleButton } from "../../../src/components/Doodle";
 import { DoodleChip } from "../../../src/components/DoodleSvg";
@@ -11,11 +21,17 @@ import { SuggestedQuestion } from "../../../src/components/speed-date/SuggestedQ
 import { openSpeedDateSocket } from "../../../src/lib/speed-date-socket";
 import { useSpeedDateMedia } from "../../../src/lib/speed-date-media";
 import { VideoView } from "../../../src/components/speed-date/VideoView";
+import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { useAuthStore } from "../../../src/lib/client";
 import { hapticSelect } from "../../../src/lib/haptics";
 import { serifFont } from "../../../src/lib/serif";
 import { ConfirmDialog } from "../../../src/components/Foundation";
 import { colors, dark, layout, space, type } from "../../../src/lib/theme";
+import {
+  speedDateConnectionCopy,
+  speedDateFaceFallbackCopy,
+  speedDateProgressCopy,
+} from "../../../src/lib/speed-date-presentation";
 
 const STAGE_HINT: Record<SpeedDateStage, string> = {
   DISGUISED: "목소리는 변조되고 캐릭터 이미지만 보여요.",
@@ -177,6 +193,25 @@ export default function SpeedDateSession() {
     );
   }
 
+  function permitNavigation() {
+    leavingRef.current = true;
+    liveRef.current = false;
+  }
+
+  function leaveForHome() {
+    permitNavigation();
+    setLeaveAsk(false);
+    router.replace("/home");
+  }
+
+  function reportPartner(peer: { profileId: string }) {
+    permitNavigation();
+    router.push({
+      pathname: "/(app)/report/[profileId]" as never,
+      params: { profileId: peer.profileId },
+    });
+  }
+
   const leaveDialog = (
     <ConfirmDialog
       dark
@@ -185,33 +220,39 @@ export default function SpeedDateSession() {
       body="지금 나가면 이번 로테이션과 선택 기회를 놓쳐요. 세션이 끝나기 전에는 언제든 다시 돌아올 수 있어요."
       confirmLabel="나가기"
       destructive
-      onConfirm={() => {
-        // beforeRemove 가드가 이 이탈까지 막지 않도록 확정 플래그를 먼저 세운다.
-        leavingRef.current = true;
-        liveRef.current = false;
-        setLeaveAsk(false);
-        router.replace("/home");
-      }}
+      onConfirm={leaveForHome}
       onCancel={() => setLeaveAsk(false)}
     />
   );
 
-  // Round = full-bleed video call. No header/back button — you can't leave mid-session.
+  // Round = full-bleed video call with persistent media and safety controls.
   if (snapshot.phase === "round" && snapshot.partner && snapshot.stage) {
     return (
       <View style={styles.fullScreen}>
         <RoundView
           stage={snapshot.stage}
+          stageIndex={snapshot.stageIndex}
+          stageCount={snapshot.stageCount}
           partner={snapshot.partner}
           roundIndex={snapshot.roundIndex}
           roundCount={snapshot.roundCount}
           seconds={remainSec}
           hasRemoteVideo={media.hasRemoteVideo}
           remoteTrack={media.remoteVideoTrack}
+          mediaStatus={media.status}
+          microphoneEnabled={media.microphoneEnabled}
+          cameraEnabled={media.cameraEnabled}
+          canToggleMicrophone={media.canToggleMicrophone}
+          canToggleCamera={media.canToggleCamera}
+          onToggleMicrophone={() => void media.setMicrophoneEnabled(!media.microphoneEnabled)}
+          onToggleCamera={() => void media.setCameraEnabled(!media.cameraEnabled)}
+          onLeave={() => setLeaveAsk(true)}
+          onReport={reportPartner}
+          onBlocked={leaveForHome}
           insets={insets}
         />
         {media.localVideoTrack ? (
-          <View style={[styles.selfView, { bottom: insets.bottom + 120 }]}>
+          <View style={[styles.selfView, { bottom: insets.bottom + 210 }]}>
             <VideoView track={media.localVideoTrack} mirror />
             <Text style={styles.selfLabel}>나</Text>
           </View>
@@ -327,23 +368,49 @@ function StageIntroView({
 
 function RoundView({
   stage,
+  stageIndex,
+  stageCount,
   partner,
   roundIndex,
   roundCount,
   seconds,
   hasRemoteVideo,
   remoteTrack,
+  mediaStatus,
+  microphoneEnabled,
+  cameraEnabled,
+  canToggleMicrophone,
+  canToggleCamera,
+  onToggleMicrophone,
+  onToggleCamera,
+  onLeave,
+  onReport,
+  onBlocked,
   insets,
 }: {
   stage: SpeedDateStage;
+  stageIndex: number;
+  stageCount: number;
   partner: PartnerView;
   roundIndex: number;
   roundCount: number;
   seconds: number;
   hasRemoteVideo: boolean;
   remoteTrack: unknown | null;
+  mediaStatus: "idle" | "connecting" | "connected" | "unavailable";
+  microphoneEnabled: boolean;
+  cameraEnabled: boolean;
+  canToggleMicrophone: boolean;
+  canToggleCamera: boolean;
+  onToggleMicrophone: () => void;
+  onToggleCamera: () => void;
+  onLeave: () => void;
+  onReport: (peer: { profileId: string; name: string }) => void;
+  onBlocked: () => void;
   insets: Insets;
 }) {
+  const connected = mediaStatus === "connected";
+  const progress = speedDateProgressCopy({ stageIndex, stageCount, roundIndex, roundCount });
   return (
     <View style={styles.stageFull}>
       {hasRemoteVideo ? (
@@ -353,15 +420,27 @@ function RoundView({
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.avatarStage]}>
           <SpeedDateAvatar avatarId={partner.avatarId} nickname={partner.nickname} size={220} />
+          {stage === "FACE" ? (
+            <View style={styles.faceFallback} accessibilityLiveRegion="polite">
+              <CameraOff color={colors.onAccent} size={18} />
+              <Text style={styles.faceFallbackText}>{speedDateFaceFallbackCopy(mediaStatus)}</Text>
+            </View>
+          ) : null}
         </View>
       )}
 
-      {/* Top overlay: round · timer (media is app-controlled per stage — no user toggles) */}
+      {/* Top overlay: overall progress, connection state, timer. */}
       <View style={[styles.topOverlay, { paddingTop: insets.top + space.x2 }]}>
+        <View style={[styles.connectionPill, !connected && styles.connectionPillWarn]}>
+          {connected ? (
+            <Wifi color={colors.onAccent} size={15} />
+          ) : (
+            <WifiOff color={colors.onAccent} size={15} />
+          )}
+          <Text style={styles.connectionText}>{speedDateConnectionCopy(mediaStatus)}</Text>
+        </View>
         <View style={styles.topRight}>
-          <Text style={styles.overlayMeta}>
-            라운드 {roundIndex + 1}/{roundCount}
-          </Text>
+          <Text style={styles.overlayMeta}>{progress}</Text>
           <View style={styles.timerPill}>
             <Text style={styles.timerPillText}>{seconds}s</Text>
           </View>
@@ -371,8 +450,8 @@ function RoundView({
       {/* 하단 1/3 지점: 추천 질문(랜덤 30개, crossfade) — 어색한 침묵 깨기 */}
       <SuggestedQuestion />
 
-      {/* Bottom overlay: nickname · badges · stage hint */}
-      <View style={[styles.bottomOverlay, { paddingBottom: insets.bottom + space.x4 }]}>
+      {/* Bottom overlay: identity, current reveal state, persistent controls. */}
+      <View style={[styles.bottomOverlay, { paddingBottom: insets.bottom + space.x3 }]}>
         <Text style={styles.overlayNick}>{partner.nickname}</Text>
         <View style={styles.badgeRow}>
           <DoodleChip label={genderLabel(partner.gender)} tiny />
@@ -386,8 +465,103 @@ function RoundView({
           </View>
         </View>
         <Text style={styles.overlayHint}>{STAGE_HINT[stage]}</Text>
+        <View style={styles.controlDock} accessibilityLabel="통화 및 안전 제어">
+          <RoundControl
+            label={
+              canToggleMicrophone
+                ? microphoneEnabled
+                  ? "음소거"
+                  : "음소거 해제"
+                : "음성 보호 중"
+            }
+            disabled={!canToggleMicrophone}
+            active={!microphoneEnabled}
+            onPress={onToggleMicrophone}
+            icon={
+              microphoneEnabled ? (
+                <Mic color={colors.onAccent} size={21} />
+              ) : (
+                <MicOff color={colors.onAccent} size={21} />
+              )
+            }
+          />
+          <RoundControl
+            label={canToggleCamera ? (cameraEnabled ? "카메라 끄기" : "카메라 켜기") : "얼굴 공개 때"}
+            disabled={!canToggleCamera}
+            active={canToggleCamera && !cameraEnabled}
+            onPress={onToggleCamera}
+            icon={
+              cameraEnabled ? (
+                <Camera color={colors.onAccent} size={21} />
+              ) : (
+                <CameraOff color={colors.onAccent} size={21} />
+              )
+            }
+          />
+          <View style={styles.controlItem}>
+            <View style={styles.safetyButton}>
+              <PeerModerationMenu
+                peer={{ profileId: partner.profileId, name: partner.nickname }}
+                onReport={onReport}
+                onBlocked={onBlocked}
+                dark
+              />
+            </View>
+            <Text style={styles.controlLabel}>안전</Text>
+          </View>
+          <RoundControl
+            label="나가기"
+            danger
+            onPress={onLeave}
+            icon={<LogOut color={dark.danger} size={21} />}
+          />
+        </View>
       </View>
     </View>
+  );
+}
+
+function RoundControl({
+  label,
+  icon,
+  onPress,
+  active = false,
+  disabled = false,
+  danger = false,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onPress: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled, selected: active }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.controlItem,
+        disabled && styles.controlDisabled,
+        pressed && styles.controlPressed,
+      ]}
+    >
+      <View
+        style={[
+          styles.controlButton,
+          active && styles.controlButtonActive,
+          danger && styles.controlButtonDanger,
+        ]}
+      >
+        {icon}
+      </View>
+      <Text style={[styles.controlLabel, danger && styles.controlLabelDanger]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -602,13 +776,24 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     gap: space.x2,
     paddingHorizontal: layout.screenGutter,
     paddingBottom: space.x3,
     backgroundColor: "rgba(0,0,0,0.55)",
   },
   topRight: { flexDirection: "row", alignItems: "center", gap: space.x2 },
+  connectionPill: {
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: space.x2,
+    borderRadius: 999,
+    backgroundColor: "rgba(37,122,85,0.88)",
+  },
+  connectionPillWarn: { backgroundColor: "rgba(123,37,49,0.9)" },
+  connectionText: { ...type.caption, color: colors.onAccent, fontSize: 12 },
   overlayMeta: { ...type.label, color: colors.onAccent },
   timerPill: {
     backgroundColor: colors.accentStrong,
@@ -631,6 +816,59 @@ const styles = StyleSheet.create({
   overlayNick: { ...type.title, color: colors.onAccent },
   overlayBadgeText: { ...type.caption, color: colors.onAccent },
   overlayHint: { ...type.caption, color: colors.onAccent, textAlign: "center", opacity: 0.85 },
+  faceFallback: {
+    position: "absolute",
+    left: layout.screenGutter,
+    right: layout.screenGutter,
+    bottom: "48%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.x2,
+    paddingHorizontal: space.x3,
+    paddingVertical: space.x2,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.72)",
+  },
+  faceFallbackText: { ...type.caption, color: colors.onAccent, flexShrink: 1, textAlign: "center" },
+  controlDock: {
+    width: "100%",
+    maxWidth: layout.contentMax,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: space.x1,
+    paddingTop: space.x2,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.18)",
+  },
+  controlItem: { flex: 1, minWidth: 0, alignItems: "center", gap: 4 },
+  controlButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
+  },
+  controlButtonActive: { backgroundColor: dark.accentFill, borderColor: dark.accent },
+  controlButtonDanger: { backgroundColor: dark.dangerFill, borderColor: dark.danger },
+  safetyButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
+  },
+  controlLabel: { ...type.caption, color: colors.onAccent, fontSize: 11, lineHeight: 15 },
+  controlLabelDanger: { color: dark.danger },
+  controlDisabled: { opacity: 0.52 },
+  controlPressed: { opacity: 0.7 },
   selfView: {
     position: "absolute",
     right: 16,
