@@ -311,7 +311,7 @@ index 0000000000000000000000000000000000000000..9815a79209c0ff05a1d726cb35eb34ea
 +
 +@end
 diff --git a/ios/LiveKitReactNativeModule.swift b/ios/LiveKitReactNativeModule.swift
-index e85be6e16985522ea1a9717d6100dfd0ab249473..1315ef702ae737f1892921a04a95caea7bb7d0e5 100644
+index e85be6e16985522ea1a9717d6100dfd0ab249473..9ac73721c13aef8d1099b17ad21cccc11b88364a 100644
 --- a/ios/LiveKitReactNativeModule.swift
 +++ b/ios/LiveKitReactNativeModule.swift
 @@ -12,6 +12,8 @@ struct LKEvents {
@@ -343,7 +343,7 @@ index e85be6e16985522ea1a9717d6100dfd0ab249473..1315ef702ae737f1892921a04a95caea
 +     */
 +    @objc(setVoiceDisguiseEnabled:withResolver:withRejecter:)
 +    public func setVoiceDisguiseEnabled(_ enabled: Bool, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-+        voiceDisguiseProcessor.enabled = enabled
++        voiceDisguiseProcessor.isEnabled = enabled
 +        resolve(true)
 +    }
 +
