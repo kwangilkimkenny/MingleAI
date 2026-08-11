@@ -50,12 +50,11 @@ export function DoodleTabBar({ state, descriptors, navigation }: BottomTabBarPro
               style={styles.tab}
             >
               {focused ? <View style={styles.activeMark} /> : null}
+              {/* 라벨 없음(2026-08-11) — 아이콘 4개는 한눈에 구분되고, 이름은 화면이 이미 말해준다.
+                  스크린리더는 위의 accessibilityLabel로 같은 이름을 읽는다. */}
               {options.tabBarIcon
                 ? options.tabBarIcon({ focused, color, size: componentTokens.tabBar.iconSize })
                 : null}
-              <Text numberOfLines={1} style={[styles.label, focused && styles.labelFocused]}>
-                {label}
-              </Text>
               {options.tabBarBadge !== undefined ? (
                 <View style={styles.badge} accessibilityLabel={`읽지 않은 알림 ${options.tabBarBadge}개`}>
                   <Text style={styles.badgeText}>{options.tabBarBadge}</Text>
@@ -96,17 +95,10 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 3,
     backgroundColor: dark.accent,
   },
-  label: {
-    fontFamily: fonts.body,
-    fontSize: componentTokens.tabBar.labelSize,
-    lineHeight: 15,
-    color: dark.textMuted,
-  },
-  labelFocused: { fontFamily: fonts.bodySemibold, color: dark.accentBright },
   badge: {
     position: "absolute",
-    top: 8,
-    right: "28%",
+    top: 12,
+    right: "30%",
     minWidth: 18,
     height: 18,
     paddingHorizontal: 4,

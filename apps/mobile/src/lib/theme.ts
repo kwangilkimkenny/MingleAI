@@ -348,8 +348,8 @@ export const componentTokens = {
     radius: doodle.radius.chip,
   },
   tabBar: {
-    rowHeight: 68,
-    iconSize: 23,
-    labelSize: 11,
+    // 라벨 없는 아이콘 바 — 높이는 터치 타깃(48) + 여백. iconSize는 라벨이 사라진 만큼 키웠다.
+    rowHeight: 60,
+    iconSize: 25,
   },
 } as const;
