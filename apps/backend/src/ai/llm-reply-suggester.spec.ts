@@ -1,5 +1,6 @@
-import { OpenAICompatReplySuggester } from "./openai-compat-reply-suggester";
+import { LlmReplySuggester } from "./llm-reply-suggester";
 import { ReplySuggestionError } from "./reply-suggester.interface";
+import { OpenAICompatChatClient } from "./openai-compat-chat-client";
 
 const cfg = {
   url: "https://llm.test",
@@ -8,6 +9,10 @@ const cfg = {
   model: "m",
   timeoutMs: 5000,
 };
+
+/** 프롬프트·파싱은 공급자와 무관하다 — 실제 요청 바디까지 보려고 OpenAI 호환 클라이언트로 묶는다. */
+const suggester = (over: Partial<typeof cfg> & { reasoningEffort?: string } = {}) =>
+  new LlmReplySuggester(new OpenAICompatChatClient({ ...cfg, ...over }));
 
 function reply(content: string) {
   return {
@@ -22,7 +27,7 @@ it("parses the suggestion list and caps it at three", async () => {
   jest
     .spyOn(globalThis, "fetch")
     .mockResolvedValue(reply('{"suggestions":["하나","둘","셋","넷"]}'));
-  const out = await new OpenAICompatReplySuggester(cfg).suggest({
+  const out = await suggester().suggest({
     turns: [{ role: "peer", content: "안녕하세요" }],
   });
   expect(out).toEqual(["하나", "둘", "셋"]);
@@ -32,7 +37,7 @@ it("tolerates prose around the JSON and drops duplicates and blanks", async () =
   jest
     .spyOn(globalThis, "fetch")
     .mockResolvedValue(reply('네, 여기 있습니다: {"suggestions":["하나","하나","  ","둘"]} 이상입니다'));
-  const out = await new OpenAICompatReplySuggester(cfg).suggest({ turns: [] });
+  const out = await suggester().suggest({ turns: [] });
   expect(out).toEqual(["하나", "둘"]);
 });
 
@@ -40,7 +45,7 @@ it("names the last speaker so the model does not misattribute my own facts", asy
   const fetchMock = jest
     .spyOn(globalThis, "fetch")
     .mockResolvedValue(reply('{"suggestions":["하나"]}'));
-  await new OpenAICompatReplySuggester(cfg).suggest({
+  await suggester().suggest({
     turns: [
       { role: "peer", content: "주말에 뭐 하세요?" },
       { role: "me", content: "저는 클라이밍 다녀요" },
@@ -57,7 +62,7 @@ it("marks the peer as the last speaker when they spoke last", async () => {
   const fetchMock = jest
     .spyOn(globalThis, "fetch")
     .mockResolvedValue(reply('{"suggestions":["하나"]}'));
-  await new OpenAICompatReplySuggester(cfg).suggest({
+  await suggester().suggest({
     turns: [
       { role: "me", content: "안녕하세요" },
       { role: "peer", content: "반가워요" },
@@ -72,7 +77,7 @@ it("sends only role-tagged turns — no names or ids in the prompt", async () =>
   const fetchMock = jest
     .spyOn(globalThis, "fetch")
     .mockResolvedValue(reply('{"suggestions":["하나"]}'));
-  await new OpenAICompatReplySuggester(cfg).suggest({
+  await suggester().suggest({
     turns: [
       { role: "peer", content: "안녕하세요" },
       { role: "me", content: "반가워요" },
@@ -88,14 +93,14 @@ it("sends only role-tagged turns — no names or ids in the prompt", async () =>
 it("raises a typed error on a non-2xx response", async () => {
   jest.spyOn(globalThis, "fetch").mockResolvedValue({ ok: false, status: 503 } as Response);
   await expect(
-    new OpenAICompatReplySuggester(cfg).suggest({ turns: [] }),
+    suggester().suggest({ turns: [] }),
   ).rejects.toBeInstanceOf(ReplySuggestionError);
 });
 
 it("raises a typed error when the model answers with no usable list", async () => {
   jest.spyOn(globalThis, "fetch").mockResolvedValue(reply('{"suggestions":[]}'));
   await expect(
-    new OpenAICompatReplySuggester(cfg).suggest({ turns: [] }),
+    suggester().suggest({ turns: [] }),
   ).rejects.toBeInstanceOf(ReplySuggestionError);
 });
 
@@ -105,11 +110,7 @@ describe("추론형 모델 파라미터", () => {
     const fetchMock = jest
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(reply('{"suggestions":["하나"]}'));
-    await new OpenAICompatReplySuggester({
-      ...cfg,
-      model: "gpt-5.6-luna",
-      reasoningEffort: "none",
-    }).suggest({ turns: [] });
+    await suggester({ model: "gpt-5.6-luna", reasoningEffort: "none" }).suggest({ turns: [] });
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
     expect(body.model).toBe("gpt-5.6-luna");
     expect(body.reasoning_effort).toBe("none");
@@ -120,7 +121,7 @@ describe("추론형 모델 파라미터", () => {
     const fetchMock = jest
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(reply('{"suggestions":["하나"]}'));
-    await new OpenAICompatReplySuggester(cfg).suggest({ turns: [] });
+    await suggester().suggest({ turns: [] });
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
     expect(body.temperature).toBe(0.7);
     expect(body).not.toHaveProperty("reasoning_effort");

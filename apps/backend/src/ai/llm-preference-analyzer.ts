@@ -1,13 +1,7 @@
 import type { PreferenceSignals } from "@mingle/shared";
 import { AnalyzeInput, PreferenceAnalyzer, PreferenceAnalysisError } from "./preference-analyzer.interface";
 import { parsePreferenceSignals } from "./preference-signals.schema";
-import { buildChatBody } from "./openai-compat-reply-suggester";
-
-export interface OpenAICompatConfig {
-  url: string; chatPath: string; apiKey: string; model: string; timeoutMs: number;
-  /** 추론형 모델의 사고량. 설정하면 temperature 대신 이 값을 보낸다. */
-  reasoningEffort?: string;
-}
+import type { ChatClient } from "./chat-client";
 
 const SYSTEM = [
   "You convert a person's free-text party preference into a compact JSON object.",
@@ -24,18 +18,29 @@ function extractJson(content: string): unknown {
   return JSON.parse(content.slice(s, e + 1));
 }
 
-export class OpenAICompatPreferenceAnalyzer implements PreferenceAnalyzer {
-  constructor(private readonly cfg: OpenAICompatConfig) {}
+/**
+ * 자유서술 선호를 매칭 신호 JSON으로 바꾼다. 공급자(Anthropic / OpenAI 호환)는 `ChatClient`
+ * 뒤에 있고, 이 클래스는 프롬프트·파싱·복구 재시도만 책임진다.
+ */
+export class LlmPreferenceAnalyzer implements PreferenceAnalyzer {
+  constructor(private readonly client: ChatClient) {}
 
   async analyze(input: AnalyzeInput): Promise<PreferenceSignals> {
     const user = `Party preference: ${JSON.stringify(input.partyPreferenceText)}\nGender: ${JSON.stringify(input.gender)}, Age: ${input.age}, Occupation: ${JSON.stringify(input.occupation)}`;
-    const messages = [{ role: "system", content: SYSTEM }, { role: "user", content: user }];
+    const messages = [
+      { role: "system" as const, content: SYSTEM },
+      { role: "user" as const, content: user },
+    ];
     let lastErr: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
       let content: string;
       try {
-        content = await this.call(attempt === 0 ? messages
-          : [...messages, { role: "user", content: `Your previous reply could not be parsed (${(lastErr as Error)?.message ?? "invalid"}). Reply with ONLY the JSON object matching the schema.` }]);
+        content = await this.client.complete(
+          attempt === 0
+            ? messages
+            : [...messages, { role: "user" as const, content: `Your previous reply could not be parsed (${(lastErr as Error)?.message ?? "invalid"}). Reply with ONLY the JSON object matching the schema.` }],
+          { temperature: 0 },
+        );
       } catch (e) {
         throw new PreferenceAnalysisError("LLM request failed", e); // network/non-2xx: no repair
       }
@@ -44,23 +49,5 @@ export class OpenAICompatPreferenceAnalyzer implements PreferenceAnalyzer {
       } catch (e) { lastErr = e; } // parse/shape failure → repair retry
     }
     throw new PreferenceAnalysisError("LLM output could not be parsed after repair", lastErr);
-  }
-
-  private async call(messages: Array<{ role: string; content: string }>): Promise<string> {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (this.cfg.apiKey) headers.Authorization = `Bearer ${this.cfg.apiKey}`;
-    // Join base + path preserving any base sub-path (e.g. host/api) and collapsing double slashes
-    const base = this.cfg.url.replace(/\/+$/, "");
-    const path = this.cfg.chatPath.startsWith("/") ? this.cfg.chatPath : `/${this.cfg.chatPath}`;
-    const res = await fetch(`${base}${path}`, {
-      method: "POST", headers,
-      body: JSON.stringify(buildChatBody(this.cfg, messages, 0)),
-      signal: AbortSignal.timeout(this.cfg.timeoutMs),
-    });
-    if (!res.ok) throw new Error(`LLM ${res.status}`);
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error("empty LLM content");
-    return content;
   }
 }

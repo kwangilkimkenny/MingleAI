@@ -3,16 +3,7 @@ import {
   ReplySuggestionError,
   type SuggestInput,
 } from "./reply-suggester.interface";
-
-export interface OpenAICompatReplyConfig {
-  url: string;
-  chatPath: string;
-  apiKey: string;
-  model: string;
-  timeoutMs: number;
-  /** 추론형 모델의 사고량(`none`/`low`/`medium`/`high`). 설정하면 그대로 전달한다. */
-  reasoningEffort?: string;
-}
+import type { ChatClient } from "./chat-client";
 
 /**
  * 화자 귀속이 이 프롬프트의 핵심이다. 대화록만 던지면 모델이 **내가 말한 사실을 상대의 것으로
@@ -48,15 +39,16 @@ function extractSuggestions(content: string): string[] {
 }
 
 /**
- * OpenAI 호환 chat completions로 다음 멘트를 제안한다(LLM_API_URL 계열 env를 공유).
+ * LLM으로 다음 멘트를 제안한다. 공급자(Anthropic / OpenAI 호환)는 `ChatClient` 뒤에 있고,
+ * 이 클래스는 프롬프트와 출력 파싱만 책임진다.
  *
  * 프라이버시: 최근 대화 몇 줄만 role(me/peer)로 익명화해 보낸다 — 이름·profileId·연락처는
  * 프롬프트에 넣지 않는다. 실패하면 예외를 던지고, 호출부가 규칙 기반 폴백으로 내려간다.
  */
-export class OpenAICompatReplySuggester implements ReplySuggester {
+export class LlmReplySuggester implements ReplySuggester {
   readonly kind = "ai" as const;
 
-  constructor(private readonly cfg: OpenAICompatReplyConfig) {}
+  constructor(private readonly client: ChatClient) {}
 
   async suggest(input: SuggestInput): Promise<string[]> {
     const transcript = input.turns
@@ -74,10 +66,13 @@ export class OpenAICompatReplySuggester implements ReplySuggester {
 
     let content: string;
     try {
-      content = await this.call([
-        { role: "system", content: SYSTEM },
-        { role: "user", content: user },
-      ]);
+      content = await this.client.complete(
+        [
+          { role: "system", content: SYSTEM },
+          { role: "user", content: user },
+        ],
+        { temperature: 0.7 },
+      );
     } catch (e) {
       throw new ReplySuggestionError("LLM request failed", e);
     }
@@ -87,41 +82,4 @@ export class OpenAICompatReplySuggester implements ReplySuggester {
       throw new ReplySuggestionError("LLM output could not be parsed", e);
     }
   }
-
-  private async call(messages: Array<{ role: string; content: string }>): Promise<string> {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (this.cfg.apiKey) headers.Authorization = `Bearer ${this.cfg.apiKey}`;
-    const base = this.cfg.url.replace(/\/+$/, "");
-    const path = this.cfg.chatPath.startsWith("/") ? this.cfg.chatPath : `/${this.cfg.chatPath}`;
-    const res = await fetch(`${base}${path}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(buildChatBody(this.cfg, messages, 0.7)),
-      signal: AbortSignal.timeout(this.cfg.timeoutMs),
-    });
-    if (!res.ok) throw new Error(`LLM ${res.status}`);
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error("empty LLM content");
-    return content;
-  }
-}
-
-/**
- * 요청 바디. 추론형 모델(gpt-5.x)은 `temperature` 커스텀 값을 거부하고("Only the default (1)
- * value is supported") 대신 `reasoning_effort`를 받는다 — 그래서 effort가 설정되면 temperature를
- * 빼고 effort를 싣는다. 예전 모델(gpt-4o 등)은 그대로 temperature를 쓴다.
- */
-export function buildChatBody(
-  cfg: { model: string; reasoningEffort?: string },
-  messages: Array<{ role: string; content: string }>,
-  temperature: number,
-): Record<string, unknown> {
-  const effort = cfg.reasoningEffort?.trim();
-  return {
-    model: cfg.model,
-    ...(effort ? { reasoning_effort: effort } : { temperature }),
-    response_format: { type: "json_object" },
-    messages,
-  };
 }

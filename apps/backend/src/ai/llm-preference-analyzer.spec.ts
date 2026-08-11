@@ -1,5 +1,6 @@
-import { OpenAICompatPreferenceAnalyzer } from "./openai-compat-preference-analyzer";
+import { LlmPreferenceAnalyzer } from "./llm-preference-analyzer";
 import { PreferenceAnalysisError } from "./preference-analyzer.interface";
+import { OpenAICompatChatClient } from "./openai-compat-chat-client";
 
 const cfg = {
   url: "https://llm.example.com", chatPath: "/v1/chat/completions",
@@ -12,13 +13,17 @@ const okBody = (content: string) => ({
 
 afterEach(() => { (global.fetch as jest.Mock)?.mockReset?.(); });
 
-describe("OpenAICompatPreferenceAnalyzer", () => {
+/** 프롬프트·파싱·복구 재시도는 공급자와 무관하다 — 요청 바디까지 보려고 OpenAI 호환으로 묶는다. */
+const analyzer = (over: Partial<typeof cfg> = {}) =>
+  new LlmPreferenceAnalyzer(new OpenAICompatChatClient({ ...cfg, ...over }));
+
+describe("LlmPreferenceAnalyzer (OpenAI 호환 클라이언트)", () => {
   it("POSTs OpenAI-shaped request and maps the JSON content to signals", async () => {
     const fetchMock = jest.fn().mockResolvedValue(okBody(JSON.stringify({
       vibe: "calm", activity: ["boardgame"], drinking: "none", pace: "slow", tags: ["quiet"], summary: "s",
     })));
     global.fetch = fetchMock as any;
-    const a = new OpenAICompatPreferenceAnalyzer(cfg);
+    const a = analyzer();
     const out = await a.analyze(input);
     expect(out.vibe).toBe("calm");
     const [url, opts] = fetchMock.mock.calls[0];
@@ -36,7 +41,7 @@ describe("OpenAICompatPreferenceAnalyzer", () => {
   it("omits Authorization when no apiKey", async () => {
     const fetchMock = jest.fn().mockResolvedValue(okBody(JSON.stringify({ vibe: "balanced" })));
     global.fetch = fetchMock as any;
-    await new OpenAICompatPreferenceAnalyzer({ ...cfg, apiKey: "" }).analyze(input);
+    await analyzer({ apiKey: "" }).analyze(input);
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
   });
 
@@ -45,7 +50,7 @@ describe("OpenAICompatPreferenceAnalyzer", () => {
       .mockResolvedValueOnce(okBody("here you go: not json"))
       .mockResolvedValueOnce(okBody(JSON.stringify({ vibe: "energetic" })));
     global.fetch = fetchMock as any;
-    const out = await new OpenAICompatPreferenceAnalyzer(cfg).analyze(input);
+    const out = await analyzer().analyze(input);
     expect(out.vibe).toBe("energetic");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
@@ -56,17 +61,17 @@ describe("OpenAICompatPreferenceAnalyzer", () => {
   it("throws PreferenceAnalysisError (no retry) when fetch itself rejects", async () => {
     const fetchMock = jest.fn().mockRejectedValue(new Error("ECONNREFUSED"));
     global.fetch = fetchMock as any;
-    await expect(new OpenAICompatPreferenceAnalyzer(cfg).analyze(input)).rejects.toBeInstanceOf(PreferenceAnalysisError);
+    await expect(analyzer().analyze(input)).rejects.toBeInstanceOf(PreferenceAnalysisError);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("throws PreferenceAnalysisError on non-2xx", async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500, text: async () => "err" }) as any;
-    await expect(new OpenAICompatPreferenceAnalyzer(cfg).analyze(input)).rejects.toBeInstanceOf(PreferenceAnalysisError);
+    await expect(analyzer().analyze(input)).rejects.toBeInstanceOf(PreferenceAnalysisError);
   });
 
   it("throws PreferenceAnalysisError when both attempts are unparseable", async () => {
     global.fetch = jest.fn().mockResolvedValue(okBody("still not json")) as any;
-    await expect(new OpenAICompatPreferenceAnalyzer(cfg).analyze(input)).rejects.toBeInstanceOf(PreferenceAnalysisError);
+    await expect(analyzer().analyze(input)).rejects.toBeInstanceOf(PreferenceAnalysisError);
   });
 });
