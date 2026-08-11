@@ -452,18 +452,7 @@ export default function ChatRoom() {
                 >
                   {/* 사진은 말풍선 없이 이미지만 — 배경을 씌우면 사진이 액자에 갇힌 것처럼 보인다. */}
                   {item.imageUrl ? (
-                    <Pressable
-                      accessibilityRole="imagebutton"
-                      accessibilityLabel="사진 크게 보기"
-                      onPress={() => setViewerUrl(item.imageUrl ?? null)}
-                    >
-                      <Image
-                        source={{ uri: item.imageUrl }}
-                        style={styles.photo}
-                        resizeMode="cover"
-                        accessibilityIgnoresInvertColors
-                      />
-                    </Pressable>
+                    <ChatPhoto uri={item.imageUrl} onPress={() => setViewerUrl(item.imageUrl ?? null)} />
                   ) : null}
 
                   {item.content ? (
@@ -504,6 +493,51 @@ export default function ChatRoom() {
   );
 }
 
+/** 첨부 사진의 최대 크기. 세로로 긴 스크린샷이 화면을 통째로 먹지 않게 높이도 묶는다. */
+const PHOTO_MAX_W = 240;
+const PHOTO_MAX_H = 320;
+
+/**
+ * 채팅 사진 — **원본 비율 그대로** 그린다. 고정 정사각(220×220 cover)이던 시절 세로 사진은
+ * 위아래가 잘리고 가로 사진은 좌우가 잘렸다(2026-08-11). `Image.getSize`로 실제 비율을 재고
+ * 폭·높이 상한 안에서 그 비율을 지킨다. 비율을 알기 전에는 정사각 자리만 잡아 둔다.
+ */
+function ChatPhoto({ uri, onPress }: { uri: string; onPress: () => void }) {
+  const [ratio, setRatio] = useState<number | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setRatio(null);
+    Image.getSize(
+      uri,
+      (w, h) => {
+        if (alive && w > 0 && h > 0) setRatio(w / h);
+      },
+      () => {
+        /* 못 재면 정사각 자리로 남는다 — 로드 실패는 이미지 자체가 안 보이는 것으로 드러난다. */
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [uri]);
+
+  // 가로형은 폭이 상한, 세로형은 높이가 상한을 정한다.
+  const width = ratio ? (ratio >= 1 ? PHOTO_MAX_W : Math.min(PHOTO_MAX_W, PHOTO_MAX_H * ratio)) : PHOTO_MAX_W;
+  const height = ratio ? width / ratio : PHOTO_MAX_W;
+
+  return (
+    <Pressable accessibilityRole="imagebutton" accessibilityLabel="사진 크게 보기" onPress={onPress}>
+      <Image
+        source={{ uri }}
+        style={[styles.photo, { width, height }]}
+        resizeMode="cover"
+        accessibilityIgnoresInvertColors
+      />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   // 오프너 칩을 composer 바로 위에 — 탭→전송 동선을 한 썸존 안에 둔다(2026-07-27 감사).
@@ -534,7 +568,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  photo: { width: 220, height: 220, borderRadius: 16, backgroundColor: dark.surfaceHi },
+  photo: { borderRadius: 16, backgroundColor: dark.surfaceHi },
   viewer: { flex: 1, backgroundColor: dark.scrimStrong, alignItems: "center", justifyContent: "center" },
   viewerImage: { width: "100%", height: "80%" },
   tips: { gap: space.x2, paddingBottom: space.x2 },
