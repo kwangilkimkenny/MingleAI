@@ -14,14 +14,30 @@ import styles from "./page.module.css";
  * 로그인 후에는 존재하지 않는 `/dashboard`로 보냈다. 기능을 지우면 이 문구도 같이 지운다.
  *
  * 디자인: 에디토리얼 종이 톤(2026-08-10 재작성, MUI 제거). 스타일은 `page.module.css`,
- * 팔레트 근거는 그 파일 상단 주석 참고. 스토어 배지는 앱 심사 전이라 **비활성 자리표시자**다 —
- * 링크가 나오면 `STORE_LINKS`만 채우면 활성화된다.
+ * 팔레트 근거는 그 파일 상단 주석 참고. 스토어 배지는 앱 심사 전이라 **비활성 자리표시자**다.
+ * App Store Connect/Play Console 상품이 생기면 배포 환경변수만 등록해 활성화한다.
  */
 
 const STORE_LINKS: { google: string | null; apple: string | null } = {
-  google: null, // Play Console 등록 후 채운다
-  apple: null, // App Store Connect 등록 후 채운다
+  google: process.env.NEXT_PUBLIC_PLAY_STORE_URL || null,
+  apple: process.env.NEXT_PUBLIC_APP_STORE_URL || null,
 };
+
+function StoreButton({ href, children }: { href: string | null; children: ReactNode }) {
+  if (!href) {
+    return (
+      <span className={styles.downloadButton} role="link" aria-disabled="true">
+        {children} · 준비 중
+      </span>
+    );
+  }
+
+  return (
+    <a className={styles.downloadButton} href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  );
+}
 
 function IPhoneFrame({
   label,
@@ -125,20 +141,8 @@ function DownloadPreview() {
         <span>BLIND ROTATION MEETING</span>
       </div>
       <div className={styles.downloadButtons}>
-        <a
-          className={styles.downloadButton}
-          href={STORE_LINKS.apple ?? "#"}
-          aria-disabled={!STORE_LINKS.apple}
-        >
-          iOS
-        </a>
-        <a
-          className={styles.downloadButton}
-          href={STORE_LINKS.google ?? "#"}
-          aria-disabled={!STORE_LINKS.google}
-        >
-          Android
-        </a>
+        <StoreButton href={STORE_LINKS.apple}>iOS</StoreButton>
+        <StoreButton href={STORE_LINKS.google}>Android</StoreButton>
       </div>
     </div>
   );
