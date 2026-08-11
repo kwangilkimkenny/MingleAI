@@ -5,6 +5,7 @@ import { SafetyService } from "../safety/safety.service";
 import { REPLY_SUGGESTER, type ReplySuggester } from "../ai/reply-suggester.interface";
 import { NotificationService } from "../notification/notification.service";
 import { MESSENGER_EMITTER, type MessengerEmitter } from "./messenger.emitter";
+import { normalizeUploadUrl } from "../common/uploads-url";
 import type { DirectMessage } from "@mingle/shared";
 
 @Injectable()
@@ -170,25 +171,11 @@ export class MessengerService {
 }
 
 /**
- * 첨부 이미지 URL 검증. `POST /uploads/photo`가 돌려준 **우리 업로드 경로**만 통과시킨다 —
- * 임의 URL을 허용하면 채팅이 외부 이미지를 불러오는 통로가 되어 상대의 IP가 새고
- * (추적 픽셀), 우리와 무관한 콘텐츠가 대화창에 뜬다.
- * 절대 URL이면 호스트를 보지 않고 경로만 확인한다(dev는 LAN IP, prod는 PUBLIC_BASE_URL이라
- * 호스트가 환경마다 달라진다). 경로가 `/uploads/<파일명>` 한 칸이어야 하고 상위 이동은 막는다.
+ * 첨부 이미지 URL 검증. `POST /uploads/photo`가 돌려준 **우리 업로드 URL**만 통과시킨다 —
+ * 임의 URL을 허용하면 채팅이 외부 이미지를 불러오는 통로가 되어 상대의 IP·열람 시각이 새고
+ * (추적 픽셀), 우리와 무관한 콘텐츠가 대화창에 뜬다. 호스트 검증은 `normalizeUploadUrl`가 한다
+ * (2026-08-11 이전에는 경로만 봐서 `https://evil.example.com/uploads/x.png`가 통과했다).
  */
 export function normalizeAttachmentUrl(raw?: string | null): string | null {
-  const value = (raw ?? "").trim();
-  if (!value) return null;
-  let path = value;
-  if (/^https?:\/\//i.test(value)) {
-    try {
-      path = new URL(value).pathname;
-    } catch {
-      return null;
-    }
-  } else if (!value.startsWith("/")) {
-    return null;
-  }
-  if (path.includes("..")) return null;
-  return /^\/uploads\/[A-Za-z0-9._-]+$/.test(path) ? value : null;
+  return normalizeUploadUrl(raw);
 }

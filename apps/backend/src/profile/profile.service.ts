@@ -15,6 +15,7 @@ import {
   PreferenceAnalyzer,
   PreferenceAnalysisError,
 } from "../ai/preference-analyzer.interface";
+import { normalizeUploadUrl, PROFILE_PHOTO_PATH } from "../common/uploads-url";
 
 @Injectable()
 export class ProfileService {
@@ -59,7 +60,7 @@ export class ProfileService {
       profile = await this.prisma.profile.create({
         data: {
           userId,
-          name: dto.name,
+          name: this.cleanNickname(dto.name),
           age,
           gender,
           occupation: dto.occupation,
@@ -154,78 +155,8 @@ export class ProfileService {
     return safeProfile;
   }
 
-  async findOne(id: string) {
-    const profile = await this.prisma.profile.findUnique({ where: { id } });
-    // M6: only expose active profiles; M7: static error message (no raw id reflection)
-    if (!profile || profile.status !== "active") {
-      throw new NotFoundException("프로필을 찾을 수 없습니다");
-    }
-    // F1: explicit public projection — never leak userId / raw signals / partyPreferenceText / status / timestamps
-    return this.toPublicProfile(profile);
-  }
-
-  async findAll(filters?: {
-    location?: string;
-    ageMin?: number;
-    ageMax?: number;
-    limit?: number;
-    offset?: number;
-  }) {
-    const rawLimit = filters?.limit ?? 20;
-    const rawOffset = filters?.offset ?? 0;
-    // Clamp limit to [1, 50]; fall back to 20 for non-numeric (NaN/Infinity) input (M5)
-    const limit = Number.isFinite(rawLimit)
-      ? Math.min(Math.max(1, Math.floor(rawLimit)), 50)
-      : 20;
-    // Clamp offset to >= 0; fall back to 0 for non-numeric input
-    const offset = Number.isFinite(rawOffset) ? Math.max(0, Math.floor(rawOffset)) : 0;
-
-    const where: Record<string, unknown> = { status: "active" };
-    if (filters?.location) {
-      where.location = { contains: filters.location, mode: "insensitive" };
-    }
-    if (filters?.ageMin || filters?.ageMax) {
-      where.age = {
-        ...(filters?.ageMin ? { gte: filters.ageMin } : {}),
-        ...(filters?.ageMax ? { lte: filters.ageMax } : {}),
-      };
-    }
-
-    const profiles = await this.prisma.profile.findMany({
-      where,
-      take: limit,
-      skip: offset,
-      orderBy: { createdAt: "desc" },
-    });
-    // F1: explicit public projection for every peer-facing result (see toPublicProfile)
-    return profiles.map((p) => this.toPublicProfile(p));
-  }
-
-  /**
-   * F1: peer-facing projection. Returns ONLY the public fields — never userId (FK to users:
-   * email/passwordHash), raw preferenceSignals, riskScore, partyPreferenceText, status, or timestamps.
-   * Mirrors match.service.ts `toPeer`. The owner path (findByUserId / GET /profiles/me) is unaffected.
-   */
-  private toPublicProfile(profile: {
-    id: string;
-    name: string;
-    age: number;
-    gender: string;
-    occupation: string;
-    photoUrl: string | null;
-    preferenceSignals: unknown;
-  }) {
-    return {
-      id: profile.id,
-      name: profile.name,
-      age: profile.age,
-      gender: profile.gender,
-      occupation: profile.occupation,
-      photoUrl: profile.photoUrl ?? undefined,
-      preferenceSummary:
-        (profile.preferenceSignals as { summary?: string } | null)?.summary ?? undefined,
-    };
-  }
+  // 임의 프로필 조회(findOne)·목록(findAll)은 2026-08-11 삭제 — 라우트와 함께.
+  // 상세 이유는 profile.controller.ts 주석 참조(블라인드 단계 우회 노출).
 
   async update(id: string, userId: string, dto: UpdateProfileDto) {
     this.assertOwnedPhotoUrl(dto.photoUrl);
@@ -238,10 +169,10 @@ export class ProfileService {
     }
 
     const data: Record<string, unknown> = {};
-    if (dto.name !== undefined) data.name = dto.name;
-    if (dto.age !== undefined) data.age = dto.age;
-    if (dto.gender !== undefined) data.gender = dto.gender;
-    if (dto.occupation !== undefined) data.occupation = dto.occupation;
+    if (dto.name !== undefined) data.name = this.cleanNickname(dto.name);
+    // 나이·성별은 본인인증이 진실이라 수정 대상이 아니다(2026-08-11). DTO에서도 제거했다 —
+    // 예전에는 PATCH로 gender를 뒤집어 반대 성별 큐(남3+여3)에 들어갈 수 있었다.
+    if (dto.occupation !== undefined) data.occupation = dto.occupation.trim();
     // 구조화 선호가 오면 텍스트·신호 둘 다 서버가 결정적으로 갱신한다(분석기 불필요).
     const answers = dto.preferences as PreferenceAnswers | undefined;
     if (answers) {
@@ -273,19 +204,21 @@ export class ProfileService {
     return updated;
   }
 
+  /**
+   * 닉네임 정리 — 공백만 남는 값(@IsNotEmpty는 "   "를 통과시킨다)과 마크업/제어문자를 막는다.
+   * 닉네임은 대화 상대와 관리자 콘솔 양쪽에 그대로 보이는 유일한 자유 입력이다.
+   */
+  private cleanNickname(raw: string): string {
+    const name = raw.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+    if (!name) throw new BadRequestException("닉네임을 입력해 주세요");
+    if (/[<>]/.test(name)) throw new BadRequestException("닉네임에 사용할 수 없는 문자가 있어요");
+    return name;
+  }
+
   private assertOwnedPhotoUrl(photoUrl: string | undefined): void {
     if (!photoUrl) return;
-    let parsed: URL;
-    try {
-      parsed = new URL(photoUrl);
-    } catch {
-      throw new BadRequestException("올바른 프로필 사진 URL이 아닙니다");
-    }
-    if (!/^\/uploads\/[0-9a-f-]+\.(jpg|png|webp)$/i.test(parsed.pathname)) {
-      throw new BadRequestException("앱에서 업로드한 프로필 사진만 사용할 수 있습니다");
-    }
-    const publicBase = process.env.PUBLIC_BASE_URL?.trim();
-    if (publicBase && parsed.origin !== new URL(publicBase).origin) {
+    // 호스트 검증은 normalizeUploadUrl과 공유한다(채팅 첨부와 같은 규칙).
+    if (!normalizeUploadUrl(photoUrl, PROFILE_PHOTO_PATH)) {
       throw new BadRequestException("앱에서 업로드한 프로필 사진만 사용할 수 있습니다");
     }
   }

@@ -20,8 +20,7 @@ export interface CreateProfileInput {
 
 export interface UpdateProfileInput {
   name?: string;
-  age?: number;
-  gender?: string;
+  /** age·gender는 본인인증이 정한다 — 서버가 수정 요청을 400으로 막는다(2026-08-11). */
   occupation?: string;
   preferences?: PreferenceAnswers;
   partyPreferenceText?: string;

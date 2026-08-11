@@ -78,9 +78,9 @@ export function AppMap({
       overlaysRef.current.push(circle);
       map.fitBounds(circle.getBounds(), { padding: [24, 24] });
     } else if (fitKm) {
-      // 원은 안 그리되 핀이 다 들어오도록 줌만 맞춘다.
-      const invisible = L.circle([center.lat, center.lng], { radius: fitKm * 1000, opacity: 0, fillOpacity: 0 });
-      map.fitBounds(invisible.getBounds(), { padding: [24, 24] });
+      // 원은 안 그리되 핀이 다 들어오도록 줌만 맞춘다. 레이어를 만들어 getBounds()를 부르면
+      // 지도에 붙지 않은 circle은 `_map`이 없어 터진다(`layerPointToLatLng of undefined`).
+      map.fitBounds(L.latLng(center.lat, center.lng).toBounds(fitKm * 2000), { padding: [24, 24] });
     }
     // place markers
     for (const p of places) {

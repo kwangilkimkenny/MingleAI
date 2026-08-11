@@ -3,13 +3,9 @@ import { PreferenceAnswersDto } from "./create-profile.dto";
 import {
   IsOptional,
   IsString,
-  IsInt,
-  IsEnum,
   IsNotEmpty,
   IsUrl,
   IsArray,
-  Min,
-  Max,
   MaxLength,
   MinLength,
   ArrayMaxSize,
@@ -23,15 +19,7 @@ export class UpdateProfileDto {
   @MaxLength(80)
   name?: string;
 
-  @IsOptional()
-  @IsInt()
-  @Min(19)
-  @Max(100)
-  age?: number;
-
-  @IsOptional()
-  @IsEnum(["male", "female", "non_binary", "prefer_not_to_say"])
-  gender?: string;
+  // age·gender는 본인인증이 진실이라 수정 불가(2026-08-11 제거). 보내면 whitelist가 400으로 막는다.
 
   @IsOptional()
   @IsString()

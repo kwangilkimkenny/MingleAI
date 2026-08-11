@@ -94,7 +94,9 @@ function distanceLabel(km: number): string {
 type Row = NaverPlace & { km: number | null };
 
 export default function NaverReserve() {
-  const [phase, setPhase] = useState<"loading" | "ready" | "unconfigured" | "error">("loading");
+  const [phase, setPhase] = useState<
+    "loading" | "ready" | "unconfigured" | "error" | "needsArea"
+  >("loading");
   const [rows, setRows] = useState<Row[]>([]);
   const [area, setArea] = useState<PlaceArea | null>(null);
   const [category, setCategory] = useState("맛집");
@@ -126,9 +128,16 @@ export default function NaverReserve() {
         const here = await resolveArea();
         if (mySeq !== seq.current) return;
         setArea(here);
+        // 기준 좌표가 없으면 검색하지 않는다 — 좌표 없이 부르면 전국 결과가 섞여 나오고
+        // '거리순' 정렬도 기준이 없어 무의미하다(2026-08-11 QA).
+        if (!here) {
+          setRows([]);
+          setPhase("needsArea");
+          return;
+        }
         // 검색어가 있으면 그걸로 찾고(가게 이름), 없으면 카테고리로 — 맛집 앱의 기본 동작.
         const q = term.trim() || cat;
-        const res = await getNearbyPlaces(q, here ? { lat: here.lat, lng: here.lng } : undefined);
+        const res = await getNearbyPlaces(q, { lat: here.lat, lng: here.lng });
         if (mySeq !== seq.current) return;
         const withKm: Row[] = res.places.map((p) => {
           const c = coordsOf(p);
@@ -204,6 +213,24 @@ export default function NaverReserve() {
         header={{ title: "데이트 장소", description: "만나기 좋은 곳을 찾고 예약까지 이어가요" }}
       >
         <StateView title="준비 중이에요" body="곧 근처 맛집을 지도에서 찾고 바로 예약할 수 있게 돼요." dark />
+      </AppScreen>
+    );
+  }
+  if (phase === "needsArea") {
+    return (
+      <AppScreen
+        tabScreen
+        tone="dark"
+        body="plain"
+        header={{ title: "데이트 장소", description: "만나기 좋은 곳을 찾고 예약까지 이어가요" }}
+      >
+        <StateView
+          title="어디서 만날까요?"
+          body="동네를 고르면 그 근처 맛집만 보여드려요."
+          actionLabel="동네 고르기"
+          onAction={() => router.push("/(app)/place-area")}
+          dark
+        />
       </AppScreen>
     );
   }
@@ -392,14 +419,16 @@ export default function NaverReserve() {
 function PlaceCard({ row, onOpen }: { row: Row; onOpen: () => void }) {
   const target = reservationTarget(row);
   const leaf = categoryLeaf(row.category);
+  // 카드 전체를 Pressable로 감싸면 예약·지도 버튼이 그 안에 중첩된다(웹에선 <button> 안의
+  // <button>, 네이티브에선 히트박스 중첩). 상단 정보 영역만 눌리게 하고 액션은 형제로 둔다.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${row.title} 상세 보기`}
-      onPress={onOpen}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-    >
-      <View style={styles.cardTop}>
+    <View style={styles.card}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${row.title} 상세 보기`}
+        onPress={onOpen}
+        style={({ pressed }) => [styles.cardTop, pressed && styles.pressed]}
+      >
         <View style={[styles.tile, { backgroundColor: tintFor(row.title) }]}>
           <Text style={styles.tileText}>{row.title.trim().charAt(0)}</Text>
         </View>
@@ -423,7 +452,7 @@ function PlaceCard({ row, onOpen }: { row: Row; onOpen: () => void }) {
             {row.roadAddress || row.address}
           </Text>
         </View>
-      </View>
+      </Pressable>
 
       <View style={styles.cardActions}>
         <Pressable
@@ -444,7 +473,7 @@ function PlaceCard({ row, onOpen }: { row: Row; onOpen: () => void }) {
           <Text style={styles.actionGhostText}>지도</Text>
         </Pressable>
       </View>
-    </Pressable>
+    </View>
   );
 }
 

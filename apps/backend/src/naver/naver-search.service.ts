@@ -112,6 +112,17 @@ export class NaverSearchService {
     if (q.length < 2) return [];
     const cached = this.areaSearchCache.get(q);
     if (cached) return cached;
+
+    // 네이버 지역검색을 먼저 쓴다 — OSM은 한국 행정동에 약하다. "성수동"이 제주 애월읍 하귀1리로
+    // 잡혔다(2026-08-11 QA). 네이버는 국내 주소 데이터라 동 이름이 정확하다.
+    if (this.configured) {
+      const viaNaver = await this.areasFromNaver(q);
+      if (viaNaver.length) {
+        this.areaSearchCache.set(q, viaNaver);
+        return viaNaver;
+      }
+    }
+
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&limit=8` +
@@ -133,8 +144,10 @@ export class NaverSearchService {
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
         const parts = (r.display_name ?? "").split(",").map((x) => x.trim()).filter(Boolean);
         const label = r.name?.trim() || parts[0] || q;
-        // "서초동, 서초구, 서울" 처럼 상위 두 단계까지만 부제로 — 전체 주소는 너무 길다.
-        const detail = parts.slice(1, 3).join(" · ");
+        // 바로 위 단계 + **최상위 행정구역**(국가명 제외). 시/도가 빠지면 엉뚱한 지역이 잡혀도
+        // 사용자가 알 수 없다 — "성수동 · 하귀1리"가 제주라는 걸 알 방법이 없었다(2026-08-11 QA).
+        const region = parts.filter((x) => !/^(대한민국|South Korea)$/i.test(x)).pop() ?? "";
+        const detail = [parts[1], region].filter((x, i, a) => x && a.indexOf(x) === i).join(" · ");
         const key = `${label}|${detail}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -147,6 +160,32 @@ export class NaverSearchService {
       this.log.warn(`area search failed: ${(e as Error).message}`);
       return [];
     }
+  }
+
+  /**
+   * 네이버 지역검색 결과의 주소로 동네 후보를 만든다. 가게 하나하나가 아니라 **시군구 단위로 묶어**
+   * 대표 좌표를 쓴다 — 사용자가 고르는 건 가게가 아니라 "만날 동네"다.
+   */
+  private async areasFromNaver(q: string): Promise<AreaHit[]> {
+    let places: NaverPlace[];
+    try {
+      places = await this.searchLocal(q, NaverSearchService.MAX_PER_QUERY, "comment");
+    } catch {
+      return [];
+    }
+    const byRegion = new Map<string, AreaHit>();
+    for (const p of places) {
+      const lat = Number(p.mapy) / 1e7;
+      const lng = Number(p.mapx) / 1e7;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || (!lat && !lng)) continue;
+      // "서울특별시 성동구 성수동2가 …" → 시/도 + 시군구까지만 부제로.
+      const tokens = (p.address ?? "").split(/\s+/).filter(Boolean);
+      if (tokens.length < 2) continue;
+      const detail = tokens.slice(0, 2).join(" · ");
+      if (byRegion.has(detail)) continue;
+      byRegion.set(detail, { label: q, detail, lat, lng });
+    }
+    return [...byRegion.values()].slice(0, 5);
   }
 
   /** 네이버 지역검색은 한 요청당 최대 5건(display 상한)이라, 목록을 채우려면 질의를 나눠 던져야 한다. */

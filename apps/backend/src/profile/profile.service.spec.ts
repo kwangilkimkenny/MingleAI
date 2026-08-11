@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { NotFoundException, ConflictException } from "@nestjs/common";
+import { NotFoundException, ConflictException, BadRequestException } from "@nestjs/common";
 import { ProfileService } from "./profile.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PREFERENCE_ANALYZER } from "../ai/preference-analyzer.interface";
@@ -130,113 +130,9 @@ describe("ProfileService", () => {
     });
   });
 
-  describe("findOne", () => {
-    it("should return a profile by id without riskScore or preferenceSignals", async () => {
-      prisma.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.findOne("profile-1");
-      // riskScore and raw preferenceSignals are internal fields and must not be exposed
-      expect(result).not.toHaveProperty("riskScore");
-      expect(result).not.toHaveProperty("preferenceSignals");
-    });
-
-    it("should expose preferenceSummary (not raw signals) on findOne when signals have a summary", async () => {
-      const profileWithSignals = { ...mockProfile, preferenceSignals: { summary: "조용한 스타일", vibe: "calm" } };
-      prisma.profile.findUnique.mockResolvedValue(profileWithSignals);
-
-      const result = await service.findOne("profile-1") as any;
-      expect(result).not.toHaveProperty("preferenceSignals");
-      expect(result.preferenceSummary).toBe("조용한 스타일");
-      expect(result).not.toHaveProperty("riskScore");
-    });
-
-    it("should not leak userId, partyPreferenceText, status, or timestamps (F1)", async () => {
-      prisma.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = (await service.findOne("profile-1")) as any;
-      // userId is an FK to the users table (email + passwordHash) — must never reach a peer
-      expect(result).not.toHaveProperty("userId");
-      expect(result).not.toHaveProperty("riskScore");
-      expect(result).not.toHaveProperty("preferenceSignals");
-      expect(result).not.toHaveProperty("partyPreferenceText");
-      expect(result).not.toHaveProperty("status");
-      expect(result).not.toHaveProperty("createdAt");
-      expect(result).not.toHaveProperty("updatedAt");
-      // only the public fields survive
-      expect(Object.keys(result).sort()).toEqual(
-        ["age", "gender", "id", "name", "occupation", "photoUrl", "preferenceSummary"].sort(),
-      );
-    });
-
-    it("should throw NotFoundException if not found", async () => {
-      prisma.profile.findUnique.mockResolvedValue(null);
-
-      await expect(service.findOne("nonexistent")).rejects.toThrow(NotFoundException);
-    });
-
-    it("should throw NotFoundException for non-active profiles (M6)", async () => {
-      prisma.profile.findUnique.mockResolvedValue({ ...mockProfile, status: "suspended" });
-
-      await expect(service.findOne("profile-1")).rejects.toThrow(NotFoundException);
-    });
-
-    it("should use a static error message that does not reflect the supplied id (M7)", async () => {
-      prisma.profile.findUnique.mockResolvedValue(null);
-
-      await expect(service.findOne("injected-id")).rejects.toThrow("프로필을 찾을 수 없습니다");
-    });
-  });
-
-  describe("findAll", () => {
-    it("should return profiles with location filter", async () => {
-      prisma.profile.findMany.mockResolvedValue([mockProfile]);
-
-      await service.findAll({ location: "서울" });
-
-      expect(prisma.profile.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            location: { contains: "서울", mode: "insensitive" },
-            status: "active",
-          }),
-        }),
-      );
-    });
-
-    it("should clamp limit to 50 for oversized input", async () => {
-      prisma.profile.findMany.mockResolvedValue([]);
-      await service.findAll({ limit: 999 });
-      expect(prisma.profile.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 50 }),
-      );
-    });
-
-    it("should use default limit 20 for non-numeric input (M5)", async () => {
-      prisma.profile.findMany.mockResolvedValue([]);
-      await service.findAll({ limit: NaN });
-      expect(prisma.profile.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 20 }),
-      );
-    });
-
-    it("should omit riskScore from each result in findAll", async () => {
-      prisma.profile.findMany.mockResolvedValue([mockProfile]);
-      const results = await service.findAll({});
-      expect(results[0]).not.toHaveProperty("riskScore");
-    });
-
-    it("should not leak userId, partyPreferenceText, or raw signals in findAll (F1)", async () => {
-      prisma.profile.findMany.mockResolvedValue([mockProfile]);
-      const results = (await service.findAll({})) as any[];
-      expect(results[0]).not.toHaveProperty("userId");
-      expect(results[0]).not.toHaveProperty("partyPreferenceText");
-      expect(results[0]).not.toHaveProperty("preferenceSignals");
-      expect(results[0]).not.toHaveProperty("status");
-      expect(Object.keys(results[0]).sort()).toEqual(
-        ["age", "gender", "id", "name", "occupation", "photoUrl", "preferenceSummary"].sort(),
-      );
-    });
-  });
+  // findOne/findAll(임의 프로필 조회·목록)은 2026-08-11 삭제 — 로그인만 하면 남의 사진까지
+  // 볼 수 있어 블라인드 단계가 무력화됐다(profile.controller.ts 주석). 아래 update 테스트가
+  // 남은 피어 노출 경로(자기 프로필 수정)를 지킨다.
 
   describe("update", () => {
     it("should update profile fields", async () => {
@@ -257,6 +153,59 @@ describe("ProfileService", () => {
       prisma.profile.findUnique.mockResolvedValue(null);
 
       await expect(service.update("nonexistent", "user-1", {})).rejects.toThrow(NotFoundException);
+    });
+
+    // 2026-08-11: PATCH로 gender를 뒤집으면 반대 성별 큐(남3+여3)에 들어갈 수 있었다.
+    it("never writes age/gender even if a client sends them (본인인증이 진실)", async () => {
+      prisma.profile.findUnique.mockResolvedValue(mockProfile);
+      prisma.profile.update.mockResolvedValue(mockProfile);
+
+      await service.update("profile-1", "user-1", {
+        gender: "female",
+        age: 21,
+        occupation: "designer",
+      } as any);
+
+      const data = prisma.profile.update.mock.calls[0][0].data;
+      expect(data).not.toHaveProperty("gender");
+      expect(data).not.toHaveProperty("age");
+      expect(data.occupation).toBe("designer");
+    });
+
+    it("rejects a whitespace-only nickname", async () => {
+      prisma.profile.findUnique.mockResolvedValue(mockProfile);
+
+      await expect(service.update("profile-1", "user-1", { name: "   " })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.profile.update).not.toHaveBeenCalled();
+    });
+
+    it("trims the nickname before storing", async () => {
+      prisma.profile.findUnique.mockResolvedValue(mockProfile);
+      prisma.profile.update.mockResolvedValue(mockProfile);
+
+      await service.update("profile-1", "user-1", { name: "  민준  " });
+
+      expect(prisma.profile.update.mock.calls[0][0].data.name).toBe("민준");
+    });
+
+    it("rejects a nickname containing markup", async () => {
+      prisma.profile.findUnique.mockResolvedValue(mockProfile);
+
+      await expect(
+        service.update("profile-1", "user-1", { name: "<img src=x onerror=alert(1)>" }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("rejects a photoUrl hosted on someone else's domain", async () => {
+      prisma.profile.findUnique.mockResolvedValue(mockProfile);
+
+      await expect(
+        service.update("profile-1", "user-1", {
+          photoUrl: "https://evil.example.com/uploads/00000000-0000-4000-8000-000000000000.png",
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

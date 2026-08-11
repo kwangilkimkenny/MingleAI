@@ -83,9 +83,13 @@ export default function SpeedDateMatching() {
   }
 
   /** 세션 필수 권한(카메라·마이크) — 없으면 프라이밍 화면으로 보낸다(허용 후 back으로 복귀). */
+  /**
+   * 진입 게이트는 **마이크만** 본다. 카메라는 얼굴 공개 단계 직전에 세션 화면이 따로 요청한다 —
+   * 첫 두 단계(가면·목소리)는 카메라를 쓰지 않는데 진입부터 요구하면 이탈만 늘었다(2026-08-11 QA).
+   */
   async function ensureAvPermissions(): Promise<boolean> {
     const perms = await getCameraMicStatus();
-    if (perms.camera && perms.microphone) return true;
+    if (perms.microphone) return true;
     router.push("/permissions");
     return false;
   }

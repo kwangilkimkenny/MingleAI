@@ -100,6 +100,48 @@ describe("NaverSearchService", () => {
   });
 
   describe("searchAreas", () => {
+    // 2026-08-11 QA: OSM은 한국 행정동에 약해 "성수동"을 제주 애월읍으로 잡았다. 키가 있으면
+    // 국내 주소 데이터(네이버)를 먼저 쓰고, 시군구 단위로 묶어 대표 좌표를 준다.
+    it("prefers Naver local data and groups hits by 시/도 · 시군구", async () => {
+      process.env.NAVER_SEARCH_CLIENT_ID = "id";
+      process.env.NAVER_SEARCH_CLIENT_SECRET = "secret";
+      const fetchMock = jest.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            { title: "카페A", address: "서울특별시 성동구 성수동2가 1", mapx: "1270560000", mapy: "375440000" },
+            { title: "카페B", address: "서울특별시 성동구 성수동1가 2", mapx: "1270570000", mapy: "375450000" },
+            { title: "식당C", address: "경기도 성남시 분당구 3", mapx: "1271100000", mapy: "373800000" },
+          ],
+        }),
+      } as unknown as Response);
+
+      const hits = await svc.searchAreas("성수동");
+
+      expect(fetchMock.mock.calls[0][0]).toContain("openapi.naver.com");
+      expect(hits.map((h) => h.detail)).toEqual(["서울특별시 · 성동구", "경기도 · 성남시"]);
+      expect(hits[0]).toMatchObject({ label: "성수동", lat: 37.544, lng: 127.056 });
+    });
+
+    it("falls back to Nominatim when Naver returns nothing usable", async () => {
+      process.env.NAVER_SEARCH_CLIENT_ID = "id";
+      process.env.NAVER_SEARCH_CLIENT_SECRET = "secret";
+      const fetchMock = jest
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [] }) } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            { name: "삼평동", display_name: "삼평동, 분당구, 성남시, 경기도, 대한민국", lat: "37.40", lon: "127.10" },
+          ],
+        } as unknown as Response);
+
+      const hits = await svc.searchAreas("삼평동");
+
+      expect(fetchMock.mock.calls[1][0]).toContain("nominatim");
+      expect(hits[0]).toMatchObject({ label: "삼평동", detail: "분당구 · 경기도" });
+    });
+
     it("turns Nominatim rows into labeled coordinates and drops duplicates", async () => {
       jest.spyOn(globalThis, "fetch").mockResolvedValue({
         ok: true,

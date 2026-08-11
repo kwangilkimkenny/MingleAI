@@ -20,6 +20,7 @@ import { SpeedDateAvatar } from "../../../src/components/speed-date/SpeedDateAva
 import { SuggestedQuestion } from "../../../src/components/speed-date/SuggestedQuestion";
 import { openSpeedDateSocket } from "../../../src/lib/speed-date-socket";
 import { useSpeedDateMedia } from "../../../src/lib/speed-date-media";
+import { requestCamera } from "../../../src/lib/permissions";
 import { VideoView } from "../../../src/components/speed-date/VideoView";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { useAuthStore } from "../../../src/lib/client";
@@ -143,6 +144,16 @@ export default function SpeedDateSession() {
       socketRef.current = null;
     };
   }, [token, id]);
+
+  // 얼굴 공개 단계에 들어갈 때 처음으로 카메라를 요청한다 — 진입 게이트는 마이크만 받는다
+  // (카메라를 미리 요구하면 가면·목소리 단계도 못 해보고 이탈, 2026-08-11 QA).
+  // 거부해도 세션은 계속된다: 발행만 안 될 뿐 상대 영상은 보인다.
+  const cameraAsked = useRef(false);
+  useEffect(() => {
+    if (!snapshot?.room?.publishVideo || cameraAsked.current) return;
+    cameraAsked.current = true;
+    void requestCamera();
+  }, [snapshot?.room?.publishVideo]);
 
   // My own outgoing voice is disguised whenever the current stage is DISGUISED. The stage's voiceMod
   // is symmetric within a pairing, so partner.voiceMod is my modulation flag too.

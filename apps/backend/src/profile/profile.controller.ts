@@ -5,14 +5,11 @@ import {
   Patch,
   Param,
   Body,
-  Query,
   UseGuards,
-  UseInterceptors,
   NotFoundException,
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
-import { CacheInterceptor, CacheTTL } from "@nestjs/cache-manager";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { ProfileService } from "./profile.service";
@@ -33,22 +30,11 @@ export class ProfileController {
     return this.profileService.create(user.userId, dto);
   }
 
-  @Get()
-  findAll(
-    @Query("location") location?: string,
-    @Query("ageMin") ageMin?: string,
-    @Query("ageMax") ageMax?: string,
-    @Query("limit") limit?: string,
-    @Query("offset") offset?: string,
-  ) {
-    return this.profileService.findAll({
-      location,
-      ageMin: ageMin ? Number(ageMin) : undefined,
-      ageMax: ageMax ? Number(ageMax) : undefined,
-      limit: limit ? Number(limit) : undefined,
-      offset: offset ? Number(offset) : undefined,
-    });
-  }
+  // ⛔ `GET /profiles`(목록)와 `GET /profiles/:id`(단건)는 2026-08-11 삭제했다.
+  // 로그인만 하면 임의 프로필의 닉네임·나이·직업·**사진**을 조회할 수 있어, 스피드데이트 스냅샷의
+  // `partner.profileId`와 조합하면 가면 라운드에서 상대 얼굴이 그대로 노출됐다(블라인드 무력화).
+  // 어떤 클라이언트도 호출하지 않는 v1 잔재였다. 피어 정보는 매치/DM(`toPeer`)과 세션 스냅샷이
+  // 각자 필요한 만큼만 내려준다.
 
   @Get("me")
   async me(@CurrentUser() user: JwtPayload) {
@@ -63,13 +49,6 @@ export class ProfileController {
   @HttpCode(HttpStatus.OK)
   reanalyze(@CurrentUser() user: JwtPayload) {
     return this.profileService.reanalyze(user.userId);
-  }
-
-  @Get(":id")
-  @UseInterceptors(CacheInterceptor)
-  @CacheTTL(30_000)
-  findOne(@Param("id") id: string) {
-    return this.profileService.findOne(id);
   }
 
   @Patch(":id")
