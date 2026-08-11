@@ -27,6 +27,11 @@
 - Railway production 진단
   - Postgres 11개 migration 적용 완료
   - 502 직접 원인: PortOne/NICE 운영 본인인증 키 부재로 production 안전 게이트가 부팅 차단
+- Railway production DB 논리 백업·복원 리허설
+  - 읽기 전용 `pg_dump` SHA-256 `bb22c33d05ab59bfee4c018c2bc0c9c9f0ed79076250758ef9677d2431611bab`
+  - PostgreSQL 18 임시 컨테이너 복원 성공: 완료 migration 11개, public table 17개, table-data entry 17개
+  - 임시 컨테이너와 QA SSH 키는 검증 직후 제거했다. `/tmp` 산출물은 출시용 장기 백업이 아니므로
+    실제 배포 직전 암호화된 보관소의 backup ID를 별도로 기록해야 한다.
 
 ## 완료를 막는 외부 항목
 
