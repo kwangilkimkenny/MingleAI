@@ -15,8 +15,4 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, "node_modules"),
 ];
 
-// pnpm uses symlinks; ensure Metro follows them.
-config.resolver.unstable_enableSymlinks = true;
-config.resolver.disableHierarchicalLookup = true;
-
 module.exports = config;
