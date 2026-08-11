@@ -1,0 +1,9 @@
+# The repository administrator reviews production, security, and release changes.
+* @kwangilkimkenny
+
+/.github/ @kwangilkimkenny
+/apps/backend/ @kwangilkimkenny
+/apps/mobile/ @kwangilkimkenny
+/apps/web/ @kwangilkimkenny
+/packages/ @kwangilkimkenny
+/patches/ @kwangilkimkenny
