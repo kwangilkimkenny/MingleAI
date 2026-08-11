@@ -17,6 +17,8 @@ export type NaverPlace = {
 export function getNearbyPlaces(
   query?: string,
   coords?: { lat: number; lng: number },
+  /** 2 = "더 보기" — 서버가 질의 변형을 늘려 목록을 더 채운다(네이버 쿼터를 더 쓴다). */
+  depth?: 1 | 2,
 ): Promise<{ configured: boolean; area: string | null; places: NaverPlace[] }> {
   const params = new URLSearchParams();
   if (query) params.set("query", query);
@@ -24,6 +26,7 @@ export function getNearbyPlaces(
     params.set("lat", String(coords.lat));
     params.set("lng", String(coords.lng));
   }
+  if (depth === 2) params.set("depth", "2");
   const q = params.toString();
   return apiFetch<{ configured: boolean; area: string | null; places: NaverPlace[] }>(
     `/places/nearby${q ? `?${q}` : ""}`,

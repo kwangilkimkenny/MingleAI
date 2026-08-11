@@ -53,7 +53,9 @@ import {
 
 /** 데이트 맥락 카테고리 프리셋 — 검색 질의로 그대로 들어간다. */
 const CATEGORIES: { key: string; label: string }[] = [
-  { key: "맛집", label: "전체" },
+  // 빈 key = 전체. 서버가 업종별 질의의 합집합을 만든다 — 예전처럼 "맛집" 한 단어로 물으면
+  // 그건 또 하나의 좁은 카테고리라 전체가 레스토랑보다 적게 나왔다(2026-08-11).
+  { key: "", label: "전체" },
   { key: "레스토랑", label: "레스토랑" },
   { key: "카페", label: "카페" },
   { key: "와인바", label: "와인바" },
@@ -98,12 +100,15 @@ export default function NaverReserve() {
   >("loading");
   const [rows, setRows] = useState<Row[]>([]);
   const [area, setArea] = useState<PlaceArea | null>(null);
-  const [category, setCategory] = useState("맛집");
+  const [category, setCategory] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [detail, setDetail] = useState<Row | null>(null);
   const [bookableOnly, setBookableOnly] = useState(false);
   const [sort, setSort] = useState<"distance" | "recommended">("distance");
   const [mapOpen, setMapOpen] = useState(false);
+  // 1 = 기본 질의, 2 = "더 보기"(서버가 변형을 늘린다 — 네이버 쿼터를 더 쓴다).
+  const [depth, setDepth] = useState<1 | 2>(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const seq = useRef(0);
 
   /** 기준 좌표: 저장된 지정 위치 → 없으면 현위치를 잡아 지정 위치로 승격. */
@@ -118,7 +123,7 @@ export default function NaverReserve() {
   }, []);
 
   const fetchPlaces = useCallback(
-    async (cat: string, quiet: boolean) => {
+    async (cat: string, quiet: boolean, wanted: 1 | 2 = 1) => {
       const mySeq = ++seq.current;
       if (!quiet) setPhase("loading");
       try {
@@ -132,7 +137,7 @@ export default function NaverReserve() {
           setPhase("needsArea");
           return;
         }
-        const res = await getNearbyPlaces(cat, { lat: here.lat, lng: here.lng });
+        const res = await getNearbyPlaces(cat, { lat: here.lat, lng: here.lng }, wanted);
         if (mySeq !== seq.current) return;
         const withKm: Row[] = res.places.map((p) => {
           const c = coordsOf(p);
@@ -140,6 +145,7 @@ export default function NaverReserve() {
         });
         // 서버가 준 순서 = 네이버 추천/리뷰 정렬. 거리순은 여기서 다시 세운다.
         setRows(withKm);
+        setDepth(wanted);
         // 서버가 역지오코딩한 동네 이름이 있으면, 현위치로 잡힌 라벨을 그 이름으로 바꿔 보여준다.
         if (here && here.label === "현위치" && res.area) setArea({ ...here, label: res.area });
         setPhase(res.configured ? "ready" : "unconfigured");
@@ -163,9 +169,17 @@ export default function NaverReserve() {
     void fetchPlaces(key, false);
   }
 
+  /** 더 보기 — 네이버는 페이징이 없어서, 목록을 늘리려면 질의 변형을 더 던지는 수밖에 없다. */
+  async function onLoadMore() {
+    if (loadingMore || depth === 2) return;
+    setLoadingMore(true);
+    await fetchPlaces(category, true, 2);
+    setLoadingMore(false);
+  }
+
   async function onRefresh() {
     setRefreshing(true);
-    await fetchPlaces(category, true);
+    await fetchPlaces(category, true, depth);
     setRefreshing(false);
   }
 
@@ -255,11 +269,9 @@ export default function NaverReserve() {
         onPress={() => router.push("/(app)/place-area")}
         style={({ pressed }) => [styles.conditionBar, pressed && styles.pressed]}
       >
-        <MapPin color={dark.accent} size={17} strokeWidth={2} />
+        <MapPin color={dark.accent} size={18} strokeWidth={2} />
         <Text style={styles.conditionText} numberOfLines={1}>
-          {[area?.label ?? "동네", categoryLabel, sort === "distance" ? "거리순" : "추천순"].join(
-            "  ·  ",
-          )}
+          {area?.label ?? "동네"}
         </Text>
         <ChevronDown color={dark.textMuted} size={18} strokeWidth={2} />
       </Pressable>
@@ -319,7 +331,25 @@ export default function NaverReserve() {
         </ScrollView>
       </View>
 
-      <Text style={styles.resultCount}>{visible.length}곳</Text>
+      {/* 결과 수 + 지금 걸린 필터. 카테고리를 바꿨는데 결과가 뚝 떨어지는 이유가 필터일 때
+          원인이 보이지 않으면 앱이 고장난 것처럼 읽힌다. */}
+      <View style={styles.countRow}>
+        <Text style={styles.resultCount}>
+          {categoryLabel} {visible.length}곳
+        </Text>
+        {bookableOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="예약 가능만 필터 해제"
+            onPress={() => setBookableOnly(false)}
+            hitSlop={6}
+            style={({ pressed }) => [styles.activeFilter, pressed && styles.pressed]}
+          >
+            <Text style={styles.activeFilterText}>예약 가능만</Text>
+            <X color={dark.gold} size={13} strokeWidth={2.5} />
+          </Pressable>
+        ) : null}
+      </View>
 
       {phase === "loading" ? (
         <View style={styles.flex}>
@@ -343,6 +373,19 @@ export default function NaverReserve() {
           }
           ItemSeparatorComponent={() => <View style={styles.gap} />}
           renderItem={({ item }) => <PlaceCard row={item} onOpen={() => setDetail(item)} />}
+          ListFooterComponent={
+            visible.length > 0 && depth === 1 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="더 보기"
+                onPress={onLoadMore}
+                disabled={loadingMore}
+                style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.moreText}>{loadingMore ? "찾는 중…" : "더 보기"}</Text>
+              </Pressable>
+            ) : null
+          }
         />
       )}
 
@@ -529,7 +572,35 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.4 },
   divider: { width: 1, height: 22, backgroundColor: dark.border },
-  resultCount: { ...t.caption, color: dark.textMuted, marginBottom: space.x2 },
+  countRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.x2,
+    marginBottom: space.x2,
+  },
+  resultCount: { ...t.caption, color: dark.textMuted },
+  activeFilter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: dark.goldFill,
+    borderWidth: 1,
+    borderColor: dark.gold,
+  },
+  activeFilterText: { ...t.caption, fontSize: 11, color: dark.gold },
+  moreButton: {
+    marginTop: space.x3,
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: dark.borderStrong,
+  },
+  moreText: { ...t.label, color: dark.text },
   fullMap: { flex: 1, backgroundColor: dark.bg },
   fullMapClose: {
     position: "absolute",
@@ -542,20 +613,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: dark.pill,
   },
-  // 조건 바 — 화면 맨 위에서 지금 기준을 한 줄로 요약한다.
+  // 조건 바 — 면이 아니라 활자다. 채워진 박스로 두면 입력 필드처럼 보이고, 바로 아래 아웃라인
+  // 아이콘 버튼과 뎁스가 충돌한다(2026-08-11). 화면 레벨은 배경 / 칩·버튼·카드 둘로 충분하다.
   conditionBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.x2,
-    minHeight: 48,
-    paddingHorizontal: space.x3,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: dark.border,
-    backgroundColor: dark.surface,
+    minHeight: 44,
     marginBottom: space.x2,
   },
-  conditionText: { flex: 1, fontFamily: serifFont, fontSize: 16, color: dark.text },
+  conditionText: { flex: 1, fontFamily: serifFont, fontSize: 22, color: dark.heading },
   // 카테고리
   chipBar: { flexGrow: 0 },
   chipRow: { gap: space.x2, paddingVertical: 2, paddingRight: space.x4 },
