@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.mingles.app",
       "requireFullScreen": true,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "블라인드 데이트 마지막 단계의 얼굴 공개 영상 통화를 위해 카메라 접근이 필요해요.",
         "NSMicrophoneUsageDescription": "블라인드 데이트 음성 대화를 위해 마이크 접근이 필요해요.",
         "NSAppTransportSecurity": {

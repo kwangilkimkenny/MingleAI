@@ -1,6 +1,6 @@
 import { isIP } from 'node:net';
 
-const RELEASE_PROFILES = new Set(['preview', 'production']);
+const RELEASE_PROFILES = new Set(['preview', 'preview-simulator', 'production']);
 const SOCIAL_CLIENT_ID_KEYS = [
   'EXPO_PUBLIC_NAVER_CLIENT_ID',
   'EXPO_PUBLIC_KAKAO_CLIENT_ID',

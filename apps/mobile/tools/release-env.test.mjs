@@ -22,6 +22,17 @@ test('accepts a public HTTPS API URL with a social provider', () => {
   assert.deepEqual(result.configuredSocialProviders, ['EXPO_PUBLIC_KAKAO_CLIENT_ID']);
 });
 
+test('validates the signed-code-free iOS simulator profile like preview', () => {
+  const result = validateReleaseEnvironment({
+    EAS_BUILD_PROFILE: 'preview-simulator',
+    EXPO_PUBLIC_API_URL: 'https://api.mingles.cloud',
+    EXPO_PUBLIC_NAVER_CLIENT_ID: 'public-client-id',
+  });
+
+  assert.equal(result.skipped, false);
+  assert.equal(result.profile, 'preview-simulator');
+});
+
 for (const invalidUrl of [
   'http://api.mingles.kr',
   'https://api.example.com',

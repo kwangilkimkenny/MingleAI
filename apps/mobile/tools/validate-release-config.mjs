@@ -12,6 +12,8 @@ assert.equal(eas.cli.requireCommit, true, 'EAS builds must require a committed r
 assert.equal(eas.build.preview.environment, 'preview');
 assert.equal(eas.build.preview.distribution, 'internal');
 assert.equal(eas.build.preview.android.buildType, 'apk');
+assert.equal(eas.build['preview-simulator'].extends, 'preview');
+assert.equal(eas.build['preview-simulator'].ios.simulator, true);
 assert.equal(eas.build.production.environment, 'production');
 assert.equal(eas.build.production.android.buildType, 'app-bundle');
 assert.equal(eas.build.production.android.credentialsSource, 'remote');
@@ -29,6 +31,7 @@ assert.equal(
 
 assert.equal(expo.android.package, 'com.mingles.app');
 assert.equal(expo.ios.bundleIdentifier, 'com.mingles.app');
+assert.equal(expo.ios.infoPlist.ITSAppUsesNonExemptEncryption, false);
 assert.match(expo.extra.eas.projectId, /^[0-9a-f-]{36}$/i);
 assert.equal(expo.userInterfaceStyle, 'dark');
 assert.deepEqual(
