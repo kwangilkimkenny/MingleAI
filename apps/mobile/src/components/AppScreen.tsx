@@ -13,7 +13,8 @@ import { colors, dark, layout, space } from "../lib/theme";
 import { ContentColumn, PageHeader } from "./Foundation";
 import { useTabBarClearance } from "./DoodleTabBar";
 
-type HeaderProps = { title: string; description?: string; back?: boolean; action?: ReactNode };
+/** 탭 화면은 `title` 없이 `action`만 넘겨 아이콘 줄만 남긴다(탭 이름을 화면에서 반복하지 않는다). */
+type HeaderProps = { title?: string; description?: string; back?: boolean; action?: ReactNode };
 
 /**
  * 유일한 화면 래퍼 — SafeArea·paper 배경·헤더존·폭 캡·탭 클리어런스·하단 고정 footer를 흡수한다.

@@ -97,7 +97,7 @@ export default function Chats() {
       tabScreen
       tone="dark"
       body="plain"
-      header={{ title: "채팅", description: "서로 선택한 인연과 나누는 대화", action: searchAction }}
+      header={{ action: searchAction }}
     >
       {searchOpen ? (
         <View style={styles.searchBar}>

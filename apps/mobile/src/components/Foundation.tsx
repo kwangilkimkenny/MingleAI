@@ -30,6 +30,10 @@ export function ContentColumn({
   return <View style={[styles.column, style]}>{children}</View>;
 }
 
+/**
+ * 화면 상단 헤더존. `title`은 **선택** — 탭 화면은 탭을 누른 순간 어디인지 이미 알기 때문에
+ * 이름과 설명을 반복하지 않는다(2026-08-11). 그때는 액션 아이콘만 오른쪽에 남는다.
+ */
 export function PageHeader({
   title,
   description,
@@ -37,7 +41,7 @@ export function PageHeader({
   action,
   dark: isDark = false,
 }: {
-  title: string;
+  title?: string;
   description?: string;
   back?: boolean;
   action?: ReactNode;
@@ -58,12 +62,14 @@ export function PageHeader({
         </Pressable>
       ) : null}
       <View style={styles.pageHeaderText}>
-        <Text
-          accessibilityRole="header"
-          style={[styles.pageTitle, isDark && { fontFamily: serifFont, color: dark.heading }]}
-        >
-          {title}
-        </Text>
+        {title ? (
+          <Text
+            accessibilityRole="header"
+            style={[styles.pageTitle, isDark && { fontFamily: serifFont, color: dark.heading }]}
+          >
+            {title}
+          </Text>
+        ) : null}
         {description ? (
           <Text style={[styles.pageDescription, isDark && { color: dark.textMuted }]}>
             {description}
