@@ -22,6 +22,7 @@
     "node": ">=20.18.1",
     "pnpm": ">=8"
   },
+  "packageManager": "pnpm@10.34.1",
   "devDependencies": {
     "@babel/core": "7.29.7"
   },
