@@ -61,6 +61,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "eas-build-pre-install": "node tools/validate-release-env.mjs",
+    "eas-build-post-install": "pnpm --filter @mingle/shared build && pnpm --filter @mingle/client-core build",
     "release:permissions": "expo config --type introspect --json | node tools/validate-native-permissions.mjs",
     "release:validate": "node --test tools/release-env.test.mjs && node tools/validate-release-config.mjs && pnpm release:permissions",
     "test": "vitest run",
