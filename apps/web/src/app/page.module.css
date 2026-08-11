@@ -24,6 +24,20 @@
   --blush-fill: rgba(242, 188, 200, 0.16);
   --cream: #ffffff;
   --hair: rgba(255, 255, 255, 0.18);
+  /* 첫 스크롤 계산 전에 다운로드 UI와 말풍선이 번쩍이지 않도록 닫힌 상태에서 시작한다. */
+  --showcase-p: 0;
+  --showcase-scale: 1;
+  --home-scene-p: 0;
+  --home-bg-blur: 14px;
+  --home-bg-scale: 1.12;
+  --home-bg-clip: 14%;
+  --feature-three-p: 0;
+  --feature-four-p: 0;
+  --man-gray: 1;
+  --woman-gray: 1;
+  --man-brightness: 1;
+  --woman-brightness: 1;
+  --character-opacity: 0.3;
 
   background-color: var(--paper);
   color: var(--ink-soft);
@@ -31,7 +45,9 @@
   /* MUI CssBaseline이 body에 크림색을 깔아서, 페이지 밖(오버스크롤 영역)이 밝게 뜬다.
      랜딩은 검정이므로 뷰포트 전체를 덮는다. */
   min-height: 100vh;
-  overflow-x: hidden;
+  /* hidden은 이 요소를 스크롤 컨테이너로 만들어 하위 sticky를 무력화한다.
+   * clip은 가로 넘침만 자르면서 두 번째 섹션의 뷰포트 고정을 유지한다. */
+  overflow-x: clip;
 }
 
 /* 종이 결 — 그리드는 배경 그라데이션 두 장, 그레인은 SVG 노이즈. 이미지 요청 0회. */
@@ -140,7 +156,10 @@
   font-family: inherit;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease;
 }
 .pill {
   background: var(--ink);
@@ -190,32 +209,101 @@
   margin: 0 calc(-1 * clamp(20px, 5vw, 56px));
 }
 
-/* 'mingles' 7글자가 뷰포트 폭을 채우도록 vw로 크기를 잡고 자간으로 미세 조정한다. */
+/* MINGLES의 투명 컨테이너가 0→100%로 자란다. 글자는 찌그러뜨리지 않고 컨테이너
+ * 전체를 회전해 하나의 단단한 워드마크 판처럼 기울인다. */
 .brand {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
   margin: 0;
-  display: block;
-  /* 글자의 잉크가 화면 양 끝에 닿아야 한다 — 폰트 박스에는 좌우 사이드베어링이 있어서
-     박스 폭(100vw)만 맞추면 실제 글자는 안쪽에서 끝난다. 그만큼 더 키우고 자간을 조인다. */
-  font-size: 29.6vw;
-  line-height: 0.72;
-  letter-spacing: -0.045em;
-  font-weight: 600;
-  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid transparent;
+  padding: clamp(3px, 0.45vw, 7px) 0 clamp(5px, 0.65vw, 10px);
+  background: transparent;
+  box-shadow: none;
+  font-size: 22.5vw;
+  line-height: 0.74;
+  letter-spacing: -0.095em;
+  font-weight: 400;
   text-align: center;
   white-space: nowrap;
+  transform-origin: left center;
+  transform: rotate(-5deg);
+  animation: brandExpand 1.6s cubic-bezier(0.4, 0, 0.2, 1) 0.08s forwards;
+}
+
+.page h1.brand {
+  font-family: var(--font-display), "Arial Black", sans-serif;
+}
+
+.brand span {
+  position: relative;
+  z-index: 2;
+  display: block;
+  flex: 0 0 100vw;
+  width: 100vw;
+  color: transparent;
+  background: linear-gradient(90deg, #f2bcc8 0%, #fff8f0 58%, #ffffff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(242, 188, 200, 0.2));
+}
+
+/* 확장 방향을 따라가는 빛의 전면. 박스가 다 열린 뒤 오른쪽으로 빠져나간다. */
+.brand::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: -30%;
+  bottom: -30%;
+  left: 0;
+  width: 24%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 248, 240, 0.72), transparent);
+  filter: blur(18px);
+  transform: translateX(-140%);
+  animation: brandLightSweep 1.35s ease-out 0.12s forwards;
+}
+
+@keyframes brandExpand {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes brandLightSweep {
+  0% {
+    transform: translateX(-140%);
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(520%);
+    opacity: 0;
+  }
 }
 
 .ticker {
   overflow: hidden;
   mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  transform: rotate(-5deg);
+  transform-origin: left center;
 }
 .tickerTop {
   margin-bottom: clamp(4px, 0.8vw, 12px);
 }
 .tickerBottom {
   margin-top: clamp(2px, 0.6vw, 10px);
-  /* 뒤집힌 텍스트 — 워드마크 아래에서 거울처럼 흐른다. */
-  transform: scaleY(-1);
 }
 
 /* 트랙 두 벌을 이어 붙여 -50%에서 겹치게 한다 = 이음매 없는 무한 루프.
@@ -249,90 +337,62 @@
   display: flex;
   flex: 0 0 auto;
 }
-.tickerSmall,
 .tickerItem {
   flex: 0 0 auto;
   white-space: nowrap;
   line-height: 1;
-}
-.tickerSmall {
   padding-right: 1em;
-  font-size: clamp(11px, 1.1vw, 15px);
-  letter-spacing: 0.16em;
-  color: var(--ink-soft);
-}
-.tickerSmall::after {
-  content: "—";
-  padding-left: 1em;
-  opacity: 0.45;
-}
-.tickerItem {
-  padding-right: 0.7em;
-  font-size: clamp(15px, 2.2vw, 34px);
-  letter-spacing: 0.01em;
+  font-size: clamp(9px, 0.8vw, 12px);
+  letter-spacing: 0.12em;
   color: var(--blush-ink);
 }
 .tickerItem::after {
-  content: "·";
-  padding-left: 0.7em;
+  content: "—";
+  padding-left: 1em;
   opacity: 0.5;
 }
 
-/* 판화 컷아웃 — 히어로 좌우 하단. 활자 아래 레이어. */
-.figureMan,
-.figureWoman {
-  position: absolute;
+/* 히어로부터 두 번째 섹션까지 같은 두 이미지가 이동한다. JS는 좌표·폭·채도만
+ * 보간하고 DOM을 교체하지 않으므로 스크롤 경계에서 캐릭터가 튀지 않는다. */
+.morphCharacter {
+  position: fixed;
+  top: auto;
+  left: auto;
   bottom: 0;
   height: auto;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
-  filter: grayscale(1) brightness(1.9) contrast(0.95);
-  opacity: 0.3;
-}
-.figureMan {
-  right: 6vw;
-  width: clamp(130px, 18vw, 280px);
-  transform: translateY(calc(var(--p, 0) * 40px));
-}
-.figureWoman {
-  right: 26vw;
-  width: clamp(120px, 16vw, 250px);
-  transform: translateY(calc(var(--p, 0) * 24px)) scaleX(-1);
-}
-@media (max-width: 900px) {
-  .figureMan,
-  .figureWoman {
-    opacity: 0.18;
-    width: 38vw;
-  }
-  .figureWoman {
-    right: 44vw;
-  }
+  opacity: var(--character-opacity);
+  will-change: top, left, width, filter, opacity;
 }
 
-/* 숫자가 카피를 대신한다 — 설명 문단 없음. */
-.facts {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, auto));
-  gap: clamp(16px, 3vw, 44px);
-  justify-content: start;
-  border-top: 1px solid var(--hair);
-  padding-top: 18px;
+.morphCharacterMan {
+  top: var(--man-y, auto);
+  left: var(--man-x, auto);
+  right: 6vw;
+  width: var(--man-w, clamp(130px, 18vw, 280px));
+  filter: grayscale(var(--man-gray)) brightness(var(--man-brightness));
 }
-.facts dt {
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--blush-ink);
-  margin-bottom: 6px;
+
+.morphCharacterWoman {
+  top: var(--woman-y, auto);
+  left: var(--woman-x, auto);
+  right: 26vw;
+  width: var(--woman-w, clamp(120px, 16vw, 250px));
+  transform: scaleX(-1);
+  filter: grayscale(var(--woman-gray)) brightness(var(--woman-brightness));
 }
-.facts dd {
-  margin: 0;
-  font-size: clamp(17px, 1.8vw, 21px);
-  color: var(--ink);
+
+@media (max-width: 900px) {
+  .morphCharacterMan {
+    width: var(--man-w, 38vw);
+  }
+  .morphCharacterWoman {
+    width: var(--woman-w, 38vw);
+  }
+  .morphCharacterWoman {
+    right: 44vw;
+  }
 }
 
 .heroFoot {
@@ -348,16 +408,860 @@
   gap: 12px;
   flex-wrap: wrap;
 }
-.storeNote {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink-soft);
-  opacity: 0.8;
+@media (prefers-reduced-motion: reduce) {
+  .brand {
+    width: 100%;
+    animation: none;
+  }
+  .brand::after,
+  .trackRight,
+  .trackLeft {
+    animation: none;
+  }
+}
+
+/* ── 마지막 섹션: iPhone 안의 앱 다운로드 ───────────────────── */
+.showcase {
+  position: relative;
+  min-height: 240vh;
+  margin-top: -100vh;
+  isolation: isolate;
+}
+
+.showcaseSticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  min-height: 620px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.homeScene {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  opacity: var(--home-scene-p);
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.homeSceneBackground {
+  object-fit: cover;
+  object-position: center 38%;
+  clip-path: inset(0 var(--home-bg-clip));
+  filter: blur(var(--home-bg-blur)) brightness(0.52) saturate(0.8);
+  transform: scale(var(--home-bg-scale));
+  transform-origin: center;
+  will-change: clip-path, filter, transform;
+}
+
+.homeSceneShade {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(0, 0, 0, 0.08) 0 18%, rgba(0, 0, 0, 0.62) 72%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.12) 46%, rgba(0, 0, 0, 0.58));
+}
+
+.homeCharacter {
+  position: absolute;
+  z-index: 2;
+  /* 컷아웃 자체의 투명 여백을 보정해 앞선 섹션의 인물 체감 크기와 맞춘다. */
+  bottom: -4%;
+  width: clamp(300px, 34vw, 480px);
+  height: auto;
+  opacity: var(--home-scene-p);
+  filter: drop-shadow(0 24px 38px rgba(0, 0, 0, 0.48));
+  will-change: opacity;
+}
+
+.homeCharacterMan {
+  left: clamp(-34px, -2vw, -10px);
+  transform: scaleX(-1);
+}
+
+.homeCharacterWoman {
+  right: clamp(-34px, -2vw, -10px);
+  transform: scaleX(-1);
+}
+
+.downloadCenter {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: clamp(20px, 3vw, 34px);
+  opacity: var(--showcase-p);
+  transform: scale(var(--showcase-scale));
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.downloadCenter .iphone {
+  width: clamp(220px, 22vw, 280px);
+}
+
+.downloadPreview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 17% 10% 10%;
+  color: #fff;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(229, 155, 173, 0.16), transparent 34%),
+    #0b0908;
+}
+
+.downloadKicker {
+  margin-bottom: 10%;
+  color: var(--blush-ink);
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: 8px;
+  letter-spacing: 0.24em;
+}
+
+.downloadPreview .appIcon {
+  width: 118px;
+}
+
+.downloadMessage {
+  display: grid;
+  gap: 7px;
+  margin: 11% 0 10%;
+}
+
+.downloadMessage strong {
+  font-size: 14px;
+  letter-spacing: -0.03em;
+}
+
+.downloadMessage span {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 6px;
+  letter-spacing: 0.13em;
+}
+
+.downloadPreview .downloadButtons {
+  flex-direction: column;
+  width: 82%;
+  gap: 8px;
+}
+
+.downloadPreview .downloadButton {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 11px 14px;
+  font-size: 9px;
+}
+
+.characterBubble {
+  position: fixed;
+  z-index: 3;
+  top: 18%;
+  width: min(210px, 18vw);
+  border: 1px solid rgba(242, 188, 200, 0.65);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: #fff;
+  color: #000;
+  font-family: "Apple SD Gothic Neo", sans-serif;
+  font-size: clamp(12px, 1.1vw, 15px);
+  font-weight: 700;
+  line-height: 1.45;
+  word-break: keep-all;
+  opacity: var(--showcase-p);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.42);
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.characterBubble::after {
+  content: "";
+  position: absolute;
+  bottom: -9px;
+  width: 16px;
+  height: 16px;
+  border-right: 1px solid rgba(242, 188, 200, 0.65);
+  border-bottom: 1px solid rgba(242, 188, 200, 0.65);
+  background: #fff;
+  transform: rotate(45deg);
+}
+
+.manBubble {
+  left: clamp(28px, 17vw, 220px);
+}
+
+.manBubble::after {
+  left: 24px;
+}
+
+.womanBubble {
+  top: 23%;
+  right: clamp(28px, 17vw, 220px);
+}
+
+.womanBubble::after {
+  right: 24px;
+}
+
+.appIcon {
+  width: clamp(132px, 16vw, 216px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 22.37%;
+  background: #170e0a;
+}
+
+.appLogo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.downloadButtons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.downloadButton {
+  min-width: 122px;
+  border: 1px solid #fff;
+  border-radius: 999px;
+  padding: 13px 22px;
+  background: #fff;
+  color: #000;
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.downloadButton:not([aria-disabled="true"]):hover {
+  transform: translateY(-2px);
+}
+
+.downloadButton[aria-disabled="true"] {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  .showcase {
+    min-height: 240vh;
+  }
+  .showcaseSticky {
+    min-height: 560px;
+  }
+  .appIcon {
+    width: 116px;
+  }
+  .downloadCenter .iphone {
+    width: 172px;
+  }
+  .homeSceneBackground {
+    object-position: center 44%;
+  }
+  .homeCharacter {
+    bottom: -2%;
+    width: 66vw;
+  }
+  .homeCharacterMan {
+    left: -19vw;
+  }
+  .homeCharacterWoman {
+    right: -19vw;
+  }
+  .downloadPreview .appIcon {
+    width: 78px;
+  }
+  .downloadMessage strong {
+    font-size: 10px;
+  }
+  .downloadPreview .downloadButton {
+    padding: 8px 10px;
+    font-size: 7px;
+  }
+  .downloadButtons {
+    gap: 8px;
+  }
+  .downloadButton {
+    min-width: 104px;
+    padding: 12px 16px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .trackRight,
-  .trackLeft {
+  .downloadCenter {
+    transform: none;
+  }
+}
+
+/* ── 세 번째·네 번째 섹션: 실제 앱 플로우를 담은 iPhone 프리뷰 ───── */
+.featureStage {
+  position: relative;
+  min-height: 260vh;
+  isolation: isolate;
+}
+
+.featureFour {
+  margin-top: -100vh;
+}
+
+.featureSticky {
+  position: sticky;
+  top: 0;
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  min-height: 640px;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 56px);
+}
+
+.featurePanel {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto minmax(280px, 350px);
+  align-items: center;
+  justify-content: center;
+  gap: clamp(36px, 5vw, 72px);
+  width: min(980px, calc(100vw - 48px));
+  opacity: var(--feature-three-p);
+  will-change: opacity;
+}
+
+.featureFour .featurePanel {
+  opacity: var(--feature-four-p);
+}
+
+.featurePanel > .iphone {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.featurePanel > .featureCopy {
+  grid-column: 2;
+  grid-row: 1;
+  max-width: 350px;
+}
+
+.featurePanelReverse > .featureCopy {
+  grid-column: 1;
+  justify-self: end;
+}
+
+.featurePanelReverse {
+  grid-template-columns: minmax(280px, 350px) auto;
+}
+
+.featurePanelReverse > .iphone {
+  grid-column: 2;
+}
+
+.featureCopy {
+  min-width: 0;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.featureKicker {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--blush-ink);
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+
+.featureCopy h2 {
+  margin: 0 0 18px;
+  color: #fff;
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(34px, 4.4vw, 58px);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.featureCopy p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+.featureCopy ul {
+  display: grid;
+  gap: 8px;
+  margin: 22px 0 18px;
+  padding: 0;
+  list-style: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.featureCopy li {
+  position: relative;
+  padding-left: 17px;
+}
+
+.featureCopy li::before {
+  content: "";
+  position: absolute;
+  top: 0.6em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--blush-ink);
+}
+
+.featureCopy > small {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.iphone {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(210px, 20vw, 265px);
+  aspect-ratio: 9 / 19.5;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: clamp(38px, 4vw, 52px);
+  background: linear-gradient(145deg, #3a3a3d, #080808 34%, #202024 76%, #050505);
+  box-shadow:
+    0 32px 90px rgba(0, 0, 0, 0.75),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.iphone::before,
+.iphone::after {
+  content: "";
+  position: absolute;
+  left: -3px;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+  background: #55555a;
+}
+
+.iphone::before {
+  top: 21%;
+  height: 10%;
+}
+
+.iphone::after {
+  top: 34%;
+  height: 16%;
+}
+
+.iphoneSpeaker {
+  position: absolute;
+  z-index: 5;
+  top: 3.2%;
+  left: 50%;
+  width: 34%;
+  height: 4.2%;
+  border-radius: 999px;
+  background: #050505;
+  transform: translateX(-50%);
+}
+
+.iphoneScreen {
+  position: absolute;
+  inset: 7px;
+  overflow: hidden;
+  border-radius: clamp(32px, 3.5vw, 45px);
+  background: #1a120c;
+}
+
+.rotationPreview,
+.planPreview {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  font-family: "Apple SD Gothic Neo", sans-serif;
+}
+
+.rotationPreview {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto;
+  padding: 9% 5% 5%;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.72)),
+    #211711;
+}
+
+.previewTopbar {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.liveBadge,
+.voiceBadge,
+.planStatus {
+  border: 1px solid rgba(242, 188, 200, 0.7);
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: var(--blush-ink);
+}
+
+.previewTimer {
+  font-variant-numeric: tabular-nums;
+}
+
+.callStage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  margin: 8% -5% 0;
+  background: radial-gradient(circle at 50% 38%, #6f4941, #1a120c 68%);
+}
+
+.callStage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 54%, #1a120c 100%);
+}
+
+.callPortrait {
+  position: absolute;
+  bottom: -3%;
+  left: 50%;
+  width: 94%;
+  height: auto;
+  transform: translateX(-50%);
+  animation: previewBreath 5s ease-in-out infinite;
+}
+
+.voiceBadge {
+  position: absolute;
+  z-index: 2;
+  top: 7%;
+  left: 6%;
+  background: rgba(0, 0, 0, 0.52);
+  font-size: 6px;
+  letter-spacing: 0.08em;
+}
+
+.questionCard {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 3px;
+  margin: -20% 2% 5%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(15, 10, 8, 0.82);
+  backdrop-filter: blur(10px);
+  animation: questionFloat 3.8s ease-in-out infinite;
+}
+
+.questionCard span {
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.questionCard small,
+.previewIdentity span,
+.courseCard small,
+.planTimeline small {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 6px;
+}
+
+.previewIdentity {
+  display: grid;
+  gap: 2px;
+  padding: 0 3% 5%;
+}
+
+.previewIdentity strong {
+  font-size: 12px;
+}
+
+.previewControls {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+
+.previewControls span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 5px;
+}
+
+.planPreview {
+  padding: 11% 6% 6%;
+  background:
+    radial-gradient(circle at 90% 8%, rgba(229, 155, 173, 0.2), transparent 34%),
+    #1a120c;
+}
+
+.planHeader {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 9%;
+  font-size: 9px;
+}
+
+.planHeader > span:first-child {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.planStatus {
+  padding: 3px 6px;
+  font-size: 6px;
+}
+
+.planLead {
+  margin: 0 0 7%;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 7px;
+}
+
+.courseCard {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  margin-bottom: 7%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  padding: 12px 10px 11px 28px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.courseCard strong {
+  font-size: 8px;
+}
+
+.courseNumber {
+  position: absolute;
+  top: 12px;
+  left: 10px;
+  color: var(--blush-ink);
+  font-size: 6px;
+}
+
+.courseCardActive {
+  border-color: rgba(242, 188, 200, 0.72);
+  animation: courseGlow 3s ease-in-out infinite;
+}
+
+.courseAction {
+  width: max-content;
+  margin-top: 3px;
+  border-radius: 999px;
+  padding: 5px 7px;
+  background: #fff;
+  color: #000;
+  font-size: 6px;
+  font-weight: 700;
+}
+
+.planTimeline {
+  display: grid;
+  grid-template-columns: 9px 1fr;
+  gap: 7px;
+  align-items: start;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 9%;
+}
+
+.planTimeline div {
+  display: grid;
+  gap: 4px;
+}
+
+.planTimeline strong {
+  font-size: 7px;
+}
+
+.timelineDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blush-ink);
+  animation: timelinePulse 1.8s ease-out infinite;
+}
+
+@keyframes previewBreath {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.025);
+  }
+}
+
+@keyframes questionFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes courseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(242, 188, 200, 0);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(242, 188, 200, 0.12);
+  }
+}
+
+@keyframes timelinePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(242, 188, 200, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(242, 188, 200, 0);
+  }
+}
+
+@media (max-width: 720px) {
+  .featureStage {
+    min-height: 260vh;
+  }
+  .featureSticky {
+    min-height: 620px;
+    padding: 18px 20px;
+  }
+  .featurePanel,
+  .featurePanelReverse {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 18px;
+    width: 100%;
+  }
+  .featurePanelReverse .iphone {
+    order: -1;
+  }
+  .featurePanel > .iphone,
+  .featurePanel > .featureCopy,
+  .featurePanelReverse > .iphone,
+  .featurePanelReverse > .featureCopy {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: center;
+  }
+  .iphone {
+    width: 158px;
+    border-radius: 33px;
+  }
+  .iphoneScreen {
+    inset: 5px;
+    border-radius: 28px;
+  }
+  .featureCopy {
+    max-width: 330px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    padding: 13px 12px;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(9px);
+    text-align: center;
+  }
+  .featureKicker {
+    margin-bottom: 8px;
+    font-size: 8px;
+  }
+  .featureCopy h2 {
+    margin-bottom: 10px;
+    font-size: 27px;
+  }
+  .featureCopy p {
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .featureCopy ul {
+    gap: 4px;
+    margin: 10px 0 8px;
+    font-size: 10px;
+  }
+  .featureCopy li {
+    padding-left: 0;
+  }
+  .featureCopy li::before {
+    display: none;
+  }
+  .featureCopy > small {
+    font-size: 8px;
+  }
+  .characterBubble {
+    top: 10%;
+    width: 128px;
+    border-radius: 15px;
+    padding: 10px 11px;
+    font-size: 10px;
+  }
+  .manBubble {
+    left: 12px;
+  }
+  .womanBubble {
+    top: 17%;
+    right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .callPortrait,
+  .questionCard,
+  .courseCardActive,
+  .timelineDot {
     animation: none;
   }
 }
@@ -503,7 +1407,9 @@
   /* left/top은 JS가 각도로 계산해 넣는다(퍼센트가 컨테이너 기준이라 반지름이 제대로 먹는다). */
   transform: translate(-50%, -50%) scale(0.6);
   opacity: 0;
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease;
+  transition:
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.45s ease;
 }
 /* 좌석이 시계 방향으로 하나씩 앉는다(딜레이는 JS가 인덱스로 준다). */
 .reveal[data-revealed] .seat {
@@ -568,7 +1474,9 @@
   color: var(--blush-ink);
   opacity: 0;
   transform: scale(0.7);
-  transition: opacity 0.5s ease 0.7s, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.7s;
+  transition:
+    opacity 0.5s ease 0.7s,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.7s;
 }
 .reveal[data-revealed] .matchHeart {
   opacity: 1;
@@ -601,11 +1509,6 @@
 }
 
 /* ── 마무리 CTA + 푸터 ──────────────────────────── */
-.closing {
-  display: grid;
-  gap: 18px;
-  justify-items: start;
-}
 .footer {
   border-top: 1px solid var(--hair);
   padding: 36px clamp(20px, 5vw, 56px) 56px;
@@ -634,7 +1537,9 @@
 [data-anim] .reveal {
   opacity: 0;
   transform: translateY(22px);
-  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 /* ⚠️ 등장 표식은 클래스가 아니라 data 속성이다. CSS 모듈은 복합 선택자로만 쓰인 이름을
  * export하지 않아서 `styles.revealed`가 undefined였고, JS가 "undefined" 문자열 클래스를
@@ -767,56 +1672,5 @@
   .lineC .mask {
     transform: none;
     animation: none;
-  }
-}
-
-/* ── 대각선으로 커지는 활자 덩어리 ─────────────────
- * 줄마다 글자 수는 줄고 크기는 커진다 → 아래로 갈수록 활자가 넓어지며 화면 밖으로
- * 삐져나가려는 쐐기가 된다.
- *
- * 크기를 JS로 재지 않는다. 문구가 고정이라 글자 수로 vw를 계산해 박는 편이 더 튼튼하다
- * (측정 기반 getBBox는 폰트 로드·리사이즈·dev 캐시 상태에 계속 물렸다). 한글은 글자 폭이
- * 대략 1em이므로 `목표폭(vw) ÷ 글자수`가 그대로 font-size가 된다. 문구를 바꾸면 여기도 바꾼다.
- */
-.ramp {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  width: 100%;
-  color: var(--ink);
-  font-weight: 600;
-  line-height: 0.92;
-  letter-spacing: -0.035em;
-  white-space: nowrap;
-}
-/* "한자리에서 여러 사람과 돌아가며" 15자 → 86vw / 15 ≈ 5.7 */
-.ramp1 {
-  font-size: 5.7vw;
-  color: var(--ink-soft);
-  letter-spacing: 0.02em;
-}
-/* "얼굴보다 대화로" 7자 → 104vw / 7 ≈ 14.8 */
-.ramp2 {
-  font-size: 14.8vw;
-  margin-left: -2vw;
-  color: var(--blush-ink);
-}
-/* "먼저" 2자 → 글자가 화면보다 커서 좌우로 삐져나간다. */
-.ramp3 {
-  font-size: 38vw;
-  margin-left: -4vw;
-  line-height: 0.78;
-}
-@media (max-width: 720px) {
-  .ramp1 {
-    font-size: 6.2vw;
-  }
-  .ramp2 {
-    font-size: 15.5vw;
-    margin-left: 0;
-  }
-  .ramp3 {
-    font-size: 34vw;
-    margin-left: -4vw;
   }
 }

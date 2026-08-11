@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
@@ -23,64 +23,126 @@ const STORE_LINKS: { google: string | null; apple: string | null } = {
   apple: null, // App Store Connect 등록 후 채운다
 };
 
-/** 스테이지 = 앱의 실제 진행 순서(shared `stageReveal`)와 같아야 한다. */
-const STAGES = [
-  {
-    badge: "01 · 1라운드",
-    name: "가면 대화",
-    desc: "목소리는 변조되고 캐릭터로 만납니다. 얼굴도 실제 목소리도 아직 없습니다.",
-  },
-  {
-    badge: "02 · 2라운드",
-    name: "목소리 공개",
-    desc: "변조가 풀립니다. 진짜 목소리로 이야기하지만 얼굴은 아직 가려져 있습니다.",
-  },
-  {
-    badge: "03 · 3라운드",
-    name: "얼굴 공개",
-    desc: "카메라가 켜집니다. 대화가 쌓인 다음에야 얼굴을 봅니다.",
-  },
-];
-
-const SAFETY = [
-  {
-    title: "본인인증한 성인만",
-    body: "휴대폰 본인확인을 마쳐야 참여할 수 있습니다. 나이는 체크박스가 아니라 인증이 보장합니다.",
-  },
-  {
-    title: "한 사람당 한 계정",
-    body: "본인확인 정보로 중복 가입을 막습니다. 차단당한 사람이 새 계정으로 돌아오지 못합니다.",
-  },
-  {
-    title: "언제든 신고·차단",
-    body: "대화 중에도, 매칭 후에도 신고하고 차단할 수 있습니다. 차단하면 양방향으로 사라집니다.",
-  },
-  {
-    title: "영상은 저장하지 않음",
-    body: "얼굴 공개 라운드의 음성·영상은 실시간으로만 흐르고 서버에 녹화되지 않습니다.",
-  },
-];
-
-/**
- * 문장 경계에서만 줄을 넘긴다. 한국어는 어절 사이 어디서든 끊겨서 브라우저에 맡기면
- * "대화가 / 먼저"처럼 의미가 갈라진다. 문장을 블록으로 쪼개고, 문장 **안쪽** 줄바꿈은
- * CSS의 text-wrap: pretty/balance에 맡긴다.
- */
-function Sentences({ text }: { text: string }) {
-  const parts = text.split(/(?<=\.)\s+/).filter(Boolean);
+function IPhoneFrame({
+  label,
+  children,
+  interactive = false,
+}: {
+  label: string;
+  children: ReactNode;
+  interactive?: boolean;
+}) {
   return (
-    <>
-      {parts.map((s) => (
-        <span className={styles.sentence} key={s}>
-          {s}
-        </span>
-      ))}
-    </>
+    <div className={styles.iphone} role={interactive ? "group" : "img"} aria-label={label}>
+      <div className={styles.iphoneSpeaker} aria-hidden />
+      <div className={styles.iphoneScreen}>{children}</div>
+    </div>
   );
 }
 
-/** 6인 좌석 배치 — 남3·여3이 번갈아 앉는다(앱의 성별 인지 매칭과 같은 구성). */
-const SEATS = [0, 60, 120, 180, 240, 300];
+function RotationPreview() {
+  return (
+    <div className={styles.rotationPreview}>
+      <div className={styles.previewTopbar}>
+        <span className={styles.liveBadge}>LIVE</span>
+        <span className={styles.previewTimer}>00:58</span>
+      </div>
+      <div className={styles.callStage}>
+        <Image
+          className={styles.callPortrait}
+          src="/renaissance-woman-cutout.png"
+          alt=""
+          aria-hidden
+          width={300}
+          height={410}
+        />
+        <span className={styles.voiceBadge}>VOICE FIRST</span>
+      </div>
+      <div className={styles.questionCard}>
+        <span>오늘 가장 웃겼던 순간은?</span>
+        <small>추천 대화 주제</small>
+      </div>
+      <div className={styles.previewIdentity}>
+        <strong>서연</strong>
+        <span>음성 보호 중 · ROUND 2</span>
+      </div>
+      <div className={styles.previewControls} aria-hidden>
+        <span>MIC</span>
+        <span>CAM</span>
+        <span>SAFE</span>
+      </div>
+    </div>
+  );
+}
+
+function DatePlanPreview() {
+  return (
+    <div className={styles.planPreview}>
+      <div className={styles.planHeader}>
+        <span>‹</span>
+        <strong>데이트 플랜</strong>
+        <span className={styles.planStatus}>제안 중</span>
+      </div>
+      <p className={styles.planLead}>마음에 드는 코스를 선택하세요.</p>
+      <div className={`${styles.courseCard} ${styles.courseCardActive}`}>
+        <span className={styles.courseNumber}>01</span>
+        <strong>성수 카페 → 서울숲 산책</strong>
+        <small>대화하기 좋은 2시간 코스</small>
+        <span className={styles.courseAction}>이 코스로 선택</span>
+      </div>
+      <div className={styles.courseCard}>
+        <span className={styles.courseNumber}>02</span>
+        <strong>전시 관람 → 와인바</strong>
+        <small>천천히 취향을 나누는 코스</small>
+      </div>
+      <div className={styles.planTimeline}>
+        <span className={styles.timelineDot} />
+        <div>
+          <strong>상대의 확정을 기다리는 중</strong>
+          <small>확정되면 채팅으로 알려드려요.</small>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DownloadPreview() {
+  return (
+    <div className={styles.downloadPreview}>
+      <span className={styles.downloadKicker}>MINGLES</span>
+      <div className={styles.appIcon}>
+        <Image
+          className={styles.appLogo}
+          src="/mingles-app-icon.png"
+          alt="Mingles"
+          width={1024}
+          height={1024}
+          priority
+        />
+      </div>
+      <div className={styles.downloadMessage}>
+        <strong>이제, 대화를 시작하세요.</strong>
+        <span>BLIND ROTATION MEETING</span>
+      </div>
+      <div className={styles.downloadButtons}>
+        <a
+          className={styles.downloadButton}
+          href={STORE_LINKS.apple ?? "#"}
+          aria-disabled={!STORE_LINKS.apple}
+        >
+          iOS
+        </a>
+        <a
+          className={styles.downloadButton}
+          href={STORE_LINKS.google ?? "#"}
+          aria-disabled={!STORE_LINKS.google}
+        >
+          Android
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
@@ -92,38 +154,13 @@ export default function Home() {
     if (token) router.replace("/profile");
   }, [token, router]);
 
-  // 스크롤 등장 + 히어로 패럴랙스. 라이브러리 없이 IntersectionObserver + CSS 변수로 처리한다.
+  // 히어로 패럴랙스 + 두 번째 섹션의 캐릭터 분리/컬러 전환을 스크롤 진행도로 제어한다.
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-
-    // JS가 살아있음을 CSS에 알린다 — 이 표식이 있을 때만 등장 전 상태(숨김)가 적용된다.
-    root.setAttribute("data-anim", "");
-    const targets = [...root.querySelectorAll(`.${styles.reveal}`)];
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          e.target.setAttribute("data-revealed", "");
-          io.unobserve(e.target); // 한 번 나타나면 끝 — 스크롤 되감기에 깜빡이지 않는다.
-        }
-      },
-      { threshold: 0.18 },
-    );
-    targets.forEach((t) => io.observe(t));
-
-    /** 관측기를 못 믿는 경우의 안전망. 큰 폭으로 점프 스크롤하면(앵커 이동, 트랙패드 플링)
-     *  교차 콜백이 한 프레임도 안 걸려 섹션이 통째로 빈 화면으로 남는다 — 실제로 재현됐다.
-     *  스크롤마다 아직 안 뜬 것 중 화면에 들어온 것을 직접 켠다. */
-    const sweep = () => {
-      for (const el of targets) {
-        if (el.hasAttribute("data-revealed")) continue;
-        if (el.getBoundingClientRect().top < window.innerHeight * 0.9) {
-          el.setAttribute("data-revealed", "");
-          io.unobserve(el);
-        }
-      }
-    };
+    const showcase = root.querySelector<HTMLElement>(`.${styles.showcase}`);
+    const featureThree = root.querySelector<HTMLElement>(`.${styles.featureThree}`);
+    const featureFour = root.querySelector<HTMLElement>(`.${styles.featureFour}`);
 
     let raf = 0;
     const onScroll = () => {
@@ -136,14 +173,101 @@ export default function Home() {
         // 문서 전체 진행도 — 섹션 경계와 무관하게 이어지는 스파인이 이 값으로 그려진다.
         const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
         root.style.setProperty("--s", String(Math.min(1, window.scrollY / max)));
-        sweep();
+
+        if (showcase && featureThree) {
+          const rect = featureThree.getBoundingClientRect();
+          const showcaseRect = showcase.getBoundingClientRect();
+          const start = window.innerHeight * 0.92;
+          const end = window.innerHeight * 0.12;
+          const progress = Math.min(1, Math.max(0, (start - rect.top) / (start - end)));
+
+          // 히어로와 두 번째 섹션이 같은 Image 두 개를 공유한다. 시작/끝 좌표를 px로
+          // 보간해 DOM 교체 없이 위치·크기·채도만 연속적으로 변하게 한다.
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          const compact = vw <= 900;
+          const mobile = vw < 720;
+          const mix = (from: number, to: number) => from + (to - from) * progress;
+          const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+          const smoothstep = (value: number) => value * value * (3 - 2 * value);
+
+          // 마지막 다운로드 섹션의 sticky 이동량을 별도로 정규화한다.
+          const showcaseTravel = Math.max(1, showcaseRect.height - vh);
+          const showcaseProgress = clamp01(-showcaseRect.top / showcaseTravel);
+          const sceneEntry = smoothstep(clamp01(showcaseProgress / 0.18));
+          const reveal = smoothstep(clamp01((showcaseProgress - 0.12) / 0.16));
+          const showcaseExit = smoothstep(clamp01((showcaseProgress - 0.84) / 0.16));
+          const sceneVisibility = sceneEntry * (1 - showcaseExit);
+
+          const stageProgress = (stage: HTMLElement | null) => {
+            if (!stage) return { entry: 0, scroll: 0, rect: null };
+            const stageRect = stage.getBoundingClientRect();
+            // 콘텐츠가 움직이며 보이지 않도록 섹션 상단이 고정된 뒤에만 페이드인한다.
+            const entry = smoothstep(clamp01(-stageRect.top / (vh * 0.18)));
+            const travel = Math.max(1, stageRect.height - vh);
+            return {
+              entry,
+              scroll: clamp01(-stageRect.top / travel),
+              rect: stageRect,
+            };
+          };
+          const third = stageProgress(featureThree);
+          const fourth = stageProgress(featureFour);
+          const thirdExit = smoothstep(clamp01((third.scroll - 0.72) / 0.28));
+          const fourthExit = smoothstep(clamp01((fourth.scroll - 0.72) / 0.28));
+          root.style.setProperty("--showcase-p", (reveal * (1 - showcaseExit)).toFixed(3));
+          root.style.setProperty("--showcase-scale", "1");
+          root.style.setProperty("--home-scene-p", sceneVisibility.toFixed(3));
+          root.style.setProperty("--home-bg-blur", `${((1 - sceneEntry) * 14).toFixed(2)}px`);
+          root.style.setProperty("--home-bg-scale", (1.12 - sceneEntry * 0.12).toFixed(3));
+          root.style.setProperty("--home-bg-clip", `${((1 - sceneEntry) * 14).toFixed(2)}%`);
+          root.style.setProperty("--feature-three-p", (third.entry * (1 - thirdExit)).toFixed(3));
+          root.style.setProperty("--feature-four-p", (fourth.entry * (1 - fourthExit)).toFixed(3));
+
+          const manStartW = compact ? vw * 0.38 : Math.min(280, Math.max(130, vw * 0.18));
+          const womanStartW = compact ? vw * 0.38 : Math.min(250, Math.max(120, vw * 0.16));
+          const manEndW = mobile ? vw * 0.52 : Math.min(460, Math.max(240, vw * 0.3));
+          const womanEndW = manEndW;
+
+          const manStartX = vw - vw * 0.06 - manStartW;
+          const womanStartX = compact ? vw - vw * 0.44 - womanStartW : vw - vw * 0.26 - womanStartW;
+          const manSettledX = mobile ? -vw * 0.16 : -vw * 0.03;
+          const womanSettledX = mobile ? vw + vw * 0.16 - womanEndW : vw + vw * 0.03 - womanEndW;
+
+          const manStartY = vh - manStartW * (1405 / 1024);
+          const womanStartY = vh - womanStartW * (1400 / 1024);
+          const endBottom = mobile ? vh * 0.02 : -vh * 0.02;
+          const manEndY = vh - endBottom - manEndW * (1405 / 1024);
+          const womanEndY = vh - endBottom - womanEndW * (1400 / 1024);
+          const baseOpacity = compact ? 0.18 : 0.3;
+          // 세 번째 기능 화면의 퇴장 구간에서는 기존 캐릭터가 양옆으로 빠진 뒤 사라진다.
+          const manX = mix(manStartX, manSettledX) - fourthExit * vw * 0.18;
+          const womanX = mix(womanStartX, womanSettledX) + fourthExit * vw * 0.18;
+          const heroGray = 1 - progress;
+          const manDim = fourth.entry;
+          const womanDim = third.entry * (1 - fourth.entry);
+
+          root.style.setProperty("--man-x", `${manX.toFixed(2)}px`);
+          root.style.setProperty("--man-y", `${mix(manStartY, manEndY).toFixed(2)}px`);
+          root.style.setProperty("--man-w", `${mix(manStartW, manEndW).toFixed(2)}px`);
+          root.style.setProperty("--woman-x", `${womanX.toFixed(2)}px`);
+          root.style.setProperty("--woman-y", `${mix(womanStartY, womanEndY).toFixed(2)}px`);
+          root.style.setProperty("--woman-w", `${mix(womanStartW, womanEndW).toFixed(2)}px`);
+          root.style.setProperty("--man-gray", Math.max(heroGray, manDim * 0.9).toFixed(3));
+          root.style.setProperty("--woman-gray", Math.max(heroGray, womanDim * 0.9).toFixed(3));
+          root.style.setProperty("--man-brightness", (1 - manDim * 0.7).toFixed(3));
+          root.style.setProperty("--woman-brightness", (1 - womanDim * 0.7).toFixed(3));
+          root.style.setProperty(
+            "--character-opacity",
+            ((baseOpacity + (1 - baseOpacity) * progress) * (1 - fourthExit)).toFixed(3),
+          );
+        }
       });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
 
     return () => {
-      io.disconnect();
       window.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
@@ -154,21 +278,39 @@ export default function Home() {
   return (
     <div className={styles.page} ref={rootRef}>
       <div className={styles.spine} aria-hidden />
+      <Image
+        className={`${styles.morphCharacter} ${styles.morphCharacterMan}`}
+        src="/renaissance-man-cutout.png"
+        alt=""
+        aria-hidden
+        width={620}
+        height={850}
+        priority
+      />
+      <Image
+        className={`${styles.morphCharacter} ${styles.morphCharacterWoman}`}
+        src="/renaissance-woman-cutout.png"
+        alt=""
+        aria-hidden
+        width={620}
+        height={850}
+        priority
+      />
       {/* 히어로 — 타이틀+설명+버튼 스택이 아니라, 활자 자체가 레이아웃이다.
           세 줄이 좌/우로 엇갈리고 판화 컷아웃이 행 사이에 끼어든다. */}
       {/* 히어로 — 워드마크가 곧 헤드라인이다. 별도 헤더 바 없음.
           워드마크 라인을 따라 핑크 텍스트가 한 방향으로 계속 흘러간다. */}
       <header className={styles.hero}>
-        {/* 워드마크가 화면 폭을 꽉 채운다. 위에는 작은 텍스트가 오른쪽으로,
-            아래에는 뒤집힌 텍스트가 왼쪽으로 흐른다. */}
+        {/* 워드마크가 화면 폭을 채운다. 같은 영문 문구가 위·아래에서
+            서로 반대 방향으로 흐르며 워드마크를 감싼다. */}
         <div className={styles.brandBlock}>
           <div className={`${styles.ticker} ${styles.tickerTop}`} aria-hidden>
             <div className={styles.trackRight}>
               {[0, 1].map((dup) => (
                 <span className={styles.tickerSet} key={dup}>
-                  {Array.from({ length: 8 }, (_, i) => (
-                    <span className={styles.tickerSmall} key={i}>
-                      한자리에서 여러 사람과
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <span className={styles.tickerItem} key={i}>
+                      BLIND ROTATION MEETING
                     </span>
                   ))}
                 </span>
@@ -176,7 +318,9 @@ export default function Home() {
             </div>
           </div>
 
-          <h1 className={styles.brand}>mingles</h1>
+          <h1 className={styles.brand}>
+            <span>MINGLES</span>
+          </h1>
 
           <div className={`${styles.ticker} ${styles.tickerBottom}`} aria-hidden>
             <div className={styles.trackLeft}>
@@ -184,7 +328,7 @@ export default function Home() {
                 <span className={styles.tickerSet} key={dup}>
                   {Array.from({ length: 6 }, (_, i) => (
                     <span className={styles.tickerItem} key={i}>
-                      blind rotation meeting
+                      BLIND ROTATION MEETING
                     </span>
                   ))}
                 </span>
@@ -192,184 +336,104 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        <Image
-          className={styles.figureMan}
-          src="/renaissance-man-cutout.png"
-          alt=""
-          aria-hidden
-          width={380}
-          height={520}
-          priority
-        />
-        <Image
-          className={styles.figureWoman}
-          src="/renaissance-woman-cutout.png"
-          alt=""
-          aria-hidden
-          width={380}
-          height={520}
-          priority
-        />
-
-        {/* 숫자가 곧 카피 — 문장으로 설명하지 않는다. */}
-        <dl className={styles.facts}>
-          <div>
-            <dt>한 자리</dt>
-            <dd>남 3 · 여 3</dd>
-          </div>
-          <div>
-            <dt>공개 순서</dt>
-            <dd>가면 → 목소리 → 얼굴</dd>
-          </div>
-          <div>
-            <dt>한 번의 모임</dt>
-            <dd>9번의 대화</dd>
-          </div>
-        </dl>
-
-        <div className={styles.heroFoot}>
-          <div className={styles.heroCtas}>
-            <a
-              className={`${styles.pill} ${STORE_LINKS.google ? "" : styles.pillDisabled}`}
-              href={STORE_LINKS.google ?? "#"}
-              aria-disabled={!STORE_LINKS.google}
-            >
-              Google Play
-            </a>
-            <a
-              className={`${styles.pillGhost} ${STORE_LINKS.apple ? "" : styles.pillDisabled}`}
-              href={STORE_LINKS.apple ?? "#"}
-              aria-disabled={!STORE_LINKS.apple}
-            >
-              App Store
-            </a>
-            <button
-              type="button"
-              className={`${styles.pillGhost} ${styles.pillSmall}`}
-              onClick={() => router.push("/login")}
-            >
-              웹으로 로그인
-            </button>
-          </div>
-          <p className={styles.storeNote}>출시 준비 중입니다. 스토어 링크는 공개되면 열립니다.</p>
-        </div>
       </header>
 
-      {/* 제목 컬럼을 화면에 고정(sticky)하고 오른쪽 단계만 흘려보낸다 — 레퍼런스의 pinned 스크롤. */}
-      <section className={`${styles.section} ${styles.pinned}`} id="how">
-        <div className={styles.pinnedHead}>
-          <div className={`${styles.sectionHead} ${styles.reveal}`}>
-            <h2 className={styles.sectionTitle}>세 번에 걸쳐 조금씩 열립니다</h2>
-            {/* 컬러 대형 문장 — 작은 회색 설명 대신 문장 자체를 시각 요소로 쓴다. */}
-            <p className={styles.statement}>
-              <Sentences text="처음부터 얼굴을 보지 않습니다. 대화가 먼저 쌓이도록 순서를 정해두었습니다." />
-            </p>
-          </div>
-        </div>
-
-        <div className={`${styles.stageWrap} ${styles.reveal}`}>
-          <div className={styles.stages}>
-            {STAGES.map((s) => (
-              <div className={styles.stage} key={s.name}>
-                <span className={styles.stageIndex}>{s.badge}</span>
-                <h3 className={styles.stageName}>{s.name}</h3>
-                <p className={styles.stageDesc}>
-                  <Sentences text={s.desc} />
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.band}>
-        <div className={styles.section}>
-          <div className={`${styles.sectionHead} ${styles.reveal}`}>
-            <h2 className={styles.sectionTitle}>여섯 명이 모이면 한 자리</h2>
-            <p className={styles.sectionLead}>
-              <Sentences text="남성 셋, 여성 셋. 한 라운드가 끝나면 자리를 옮겨 다음 사람과 이야기합니다. 아홉 번의 대화가 한 자리 안에서 일어납니다." />
-            </p>
-          </div>
-          <div className={`${styles.circle} ${styles.reveal}`}>
-            <div className={styles.circleRing}>
-              {SEATS.map((a, i) => (
-                <div
-                  key={a}
-                  className={`${styles.seat} ${i % 2 ? styles.seatF : ""}`}
-                  // 좌석 좌표는 각도에서 직접 계산한다. CSS translate()의 %는 컨테이너가 아니라
-                  // **자기 크기** 기준이라 반지름을 %로 줄 수 없다(원이 가운데로 뭉친다).
-                  style={{
-                    left: `${50 + 40 * Math.cos((a - 90) * (Math.PI / 180))}%`,
-                    top: `${50 + 40 * Math.sin((a - 90) * (Math.PI / 180))}%`,
-                    transitionDelay: `${i * 90}ms`,
-                  }}
-                >
-                  {i % 2 ? "여" : "남"}
-                </div>
-              ))}
-            </div>
-            <div className={styles.circleCenter}>
-              <div>
-                <strong className={styles.bigNumeral}>9</strong>
-                <span>번의 대화 · 3라운드 × 3명</span>
-              </div>
+      <section
+        className={`${styles.featureStage} ${styles.featureThree}`}
+        aria-labelledby="feature-three-title"
+      >
+        <div className={styles.featureSticky}>
+          <div className={styles.featurePanel}>
+            <IPhoneFrame label="블라인드 로테이션 앱 실행 프리뷰">
+              <RotationPreview />
+            </IPhoneFrame>
+            <div className={styles.featureCopy}>
+              <span className={styles.featureKicker}>01 / BLIND ROTATION</span>
+              <h2 id="feature-three-title">로테이션 소개팅을 집에서</h2>
+              <p>
+                낯선 장소에 모일 부담 없이, AI가 취향을 살펴 찾은 상대들과 편안하게
+                대화해보세요.
+              </p>
+              <ul>
+                <li>취향과 거리를 고려한 맞춤 로테이션</li>
+                <li>말이 막힐 때 자연스럽게 이어주는 대화 질문</li>
+                <li>서로 선택해야만 시작되는 안심 1:1 채팅</li>
+              </ul>
+              <small>이동 없이, 부담은 낮추고 만남의 가능성은 넓게</small>
             </div>
           </div>
         </div>
       </section>
 
-      <section className={styles.section}>
-        <div className={`${styles.sectionHead} ${styles.reveal}`}>
-          <h2 className={styles.sectionTitle}>서로 골랐을 때만 이어집니다</h2>
-          <p className={styles.sectionLead}>
-            <Sentences text="마지막에 한 사람을 비공개로 고릅니다. 상대도 나를 골랐을 때만 채팅이 열립니다. 고르지 않았다는 사실은 누구에게도 알려지지 않습니다." />
-          </p>
-        </div>
-        <div className={`${styles.matchRow} ${styles.reveal}`}>
-          <div className={`${styles.matchCard} ${styles.matchCardLeft}`}>나의 선택</div>
-          <div className={styles.matchHeart} aria-hidden>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M12 20s-7-4.35-7-9.5A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.5c0 5.15-7 9.5-7 9.5Z" />
-            </svg>
-          </div>
-          <div className={`${styles.matchCard} ${styles.matchCardRight}`}>상대의 선택</div>
-        </div>
-      </section>
-
-      <section className={styles.band} id="safety">
-        <div className={styles.section}>
-          <div className={`${styles.sectionHead} ${styles.reveal}`}>
-            <h2 className={styles.sectionTitle}>안전하게 만나기 위한 장치</h2>
-          </div>
-          <div className={`${styles.safety} ${styles.reveal}`}>
-            {SAFETY.map((s) => (
-              <div className={styles.safetyItem} key={s.title}>
-                <h3>{s.title}</h3>
-                <p>
-                  <Sentences text={s.body} />
-                </p>
-              </div>
-            ))}
+      <section
+        className={`${styles.featureStage} ${styles.featureFour}`}
+        aria-labelledby="feature-four-title"
+      >
+        <div className={styles.featureSticky}>
+          <div className={`${styles.featurePanel} ${styles.featurePanelReverse}`}>
+            <div className={styles.featureCopy}>
+              <span className={styles.featureKicker}>02 / DATE PLAN</span>
+              <h2 id="feature-four-title">매칭에서 만남까지</h2>
+              <p>
+                연애가 낯설어도 계획까지 잘할 필요는 없어요. 예산과 동네만 고르면 만남에
+                맞는 코스를 추천해드려요.
+              </p>
+              <ul>
+                <li>예산과 시간에 맞춰 비교하는 데이트 코스</li>
+                <li>고른 동네의 실제 장소와 지도·예약 정보</li>
+                <li>한 사람이 제안하고, 상대가 확인하는 약속 확정</li>
+              </ul>
+              <small>검색과 조율은 줄이고, 둘의 만남에 더 집중하세요</small>
+            </div>
+            <IPhoneFrame label="데이트 플랜 앱 실행 프리뷰">
+              <DatePlanPreview />
+            </IPhoneFrame>
           </div>
         </div>
       </section>
 
-      {/* 마무리 — 줄마다 글자 수가 줄고 폭은 넓어져서, 활자가 대각선으로 커지며
-          화면 밖으로 삐져나가려는 덩어리가 된다. */}
-      <section className={`${styles.section} ${styles.closing} ${styles.reveal}`}>
-        <h2 className={styles.ramp}>
-          <span className={styles.ramp1}>한자리에서 여러 사람과 돌아가며</span>
-          <span className={styles.ramp2}>얼굴보다 대화로</span>
-          <span className={styles.ramp3}>먼저</span>
-        </h2>
-        <p className={styles.sectionLead}>
-          <Sentences text="소개팅은 mingles 앱에서 진행됩니다. 웹에서는 프로필·데이트 계획·알림을 볼 수 있습니다." />
-        </p>
-        <div className={styles.heroCtas} style={{ marginTop: 28 }}>
-          <button type="button" className={styles.pill} onClick={() => router.push("/login")}>
-            웹으로 로그인
-          </button>
+      <section className={styles.showcase} aria-labelledby="download-title">
+        <div className={styles.showcaseSticky}>
+          <div className={styles.homeScene} aria-hidden>
+            <Image
+              className={styles.homeSceneBackground}
+              src="/cafe-date-background-landscape.png"
+              alt=""
+              fill
+              sizes="100vw"
+            />
+            <div className={styles.homeSceneShade} />
+            <Image
+              className={`${styles.homeCharacter} ${styles.homeCharacterMan}`}
+              src="/cafe-date-character-man.png"
+              alt=""
+              width={1023}
+              height={1537}
+              sizes="(max-width: 720px) 58vw, 32vw"
+            />
+            <Image
+              className={`${styles.homeCharacter} ${styles.homeCharacterWoman}`}
+              src="/cafe-date-character-woman.png"
+              alt=""
+              width={1023}
+              height={1537}
+              sizes="(max-width: 720px) 58vw, 32vw"
+            />
+          </div>
+          <div className={styles.downloadCenter}>
+            <h2 className={styles.visuallyHidden} id="download-title">
+              Mingles 앱 다운로드
+            </h2>
+            <IPhoneFrame label="Mingles 앱 다운로드" interactive>
+              <DownloadPreview />
+            </IPhoneFrame>
+          </div>
+          <div className={`${styles.characterBubble} ${styles.manBubble}`} role="note">
+            AI가 맞춤 매칭을 해준대
+          </div>
+          <div className={`${styles.characterBubble} ${styles.womanBubble}`} role="note">
+            AI가 다음 멘트도 추천해준다는데?
+          </div>
         </div>
       </section>
 

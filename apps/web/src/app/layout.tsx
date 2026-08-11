@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Serif_KR } from "next/font/google";
+import { Archivo_Black, Noto_Serif_KR } from "next/font/google";
 import ThemeProvider from "@/components/providers/ThemeProvider";
 
 /**
@@ -10,6 +10,14 @@ const serif = Noto_Serif_KR({
   subsets: ["latin"],
   weight: ["400", "600"],
   variable: "--font-serif",
+  display: "swap",
+});
+
+/** 히어로 워드마크 전용 각진 디스플레이 서체. 본문 명조와 섞지 않는다. */
+const display = Archivo_Black({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -25,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={serif.variable}>
+    <html lang="ko" className={`${serif.variable} ${display.variable}`}>
       <body>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
