@@ -1,9 +1,13 @@
 /**
  * 데이트 맛집 탭 — 캐치테이블·네이버지도·옐프 같은 맛집 탐색 앱의 익숙한 골격을 따른다
- * (2026-08-07 벤치마크): 검색 바 → 위치 → 필터·정렬 행 → 지도 → 목록 카드 → 상세 시트.
- * 없는 정보(사진·평점·가격대)는 만들지 않는다 — 네이버 지역검색이 주지 않기 때문이다.
+ (2026-08-11 캐치테이블 재벤치마크):
+ * 조건 바(동네·분류·정렬 요약) → 아이콘 버튼(지도·정렬) + 칩 필터 → 목록 카드 → 상세 시트.
+ * 지도는 목록을 밀어내지 않고 아이콘 버튼 뒤 전체화면에 둔다.
  *
- * 기준 위치는 현위치가 아니라 **사용자가 지정한 동네**(`place-area`)다. 상단 위치 바를 누르면
+ * 없는 정보(사진·평점·가격대·영업시간·예약 가능일)는 만들지 않는다 — 네이버 지역검색이 주지 않는다.
+ * 그래서 카드는 이름을 가장 크게 놓고 분류·거리·동네 한 줄, 주소 한 줄, 액션으로 끝난다.
+ *
+ * 기준 위치는 현위치가 아니라 **사용자가 지정한 동네**(`place-area`)다. 상단 조건 바를 누르면
  * 동네를 바꾸고, 그 좌표로 서버가 "동네 + 카테고리"를 검색한다. 카드는 탭하면 상세 시트가
  * 올라오고 거기서 예약(제공사 링크가 있으면 그쪽, 없으면 네이버 장소 페이지)으로 넘어간다.
  * 공개 예약 API가 없어 앱 안에서 예약을 완결할 수는 없다 — 링크가 경계다.
@@ -19,7 +23,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -30,11 +33,10 @@ import {
   MapPin,
   Navigation,
   Phone,
-  Search,
   X,
 } from "lucide-react-native";
 import { getNearbyPlaces, type NaverPlace } from "@mingle/client-core";
-import { dark, doodle, space, type as t } from "../../../src/lib/theme";
+import { dark, space, type as t } from "../../../src/lib/theme";
 import { serifFont } from "../../../src/lib/serif";
 import { StateView } from "../../../src/components/Foundation";
 import { DoodleButton } from "../../../src/components/Doodle";
@@ -49,7 +51,7 @@ import {
   telUrl,
 } from "../../../src/lib/reservation";
 
-/** 데이트 맥락 카테고리 프리셋 — query로 그대로 들어간다. */
+/** 데이트 맥락 카테고리 프리셋 — 검색 질의로 그대로 들어간다. */
 const CATEGORIES: { key: string; label: string }[] = [
   { key: "맛집", label: "전체" },
   { key: "레스토랑", label: "레스토랑" },
@@ -59,15 +61,6 @@ const CATEGORIES: { key: string; label: string }[] = [
   { key: "브런치", label: "브런치" },
   { key: "오마카세", label: "오마카세" },
 ];
-
-/** 카테고리 잎마다 고정 파스텔 — 사진이 없는 목록에 색으로 리듬을 준다. */
-const TILE_TINTS = ["#E9D8C3", "#D6E2D0", "#E3D4E4", "#CFDCE8", "#F0D9D5", "#DCD8CB"];
-
-function tintFor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 997;
-  return TILE_TINTS[h % TILE_TINTS.length];
-}
 
 /** Naver local-search mapx/mapy are WGS84 ×1e7 strings → decimal degrees. */
 function coordsOf(p: NaverPlace): Coords | null {
@@ -91,6 +84,12 @@ function distanceLabel(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
 }
 
+/** "서울특별시 강남구 테헤란로25길 46" → "강남구". 주소 전체는 아래 줄에 따로 있다. */
+function districtOf(address: string): string | null {
+  const token = address.trim().split(/\s+/)[1];
+  return token && /(구|시|군|읍|면)$/.test(token) ? token : null;
+}
+
 type Row = NaverPlace & { km: number | null };
 
 export default function NaverReserve() {
@@ -102,8 +101,6 @@ export default function NaverReserve() {
   const [category, setCategory] = useState("맛집");
   const [refreshing, setRefreshing] = useState(false);
   const [detail, setDetail] = useState<Row | null>(null);
-  // 익숙한 탐색 도구 3종 — 이름으로 찾기 / 예약 가능만 / 정렬.
-  const [query, setQuery] = useState("");
   const [bookableOnly, setBookableOnly] = useState(false);
   const [sort, setSort] = useState<"distance" | "recommended">("distance");
   const [mapOpen, setMapOpen] = useState(false);
@@ -121,7 +118,7 @@ export default function NaverReserve() {
   }, []);
 
   const fetchPlaces = useCallback(
-    async (cat: string, quiet: boolean, term = "") => {
+    async (cat: string, quiet: boolean) => {
       const mySeq = ++seq.current;
       if (!quiet) setPhase("loading");
       try {
@@ -135,9 +132,7 @@ export default function NaverReserve() {
           setPhase("needsArea");
           return;
         }
-        // 검색어가 있으면 그걸로 찾고(가게 이름), 없으면 카테고리로 — 맛집 앱의 기본 동작.
-        const q = term.trim() || cat;
-        const res = await getNearbyPlaces(q, { lat: here.lat, lng: here.lng });
+        const res = await getNearbyPlaces(cat, { lat: here.lat, lng: here.lng });
         if (mySeq !== seq.current) return;
         const withKm: Row[] = res.places.map((p) => {
           const c = coordsOf(p);
@@ -157,7 +152,7 @@ export default function NaverReserve() {
 
   useFocusEffect(
     useCallback(() => {
-      void fetchPlaces(category, rows.length > 0, query);
+      void fetchPlaces(category, rows.length > 0);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [category, fetchPlaces]),
   );
@@ -165,17 +160,12 @@ export default function NaverReserve() {
   function onPickCategory(key: string) {
     if (key === category) return;
     setCategory(key);
-    setQuery("");
     void fetchPlaces(key, false);
-  }
-
-  function onSubmitSearch() {
-    void fetchPlaces(category, false, query);
   }
 
   async function onRefresh() {
     setRefreshing(true);
-    await fetchPlaces(category, true, query);
+    await fetchPlaces(category, true);
     setRefreshing(false);
   }
 
@@ -186,11 +176,13 @@ export default function NaverReserve() {
     return [...filtered].sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
   }, [rows, bookableOnly, sort]);
 
-  // 목록에서 가장 먼 가게까지 담기게 줌을 맞춘다. 지도 카드가 납작해(가로 넓고 세로 150) 반경을
-  // 넉넉히 잡아야 위아래 핀이 안 잘린다. 0.6km 하한은 한 건물에 몰렸을 때 과확대 방지.
+  const categoryLabel = CATEGORIES.find((c) => c.key === category)?.label ?? "전체";
+
+  // 가장 먼 가게까지 담기게 줌을 맞춘다. 지도가 전체화면(세로로 길다)이 되면서 여유를 1.9→1.3배로
+  // 줄였다 — 그대로 두면 한강까지 나와 핀이 좁쌀이 된다. 0.6km 하한은 한 건물에 몰렸을 때 과확대 방지.
   const fitKm = useMemo(() => {
     const far = rows.reduce((m, r) => (r.km !== null && r.km > m ? r.km : m), 0);
-    return Math.max(0.6, Math.min(far * 1.9, 12));
+    return Math.max(0.6, Math.min(far * 1.3, 12));
   }, [rows]);
 
   const pins = useMemo(
@@ -255,109 +247,79 @@ export default function NaverReserve() {
       tone="dark"
       body="plain"
     >
-      {/* 검색 바 — 맛집 앱의 첫 줄. 가게 이름으로 바로 찾는다. */}
-      <View style={styles.searchBar}>
-        <Search color={dark.textMuted} size={18} strokeWidth={1.75} />
-        <TextInput
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={onSubmitSearch}
-          placeholder="가게 이름으로 찾기"
-          placeholderTextColor={dark.textMuted}
-          returnKeyType="search"
-          accessibilityLabel="가게 검색"
-        />
-        {query ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="검색어 지우기"
-            hitSlop={8}
-            onPress={() => {
-              setQuery("");
-              void fetchPlaces(category, false);
-            }}
-          >
-            <X color={dark.textMuted} size={16} strokeWidth={2} />
-          </Pressable>
-        ) : null}
-      </View>
-
-      {/* 위치 바 — 어디 기준인지 항상 보이고, 눌러서 바꾼다. */}
+      {/* 조건 바 — 지금 무엇을 기준으로 보고 있는지 한 줄로 요약한다(캐치테이블의 "날짜·인원·시간"
+          자리). 누르면 동네를 바꾼다. */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`위치 바꾸기, 현재 ${area?.label ?? "미지정"}`}
+        accessibilityLabel={`동네 바꾸기, 현재 ${area?.label ?? "미지정"}`}
         onPress={() => router.push("/(app)/place-area")}
-        style={({ pressed }) => [styles.areaBar, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.conditionBar, pressed && styles.pressed]}
       >
-        <MapPin color={dark.accent} size={16} strokeWidth={2} />
-        <Text style={styles.areaLabel} numberOfLines={1}>
-          {area?.label ?? "위치를 지정해 주세요"}
+        <MapPin color={dark.accent} size={17} strokeWidth={2} />
+        <Text style={styles.conditionText} numberOfLines={1}>
+          {[area?.label ?? "동네", categoryLabel, sort === "distance" ? "거리순" : "추천순"].join(
+            "  ·  ",
+          )}
         </Text>
-        <ChevronDown color={dark.textMuted} size={16} strokeWidth={2} />
+        <ChevronDown color={dark.textMuted} size={18} strokeWidth={2} />
       </Pressable>
 
-      {area ? (
+      {/* 도구 행 — 지도·정렬은 아이콘 버튼, 나머지는 칩. 지도는 목록을 밀어내지 않고 버튼 뒤에 둔다. */}
+      <View style={styles.filterRow}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="지도 크게 보기"
+          accessibilityLabel="지도로 보기"
           onPress={() => setMapOpen(true)}
-          style={styles.map}
+          disabled={!area}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed, !area && styles.disabled]}
         >
-          <AppMap center={{ lat: area.lat, lng: area.lng }} radiusKm={null} fitKm={fitKm} places={pins} />
-          <View style={styles.mapCta}>
-            <MapIcon color={dark.onPill} size={14} strokeWidth={2} />
-            <Text style={styles.mapCtaText}>지도로 보기</Text>
-          </View>
+          <MapIcon color={dark.text} size={19} strokeWidth={1.75} />
         </Pressable>
-      ) : null}
-
-      {/* 카테고리 — 지도 바로 아래. 굵은 분류를 먼저 고르고 그 다음 정렬·조건을 만진다. */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipBar}
-        contentContainerStyle={styles.chipRow}
-      >
-        {CATEGORIES.map((c) => {
-          const on = c.key === category;
-          return (
-            <Pressable
-              key={c.key}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              onPress={() => onPickCategory(c.key)}
-              style={[styles.chip, on && styles.chipOn]}
-            >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.label}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      {/* 정렬·조건 — 목록 바로 위(맛집 앱들의 자리). 결과 수를 함께 보여 준다. */}
-      <View style={styles.toolRow}>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ selected: sort === "distance" }}
-          accessibilityLabel={sort === "distance" ? "거리순 정렬, 눌러서 추천순" : "추천순 정렬, 눌러서 거리순"}
+          accessibilityLabel={
+            sort === "distance" ? "거리순 정렬, 눌러서 추천순" : "추천순 정렬, 눌러서 거리순"
+          }
           onPress={() => setSort((v) => (v === "distance" ? "recommended" : "distance"))}
-          style={({ pressed }) => [styles.tool, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
-          <ArrowUpDown color={dark.text} size={14} strokeWidth={2} />
-          <Text style={styles.toolText}>{sort === "distance" ? "거리순" : "추천순"}</Text>
+          <ArrowUpDown color={dark.text} size={18} strokeWidth={1.75} />
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: bookableOnly }}
-          accessibilityLabel="예약 가능한 곳만 보기"
-          onPress={() => setBookableOnly((v) => !v)}
-          style={({ pressed }) => [styles.tool, bookableOnly && styles.toolOn, pressed && styles.pressed]}
+        <View style={styles.divider} />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipBar}
+          contentContainerStyle={styles.chipRow}
         >
-          <Text style={[styles.toolText, bookableOnly && styles.toolTextOn]}>예약 가능만</Text>
-        </Pressable>
-        <Text style={styles.resultCount}>{visible.length}곳</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: bookableOnly }}
+            accessibilityLabel="예약 가능한 곳만 보기"
+            onPress={() => setBookableOnly((v) => !v)}
+            style={[styles.chip, bookableOnly && styles.chipGold]}
+          >
+            <Text style={[styles.chipText, bookableOnly && styles.chipGoldText]}>예약 가능만</Text>
+          </Pressable>
+          {CATEGORIES.map((c) => {
+            const on = c.key === category;
+            return (
+              <Pressable
+                key={c.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                onPress={() => onPickCategory(c.key)}
+                style={[styles.chip, on && styles.chipOn]}
+              >
+                <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
+
+      <Text style={styles.resultCount}>{visible.length}곳</Text>
 
       {phase === "loading" ? (
         <View style={styles.flex}>
@@ -411,10 +373,15 @@ export default function NaverReserve() {
   );
 }
 
-/** 목록 카드 — 사진이 없는 데이터라 색 타일 + 이니셜로 좌측 앵커를 만든다. */
+/**
+ * 목록 카드 — 이름이 가장 먼저 오고 그 아래 한 줄로 분류·거리·동네, 그다음 주소, 마지막이 액션.
+ * 사진·평점·가격·영업시간은 네이버 지역검색이 주지 않는다 — 자리를 비워두지도, 지어내지도 않는다.
+ */
 function PlaceCard({ row, onOpen }: { row: Row; onOpen: () => void }) {
   const target = reservationTarget(row);
   const leaf = categoryLeaf(row.category);
+  const district = districtOf(row.address || row.roadAddress);
+  const meta = [leaf, row.km !== null ? distanceLabel(row.km) : null, district].filter(Boolean);
   // 카드 전체를 Pressable로 감싸면 예약·지도 버튼이 그 안에 중첩된다(웹에선 <button> 안의
   // <button>, 네이티브에선 히트박스 중첩). 상단 정보 영역만 눌리게 하고 액션은 형제로 둔다.
   return (
@@ -425,29 +392,22 @@ function PlaceCard({ row, onOpen }: { row: Row; onOpen: () => void }) {
         onPress={onOpen}
         style={({ pressed }) => [styles.cardTop, pressed && styles.pressed]}
       >
-        <View style={[styles.tile, { backgroundColor: tintFor(row.title) }]}>
-          <Text style={styles.tileText}>{row.title.trim().charAt(0)}</Text>
-        </View>
-        <View style={styles.cardText}>
-          <View style={styles.titleRow}>
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {row.title}
-            </Text>
-            {target.bookable ? (
-              <View style={styles.bookBadge}>
-                <Text style={styles.bookBadgeText}>예약</Text>
-              </View>
-            ) : null}
-          </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.leafText}>{leaf}</Text>
-            {row.km !== null ? <Text style={styles.dot}>·</Text> : null}
-            {row.km !== null ? <Text style={styles.kmText}>{distanceLabel(row.km)}</Text> : null}
-          </View>
-          <Text style={styles.addr} numberOfLines={1}>
-            {row.roadAddress || row.address}
+        <View style={styles.titleRow}>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {row.title}
           </Text>
+          {target.bookable ? (
+            <View style={styles.bookBadge}>
+              <Text style={styles.bookBadgeText}>예약</Text>
+            </View>
+          ) : null}
         </View>
+        <Text style={styles.metaLine} numberOfLines={1}>
+          {meta.join("  ·  ")}
+        </Text>
+        <Text style={styles.addr} numberOfLines={1}>
+          {row.roadAddress || row.address}
+        </Text>
       </Pressable>
 
       <View style={styles.cardActions}>
@@ -484,20 +444,19 @@ function PlaceSheet({ row, onClose }: { row: Row | null; onClose: () => void }) 
         <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="닫기" onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.sheetHead}>
-            <View style={[styles.tile, { backgroundColor: tintFor(row.title) }]}>
-              <Text style={styles.tileText}>{row.title.trim().charAt(0)}</Text>
-            </View>
-            <View style={styles.cardText}>
+            <View style={styles.sheetHeadText}>
               <Text style={styles.sheetTitle} numberOfLines={2}>
                 {row.title}
               </Text>
-              <View style={styles.metaRow}>
-                <Text style={styles.leafText}>{categoryLeaf(row.category)}</Text>
-                {row.km !== null ? <Text style={styles.dot}>·</Text> : null}
-                {row.km !== null ? (
-                  <Text style={styles.kmText}>{distanceLabel(row.km)}</Text>
-                ) : null}
-              </View>
+              <Text style={styles.metaLine} numberOfLines={1}>
+                {[
+                  categoryLeaf(row.category),
+                  row.km !== null ? distanceLabel(row.km) : null,
+                  districtOf(row.address || row.roadAddress),
+                ]
+                  .filter(Boolean)
+                  .join("  ·  ")}
+              </Text>
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel="닫기" hitSlop={8} onPress={onClose}>
               <X color={dark.textMuted} size={22} strokeWidth={1.75} />
@@ -557,47 +516,20 @@ const styles = StyleSheet.create({
   listContent: { flexGrow: 1, paddingBottom: space.x3 },
   gap: { height: space.x2 },
   pressed: { opacity: 0.72 },
-  searchBar: {
-    flexDirection: "row",
+  // 도구 행 — 아이콘 버튼(지도·정렬) | 칩 스크롤
+  filterRow: { flexDirection: "row", alignItems: "center", gap: space.x2, marginBottom: space.x2 },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
-    gap: space.x2,
-    minHeight: 46,
-    paddingHorizontal: space.x4,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: dark.border,
-    backgroundColor: dark.surface,
-    marginBottom: space.x2,
-  },
-  searchInput: { flex: 1, ...t.body, color: dark.text, paddingVertical: 0 },
-  toolRow: { flexDirection: "row", alignItems: "center", gap: space.x2, marginBottom: space.x3 },
-  tool: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    minHeight: 34,
-    paddingHorizontal: space.x3,
-    borderRadius: 999,
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: dark.borderStrong,
   },
-  toolOn: { backgroundColor: dark.goldFill, borderColor: dark.gold },
-  toolText: { ...t.caption, color: dark.text },
-  toolTextOn: { color: dark.gold },
-  resultCount: { ...t.caption, color: dark.textMuted, marginLeft: "auto" },
-  mapCta: {
-    position: "absolute",
-    right: space.x3,
-    bottom: space.x3,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: space.x3,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: dark.pill,
-  },
-  mapCtaText: { ...t.caption, color: dark.onPill },
+  disabled: { opacity: 0.4 },
+  divider: { width: 1, height: 22, backgroundColor: dark.border },
+  resultCount: { ...t.caption, color: dark.textMuted, marginBottom: space.x2 },
   fullMap: { flex: 1, backgroundColor: dark.bg },
   fullMapClose: {
     position: "absolute",
@@ -610,36 +542,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: dark.pill,
   },
-  // 위치 바
-  areaBar: {
+  // 조건 바 — 화면 맨 위에서 지금 기준을 한 줄로 요약한다.
+  conditionBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.x2,
-    alignSelf: "flex-start",
-    maxWidth: "100%",
-    paddingVertical: space.x2,
+    minHeight: 48,
     paddingHorizontal: space.x3,
-    borderRadius: 999,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: dark.border,
     backgroundColor: dark.surface,
     marginBottom: space.x2,
   },
-  areaLabel: { flexShrink: 1, fontFamily: serifFont, fontSize: 16, color: dark.text },
-  map: {
-    height: 172,
-    marginBottom: space.x3,
-    borderRadius: 20,
-    overflow: "hidden",
-    borderWidth: doodle.border,
-    borderColor: dark.border,
-  },
+  conditionText: { flex: 1, fontFamily: serifFont, fontSize: 16, color: dark.text },
   // 카테고리
-  chipBar: { flexGrow: 0, marginBottom: space.x3 },
-  chipRow: { gap: space.x2, paddingVertical: 2 },
+  chipBar: { flexGrow: 0 },
+  chipRow: { gap: space.x2, paddingVertical: 2, paddingRight: space.x4 },
   chip: {
+    justifyContent: "center",
+    minHeight: 34,
     paddingHorizontal: space.x4,
-    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: dark.surface,
     borderWidth: 1,
@@ -649,6 +572,8 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: dark.surfaceHi, borderColor: dark.text },
   chipText: { ...t.label, color: dark.textMuted },
   chipTextOn: { color: dark.text },
+  chipGold: { backgroundColor: dark.goldFill, borderColor: dark.gold },
+  chipGoldText: { color: dark.gold },
   // 카드
   card: {
     borderWidth: 1,
@@ -658,12 +583,9 @@ const styles = StyleSheet.create({
     padding: space.x4,
     gap: space.x3,
   },
-  cardTop: { flexDirection: "row", gap: space.x3, alignItems: "center" },
-  tile: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  tileText: { fontFamily: serifFont, fontSize: 24, color: "#221D18" },
-  cardText: { flex: 1, gap: 3 },
+  cardTop: { gap: 6 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: space.x2 },
-  cardTitle: { flexShrink: 1, fontFamily: serifFont, fontSize: 18, color: dark.text },
+  cardTitle: { flexShrink: 1, fontFamily: serifFont, fontSize: 21, lineHeight: 27, color: dark.text },
   // "예약 가능"은 상태다 — 브랜드 강조(블러시)와 색을 나눠 신호가 되게 한다.
   bookBadge: {
     paddingHorizontal: 8,
@@ -672,10 +594,7 @@ const styles = StyleSheet.create({
     backgroundColor: dark.gold,
   },
   bookBadgeText: { ...t.caption, fontSize: 11, color: dark.onGold },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  leafText: { ...t.caption, color: dark.textMuted },
-  dot: { ...t.caption, color: dark.textMuted },
-  kmText: { ...t.caption, color: dark.textMuted },
+  metaLine: { ...t.caption, color: dark.text },
   addr: { ...t.caption, color: dark.textMuted },
   cardActions: { flexDirection: "row", gap: space.x2 },
   actionPrimary: {
@@ -712,7 +631,8 @@ const styles = StyleSheet.create({
     paddingBottom: space.x8,
     gap: space.x4,
   },
-  sheetHead: { flexDirection: "row", alignItems: "center", gap: space.x3 },
+  sheetHead: { flexDirection: "row", alignItems: "flex-start", gap: space.x3 },
+  sheetHeadText: { flex: 1, gap: 4 },
   sheetTitle: { fontFamily: serifFont, fontSize: 21, color: dark.heading },
   sheetInfo: { flexDirection: "row", alignItems: "center", gap: space.x2 },
   sheetAddr: { flex: 1, ...t.body, color: dark.textMuted },
