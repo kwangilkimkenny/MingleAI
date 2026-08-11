@@ -196,8 +196,6 @@ export default function Home() {
           const showcaseProgress = clamp01(-showcaseRect.top / showcaseTravel);
           const sceneEntry = smoothstep(clamp01(showcaseProgress / 0.18));
           const reveal = smoothstep(clamp01((showcaseProgress - 0.12) / 0.16));
-          const showcaseExit = smoothstep(clamp01((showcaseProgress - 0.84) / 0.16));
-          const sceneVisibility = sceneEntry * (1 - showcaseExit);
 
           const stageProgress = (stage: HTMLElement | null) => {
             if (!stage) return { entry: 0, scroll: 0, rect: null };
@@ -215,9 +213,11 @@ export default function Home() {
           const fourth = stageProgress(featureFour);
           const thirdExit = smoothstep(clamp01((third.scroll - 0.72) / 0.28));
           const fourthExit = smoothstep(clamp01((fourth.scroll - 0.72) / 0.28));
-          root.style.setProperty("--showcase-p", (reveal * (1 - showcaseExit)).toFixed(3));
+          // 마지막 장면은 다시 페이드아웃하지 않는다. sticky 구간 동안 그대로 유지되고,
+          // 섹션 끝에서는 화면 전체가 문서 흐름을 따라 자연스럽게 위로 스크롤된다.
+          root.style.setProperty("--showcase-p", reveal.toFixed(3));
           root.style.setProperty("--showcase-scale", "1");
-          root.style.setProperty("--home-scene-p", sceneVisibility.toFixed(3));
+          root.style.setProperty("--home-scene-p", sceneEntry.toFixed(3));
           root.style.setProperty("--home-bg-blur", `${((1 - sceneEntry) * 14).toFixed(2)}px`);
           root.style.setProperty("--home-bg-scale", (1.12 - sceneEntry * 0.12).toFixed(3));
           root.style.setProperty("--home-bg-clip", `${((1 - sceneEntry) * 14).toFixed(2)}%`);
@@ -336,6 +336,32 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        <div
+          className={styles.heroEditorial}
+          role="img"
+          aria-label="AI가 매칭하고 선택은 사람이 합니다. 집에서 만나고, 대화는 AI가 돕습니다."
+        >
+          <p className={styles.editorialMatch} aria-hidden>
+            <span>AI MATCHED</span>
+            <strong>HUMAN CHOSEN</strong>
+          </p>
+          <p className={styles.editorialSequence} aria-hidden>
+            <span>01—ROTATION</span>
+            <span>02—CONVERSATION</span>
+            <span>03—DATE</span>
+          </p>
+          <p className={styles.editorialHome} aria-hidden>
+            MEET AT HOME
+          </p>
+          <p className={styles.editorialAssist} aria-hidden>
+            <span>YOU TALK</span>
+            <strong>AI HELPS</strong>
+          </p>
+          <p className={styles.editorialVertical} aria-hidden>
+            BLIND BUT NOT RANDOM
+          </p>
+        </div>
       </header>
 
       <section
@@ -351,8 +377,7 @@ export default function Home() {
               <span className={styles.featureKicker}>01 / BLIND ROTATION</span>
               <h2 id="feature-three-title">로테이션 소개팅을 집에서</h2>
               <p>
-                낯선 장소에 모일 부담 없이, AI가 취향을 살펴 찾은 상대들과 편안하게
-                대화해보세요.
+                낯선 장소에 모일 부담 없이, AI가 취향을 살펴 찾은 상대들과 편안하게 대화해보세요.
               </p>
               <ul>
                 <li>취향과 거리를 고려한 맞춤 로테이션</li>
@@ -375,8 +400,8 @@ export default function Home() {
               <span className={styles.featureKicker}>02 / DATE PLAN</span>
               <h2 id="feature-four-title">매칭에서 만남까지</h2>
               <p>
-                연애가 낯설어도 계획까지 잘할 필요는 없어요. 예산과 동네만 고르면 만남에
-                맞는 코스를 추천해드려요.
+                연애가 낯설어도 계획까지 잘할 필요는 없어요. 예산과 동네만 고르면 만남에 맞는 코스를
+                추천해드려요.
               </p>
               <ul>
                 <li>예산과 시간에 맞춰 비교하는 데이트 코스</li>

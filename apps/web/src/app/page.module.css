@@ -1,3 +1,19 @@
+@font-face {
+  font-family: "Cafe24 Dongdong";
+  src: url("/fonts/cafe24/Cafe24Dongdong-Light.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cafe24 Dongdong";
+  src: url("/fonts/cafe24/Cafe24Dongdong-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 /*
  * 공개 랜딩 — 에디토리얼 종이 톤.
  *
@@ -84,7 +100,8 @@
   bottom: 0;
   left: clamp(20px, 5vw, 56px);
   width: 2px;
-  z-index: 0;
+  /* 마지막 카페 장면의 불투명 배경 위에서도 진행선을 계속 보여준다. */
+  z-index: 2;
   border-left: 2px dashed var(--hair);
   pointer-events: none;
 }
@@ -200,6 +217,111 @@
   justify-content: center;
   gap: clamp(28px, 5vw, 56px);
   padding: clamp(24px, 5vw, 64px) clamp(20px, 5vw, 56px) clamp(36px, 6vw, 72px);
+}
+
+/* 불규칙해 보이지만 하나의 보이지 않는 포스터 그리드 위에 놓인 에디토리얼 문구들.
+ * MINGLES보다 작게 유지하고, 서로 다른 방향의 패럴랙스로 화면에 깊이만 더한다. */
+.heroEditorial {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+.heroEditorial p {
+  position: absolute;
+  margin: 0;
+  will-change: transform;
+}
+
+.heroEditorial span,
+.heroEditorial strong {
+  display: block;
+}
+
+.editorialMatch {
+  top: 8%;
+  left: clamp(68px, 8vw, 124px);
+  color: var(--blush-ink);
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(10px, 0.95vw, 14px);
+  line-height: 1.08;
+  letter-spacing: 0.08em;
+  transform: translate3d(calc(var(--p, 0) * 24px), calc(var(--p, 0) * -64px), 0)
+    rotate(-7deg);
+}
+
+.editorialMatch strong {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.38em;
+  letter-spacing: -0.035em;
+}
+
+.editorialSequence {
+  top: 12%;
+  right: clamp(38px, 6vw, 92px);
+  display: grid;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: clamp(9px, 0.72vw, 11px);
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-align: right;
+  transform: translate3d(calc(var(--p, 0) * -30px), calc(var(--p, 0) * -42px), 0)
+    rotate(3deg);
+}
+
+.editorialSequence span:nth-child(2) {
+  color: var(--blush-ink);
+  transform: translateX(-22%);
+}
+
+.editorialSequence span:nth-child(3) {
+  transform: translateX(8%);
+}
+
+.editorialHome {
+  top: 66%;
+  left: clamp(68px, 8vw, 124px);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(24px, 3.2vw, 52px);
+  line-height: 0.88;
+  letter-spacing: -0.07em;
+  transform: translate3d(calc(var(--p, 0) * -42px), calc(var(--p, 0) * -78px), 0)
+    rotate(3deg);
+}
+
+.editorialAssist {
+  right: 43%;
+  bottom: 7%;
+  color: rgba(255, 255, 255, 0.62);
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(14px, 1.75vw, 27px);
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  text-align: right;
+  transform: translate3d(calc(var(--p, 0) * 36px), calc(var(--p, 0) * -108px), 0)
+    rotate(-4deg);
+}
+
+.editorialAssist strong {
+  margin-top: 3px;
+  color: var(--blush-ink);
+  font-size: 1.22em;
+}
+
+.editorialVertical {
+  top: 50%;
+  right: clamp(9px, 1.5vw, 24px);
+  color: rgba(242, 188, 200, 0.62);
+  font-size: clamp(8px, 0.62vw, 10px);
+  letter-spacing: 0.16em;
+  writing-mode: vertical-rl;
+  transform: translate3d(0, calc(var(--p, 0) * -72px), 0) rotate(1deg);
 }
 
 /* 워드마크 블록 — 히어로 패딩을 뚫고 화면 양 끝까지 쓴다(full-bleed). */
@@ -393,6 +515,21 @@
   .morphCharacterWoman {
     right: 44vw;
   }
+
+  .editorialMatch {
+    left: 7vw;
+  }
+  .editorialSequence {
+    right: 6vw;
+  }
+  .editorialHome {
+    top: 58%;
+    left: 7vw;
+  }
+  .editorialAssist {
+    right: 38%;
+    bottom: 5%;
+  }
 }
 
 .heroFoot {
@@ -417,6 +554,13 @@
   .trackRight,
   .trackLeft {
     animation: none;
+  }
+  .editorialMatch,
+  .editorialSequence,
+  .editorialHome,
+  .editorialAssist,
+  .editorialVertical {
+    transform: none;
   }
 }
 
@@ -480,7 +624,9 @@
 }
 
 .homeCharacterMan {
-  left: clamp(-34px, -2vw, -10px);
+  left: clamp(-46px, -3vw, -16px);
+  /* 원본 컷아웃의 인물 점유율이 작아 여자 캐릭터와 같은 체감 크기가 되도록 보정한다. */
+  width: clamp(336px, 38vw, 536px);
   transform: scaleX(-1);
 }
 
@@ -540,7 +686,9 @@
 }
 
 .downloadMessage strong {
+  font-family: "Cafe24 Dongdong", var(--font-serif), "Apple SD Gothic Neo", serif;
   font-size: 14px;
+  font-weight: 400;
   letter-spacing: -0.03em;
 }
 
@@ -565,18 +713,19 @@
 }
 
 .characterBubble {
-  position: fixed;
+  /* 캐릭터와 같은 sticky 장면 안에서 함께 이동해 섹션 끝에서도 위치가 어긋나지 않는다. */
+  position: absolute;
   z-index: 3;
-  top: 18%;
+  top: 16%;
   width: min(210px, 18vw);
   border: 1px solid rgba(242, 188, 200, 0.65);
   border-radius: 18px;
   padding: 14px 16px;
   background: #fff;
   color: #000;
-  font-family: "Apple SD Gothic Neo", sans-serif;
+  font-family: "Cafe24 Dongdong", "Apple SD Gothic Neo", sans-serif;
   font-size: clamp(12px, 1.1vw, 15px);
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.45;
   word-break: keep-all;
   opacity: var(--showcase-p);
@@ -598,7 +747,7 @@
 }
 
 .manBubble {
-  left: clamp(28px, 17vw, 220px);
+  left: clamp(72px, 7vw, 104px);
 }
 
 .manBubble::after {
@@ -606,8 +755,7 @@
 }
 
 .womanBubble {
-  top: 23%;
-  right: clamp(28px, 17vw, 220px);
+  right: clamp(72px, 7vw, 104px);
 }
 
 .womanBubble::after {
@@ -695,7 +843,8 @@
     width: 66vw;
   }
   .homeCharacterMan {
-    left: -19vw;
+    left: -22vw;
+    width: 74vw;
   }
   .homeCharacterWoman {
     right: -19vw;
@@ -806,11 +955,11 @@
 .featureCopy h2 {
   margin: 0 0 18px;
   color: #fff;
-  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-family: "Cafe24 Dongdong", var(--font-serif), "Apple SD Gothic Neo", serif;
   font-size: clamp(34px, 4.4vw, 58px);
   font-weight: 400;
-  line-height: 0.98;
-  letter-spacing: -0.055em;
+  line-height: 1;
+  letter-spacing: -0.035em;
 }
 
 .featureCopy p {
@@ -1242,18 +1391,18 @@
     font-size: 8px;
   }
   .characterBubble {
-    top: 10%;
-    width: 128px;
+    /* 세로 화면에서도 말풍선이 각 캐릭터의 머리 바로 위에 머물도록 한다. */
+    top: 48%;
+    width: min(100px, 25vw);
     border-radius: 15px;
-    padding: 10px 11px;
-    font-size: 10px;
+    padding: 9px 8px;
+    font-size: 9px;
   }
   .manBubble {
-    left: 12px;
+    left: 0;
   }
   .womanBubble {
-    top: 17%;
-    right: 12px;
+    right: 0;
   }
 }
 
