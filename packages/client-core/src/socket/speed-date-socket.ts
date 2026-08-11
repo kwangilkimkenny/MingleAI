@@ -1,3 +1,4 @@
+import { attachAuthRefresh, authProvider } from "./socket-auth.js";
 import type { SpeedDateSnapshotEvent } from "@mingle/shared";
 
 export interface SpeedDateSocketHandlers {
@@ -25,24 +26,25 @@ export function connectSpeedDateSocket(opts: {
   handlers: SpeedDateSocketHandlers;
 }): SpeedDateSocketHandle {
   const socket = opts.ioFactory(opts.baseUrl, {
-    auth: { token: opts.token },
+    auth: authProvider(opts.token),
     transports: ["websocket"],
   });
   const { onSnapshot, onError, onReconnect } = opts.handlers;
+  // 만료된 액세스 토큰으로 재연결이 영원히 실패하는 것을 막는다.
+  attachAuthRefresh(socket);
 
   const joined = new Set<string>();
-  let firstConnect = true;
+  let hasConnected = false;
 
   if (onSnapshot) socket.on("speeddate:snapshot", onSnapshot);
   if (onError) socket.on("speeddate:error", onError);
 
+  // 연결될 때마다 재조인 — 첫 핸드셰이크가 만료 토큰으로 실패한 경우에도 세션에 들어간다
+  // (messenger-socket의 같은 주석 참조). 스냅샷 재요청은 재연결일 때만.
   socket.on("connect", () => {
-    if (firstConnect) {
-      firstConnect = false;
-      return;
-    }
     for (const sessionId of joined) socket.emit("speeddate:join", { sessionId });
-    onReconnect?.();
+    if (hasConnected) onReconnect?.();
+    hasConnected = true;
   });
 
   return {

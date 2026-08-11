@@ -17,11 +17,16 @@ describe("social api", () => {
 });
 
 describe("connectMessengerSocket", () => {
-  it("passes token via auth, not query", () => {
+  it("passes token via an auth callback, not the query string", () => {
+    setTokenAccessor(() => null); // 저장소가 비면 넘겨받은 토큰이 쓰인다
     const mockSocket = { on: vi.fn(), emit: vi.fn(), disconnect: vi.fn() };
     const factory = vi.fn().mockReturnValue(mockSocket);
     connectMessengerSocket({ ioFactory: factory, baseUrl: "http://x", token: "tok", handlers: {} });
-    expect(factory.mock.calls[0][1]).toMatchObject({ auth: { token: "tok" } });
+    // auth는 콜백이다 — 재연결마다 최신 토큰을 다시 읽어야 하기 때문(socket-auth.ts).
+    const auth = (factory.mock.calls[0][1] as { auth: (cb: (d: unknown) => void) => void }).auth;
+    let seen: unknown;
+    auth((d) => (seen = d));
+    expect(seen).toEqual({ token: "tok" });
     expect(String(factory.mock.calls[0][0])).not.toContain("tok");
   });
 

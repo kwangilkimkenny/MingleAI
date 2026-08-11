@@ -56,14 +56,25 @@ describe("connectSpeedDateSocket", () => {
     expect(onSnapshot).toHaveBeenCalledWith(event);
   });
 
-  it("re-joins tracked sessions on reconnect (skipping the first connect)", () => {
+  it("re-joins tracked sessions on every connect, but calls onReconnect only on a re-connect", () => {
     const onReconnect = vi.fn();
     const { handle, emitted, listeners } = makeHandle({ onReconnect });
-    handle.join("s1");
-    listeners.get("connect")?.(undefined); // first connect — no rejoin
-    expect(onReconnect).not.toHaveBeenCalled();
-    listeners.get("connect")?.(undefined); // reconnect — rejoin + callback
+    handle.join("s1"); // 1st emit (소켓이 아직 안 붙었을 수도 있다)
+    listeners.get("connect")?.(undefined); // 첫 성공 연결 — 재조인은 하되 히스토리 콜백은 없다
     expect(emitted.filter((e) => e[0] === "speeddate:join")).toHaveLength(2);
-    expect(onReconnect).toHaveBeenCalled();
+    expect(onReconnect).not.toHaveBeenCalled();
+    listeners.get("connect")?.(undefined); // 재연결 — 재조인 + 콜백
+    expect(emitted.filter((e) => e[0] === "speeddate:join")).toHaveLength(3);
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+  });
+
+  // 2026-08-11: 만료 토큰으로 시작하면 첫 핸드셰이크가 실패한다. 그때 join emit은 허공에 사라지는데,
+  // 예전 코드는 첫 성공 연결을 "초기 연결"로 보고 건너뛰어 세션에 영영 못 들어갔다.
+  it("joins after a failed first handshake (join emitted before the socket was up)", () => {
+    const { handle, emitted, listeners } = makeHandle();
+    handle.join("s1"); // 연결 전 — 서버에 닿지 않는다
+    emitted.length = 0;
+    listeners.get("connect")?.(undefined); // refresh 후 처음으로 붙었다
+    expect(emitted).toContainEqual(["speeddate:join", { sessionId: "s1" }]);
   });
 });
