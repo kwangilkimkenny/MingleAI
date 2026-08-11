@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import type { IdentityStart, VerifiedIdentity } from "./identity-provider";
 
 export interface DevIdentityPayload {
   name: string;
@@ -18,24 +19,16 @@ export interface DevIdentityPayload {
   phone: string;
 }
 
-export interface PortOneIdentityStart {
-  mode: "portone";
-  storeId: string;
-  channelKey: string;
-  identityVerificationId: string;
-}
+/** @deprecated `IdentityStart`(identity-provider.ts)의 portone 갈래를 쓴다. 기존 호출부 호환용. */
+export type PortOneIdentityStart = Extract<IdentityStart, { mode: "portone" }>;
 
-interface VerifiedIdentity {
-  name: string;
-  birth: string;
-  gender: "male" | "female";
-  phone: string;
-  ci: string;
-  di?: string;
-}
-
-/** Real-name identity verification through PortOne V2. Provider results are always re-read from
- * PortOne's server API; the app never supplies trusted name/birth/gender/CI fields. */
+/**
+ * 실명 본인인증. 공급자(PortOne / NICE / dev bypass)가 무엇이든 이 서비스의 일은 같다 —
+ * **공급자 서버에서 다시 읽은** 신원만 저장하고, CI로 1인 1계정을 강제하고, 나이·성별을
+ * 프로필의 권위값으로 반영한다. 앱이 보낸 이름·생년월일은 절대 신뢰하지 않는다.
+ *
+ * 공급자별 프로토콜은 `identity-provider.ts` seam 뒤에 있다(NICE는 계약 대기 — nice.provider.ts).
+ */
 @Injectable()
 export class IdentityService {
   constructor(
@@ -48,7 +41,7 @@ export class IdentityService {
   }
 
   /** Begin verification. The signed request id binds the provider result to the authenticated user. */
-  async start(userId: string): Promise<{ mode: "dev" } | PortOneIdentityStart> {
+  async start(userId: string): Promise<IdentityStart> {
     if (this.devBypass()) return { mode: "dev" };
     const storeId = this.config.get<string>("PORTONE_STORE_ID");
     const channelKey = this.config.get<string>("PORTONE_IDENTITY_CHANNEL_KEY");

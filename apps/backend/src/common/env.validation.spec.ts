@@ -44,6 +44,49 @@ describe("validateEnvironment", () => {
     expect(() => validateEnvironment({ ...productionEnv, ...override })).toThrow();
   });
 
+  // 2026-08-11: 공급자는 하나만 완비되면 된다(PortOne 또는 NICE). 예전엔 PortOne 4개를 강제해
+  // NICE로 갈아타는 순간 운영 부팅이 막혔다.
+  it("accepts NICE alone as the identity provider", () => {
+    const {
+      PORTONE_STORE_ID: _a,
+      PORTONE_IDENTITY_CHANNEL_KEY: _b,
+      PORTONE_API_SECRET: _c,
+      PORTONE_IDENTITY_STATE_SECRET: _d,
+      ...withoutPortOne
+    } = productionEnv;
+    expect(() =>
+      validateEnvironment({
+        ...withoutPortOne,
+        NICE_CLIENT_ID: "nice-client",
+        NICE_CLIENT_SECRET: "nice-secret",
+        NICE_PRODUCT_ID: "2101979031",
+        NICE_RETURN_URL: "https://api.mingles.kr/auth/identity/nice/callback",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a half-configured NICE setup (no provider is fully usable)", () => {
+    const {
+      PORTONE_STORE_ID: _a,
+      PORTONE_IDENTITY_CHANNEL_KEY: _b,
+      PORTONE_API_SECRET: _c,
+      PORTONE_IDENTITY_STATE_SECRET: _d,
+      ...withoutPortOne
+    } = productionEnv;
+    expect(() =>
+      validateEnvironment({ ...withoutPortOne, NICE_CLIENT_ID: "nice-client" }),
+    ).toThrow();
+  });
+
+  it("rejects a cleartext NICE return URL", () => {
+    expect(() =>
+      validateEnvironment({
+        ...productionEnv,
+        NICE_RETURN_URL: "http://api.mingles.kr/auth/identity/nice/callback",
+      }),
+    ).toThrow();
+  });
+
   it("requires at least one usable social login provider", () => {
     expect(() =>
       validateEnvironment({

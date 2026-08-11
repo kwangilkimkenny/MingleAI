@@ -31,6 +31,16 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
       PORTONE_IDENTITY_CHANNEL_KEY: z.string().min(1).optional(),
       PORTONE_API_SECRET: z.string().min(20).optional(),
       PORTONE_IDENTITY_STATE_SECRET: z.string().min(32).optional(),
+      // NICE 직계약 경로(2026-08-10 결정). 코드는 nice.provider.ts에 자리만 있고 계약 대기 중이다.
+      NICE_CLIENT_ID: z.string().min(1).optional(),
+      NICE_CLIENT_SECRET: z.string().min(1).optional(),
+      NICE_PRODUCT_ID: z.string().min(1).optional(),
+      // 콜백은 origin이 아니라 **경로가 있는** URL이다(예: https://api.…/auth/identity/nice/callback).
+      NICE_RETURN_URL: z
+        .string()
+        .url()
+        .refine((v) => v.startsWith("https://"), "must be an HTTPS URL")
+        .optional(),
     })
     .passthrough()
     .parse(raw);
@@ -65,13 +75,22 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
   if (common.IDENTITY_DEV_BYPASS === "true")
     throw new Error("IDENTITY_DEV_BYPASS must not be true in production");
 
-  const hasIdentityProvider =
+  // 본인인증 공급자는 **하나만** 완비되면 된다 — PortOne이든 NICE든. 예전엔 PortOne 4개 키를
+  // 강제해서, NICE로 가기로 한 뒤에는 운영 부팅 자체가 막혔다(2026-08-11).
+  const hasPortOne =
     Boolean(common.PORTONE_STORE_ID) &&
     Boolean(common.PORTONE_IDENTITY_CHANNEL_KEY) &&
     Boolean(common.PORTONE_API_SECRET) &&
     Boolean(common.PORTONE_IDENTITY_STATE_SECRET);
-  if (!hasIdentityProvider) {
-    throw new Error("PortOne identity verification must be fully configured in production");
+  const hasNice =
+    Boolean(common.NICE_CLIENT_ID) &&
+    Boolean(common.NICE_CLIENT_SECRET) &&
+    Boolean(common.NICE_PRODUCT_ID) &&
+    Boolean(common.NICE_RETURN_URL);
+  if (!hasPortOne && !hasNice) {
+    throw new Error(
+      "An identity verification provider must be fully configured in production (PortOne or NICE)",
+    );
   }
 
   return common;
