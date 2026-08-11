@@ -10,13 +10,16 @@
  * 영원히 멈춘다(2026-07-27 버그).
  */
 import { View, Text, StyleSheet } from "react-native";
-import { colors, type as t, space } from "../lib/theme";
+import { colors, dark, type as t, space } from "../lib/theme";
 import type { Coords } from "../lib/location";
 
 export type MapPlace = { lat: number; lng: number; title: string };
 
-/** OpenFreeMap 공개 스타일 — 무료·무제한·키 불필요. */
-const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
+/**
+ * OpenFreeMap 공개 스타일 — 무료·무제한·키 불필요. **dark**를 쓴다(2026-08-11): 앱 전체가 다크인데
+ * 밝은 positron 지도가 박히면 화면 한가운데서 명도가 튀어 눈이 부신다(전체화면 지도에서 특히).
+ */
+const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function mapLibre(): any | null {
@@ -129,8 +132,9 @@ export function AppMap({
         filter={["==", ["get", "kind"], "place"]}
         paint={{
           "circle-radius": 6,
-          "circle-color": colors.ink,
-          "circle-stroke-color": "#FFFFFF",
+          // 다크 지도에선 잉크 핀이 배경에 잠긴다 — 크림 채움 + 잉크 테두리로 뒤집는다.
+          "circle-color": dark.pill,
+          "circle-stroke-color": dark.bg,
           "circle-stroke-width": 2,
         }}
       />
@@ -142,7 +146,7 @@ export function AppMap({
         paint={{
           "circle-radius": 7,
           "circle-color": colors.accentStrong,
-          "circle-stroke-color": "#FFFFFF",
+          "circle-stroke-color": dark.bg,
           "circle-stroke-width": 2,
         }}
       />

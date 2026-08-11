@@ -1,10 +1,10 @@
 /**
- * AppMap (web) — 웹 프리뷰용 Leaflet + OpenStreetMap(키 불필요). 반경 원과 장소 핀을 그려
- * 네이티브 `AppMap.tsx`(MapLibre + OpenFreeMap)와 동형. Leaflet은 첫 마운트 때 CDN에서 lazy 로드.
+ * AppMap (web) — 웹 프리뷰용 Leaflet + CARTO dark_all 래스터(키 불필요). 반경 원과 장소 핀을 그려
+ * 네이티브 `AppMap.tsx`(MapLibre + OpenFreeMap **dark**)와 동형. Leaflet은 첫 마운트 때 CDN lazy 로드.
  */
 import { useEffect, useRef } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { colors, type as t, space } from "../lib/theme";
+import { colors, dark, type as t, space } from "../lib/theme";
 import type { Coords } from "../lib/location";
 
 export type MapPlace = { lat: number; lng: number; title: string };
@@ -60,7 +60,7 @@ export function AppMap({
     // center pin
     const pin = L.circleMarker([center.lat, center.lng], {
       radius: 7,
-      color: "#fff",
+      color: dark.bg,
       weight: 2,
       fillColor: colors.accentStrong,
       fillOpacity: 1,
@@ -86,9 +86,10 @@ export function AppMap({
     for (const p of places) {
       const m = L.circleMarker([p.lat, p.lng], {
         radius: 6,
-        color: "#fff",
+        // 다크 타일에선 잉크 핀이 잠긴다 — 크림 채움 + 어두운 테두리.
+        color: dark.bg,
         weight: 2,
-        fillColor: colors.ink,
+        fillColor: dark.pill,
         fillOpacity: 1,
       })
         .addTo(map)
@@ -103,11 +104,16 @@ export function AppMap({
     loadLeaflet()
       .then((L) => {
         if (cancelled || !hostRef.current || mapRef.current) return;
-        const map = L.map(hostRef.current, { zoomControl: false, attributionControl: false }).setView(
+        const map = L.map(hostRef.current, { zoomControl: false, attributionControl: true }).setView(
           [center.lat, center.lng],
           13,
         );
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+        // 다크 UI 안에 밝은 OSM 타일이 박히면 명도가 튄다 — CARTO dark_all 래스터를 쓴다.
+        // 네이티브(MapLibre)는 OpenFreeMap dark 스타일. 둘 다 키 불필요, 출처 표기 필수라 켜 둔다.
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+          maxZoom: 19,
+          attribution: "© OpenStreetMap · © CARTO",
+        }).addTo(map);
         mapRef.current = map;
         // container may size after mount — recompute so tiles fill the box
         setTimeout(() => map.invalidateSize(), 60);
@@ -141,5 +147,6 @@ export function AppMap({
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, minHeight: 200, backgroundColor: colors.fill },
+  // 타일이 오기 전 흰 판이 번쩍이지 않게 바탕도 다크로.
+  fill: { flex: 1, minHeight: 200, backgroundColor: dark.surface },
 });
