@@ -16,9 +16,16 @@ export function newestFirst<T extends OrderableMessage>(messages: T[]): T[] {
   });
 }
 
-/** 이미 있는 메시지를 빼고 최신 우선으로 앞에 붙인다(재연결 후 빈 구간 메우기). */
+/**
+ * 재연결 후 빈 구간 메우기 — 이미 가진 것을 빼고 합친 뒤 **전체를 다시 정렬**한다.
+ *
+ * 예전에는 새 메시지를 무조건 맨 앞(=화면 맨 아래, 가장 최근 자리)에 붙였다. 그런데 끊긴 동안
+ * 놓친 메시지가 내가 방금 보낸 것보다 **오래된** 경우가 흔하다(재연결 직후 낙관적 전송 → 히스토리
+ * 도착). 그러면 옛 메시지가 최신 자리에 꽂혀 대화 순서가 뒤집힌다(2026-08-11 감사).
+ * 새로 붙일 게 없으면 같은 배열 참조를 돌려줘 헛 렌더를 막는다.
+ */
 export function mergeNewest<T extends OrderableMessage>(prev: T[], incoming: T[]): T[] {
   const seen = new Set(prev.map((m) => m.id));
-  const added = newestFirst(incoming).filter((m) => !seen.has(m.id));
-  return added.length === 0 ? prev : [...added, ...prev];
+  const added = incoming.filter((m) => !seen.has(m.id));
+  return added.length === 0 ? prev : newestFirst([...added, ...prev]);
 }
