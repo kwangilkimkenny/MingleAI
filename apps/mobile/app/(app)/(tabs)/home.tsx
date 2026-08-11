@@ -72,7 +72,6 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.glow} pointerEvents="none" />
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -190,16 +189,6 @@ function QuickAction({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: dark.bg },
-  glow: {
-    position: "absolute",
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    top: -120,
-    right: -90,
-    backgroundColor: dark.glow,
-    opacity: 0.45,
-  },
   content: {
     width: "100%",
     maxWidth: layout.contentMax,
