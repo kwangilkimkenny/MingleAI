@@ -11,7 +11,8 @@ index f78e72896c2acc6ff60a44b1d330c17fd9fc0931..d0843dda15cb337fc651f33e97f0c8cd
  import org.webrtc.audio.WebRtcAudioTrackHelper
  import java.lang.Thread.sleep
 @@ -31,6 +32,7 @@ class LivekitReactNativeModule(reactContext: ReactApplicationContext) : ReactCon
- 
+-
++
      val audioSinkManager = AudioSinkManager(reactContext)
      val audioManager = AudioSwitchManager(reactContext.applicationContext)
 +    private val voiceDisguiseProcessor = VoiceDisguiseProcessor()
@@ -21,7 +22,8 @@ index f78e72896c2acc6ff60a44b1d330c17fd9fc0931..d0843dda15cb337fc651f33e97f0c8cd
 @@ -126,6 +128,25 @@ class LivekitReactNativeModule(reactContext: ReactApplicationContext) : ReactCon
          audioManager.stop()
      }
- 
+-
++
 +    /**
 +     * Installs publisher-side PCM processing before WebRTC encoding. A failed install rejects the
 +     * promise so callers can keep the microphone unpublished (privacy fail-closed).
@@ -135,3 +137,240 @@ index 0000000000000000000000000000000000000000..e53e0675873e39c6c51b469553631d15
 +        filled = 0
 +    }
 +}
+diff --git a/ios/Headers/LKVoiceDisguiseProcessor.h b/ios/Headers/LKVoiceDisguiseProcessor.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..2ffd0ffa99124f71c1ff5a33e11ca298e375b1a4
+--- /dev/null
++++ b/ios/Headers/LKVoiceDisguiseProcessor.h
+@@ -0,0 +1,9 @@
++#import <Foundation/Foundation.h>
++#import "LKAudioProcessingAdapter.h"
++
++/** Publisher-side PCM pitch shifter used during the disguised-voice stage. */
++@interface LKVoiceDisguiseProcessor : NSObject <LKExternalAudioProcessingDelegate>
++
++@property(atomic, assign, getter=isEnabled) BOOL enabled;
++
++@end
+diff --git a/ios/LKVoiceDisguiseProcessor.m b/ios/LKVoiceDisguiseProcessor.m
+new file mode 100644
+index 0000000000000000000000000000000000000000..9815a79209c0ff05a1d726cb35eb34ea31d940f2
+--- /dev/null
++++ b/ios/LKVoiceDisguiseProcessor.m
+@@ -0,0 +1,152 @@
++#import "LKVoiceDisguiseProcessor.h"
++#import <math.h>
++#import <os/lock.h>
++
++static const double LKVoiceDisguisePitchRatio = 0.72;
++
++@implementation LKVoiceDisguiseProcessor {
++  os_unfair_lock _lock;
++  float** _rings;
++  size_t* _writePositions;
++  double* _readPositions;
++  size_t* _filled;
++  size_t _ringSize;
++  size_t _channels;
++}
++
++- (instancetype)init {
++  self = [super init];
++  if (self) {
++    _lock = OS_UNFAIR_LOCK_INIT;
++    _rings = NULL;
++    _writePositions = NULL;
++    _readPositions = NULL;
++    _filled = NULL;
++    _ringSize = 0;
++    _channels = 0;
++    _enabled = NO;
++  }
++  return self;
++}
++
++- (void)dealloc {
++  [self releaseState];
++}
++
++- (void)setEnabled:(BOOL)enabled {
++  os_unfair_lock_lock(&_lock);
++  if (enabled && !_enabled) {
++    [self resetStateLocked];
++  }
++  _enabled = enabled;
++  os_unfair_lock_unlock(&_lock);
++}
++
++- (void)audioProcessingInitializeWithSampleRate:(size_t)sampleRateHz channels:(size_t)channels {
++  os_unfair_lock_lock(&_lock);
++  [self releaseStateLocked];
++
++  size_t required = MAX((sampleRateHz * MAX(channels, 1)) / 6, 2048);
++  _ringSize = 1;
++  while (_ringSize < required) {
++    _ringSize <<= 1;
++  }
++  _channels = MAX(channels, 1);
++  _rings = calloc(_channels, sizeof(float*));
++  _writePositions = calloc(_channels, sizeof(size_t));
++  _readPositions = calloc(_channels, sizeof(double));
++  _filled = calloc(_channels, sizeof(size_t));
++  for (size_t channel = 0; channel < _channels; channel++) {
++    _rings[channel] = calloc(_ringSize, sizeof(float));
++  }
++  os_unfair_lock_unlock(&_lock);
++}
++
++- (void)audioProcessingProcess:(RTC_OBJC_TYPE(RTCAudioBuffer) *)audioBuffer {
++  os_unfair_lock_lock(&_lock);
++  if (!_enabled || !_rings || _ringSize == 0) {
++    os_unfair_lock_unlock(&_lock);
++    return;
++  }
++
++  const size_t channelCount = MIN((size_t)audioBuffer.channels, _channels);
++  const size_t frameCount = (size_t)audioBuffer.frames;
++  const size_t grain = _ringSize / 2;
++
++  for (size_t channel = 0; channel < channelCount; channel++) {
++    float* samples = [audioBuffer rawBufferForChannel:(int)channel];
++    float* ring = _rings[channel];
++    for (size_t frame = 0; frame < frameCount; frame++) {
++      ring[_writePositions[channel]] = samples[frame];
++      _writePositions[channel] = (_writePositions[channel] + 1) % _ringSize;
++      if (_filled[channel] < grain) {
++        _filled[channel]++;
++      }
++
++      if (_filled[channel] < grain) {
++        samples[frame] = 0.0f;
++        continue;
++      }
++
++      double firstPosition = _readPositions[channel];
++      double secondPosition = fmod(firstPosition + (double)grain, (double)_ringSize);
++      float first = [self interpolate:ring position:firstPosition];
++      float second = [self interpolate:ring position:secondPosition];
++      float phase = (float)(fmod(firstPosition, (double)grain) / (double)grain);
++      samples[frame] = fmaxf(-32768.0f, fminf(32767.0f, first * phase + second * (1.0f - phase)));
++
++      _readPositions[channel] += LKVoiceDisguisePitchRatio;
++      if (_readPositions[channel] >= (double)_ringSize) {
++        _readPositions[channel] -= (double)_ringSize;
++      }
++    }
++  }
++  os_unfair_lock_unlock(&_lock);
++}
++
++- (void)audioProcessingRelease {
++  [self releaseState];
++}
++
++- (float)interpolate:(float*)ring position:(double)position {
++  size_t base = ((size_t)floor(position)) % _ringSize;
++  size_t next = (base + 1) % _ringSize;
++  float fraction = (float)(position - floor(position));
++  return ring[base] * (1.0f - fraction) + ring[next] * fraction;
++}
++
++- (void)resetStateLocked {
++  if (!_rings) return;
++  for (size_t channel = 0; channel < _channels; channel++) {
++    memset(_rings[channel], 0, _ringSize * sizeof(float));
++    _writePositions[channel] = 0;
++    _readPositions[channel] = 0.0;
++    _filled[channel] = 0;
++  }
++}
++
++- (void)releaseState {
++  os_unfair_lock_lock(&_lock);
++  [self releaseStateLocked];
++  os_unfair_lock_unlock(&_lock);
++}
++
++- (void)releaseStateLocked {
++  if (_rings) {
++    for (size_t channel = 0; channel < _channels; channel++) {
++      free(_rings[channel]);
++    }
++  }
++  free(_rings);
++  free(_writePositions);
++  free(_readPositions);
++  free(_filled);
++  _rings = NULL;
++  _writePositions = NULL;
++  _readPositions = NULL;
++  _filled = NULL;
++  _ringSize = 0;
++  _channels = 0;
++}
++
++@end
+diff --git a/ios/LiveKitReactNativeModule.swift b/ios/LiveKitReactNativeModule.swift
+index e85be6e16985522ea1a9717d6100dfd0ab249473..1315ef702ae737f1892921a04a95caea7bb7d0e5 100644
+--- a/ios/LiveKitReactNativeModule.swift
++++ b/ios/LiveKitReactNativeModule.swift
+@@ -12,6 +12,8 @@ struct LKEvents {
+ @objc(LivekitReactNativeModule)
+ public class LivekitReactNativeModule: RCTEventEmitter {
+-
++
++    private let voiceDisguiseProcessor = LKVoiceDisguiseProcessor()
++
+     // This cannot be initialized in init as self.bridge is given afterwards.
+     private var _audioRendererManager: AudioRendererManager? = nil
+     public var audioRendererManager: AudioRendererManager {
+@@ -27,6 +29,7 @@ public class LivekitReactNativeModule: RCTEventEmitter {
+     @objc
+     public override init() {
+         super.init()
++        LKAudioProcessingManager.sharedInstance().addCapturePostProcessor(voiceDisguiseProcessor)
+         let config = RTCAudioSessionConfiguration()
+         config.category = AVAudioSession.Category.playAndRecord.rawValue
+         // Gated on compiler version (not iOS deploy target): .allowBluetoothHFP
+@@ -110,6 +113,16 @@ public class LivekitReactNativeModule: RCTEventEmitter {
+         }
+     }
+-
++
++    /**
++     * Enables publisher-side PCM processing before WebRTC encoding. The processor is installed
++     * once during module initialization, so raw speech is never republished while toggling it.
++     */
++    @objc(setVoiceDisguiseEnabled:withResolver:withRejecter:)
++    public func setVoiceDisguiseEnabled(_ enabled: Bool, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
++        voiceDisguiseProcessor.enabled = enabled
++        resolve(true)
++    }
++
+     @objc(showAudioRoutePicker)
+     public func showAudioRoutePicker() {
+         if #available(iOS 11.0, *) {
+diff --git a/ios/LivekitReactNative-Bridging-Header.h b/ios/LivekitReactNative-Bridging-Header.h
+index 183bb6088f79a70f67f04f978604e59a67450a0b..90dc805136283545cd3e4c82fe4093731d9eff14 100644
+--- a/ios/LivekitReactNative-Bridging-Header.h
++++ b/ios/LivekitReactNative-Bridging-Header.h
+@@ -1,2 +1,3 @@
+ #import "WebRTCModule.h"
+ #import "WebRTCModule+RTCMediaStream.h"
++#import "LKVoiceDisguiseProcessor.h"
+diff --git a/ios/LivekitReactNativeModule.m b/ios/LivekitReactNativeModule.m
+index dfe83d6c834450eb79b3927f7dd707621fd32d88..58940cd864ca31cdefa4639213ea1c4f0fea28d0 100644
+--- a/ios/LivekitReactNativeModule.m
++++ b/ios/LivekitReactNativeModule.m
+@@ -9,6 +9,9 @@ RCT_EXTERN_METHOD(startAudioSession:(RCTPromiseResolveBlock)resolve
+                   withRejecter:(RCTPromiseRejectBlock)reject)
+ RCT_EXTERN_METHOD(stopAudioSession:(RCTPromiseResolveBlock)resolve
+                   withRejecter:(RCTPromiseRejectBlock)reject)
++RCT_EXTERN_METHOD(setVoiceDisguiseEnabled:(BOOL)enabled
++                  withResolver:(RCTPromiseResolveBlock)resolve
++                  withRejecter:(RCTPromiseRejectBlock)reject)
+-
++
+ RCT_EXTERN_METHOD(setDefaultAudioTrackVolume:(nonnull NSNumber *) volume)
+-
++

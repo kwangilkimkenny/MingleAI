@@ -14,7 +14,7 @@ import { setNativeVoiceDisguiseEnabled } from "./native-voice-disguise";
  *   `livekit-client` Room API works in RN; tracks exposed here are livekit-client VideoTrack
  *   objects, rendered by the native `VideoView`.
  *
- * Android DISGUISED audio is processed publisher-side by the pinned LiveKit PCM processor. Any
+ * Android/iOS DISGUISED audio is processed publisher-side by the pinned LiveKit PCM processor. Any
  * setup failure is fail-closed: the microphone stays unpublished instead of exposing raw speech.
  */
 
@@ -26,7 +26,7 @@ export interface SpeedDateMedia {
   microphoneEnabled: boolean;
   /** Actual outgoing camera state after the server stage policy and the user's camera choice. */
   cameraEnabled: boolean;
-  /** Native disguise currently protects the raw voice by locking the mic off. */
+  /** True when the current privacy stage has a usable publisher-side disguise processor. */
   canToggleMicrophone: boolean;
   /** Camera can only be controlled in the server-authorized FACE stage. */
   canToggleCamera: boolean;
