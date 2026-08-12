@@ -1,6 +1,6 @@
 export const REPLY_SUGGESTER = Symbol("REPLY_SUGGESTER");
 
-export interface SuggestTurn {
+interface SuggestTurn {
   /** "me" = 추천을 받는 사람, "peer" = 상대. 실명·profileId는 LLM에 보내지 않는다. */
   role: "me" | "peer";
   content: string;

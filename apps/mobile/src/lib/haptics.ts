@@ -21,14 +21,6 @@ export function hapticImpact() {
   run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }
 
-export function hapticSuccess() {
-  run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
-}
-
 export function hapticWarning() {
   run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
-}
-
-export function hapticError() {
-  run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
 }

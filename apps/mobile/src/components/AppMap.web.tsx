@@ -3,8 +3,8 @@
  * 네이티브 `AppMap.tsx`(MapLibre + OpenFreeMap **dark**)와 동형. Leaflet은 첫 마운트 때 CDN lazy 로드.
  */
 import { useEffect, useRef } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors, dark, type as t, space } from "../lib/theme";
+import { View, StyleSheet } from "react-native";
+import { colors, dark } from "../lib/theme";
 import type { Coords } from "../lib/location";
 
 export type MapPlace = { lat: number; lng: number; title: string };

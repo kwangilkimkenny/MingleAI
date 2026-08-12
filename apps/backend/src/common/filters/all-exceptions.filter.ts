@@ -6,7 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from "@nestjs/common";
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 
 /**
  * 프레임워크가 만들어내는 영문 기본 메시지 → 한국어. 앱 UI는 서버 `message`를 그대로 노출하므로

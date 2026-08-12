@@ -7,10 +7,6 @@ const productionEnv = {
   PUBLIC_BASE_URL: "https://api.mingles.kr",
   SOCKET_CORS_ORIGINS: "https://app.mingles.kr,https://admin.mingles.kr",
   KAKAO_CLIENT_ID: "public-client-id",
-  NICE_CLIENT_ID: "nice-client",
-  NICE_CLIENT_SECRET: "nice-secret",
-  NICE_PRODUCT_ID: "2101979031",
-  NICE_RETURN_URL: "https://api.mingles.kr/auth/identity/nice/callback",
 };
 
 describe("validateEnvironment", () => {
@@ -36,21 +32,8 @@ describe("validateEnvironment", () => {
     ["cleartext CORS", { SOCKET_CORS_ORIGINS: "http://app.mingles.kr" }],
     ["dev login", { DEV_AUTH_ENABLED: "true" }],
     ["identity bypass", { IDENTITY_DEV_BYPASS: "true" }],
-    ["missing NICE client id", { NICE_CLIENT_ID: undefined }],
-    ["missing NICE client secret", { NICE_CLIENT_SECRET: undefined }],
-    ["missing NICE product id", { NICE_PRODUCT_ID: undefined }],
-    ["missing NICE return url", { NICE_RETURN_URL: undefined }],
   ])("rejects production configuration with %s", (_label, override) => {
     expect(() => validateEnvironment({ ...productionEnv, ...override })).toThrow();
-  });
-
-  it("rejects a cleartext NICE return URL", () => {
-    expect(() =>
-      validateEnvironment({
-        ...productionEnv,
-        NICE_RETURN_URL: "http://api.mingles.kr/auth/identity/nice/callback",
-      }),
-    ).toThrow();
   });
 
   it("requires at least one usable social login provider", () => {

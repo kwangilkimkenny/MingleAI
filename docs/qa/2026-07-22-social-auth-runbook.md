@@ -21,7 +21,7 @@ IDENTITY_DEV_BYPASS=true
 ```
 
 1. 앱 실행 → 로그인 화면에서 **dev 로그인**(이메일 아무거나) → 토큰 발급.
-2. 게이트 사다리 진행: 동의 3종 체크 → 카메라·마이크 권한 허용(실기기/dev build 필요; 웹은 브라우저 권한) → **본인인증**(개발용 폼: 이름·생년월일·성별·전화) → 프로필 온보딩 → 홈.
+2. 게이트 사다리 진행: **본인인증**(개발용 폼: 이름·생년월일·성별·전화) → 필수 동의 → 프로필 온보딩 → 홈. 마이크 권한은 스피드데이트 진입 시, 카메라는 FACE 단계에서 요청한다.
 3. 본인인증의 성별·생년월일이 프로필 age/gender에 반영되는지 확인(자기신고 덮어씀).
 4. 같은 전화번호로 다른 계정이 본인인증 시 409(1인 1계정) 확인.
 
@@ -48,7 +48,7 @@ IDENTITY_DEV_BYPASS=true
 
 ## 5. EAS dev build
 
-`expo-auth-session`·`expo-camera`·`expo-crypto`는 Expo 1st-party라 웹 export는 그대로 동작하지만, OAuth 리다이렉트·실 카메라/마이크 권한은 **EAS dev build + 실기기**에서 검증:
+`expo-auth-session`·`expo-camera`는 Expo 1st-party라 웹 export는 그대로 동작하지만, OAuth 리다이렉트·실 카메라/마이크 권한은 **EAS dev build + 실기기**에서 검증:
 
 ```
 cd apps/mobile
@@ -57,6 +57,6 @@ npx eas-cli build --profile development --platform ios   # 또는 android
 
 ## 6. 남은 항목 / 백로그
 
-- **웹 admin 로그인**: email/password 제거로 prod admin 접근 없음 → admin SSO 또는 소셜+role 부여(dev는 `/auth/dev-login`에 `role:"admin"`). 웹 소비자 register 화면은 정리 대상.
-- mega-qa(`tools/mega-qa.mjs`)는 구 `/auth/register`·`/auth/login`을 쓰므로 **소셜/dev-login 기준으로 재작성** 필요.
+- 운영 관리자 로그인은 `ADMIN_EMAIL`·`ADMIN_PASSWORD_HASH`를 사용하며 실값·로그인 회귀를 배포 전에 확인한다.
+- mega-qa(`tools/mega-qa.mjs`)는 dev-login·본인인증 bypass 기준으로 동작한다.
 - 계정 연동(email↔social 병합), 카메라/마이크 외 권한, 스토어 심사(무관 권한 강제 리스크).

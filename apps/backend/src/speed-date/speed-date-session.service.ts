@@ -14,7 +14,7 @@ import {
 } from "./speed-date.state";
 
 /** An `ai-` prefixed profile id is a dev-only AI-filled slot with no real profile row. */
-export function isAiProfileId(id: string): boolean {
+function isAiProfileId(id: string): boolean {
   return id.startsWith("ai-");
 }
 

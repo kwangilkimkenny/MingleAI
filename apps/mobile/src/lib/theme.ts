@@ -1,7 +1,7 @@
 /**
  * Mingle brand primitives — dark brown × blush pink.
  *
- * Components consume semantic tokens (`colors`, `masterpiece`, `dark`) below instead of reaching
+ * Components consume semantic tokens (`colors`, `dark`) below instead of reaching
  * into this scale directly. That keeps the palette consistent across light, dark, and editorial
  * surfaces while allowing each context to choose an accessible shade.
  */
@@ -11,15 +11,12 @@ export const brandPalette = {
   brown850: "#2E251C",
   brown800: "#221D18",
   brownInk: "#181412",
-  brownMuted: "#6A6151",
   blush50: "#FBE8ED",
   blush200: "#F2BCC8",
   blush300: "#E59BAD",
   blush500: "#C9657F",
-  blushMuted: "#B98291",
   blush700: "#A63D5A",
   blush800: "#873047",
-  cream: "#F4F1EA",
   creamText: "#FBF4EC",
   // 2차 강조 — 웜 골드(메타·상태)와 세이지(가능/성공). 브라운·블러시와 같은 웜 계열이라
   // 브랜드를 흐리지 않으면서 화면에 색의 층을 하나씩 더한다(2026-08-07 팔레트 보완).
@@ -50,10 +47,6 @@ export const colors = {
   outline: "#E3D9D9", // 카드·인풋 외곽선 (신규 별칭)
   fill: "#F8F1F2", // 연한 블러쉬 뉴트럴 fill
   fillDeep: "#F0E6E8", // 더 진한 블러쉬 뉴트럴 fill
-  partyFloor: "#E9E2D6", // (party game world — disabled; legacy value kept)
-  partyRoom: "#FFFDF8",
-  partyRoomWarm: "#F8F0E6",
-  partyRoomRose: "#F8ECEC",
   // Point color — blush pink. `accentStrong` is reserved for surfaces carrying white text.
   accent: brandPalette.blush500, // 브랜드 블러쉬 — 선·아이콘·활성탭 (흰글씨 X)
   accentBright: brandPalette.blush200, // 밝은 블러쉬 — 일러스트·표현
@@ -103,24 +96,6 @@ export const control = {
 } as const;
 
 /**
- * Masterpiece (fine-art editorial) surface tokens — hero / entrance / onboarding ONLY.
- * Classical cutout figures on cream paper, Myeongjo serif display, halftone dots, a black pill CTA.
- * Deliberately SEPARATE from the line-art `colors` so the two systems coexist: line-art skins the
- * functional screens (chat/lists/settings), masterpiece skins brand moments. 2026-07-24.
- */
-export const masterpiece = {
-  cream: brandPalette.cream, // warm paper ground
-  creamDeep: "#F4E9EC", // blush-washed hero band
-  inkDeep: brandPalette.brown800, // dark-brown serif headline / pill fill
-  inkSoft: brandPalette.brownMuted, // muted brown — subhead
-  tag: brandPalette.blushMuted, // dusty blush — eyebrow/label
-  dot: "#E4C9D0", // blush halftone dot
-  pill: brandPalette.brown800, // dark-brown pill CTA fill
-  onPill: brandPalette.cream, // text on pill
-  pillGhostBorder: "#D5B4BD", // blush outline pill border
-} as const;
-
-/**
  * Dark editorial (홈 테마) — dark-brown cinematic ground with cream serif copy, blush-pink labels,
  * and a cream pill CTA. Applied to brand / entry / gate / flow / immersive screens
  * (home·login·onboarding·gate·speed-date). List/data screens stay LIGHT (line-art `colors`) for
@@ -145,7 +120,7 @@ export const dark = {
   borderStrong: "rgba(251,244,236,0.42)",
   line: "rgba(251,244,236,0.18)", // divider on dark
   fieldBg: "rgba(251,244,236,0.1)", // input fill on dark
-  pill: brandPalette.cream, // cream pill CTA (primary on dark)
+  pill: "#F4F1EA", // cream pill CTA (primary on dark)
   onPill: brandPalette.brown800, // dark text on the cream pill
   accent: brandPalette.blush200, // bright blush — active / small accent on dark
   danger: "#FF7A6E", // brighter red for legibility on dark
@@ -199,31 +174,6 @@ export const layout = {
 } as const;
 
 /**
- * shade — 팔레트 색을 결정적으로 어둡게(f<1)/밝게(f>1) 파생. (파티 게임 월드가 비활성이라 현재
- * 미사용 — API는 유지.) #RRGGBB 입력 전제 순수 함수.
- */
-export function shade(hex: string, f: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  let r = (n >> 16) & 255,
-    g = (n >> 8) & 255,
-    b = n & 255;
-  if (f < 1) {
-    r *= f;
-    g *= f;
-    b *= f;
-  } else {
-    r += (255 - r) * (f - 1);
-    g += (255 - g) * (f - 1);
-    b += (255 - b) * (f - 1);
-  }
-  const c = (v: number) =>
-    Math.round(Math.max(0, Math.min(255, v)))
-      .toString(16)
-      .padStart(2, "0");
-  return `#${c(r)}${c(g)}${c(b)}`;
-}
-
-/**
  * Type roles — all Pretendard (2026-07-23 dropped Gaegu handwriting from the UI for legibility and
  * a warmer, more trustworthy dating tone). SemiBold is the heaviest bundled weight, so display /
  * title / heading all use it and lean on size + rose color for hierarchy. Loaded in app/_layout.
@@ -234,7 +184,7 @@ export const fonts = {
   body: "Pretendard_400Regular",
   bodySemibold: "Pretendard_600SemiBold",
 } as const;
-// Myeongjo serif (masterpiece headline) lives in `src/lib/serif.ts` — it needs `Platform` from
+// Myeongjo serif for dark-editorial headings lives in `src/lib/serif.ts` — it needs `Platform` from
 // react-native, which the pure-lib Vitest can't parse, so it is kept out of this pure token module.
 
 /**
@@ -266,7 +216,6 @@ export const shadow = {
  */
 export const doodle = {
   border: 1.5, // soft hairline stroke width
-  shadow: { x: 4, y: 5 }, // legacy hard-offset (unused post-redesign)
   radius: {
     button: {
       borderTopLeftRadius: 16,
@@ -309,24 +258,6 @@ export const doodleHeaderOptions = {
   headerTintColor: colors.ink,
   headerShadowVisible: false,
 };
-
-/** Explicit three-layer token contract used by new work. Legacy named exports above stay stable. */
-export const primitiveTokens = {
-  color: brandPalette,
-  spacing: space,
-  fontFamily: fonts,
-} as const;
-
-export const semanticTokens = {
-  color: {
-    light: colors,
-    dark,
-  },
-  typography: type,
-  layout,
-  elevation: shadow,
-  control,
-} as const;
 
 export const componentTokens = {
   button: {

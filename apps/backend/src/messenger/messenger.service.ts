@@ -176,6 +176,6 @@ export class MessengerService {
  * (추적 픽셀), 우리와 무관한 콘텐츠가 대화창에 뜬다. 호스트 검증은 `normalizeUploadUrl`가 한다
  * (2026-08-11 이전에는 경로만 봐서 `https://evil.example.com/uploads/x.png`가 통과했다).
  */
-export function normalizeAttachmentUrl(raw?: string | null): string | null {
+function normalizeAttachmentUrl(raw?: string | null): string | null {
   return normalizeUploadUrl(raw);
 }

@@ -1,7 +1,9 @@
+import { BadGatewayException, UnauthorizedException } from "@nestjs/common";
+
 /**
  * Social OAuth provider adapters (Kakao / Naver / Google) using plain REST `fetch` — no vendor
  * SDKs. Each exchanges an authorization code for the provider's user profile. `isConfigured()`
- * reflects whether client credentials are present (empty env = provider disabled → 501).
+ * reflects whether client credentials are present (empty env = provider disabled → 503).
  *
  * The exact HTTP contracts are best-effort against each provider's documented OAuth endpoints;
  * verify against a real developer app during credential setup (see runbook).
@@ -20,20 +22,78 @@ export interface SocialProvider {
   exchange(code: string, redirectUri: string, codeVerifier?: string): Promise<SocialProfile>;
 }
 
-async function postForm(url: string, body: Record<string, string>): Promise<any> {
-  const res = await fetch(url, {
+type ProviderJson = Record<string, unknown>;
+const PROVIDER_TIMEOUT_MS = 10_000;
+
+async function providerFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: init?.signal ?? AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+    });
+  } catch {
+    throw new BadGatewayException("소셜 로그인 제공자에 연결하지 못했습니다");
+  }
+}
+
+async function providerJson(res: Response): Promise<ProviderJson> {
+  try {
+    const body: unknown = await res.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("invalid body");
+    return body as ProviderJson;
+  } catch {
+    throw new BadGatewayException("소셜 로그인 제공자 응답이 올바르지 않습니다");
+  }
+}
+
+function errorCode(body: ProviderJson): string {
+  const value = body.error ?? body.errorCode ?? body.code;
+  return typeof value === "string" ? value.toLowerCase() : "";
+}
+
+function requiredString(body: ProviderJson, field: string): string {
+  const value = body[field];
+  if (typeof value !== "string" || !value.trim()) {
+    throw new BadGatewayException("소셜 로그인 제공자 응답이 올바르지 않습니다");
+  }
+  return value;
+}
+
+function requiredProviderId(value: unknown): string {
+  if ((typeof value !== "string" && typeof value !== "number") || String(value).trim() === "") {
+    throw new BadGatewayException("소셜 로그인 제공자 응답이 올바르지 않습니다");
+  }
+  return String(value);
+}
+
+async function postForm(url: string, body: Record<string, string>): Promise<ProviderJson> {
+  const res = await providerFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(body).toString(),
   });
-  if (!res.ok) throw new Error(`token exchange failed (${res.status})`);
-  return res.json();
+  const json = await providerJson(res);
+  if (!res.ok) {
+    // OAuth token endpoints also use 400/401 for server-side client/configuration errors.
+    // Only an invalid authorization grant is attributable to the user's expired/used code.
+    if (errorCode(json) === "invalid_grant") {
+      throw new UnauthorizedException("소셜 로그인 인증이 만료되었거나 유효하지 않습니다");
+    }
+    throw new BadGatewayException("소셜 로그인 제공자 응답에 실패했습니다");
+  }
+  return json;
 }
 
-async function getJson(url: string, accessToken: string): Promise<any> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!res.ok) throw new Error(`userinfo failed (${res.status})`);
-  return res.json();
+async function getJson(url: string, accessToken: string): Promise<ProviderJson> {
+  const res = await providerFetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const json = await providerJson(res);
+  if (!res.ok) {
+    if (res.status === 401 || errorCode(json) === "invalid_token") {
+      throw new UnauthorizedException("소셜 로그인 인증이 만료되었거나 유효하지 않습니다");
+    }
+    throw new BadGatewayException("소셜 로그인 제공자 응답에 실패했습니다");
+  }
+  return json;
 }
 
 export class KakaoProvider implements SocialProvider {
@@ -51,11 +111,22 @@ export class KakaoProvider implements SocialProvider {
       ...(this.clientSecret ? { client_secret: this.clientSecret } : {}),
       ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
     });
-    const me = await getJson("https://kapi.kakao.com/v2/user/me", token.access_token);
+    const me = await getJson(
+      "https://kapi.kakao.com/v2/user/me",
+      requiredString(token, "access_token"),
+    );
+    const account = me.kakao_account as ProviderJson | undefined;
+    const profile = account?.profile as ProviderJson | undefined;
+    const properties = me.properties as ProviderJson | undefined;
     return {
-      providerId: String(me.id),
-      email: me.kakao_account?.email,
-      name: me.kakao_account?.profile?.nickname ?? me.properties?.nickname,
+      providerId: requiredProviderId(me.id),
+      email: typeof account?.email === "string" ? account.email : undefined,
+      name:
+        typeof profile?.nickname === "string"
+          ? profile.nickname
+          : typeof properties?.nickname === "string"
+            ? properties.nickname
+            : undefined,
     };
   }
 }
@@ -74,8 +145,16 @@ export class NaverProvider implements SocialProvider {
       code,
       state: state ?? "",
     });
-    const me = await getJson("https://openapi.naver.com/v1/nid/me", token.access_token);
-    return { providerId: String(me.response?.id), email: me.response?.email, name: me.response?.name };
+    const me = await getJson(
+      "https://openapi.naver.com/v1/nid/me",
+      requiredString(token, "access_token"),
+    );
+    const profile = me.response as ProviderJson | undefined;
+    return {
+      providerId: requiredProviderId(profile?.id),
+      email: typeof profile?.email === "string" ? profile.email : undefined,
+      name: typeof profile?.name === "string" ? profile.name : undefined,
+    };
   }
 }
 
@@ -94,7 +173,14 @@ export class GoogleProvider implements SocialProvider {
       code,
       ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
     });
-    const me = await getJson("https://www.googleapis.com/oauth2/v3/userinfo", token.access_token);
-    return { providerId: String(me.sub), email: me.email, name: me.name };
+    const me = await getJson(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      requiredString(token, "access_token"),
+    );
+    return {
+      providerId: requiredProviderId(me.sub),
+      email: typeof me.email === "string" ? me.email : undefined,
+      name: typeof me.name === "string" ? me.name : undefined,
+    };
   }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ServiceUnavailableException } from "@nestjs/common";
+import { ConflictException, ServiceUnavailableException } from "@nestjs/common";
 import { IdentityService } from "./identity.service";
 
 const bypassConfig = { get: (k: string) => (k === "IDENTITY_DEV_BYPASS" ? "true" : undefined) } as any;

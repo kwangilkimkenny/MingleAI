@@ -27,18 +27,6 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
       NAVER_CLIENT_SECRET: z.string().min(1).optional(),
       GOOGLE_CLIENT_ID: z.string().min(1).optional(),
       GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
-      // 인증 요청을 사용자에게 묶는 서명 키(공급자 무관).
-      IDENTITY_STATE_SECRET: z.string().min(32).optional(),
-      // NICE 직계약 경로(2026-08-10 결정). 코드는 nice.provider.ts에 자리만 있고 계약 대기 중이다.
-      NICE_CLIENT_ID: z.string().min(1).optional(),
-      NICE_CLIENT_SECRET: z.string().min(1).optional(),
-      NICE_PRODUCT_ID: z.string().min(1).optional(),
-      // 콜백은 origin이 아니라 **경로가 있는** URL이다(예: https://api.…/auth/identity/nice/callback).
-      NICE_RETURN_URL: z
-        .string()
-        .url()
-        .refine((v) => v.startsWith("https://"), "must be an HTTPS URL")
-        .optional(),
     })
     .passthrough()
     .parse(raw);
@@ -72,17 +60,6 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
     throw new Error("DEV_AUTH_ENABLED must not be true in production");
   if (common.IDENTITY_DEV_BYPASS === "true")
     throw new Error("IDENTITY_DEV_BYPASS must not be true in production");
-
-  // 본인인증(NICE)이 없으면 운영에서 부팅하지 않는다. 나이·성별·1인1계정의 유일한 근거라
-  // 이게 없으면 신고·차단·연령 제한이 전부 종이호랑이가 된다.
-  const hasNice =
-    Boolean(common.NICE_CLIENT_ID) &&
-    Boolean(common.NICE_CLIENT_SECRET) &&
-    Boolean(common.NICE_PRODUCT_ID) &&
-    Boolean(common.NICE_RETURN_URL);
-  if (!hasNice) {
-    throw new Error("NICE identity verification must be fully configured in production");
-  }
 
   return common;
 }

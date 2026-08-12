@@ -1,9 +1,9 @@
 /**
  * Line-art primitives: white surfaces with thin dark-brown outlines and one blush-pink point color.
  *
- * Elevation is outline-first — cards read via a thin hairline (WobbleBox in DoodleSvg.tsx, now a
- * plain rounded View), not a shadow. Primary buttons fill with accentStrong + white label (AA-safe;
- * the bright accent is for strokes/icons only). Secondary buttons are white + thin outline.
+ * Elevation is outline-first. Cards read via a thin hairline, not a shadow. Primary buttons fill
+ * with accentStrong + white label (AA-safe; the bright accent is for strokes/icons only).
+ * Secondary buttons are white + thin outline.
  */
 import type { ReactNode } from "react";
 import {
@@ -12,44 +12,11 @@ import {
   Pressable,
   ActivityIndicator,
   StyleSheet,
-  type ViewStyle,
-  type TextStyle,
   type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { WobbleBox } from "./DoodleSvg";
 import { colors, control, dark, doodle, fonts } from "../lib/theme";
-
-type WonkyRadius = {
-  borderTopLeftRadius: number;
-  borderTopRightRadius: number;
-  borderBottomRightRadius: number;
-  borderBottomLeftRadius: number;
-};
-
-/**
- * Wraps content in a hand-drawn wobble border + hard offset ink shadow (via WobbleBox).
- */
-export function ShadowBox({
-  children,
-  radius,
-  bg = colors.card,
-  rotate,
-  style,
-  seed = 2,
-}: {
-  children: ReactNode;
-  radius: WonkyRadius;
-  bg?: string;
-  rotate?: string;
-  style?: StyleProp<ViewStyle>;
-  seed?: number;
-}) {
-  return (
-    <WobbleBox radius={radius} seed={seed} bg={bg} shadow rotate={rotate} style={[styles.shadowOuter, style]}>
-      {children}
-    </WobbleBox>
-  );
-}
 
 export function DoodleButton({
   title,
@@ -68,7 +35,6 @@ export function DoodleButton({
   disabled?: boolean;
   /** Show a spinner and block presses while an async action runs. */
   busy?: boolean;
-  rotate?: string;
   /** Optional leading icon (e.g. a Lucide line icon), tinted to match the label. */
   icon?: (color: string, size: number) => ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -166,52 +132,25 @@ export function DoodleButton({
 export function DoodleCard({
   children,
   tone = "paper",
-  elevated = false,
-  rotate,
   style,
   contentStyle,
 }: {
   children: ReactNode;
   tone?: "paper" | "fill" | "dark";
-  /** Reserve the hard sticker shadow for interactive or hero surfaces. */
-  elevated?: boolean;
-  rotate?: string;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 }) {
   const bg = tone === "dark" ? dark.surface : tone === "fill" ? colors.fill : colors.card;
   const cardStroke =
     tone === "dark" ? dark.border : tone === "fill" ? colors.fillDeep : colors.border;
-  if (!elevated) {
-    return (
-      <WobbleBox radius={doodle.radius.card} bg={bg} stroke={cardStroke} rotate={rotate} style={style}>
-        <View style={[styles.cardInner, contentStyle]}>{children}</View>
-      </WobbleBox>
-    );
-  }
   return (
-    <ShadowBox radius={doodle.radius.card} bg={bg} rotate={rotate} style={style}>
+    <WobbleBox radius={doodle.radius.card} bg={bg} stroke={cardStroke} style={style}>
       <View style={[styles.cardInner, contentStyle]}>{children}</View>
-    </ShadowBox>
+    </WobbleBox>
   );
 }
 
-/** Doodle text input container styles (spread onto a TextInput's style). */
-export const doodleInputStyle: TextStyle = {
-  borderWidth: doodle.border,
-  borderColor: colors.border,
-  backgroundColor: colors.card,
-  color: colors.ink,
-  paddingVertical: 12,
-  paddingHorizontal: 14,
-  fontFamily: fonts.body,
-  fontSize: 16,
-  lineHeight: 24,
-  ...doodle.radius.input,
-};
-
 const styles = StyleSheet.create({
-  shadowOuter: { position: "relative", alignSelf: "stretch" },
   pressable: { alignSelf: "stretch" },
   flatButton: { alignSelf: "stretch" },
   btnInner: {

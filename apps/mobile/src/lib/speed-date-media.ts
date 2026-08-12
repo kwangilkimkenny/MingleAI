@@ -44,7 +44,7 @@ export interface SpeedDateMedia {
 let globalsReady: boolean | null = null;
 
 /** Android emulators reach services on the development host through 10.0.2.2, not localhost. */
-export function reachableLiveKitUrl(url: string): string {
+function reachableLiveKitUrl(url: string): string {
   if (Platform.OS !== "android") return url;
   return url.replace(/^(wss?:\/\/)(?:localhost|127\.0\.0\.1)(?=[:/]|$)/, "$110.0.2.2");
 }

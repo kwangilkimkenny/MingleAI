@@ -3,6 +3,9 @@
 기준 브랜치: `megahuni`  
 최종 판정: **HOLD** — 코드·웹·네이티브 빌드는 통과했지만 운영 API와 사용자 도메인이 열리지 않았다.
 
+> 이 문서는 2026-08-11 당시 증빙이다. 2026-08-12 PortOne 경로는 제거됐고 현행 계획은 NICE
+> 직계약 하나다. 현재 출시 판단과 실행 순서는 `docs/LAUNCH.md`를 우선한다.
+
 ## 통과한 항목
 
 - `pnpm release:check`: 성공
@@ -41,7 +44,7 @@
 ## 완료를 막는 외부 항목
 
 1. Gabia DNS에 `mingles.cloud`와 `www.mingles.cloud`의 Vercel 레코드를 등록해야 한다.
-2. Railway에 실 PortOne V2 키 4개 또는 구현 완료된 NICE 계약 키를 등록해야 한다.
+2. NICE 계약 규격에 맞는 provider·콜백을 구현하고 실키를 Railway에 등록해야 한다.
 3. GitHub 조직/저장소 관리자가 결제 잠금을 해제하고 기본 브랜치·보호 규칙을 적용해야 한다.
 4. App Store Connect/Play Console 상품과 제출 자격증명이 필요하다. Android 서명 AAB는 준비됐지만
    아직 internal track에 제출하지 않았다. 웹은

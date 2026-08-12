@@ -111,6 +111,74 @@ describe("AuthService.adminLogin", () => {
   });
 });
 
+describe("AuthService.refresh production identity circuit breaker", () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.NODE_ENV = previousNodeEnv;
+  });
+
+  it("revokes refresh sessions for an unverified production consumer", async () => {
+    process.env.NODE_ENV = "production";
+    const prisma = {
+      refreshToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "rt1",
+          userId: "u1",
+          revokedAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+          user: {
+            id: "u1",
+            email: null,
+            role: "user",
+            phoneVerifiedAt: null,
+            profile: null,
+          },
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    } as any;
+
+    await expect(makeService(prisma).refresh("raw-token")).rejects.toThrow(
+      "본인인증이 완료되지 않은 계정입니다",
+    );
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "u1", revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+  });
+
+  it("fails closed and revokes an unverified unknown-role session", async () => {
+    process.env.NODE_ENV = "production";
+    const prisma = {
+      refreshToken: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "rt1",
+          userId: "u1",
+          revokedAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+          user: {
+            id: "u1",
+            email: null,
+            role: "partner",
+            phoneVerifiedAt: null,
+            profile: null,
+          },
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    } as any;
+
+    await expect(makeService(prisma).refresh("raw-token")).rejects.toThrow(
+      "본인인증이 완료되지 않은 계정입니다",
+    );
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "u1", revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+  });
+});
+
 describe("AuthService.deleteAccount", () => {
   it("deletes without a password (social accounts have none)", async () => {
     const tx = {

@@ -1,6 +1,6 @@
 # mingles 출시 체크리스트
 
-최종 갱신: 2026-08-11
+최종 갱신: 2026-08-12
 배포 전략: EAS preview → Android 내부 테스트/iOS TestFlight → 실기기 승인 → production 빌드 → 스토어 심사.
 
 상세 명령, 장애 대응, 데이터·권한 신고 기준은 [RELEASE-RUNBOOK.md](./RELEASE-RUNBOOK.md)를 따른다.
@@ -22,9 +22,9 @@
 - [ ] 카카오·네이버·구글 중 실제 제공할 로그인 콘솔/redirect URI와 backend·mobile Client ID 일치 확인.
 - [ ] 실 본인확인 사업자 연동. `IDENTITY_DEV_BYPASS`는 production에서 사용할 수 없다.
       공급자는 **NICE 하나**다(2026-08-12 PortOne 경로 삭제 — 키도 계약도 없어 실효가 0이었다).
-      계약 후 `NICE_CLIENT_ID` / `NICE_CLIENT_SECRET` / `NICE_PRODUCT_ID` / `NICE_RETURN_URL`
-      (+ 요청 서명용 `IDENTITY_STATE_SECRET`). ⚠️ 코드는 `auth/identity/nice.provider.ts`에
-      자리만 있고 **미구현** — 계약 규격(암호화 토큰·복호화 필드)을 받은 뒤 그 파일만 채우면 된다.
+      계약 후 `NICE_CLIENT_ID` / `NICE_CLIENT_SECRET` / `NICE_PRODUCT_ID` / `NICE_RETURN_URL`.
+      ⚠️ **미구현** — 계약 규격을 받은 뒤 provider 파일 생성과 AuthModule·IdentityService·콜백
+      라우트 연결이 모두 필요하다. 동작하지 않는 placeholder는 런타임에서 제거했다.
       실 키 없이 추측으로 쓰지 않았다. 동작하는 것처럼 보이는 본인인증이 제일 위험하다.
 - [ ] preview 빌드를 최소 Android 1대/iPhone 1대에 설치해 가입→본인확인→매칭→3개 라운드→상호선택→채팅→신고/차단→탈퇴를 검증.
 - [ ] LiveKit 카메라·마이크, 블루투스 장치 전환, 백그라운드/복귀, 권한 거부·재허용을 실기기에서 검증.
@@ -38,18 +38,24 @@
 - 프로젝트 `mingles` / 서비스 `mingles-api` / 도메인 `api.mingles.cloud`.
   (볼륨은 `mingleai-volume`로 남아 있다 — Railway가 볼륨 rename을 지원하지 않는다. 바꾸려면
   삭제·재생성뿐이고 그건 업로드 데이터 삭제라 미뤘다. 콘솔 내부 이름이라 사용자 노출은 없다.)
-- ⚠️ **운영은 2026-08-10 배포에서 멈춰 있다.** 그 이후 모든 배포가 부팅 단계에서 거절된다:
+- ⚠️ **운영은 2026-08-10 배포에서 멈춰 있다.** 기존 배포는 부팅 단계에서 거절됐다:
 
       Error: NICE identity verification must be fully configured in production
 
-  본인인증 키가 하나도 없기 때문이고, 이는 **의도된 방어**다(성인 확인 없는 소개팅 운영 금지).
-  따라서 그 이후의 코드 변경 — 프로필 노출 차단, 성별 위조 차단, 첨부 URL 호스트 검증,
-  소켓 토큰 갱신 — 은 **운영에 아직 반영되지 않았다**.
+  최신 코드는 미구현 NICE 키를 가짜 필수값으로 요구하지 않고 서버를 부팅시키되,
+  `/auth/identity/*`와 production 신규·미인증 소셜 로그인을 503으로 닫는다. 따라서 인증 완료 기존
+  사용자와 관리자용 API 복구 배포는 가능하지만 신규 가입은 NICE 구현 전까지 의도적으로 진행되지
+  않는다. 이 임시 차단은 미인증 계정의 기존 access/refresh token도 거절하므로 앱 내 탈퇴·상태 조회도
+  사용할 수 없다. NICE 연동 때는 미인증 사용자가 identity/status/delete에만 접근할 수 있는 짧은 수명의
+  온보딩 전용 세션을 별도로 구현하고, 일반 REST·소켓의 차단은 유지해야 한다. 그 전에는 미완료 계정이
+  생성되지 않도록 신규 소셜 로그인을 계속 닫는다. 프로필 노출 차단, 성별 위조 차단, 첨부 URL 호스트 검증,
+  소켓 토큰 갱신은 **운영에 아직 반영되지 않았다**.
 - Railway CLI로 재확인한 결과 Postgres의 **11개 migration은 모두 적용 완료**이고,
   `PORTONE_*`/`NICE_*` 환경 변수는 등록되어 있지 않다. DB 문제가 아니라 본인인증 운영 키 부재가
-  502의 직접 원인이다. 가짜 키나 production 우회 플래그로 부팅하지 않는다.
+  기존 502의 직접 원인이었다. 가짜 키나 production 우회 플래그는 사용하지 않는다.
 - 실패 배포가 쌓이지 않게 **GitHub 자동배포를 꺼 뒀다**(Settings › Source › Auto deploy).
-  본인인증 키를 넣은 뒤 다시 켜고 재배포하면 밀린 변경이 한 번에 올라간다.
+  검증된 최신 커밋으로 canary 재배포한 뒤 다시 켠다. NICE 구현 전에는 API 복구와 가입 가능 상태를
+  같은 의미로 취급하지 않는다.
 
 ## 알려진 출시 제약
 

@@ -1,5 +1,8 @@
 # Android 릴리스 준비 QA 결과 — 2026-08-10
 
+> 과거 시점의 QA 기록이다. 2026-08-12 PortOne 경로는 제거됐으며 현행 본인확인 공급자는 NICE
+> 하나다. 현재 출시 게이트는 `docs/LAUNCH.md`를 따른다.
+
 ## 판정
 
 - **Android 코드·빌드·로컬 통합 환경:** 조건부 GO
@@ -51,8 +54,8 @@
 ## production 배포 전 필수 외부 게이트
 
 1. EAS production 환경에 공개 HTTPS API URL, 최소 1개 소셜 로그인 provider, Android 원격 서명 자격증명을 주입한다.
-2. backend production 환경에 32자 이상 JWT secret, HTTPS public URL/CORS, PortOne store/channel/API/state secret을 주입하고 production 기동 검사를 통과한다.
-3. PortOne 운영 또는 sandbox 채널에서 실제 단말 본인 인증 성공·취소·중복 CI·미성년 차단을 1회씩 확인한다.
+2. NICE 계약 규격에 맞는 provider·콜백 구현과 실키를 배포하고 production 기동 검사를 통과한다.
+3. NICE 운영 또는 sandbox에서 실제 단말 본인 인증 성공·취소·중복 CI·미성년 차단을 1회씩 확인한다.
 4. production LiveKit의 `wss://` signal과 TURN/UDP 경로를 통신사망 및 Wi-Fi 실기기에서 canary한다.
 5. FCM 자격증명을 연결하고 잠금 화면/백그라운드/알림 탭 deep-link를 실제 Android 기기에서 확인한다.
 6. 개인정보처리방침·이용약관·사업자 정보의 법무 승인과 Play Console 데이터 보안 양식을 완료한다.

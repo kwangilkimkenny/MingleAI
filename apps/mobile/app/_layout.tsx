@@ -6,7 +6,7 @@ import { useFonts } from "expo-font";
 import { StyleSheet, View } from "react-native";
 import "../src/lib/client";
 import { LoginBackdrop } from "../src/components/LoginBackdrop";
-import { colors, dark } from "../src/lib/theme";
+import { dark } from "../src/lib/theme";
 
 export { ErrorBoundary } from "expo-router";
 

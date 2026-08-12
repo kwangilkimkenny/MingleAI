@@ -50,17 +50,6 @@ async function resolveCoords(L: any): Promise<Coords | null> {
   }
 }
 
-export async function getLocationPermission(): Promise<LocationPermission> {
-  const L = expoLocation();
-  if (!L) return "undetermined";
-  try {
-    const { status } = await L.getForegroundPermissionsAsync();
-    return normalize(status);
-  } catch {
-    return "undetermined";
-  }
-}
-
 /** Prompt for foreground location, then return the current position when granted. */
 export async function requestLocation(): Promise<{ status: LocationPermission; coords?: Coords }> {
   const L = expoLocation();

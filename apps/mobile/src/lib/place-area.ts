@@ -37,11 +37,6 @@ export async function savePlaceArea(area: PlaceArea, scope: AreaScope = "places"
   await (await storage()).setItem(KEYS[scope], JSON.stringify(area));
 }
 
-export async function clearPlaceArea(scope: AreaScope = "places"): Promise<void> {
-  cache.delete(scope);
-  await (await storage()).removeItem(KEYS[scope]);
-}
-
 /** 저장 문자열 → 위치. 형식이 깨졌으면 null(다음 저장 때 덮어쓴다). */
 export function parseArea(raw: string): PlaceArea | null {
   try {

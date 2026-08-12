@@ -27,7 +27,7 @@ function timeoutMs(config: ConfigService): number {
  * `LLM_API_URL`이 있으면 OpenAI 호환(기존 경로 유지), 둘 다 없으면 null → 호출부가
  * 규칙 기반/스텁으로 내려간다. `LLM_PROVIDER`로 명시하면 그 값이 이긴다.
  */
-export function selectChatClient(config: ConfigService): ChatClient | null {
+function selectChatClient(config: ConfigService): ChatClient | null {
   const anthropicKey = (config.get<string>("ANTHROPIC_API_KEY") ?? "").trim();
   const openAiUrl = config.get<string>("LLM_API_URL")?.trim() || "";
   const explicit = config.get<string>("LLM_PROVIDER")?.trim().toLowerCase() || "";

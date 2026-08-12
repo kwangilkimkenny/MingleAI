@@ -1,92 +1,73 @@
-# 실기기 네이티브 E2E 런북 (Phase 0–6d + 두들 디자인 통합판)
+# 현행 실기기 네이티브 E2E 런북
 
-**사람이 실행해야 하는 이유:** iOS 시뮬레이터(풀 Xcode)/Android 에뮬레이터가 에이전트 환경에 없다. 헤드리스로 이미 검증된 것: 백엔드 jest 282, 라이브 풀퍼널 E2E 57/57, 어몽어스 4-봇 풀게임, iOS/Android 번들 스모크(3127/3559 modules), 웹 export. 이 문서는 기계가 못 하는 부분 — 실기기 터치·키보드·푸시·두들 렌더 품질 — 만 다룬다. (구판: `2026-07-08-phase5c-native-e2e-runbook.md` — 모더레이션 상세 케이스는 그 문서 §4 재사용.)
+최종 갱신: 2026-08-12
+범위: 로테이션 블라인드 소개팅 단일 루프. 삭제된 파티·AI 찾기·프로포즈 흐름은 검증 대상이 아니다.
 
-## 0. 준비물
+## 0. 완료 조건
 
-- macOS + 풀 Xcode(시뮬레이터) 또는 Android Studio 에뮬레이터/USB 실기기. 푸시 테스트는 **물리 기기 필수**(시뮬레이터는 Expo push token 미발급).
-- 브랜치 `megahuni`, 저장소 루트에서 `pnpm install`.
-- GOTCHA: `pnpm install` 후 backend 부팅이 bcrypt MODULE_NOT_FOUND로 죽으면:
-  `cd node_modules/bcrypt && ../.bin/node-pre-gyp install --fallback-to-build`
+- Android 실기기 1대와 iPhone 실기기 1대에서 같은 production 후보 빌드를 설치한다.
+- 계정 A/B가 가입부터 탈퇴까지 전 과정을 완료한다.
+- NICE 연동 전에는 dev build + `IDENTITY_DEV_BYPASS=true`로 기능 회귀만 수행한다. 이 결과를 운영
+  본인확인 승인으로 간주하지 않는다.
+- 운영 API·Postgres·Redis·LiveKit을 사용한 canary 결과에는 빌드 번호, Git SHA, 기기/OS, 승인자를 남긴다.
 
-## 1. 백엔드 + DB 기동
-
-```bash
-docker compose up -d                                   # Postgres :5433 + Redis
-pnpm --filter @mingle/shared build                     # 백엔드 runtime require 의존
-pnpm --filter @mingle/backend prisma:migrate           # DB 신규일 때 (사용자 직접 실행 — AI 분류기 차단 항목)
-pnpm --filter @mingle/backend start:dev                # :3000
-```
-
-`apps/backend/.env` 필수: `DATABASE_URL=postgresql://mingle:mingle_dev@localhost:5433/mingle`, `JWT_SECRET`. 선택: `SOCKET_CORS_ORIGINS`(프로드), `RATE_LIMIT_TTL_MS`/`RATE_LIMIT_MAX`, `EXPO_ACCESS_TOKEN`.
-
-## 2. 앱 실행
+## 1. 로컬 준비
 
 ```bash
-pnpm dev:mobile        # expo start → i (iOS sim) / a (Android)
+docker compose up -d
+pnpm --filter @mingle/shared build
+pnpm --filter @mingle/client-core build
+pnpm --filter @mingle/backend prisma:migrate
+DEV_AUTH_ENABLED=true IDENTITY_DEV_BYPASS=true pnpm --filter @mingle/backend start:dev
+pnpm dev:mobile
 ```
 
-`apps/mobile/.env`의 `EXPO_PUBLIC_API_URL`: 시뮬레이터 `http://localhost:3000`, Android 에뮬레이터 `http://10.0.2.2:3000`, 물리 기기 = 맥의 LAN IP.
+`apps/mobile/.env`의 `EXPO_PUBLIC_API_URL`은 iOS simulator `http://localhost:3000`, Android emulator
+`http://10.0.2.2:3000`, 실기기는 개발 머신의 LAN IP를 사용한다. OAuth·카메라·마이크·푸시는 Expo
+Go가 아니라 EAS development/preview 빌드에서 확인한다.
 
-## 3. EAS projectId (프로드 푸시 빌드 전 1회, 사용자 Expo 계정 필요)
+## 2. 계정·온보딩
 
-```bash
-cd .claude/worktrees/mobile-pivot-plan/apps/mobile   # ⚠️ megahuni worktree 기준 (main의 apps/mobile은 v1 빈 껍데기)
-npx eas-cli@latest login    # 패키지명은 eas-cli (npx eas는 실행 파일 없음 → 실패)
-npx eas-cli@latest init     # app.json extra.eas.projectId 자동 기입
-```
+1. 카카오·네이버·구글 중 노출된 버튼만 동작하는지 확인한다. 취소, 만료된 code, 공급자 장애가 각각
+   복구 가능한 사용자 메시지로 끝나며 중복 계정을 만들지 않아야 한다.
+2. dev build에서는 dev-login → 개발용 본인확인 → 필수 동의 → 프로필 순서를 완료한다.
+3. 동일 전화번호의 두 번째 계정은 409, 만 19세 미만은 403이어야 한다.
+4. 인증된 생년월일·성별이 프로필의 나이·성별 권위값으로 반영되고 앱 입력으로 변경되지 않아야 한다.
+5. production 후보에서는 dev-login과 개발용 본인확인 폼이 노출되거나 호출되지 않아야 한다.
 
-기입 후 `app.json` 변경 커밋. dev/Expo-Go는 projectId 없이도 동작 — 프로드(EAS build) 푸시에만 필수.
+## 3. 로테이션 소개팅
 
-## 4. 풀퍼널 시나리오 (계정 A/B 2개, 파티는 among-bots로 충원)
+1. 마이크 거부 후 안내·설정 이동·재시도·홈 복귀가 모두 가능해야 한다.
+2. 계정 A/B와 QA 참가자로 대기열을 채우고, 중복 등록 없이 동일 세션에 배정되는지 확인한다.
+3. 프리플라이트 → 음성 변조 → 블라인드 대화 → 얼굴 공개 → 선택 → 결과의 순서·타이머·재접속을 확인한다.
+4. FACE 단계에서만 카메라 권한을 요청하고, 거부해도 세션이 중단되지 않아야 한다.
+5. 통신사망/Wi-Fi 각각에서 영상·변조 음성, 블루투스 전환, 전화 인터럽트, 백그라운드·복귀를 확인한다.
+6. 원음 fail-open이 없어야 한다. 음성 프로세서 설치 실패 시 마이크가 닫히고 사용자에게 상태가 보여야 한다.
+7. 한 사용자의 강제 종료·네트워크 단절·재접속이 상대 세션과 최종 결과를 손상하지 않아야 한다.
 
-| # | 구간 | 확인 |
-|---|---|---|
-| 1 | 가입 | **만 19세 체크 전 가입하기 비활성** 확인 → 체크 → 가입. 키보드 열림 시 입력칸·버튼 가림 없음(iOS 소형 기기 중점) |
-| 2 | 온보딩 | 프로필 작성(만 19 미만 나이 400 확인), 사진 업로드(expo-image-picker 권한 문구 한국어) |
-| 3 | 매칭 | 홈 `매칭 시작` → 큐 → B(또는 유사 선호 계정)로 파티 결성 |
-| 4 | 파티 2D | 상대 아바타 실시간 이동, 채팅 송수신 확인 (이동 조작 검증은 §7) |
-| 5 | 밸런스 게임 | 시작→투표(공개 전 비노출)→공개→5라운드→결과→다시하기 |
-| 6 | AI를 찾아라(어몽 변형, 2026-07-20~) | `node tools/among-bots.mjs 3 --start`로 봇 충원(정원 도달 시 자동 시작) → 인간 전원 crew, AI 페르소나 2명이 임포스터로 잠입(역할 공개 없음) — 미션 미니게임 4종 터치, AI 이동/채팅 관찰, 신고·긴급회의·정기(자동) 투표로 AI 추방·승리. 알려진 갭: 추방 결과 화면 미표시, 긴급회의 소진 시 오류 문구 미흡(백로그) |
-| 7 | 프로포즈→매칭 | 파티 종료 후 A→B 프로포즈, B 수락 → 매칭 → 1:1 채팅(타이핑·읽음) |
-| 8 | 푸시(물리 기기) | 설정 푸시 토글 on → B가 DM 전송 → A 백그라운드 푸시 수신 → 탭 시 해당 채팅방 딥링크 |
-| 9 | 데이트 플랜 | 채팅 헤더 진입 → 생성→코스 선택(작성자)→확정(상대)→취소 흐름 |
-| 10 | 모더레이션 | ⋯ 메뉴(채팅/파티/프로포즈) 신고+차단, 차단 후 상호 차단 동작 — 상세는 구판 런북 §4 |
-| 11 | rate limit | 로그인 11회 연속 → 429 확인, `/health`는 계속 200 |
+## 4. 매칭 이후
 
-## 5. 두들 디자인 실기기 체크리스트 (최종 리뷰 지정 항목)
+1. 한쪽 선택은 상대에게 공개되지 않고, 상호 선택일 때만 Match·1:1 채팅방이 한 번 생성되어야 한다.
+2. 채팅 송수신·읽음·재접속·긴 메시지·첨부·차단 후 전송 거절을 확인한다.
+3. 데이트 플랜은 제안자 선택 → 상대 확인 → 일정 확정 순서를 지키고, 비멤버 접근을 막아야 한다.
+4. 장소 화면의 지도·전화·외부 예약 링크를 확인하고 위장 호스트 URL이 열리지 않아야 한다.
+5. 신고·차단 즉시 상대 노출과 메시지가 차단되고, 관리자 처리·정지·복구가 실제 응답과 일치해야 한다.
 
-1. **WobbleBox 첫 프레임 플래시** — 각 화면 콜드 마운트/리스트 빠른 스크롤 시 보더 없는 흰 프레임 깜빡임 체감 여부.
-2. **Android 카드 그림자** — 홈/프로포즈/데이트플랜 카드 나란히: 전부 선명한 잉크 오프셋(블러 회색 그림자 있으면 버그).
-3. **플로팅 탭바** — 노치/비노치 기기 모두 마지막 리스트 행이 바에 안 가림, 탭 터치 정확.
-4. **인증 키보드** — login/register 키보드 열림 시 하단 링크까지 스크롤 도달; onboarding 하단 입력칸(선호 텍스트) 키보드에 갇히는지(알려진 미보완 — 갇히면 백로그 승격).
-5. **DashedLine** — 채팅/알림/프로포즈/설정 점선 구분선이 실기기에서 실제 렌더되는지.
-6. **소형 화면 히어로** — SE급에서 DoodleHero(워드마크+얼굴 2개) 과밀 여부.
+## 5. 계정·권한·알림
 
-## 6. 문제 발생 시
+1. 로그아웃 후 access/refresh token을 재사용할 수 없어야 한다.
+2. 탈퇴 확인 후 개인정보·세션이 제거되고 같은 토큰으로 보호 API에 접근할 수 없어야 한다.
+3. 푸시 opt-in/out, 잠금화면 수신, 알림 탭 딥링크, 앱 종료 상태의 cold-start 경로를 확인한다.
+4. 카메라·마이크·알림·위치의 거부/재허용과 OS 설정 복귀가 무한 루프 없이 동작해야 한다.
 
-- 백엔드 부팅 크래시: `.env` JWT_SECRET 누락 / bcrypt 바인딩(§0) / `prisma generate` 미실행.
-- Metro 해석 실패: `.npmrc node-linker=hoisted` 삭제됐는지 확인.
-- 결과는 이슈 단위로 `docs/qa/`에 기록 후 다음 세션에 전달.
+## 6. 기기별 UI·접근성
 
-## 7. 가로 게임 월드 (2026-07-16 추가, 2026-07-20 비주얼 강화 항목 보강)
+- Android 소형/대형 화면과 iPhone SE급/노치 기기에서 텍스트 잘림, 키보드 가림, safe-area 침범,
+  탭바 겹침, 가로/세로 회전 이상이 없어야 한다.
+- 글자 크기 확대, 스크린리더 라벨/순서, 버튼 44pt 터치 영역, 오류 상태의 색상 외 표현을 확인한다.
+- 로그인·본인확인·홈·대기열·세션·결과·채팅·장소·설정·신고·차단·탈퇴 전 화면을 캡처한다.
 
-- [ ] 파티 입장 시 가로 전환, 나가면 세로 복귀 (iOS/Android 각각)
-- [ ] 노치 쪽 safe inset — 조이스틱/액션패드/상단바 가림 없음 (기기 양방향 회전)
-- [ ] 조이스틱: 데드존, 아날로그 속도(살짝/끝까지), 놓으면 정지, 전화 인터럽트 시 정지
-- [ ] 가구 충돌: 테이블/바에 막히고 벽 슬라이딩, 스폰이 댄스플로어 안
-- [ ] 로비: 유저 옆 → "프로필", DJ 부스 앞 → "밸런스 게임", 그 외 dim
-- [ ] 어몽: 태스크 마커 station 위치, 미션/신고/긴급/킬(쿨다운 링) 버튼, 유령 이동
-- [ ] 채팅/멤버시트/밸런스/미니게임 = 중앙 카드, 가로 키보드에서 입력 가능
-- [ ] iPad: 파티 가로 고정 + 그 외 세로 고정 동작(requireFullScreen) — 멀티태스킹 화면분할 시도 포함
-- [ ] 매칭 시작 탭 → 매칭 대기 화면부터 가로 전환(파티까지 유지, 나가기 시 세로 복귀)
-- [ ] 게임 월드 프레임 없이 화면을 꽉 채움(테두리 상자 아님)
-- [ ] 캐릭터가 귀여운 치비(큰 머리·볼터치), 유저마다 헤어·상의·표정 다름
-- [ ] 8인 밀집·유령·시체에서 프레임 드랍/클리핑 없음(저사양 안드로이드; 굵은 머리 아웃라인 native overflow ~3px 잔여 클립 확인)
+## 7. 출시 증빙
 
-## 8. AI를 찾아라 (2026-07-20 추가)
-
-- [ ] AI를 찾아라: 시작 시 인원+2 캐릭터 등장(가짜 이름), AI가 돌아다니고 채팅함(LLM 켠 환경)
-- [ ] 정기 투표 카운트다운 → 자동 회의 소집, 회의 중 채팅 열림
-- [ ] AI 추방 2회 → 크루 승리, 결과 화면에 AI 배지 2개
-- [ ] 인간에게 임포스터 리빌이 절대 나오지 않음
+각 실패는 재현 단계, 기대/실제 결과, 기기·OS, 빌드 번호, Git SHA, 로그/스크린샷을 남긴다. P0/P1이
+0개이고 P2가 명시적으로 승인됐을 때만 `docs/LAUNCH.md`의 실기기 항목을 완료 처리한다.

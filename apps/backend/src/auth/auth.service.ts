@@ -10,6 +10,7 @@ import { unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { PrismaService } from "../prisma/prisma.service";
 import { AccountAccessService } from "./account-access.service";
+import { isPrivilegedRole } from "./role-policy";
 
 const ACCESS_TOKEN_SECONDS = 60 * 60;
 const DEFAULT_REFRESH_DAYS = 30;
@@ -86,7 +87,11 @@ export class AuthService {
     const tokenHash = this.hashToken(rawToken);
     const existing = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
-      include: { user: { include: { profile: { select: { status: true } } } } },
+      include: {
+        user: {
+          include: { profile: { select: { status: true } } },
+        },
+      },
     });
     if (!existing) throw new UnauthorizedException("유효하지 않은 세션입니다");
 
@@ -107,6 +112,14 @@ export class AuthService {
     if (existing.user.profile && existing.user.profile.status !== "active") {
       await this.revokeAll(existing.userId);
       throw new UnauthorizedException("사용할 수 없는 계정입니다");
+    }
+    if (
+      process.env.NODE_ENV === "production" &&
+      !isPrivilegedRole(existing.user.role) &&
+      !existing.user.phoneVerifiedAt
+    ) {
+      await this.revokeAll(existing.userId);
+      throw new UnauthorizedException("본인인증이 완료되지 않은 계정입니다");
     }
 
     const nextRaw = randomBytes(32).toString("base64url");

@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { isPrivilegedRole } from "./role-policy";
 
 export interface ActiveAccount {
   userId: string;
@@ -19,10 +20,21 @@ export class AccountAccessService {
         id: true,
         email: true,
         role: true,
+        phoneVerifiedAt: true,
         profile: { select: { status: true } },
       },
     });
     if (!user || (user.profile && user.profile.status !== "active")) return null;
+    // Temporary production circuit breaker while NICE is not implemented. This also invalidates
+    // access/refresh tokens issued to unfinished accounts before this deployment. Admin sessions
+    // remain available for recovery and moderation.
+    if (
+      process.env.NODE_ENV === "production" &&
+      !isPrivilegedRole(user.role) &&
+      !user.phoneVerifiedAt
+    ) {
+      return null;
+    }
     return { userId: user.id, email: user.email ?? "", role: user.role };
   }
 

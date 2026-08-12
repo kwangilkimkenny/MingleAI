@@ -32,7 +32,7 @@ const NICK_NOUN = [
 ] as const;
 
 /** Static avatar image ids — the mobile app maps each to a bundled character image. */
-export const AVATAR_POOL = [
+const AVATAR_POOL = [
   "av-coral",
   "av-mint",
   "av-plum",

@@ -30,7 +30,7 @@ import { mergeNewest, newestFirst } from "../../../src/lib/chat-order";
 import { pickAndUploadPhoto } from "../../../src/lib/photo";
 import { PeerModerationMenu } from "../../../src/components/PeerModerationMenu";
 import { AppScreen } from "../../../src/components/AppScreen";
-import { colors, control, dark, doodle, space, type } from "../../../src/lib/theme";
+import { control, dark, doodle, space, type } from "../../../src/lib/theme";
 import { InlineNotice, StateView } from "../../../src/components/Foundation";
 import { CalendarDays, ImagePlus, Send, Sparkles, X } from "lucide-react-native";
 

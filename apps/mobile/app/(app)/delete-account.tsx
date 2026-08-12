@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { ApiError, deleteAccount } from "@mingle/client-core";
 import { useAuthStore } from "../../src/lib/client";
-import { dark, space } from "../../src/lib/theme";
+import { space } from "../../src/lib/theme";
 import { DoodleButton } from "../../src/components/Doodle";
 import { AppScreen } from "../../src/components/AppScreen";
 import { InlineNotice, LabeledInput } from "../../src/components/Foundation";

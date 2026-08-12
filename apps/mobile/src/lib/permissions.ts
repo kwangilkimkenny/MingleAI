@@ -11,27 +11,6 @@ export async function getCameraMicStatus(): Promise<PermissionState> {
   return { camera: cam.granted, microphone: mic.granted };
 }
 
-/** Prompt for camera + microphone. Returns the resulting grant state. */
-export async function requestCameraMic(): Promise<PermissionState> {
-  // On web, expo-camera fires TWO separate getUserMedia prompts (video, then audio); a user who
-  // grants only the first is left permanently short of the gate. A single getUserMedia({video,audio})
-  // is one atomic prompt that grants both together.
-  if (Platform.OS === "web") {
-    try {
-      const media = (globalThis.navigator as Navigator | undefined)?.mediaDevices;
-      const stream = await media?.getUserMedia({ video: true, audio: true });
-      stream?.getTracks().forEach((t) => t.stop());
-      if (stream) return { camera: true, microphone: true };
-    } catch {
-      // fall through to the status query (denied/dismissed)
-    }
-    return getCameraMicStatus();
-  }
-  const cam = await Camera.requestCameraPermissionsAsync();
-  const mic = await Camera.requestMicrophonePermissionsAsync();
-  return { camera: cam.granted, microphone: mic.granted };
-}
-
 /**
  * 마이크만 요청한다. 세션 진입 게이트는 이것만 본다 — 카메라는 3단계(얼굴 공개)에서야 쓰는데
  * 진입부터 요구하면 첫 두 단계도 못 해보고 이탈한다(2026-08-11 QA).

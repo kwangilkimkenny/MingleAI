@@ -10,7 +10,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, componentTokens, dark, fonts } from "../lib/theme";
 
-export const TAB_BAR_ROW_HEIGHT = componentTokens.tabBar.rowHeight;
+const TAB_BAR_ROW_HEIGHT = componentTokens.tabBar.rowHeight;
 
 /** Bottom clearance tab screens must reserve so content scrolls clear of the bottom bar. */
 export function useTabBarClearance(): number {

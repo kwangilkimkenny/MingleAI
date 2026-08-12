@@ -10,8 +10,7 @@ function ctxWith(user: unknown) {
 }
 
 describe("AdminGuard", () => {
-  const reflector = { getAllAndOverride: jest.fn().mockReturnValue(undefined) } as never;
-  const guard = new AdminGuard(reflector);
+  const guard = new AdminGuard();
 
   it("allows admins", () => {
     expect(guard.canActivate(ctxWith({ role: "admin" }))).toBe(true);

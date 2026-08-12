@@ -11,7 +11,7 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from "react-native";
-import { AlertCircle, ChevronLeft, X } from "lucide-react-native";
+import { AlertCircle, ChevronLeft } from "lucide-react-native";
 import { router } from "expo-router";
 import { colors, control, dark, doodle, layout, shadow, space, type } from "../lib/theme";
 import { serifFont } from "../lib/serif";
@@ -123,27 +123,6 @@ export function LabeledInput({
         <Text style={[styles.fieldHint, isDark && { color: dark.textMuted }]}>{hint}</Text>
       ) : null}
     </View>
-  );
-}
-
-export function IconButton({
-  label,
-  onPress,
-  icon,
-}: {
-  label: string;
-  onPress: () => void;
-  icon?: ReactNode;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-    >
-      {icon ?? <X color={colors.ink} size={20} />}
-    </Pressable>
   );
 }
 
@@ -352,13 +331,6 @@ const styles = StyleSheet.create({
   inputTrailing: { paddingRight: space.x1 },
   fieldHint: { ...type.caption, color: colors.grayDark },
   fieldError: { ...type.caption, color: colors.danger },
-  iconButton: {
-    width: control.minTouch,
-    height: control.minTouch,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 22,
-  },
   pressed: { opacity: 0.65 },
   notice: {
     minHeight: 48,

@@ -70,7 +70,7 @@ export function createInitialState(
   };
 }
 
-export function roundCount(state: SpeedDateState): number {
+function roundCount(state: SpeedDateState): number {
   return state.schedule.length;
 }
 
@@ -146,7 +146,7 @@ function partById(state: SpeedDateState, id: string): SpeedDateParticipant | und
 }
 
 /** The viewer's partner id in a given round, or null if unpaired that round. */
-export function partnerIdInRound(
+function partnerIdInRound(
   state: SpeedDateState,
   round: number,
   viewerId: string,

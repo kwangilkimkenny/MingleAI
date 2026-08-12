@@ -13,12 +13,14 @@ import {
 @Injectable()
 export class SocialAuthService {
   private readonly providers: Record<string, SocialProvider>;
+  private readonly production: boolean;
 
   constructor(
     config: ConfigService,
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
   ) {
+    this.production = config.get("NODE_ENV") === "production";
     this.providers = {
       kakao: new KakaoProvider(config.get("KAKAO_CLIENT_ID"), config.get("KAKAO_CLIENT_SECRET")),
       naver: new NaverProvider(config.get("NAVER_CLIENT_ID"), config.get("NAVER_CLIENT_SECRET")),
@@ -43,6 +45,11 @@ export class SocialAuthService {
       throw new BadRequestException("소셜 계정 정보를 가져오지 못했습니다");
 
     const user = await this.findOrCreate(providerName, profile);
+    // NICE is not wired yet. Production may stay online for health/admin/existing users, but it
+    // must not mint a usable session for a new or unverified consumer account in the meantime.
+    if (this.production && !user.phoneVerifiedAt) {
+      throw new ServiceUnavailableException("신규 가입을 위한 본인인증을 준비하고 있습니다");
+    }
     return this.auth.issueSession(user.id, user.email, user.role);
   }
 
@@ -51,6 +58,10 @@ export class SocialAuthService {
       where: { authProvider_providerId: { authProvider: provider, providerId: profile.providerId } },
     });
     if (existing) return existing;
+
+    if (this.production) {
+      throw new ServiceUnavailableException("신규 가입을 위한 본인인증을 준비하고 있습니다");
+    }
 
     // email is optional and unique — only attach it if free, so two providers sharing an email
     // don't collide (account identity is (provider, providerId), not email).

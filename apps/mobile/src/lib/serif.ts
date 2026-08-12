@@ -1,10 +1,9 @@
 import { Platform } from "react-native";
 
 /**
- * Myeongjo serif family for the masterpiece hero headline (the ONE serif in the app). System
- * fallback for now — iOS/macOS AppleMyungjo, Android Noto Serif CJK. Bundle a Cafe24 serif into
- * `assets/fonts/cafe24` + register it in `app/_layout.tsx` `useFonts`, then swap this one value to
- * that family name (e.g. "Cafe24Classictype").
+ * Myeongjo serif family for dark-editorial headings (the ONE serif in the app). System
+ * fallback for now — iOS/macOS AppleMyungjo, Android Noto Serif CJK. A bundled serif must be added
+ * only with its license, registered in `app/_layout.tsx`, and then referenced through this value.
  *
  * Kept in its own module (not `theme.ts`) because it imports `Platform` from react-native, whose
  * Flow-typed source the pure-lib Vitest cannot parse — no pure-lib test imports this file.

@@ -11,13 +11,12 @@ import Animated, {
   useSharedValue,
   withDelay,
   withSpring,
-  withTiming,
 } from "react-native-reanimated";
 
 const STAGGER_MS = 70;
 const RISE_PX = 8;
 
-export function Enter({
+function Enter({
   children,
   index = 0,
   style,
@@ -54,29 +53,4 @@ export function Enter({
 /** 리스트 renderItem용 래퍼 — FlatList 항목을 순차 등장시킨다. */
 export function EnterRow({ children, index }: { children: ReactNode; index: number }) {
   return <Enter index={index}>{children}</Enter>;
-}
-
-/** 히어로/타이틀용 — 살짝 느린 단독 등장 (stagger 없음). */
-export function EnterHero({
-  children,
-  style,
-}: {
-  children: ReactNode;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const reduced = useReducedMotion();
-  const progress = useSharedValue(reduced ? 1 : 0);
-
-  useEffect(() => {
-    if (reduced) return;
-    progress.value = withTiming(1, { duration: 320 });
-  }, [progress, reduced]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ scale: 0.97 + 0.03 * progress.value }],
-  }));
-
-  if (reduced) return <Animated.View style={style}>{children}</Animated.View>;
-  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }

@@ -26,19 +26,6 @@ function once(): Promise<Coords | null> {
   });
 }
 
-export async function getLocationPermission(): Promise<LocationPermission> {
-  try {
-    const perms = (globalThis.navigator as unknown as { permissions?: { query?: (d: { name: string }) => Promise<{ state: string }> } })
-      .permissions;
-    const res = await perms?.query?.({ name: "geolocation" });
-    if (res?.state === "granted") return "granted";
-    if (res?.state === "denied") return "denied";
-    return "undetermined";
-  } catch {
-    return "undetermined";
-  }
-}
-
 export async function requestLocation(): Promise<{ status: LocationPermission; coords?: Coords }> {
   const coords = await once();
   return coords ? { status: "granted", coords } : { status: "denied" };

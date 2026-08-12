@@ -669,7 +669,9 @@ async function sectionRateLimit() {
     let got429 = null;
     for (let i = 0; i < 40; i++) {
       const r = await post("/auth/social", null, {
-        provider: "kakao",
+        // Unsupported provider exercises the controller throttle without sending 20 invalid
+        // authorization-code requests to a real OAuth provider.
+        provider: "unsupported",
         code: "x",
         redirectUri: "http://localhost/cb",
       });
@@ -677,6 +679,7 @@ async function sectionRateLimit() {
         got429 = i + 1;
         break;
       }
+      assertStatus(r, 400, "unsupported social provider");
     }
     if (!got429) throw new Error("never rate-limited after 40 attempts");
     return `429 arrived after ${got429} attempt(s)`;

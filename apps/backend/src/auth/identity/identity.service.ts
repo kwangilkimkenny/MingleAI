@@ -1,5 +1,4 @@
 import {
-  BadGatewayException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -8,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { IdentityStart, VerifiedIdentity } from "./identity-provider";
 
@@ -24,7 +23,7 @@ export interface DevIdentityPayload {
  * **공급자 서버에서 다시 읽은** 신원만 저장하고, CI로 1인 1계정을 강제하고, 나이·성별을
  * 프로필의 권위값으로 반영한다. 앱이 보낸 이름·생년월일은 절대 신뢰하지 않는다.
  *
- * 공급자별 프로토콜은 `identity-provider.ts` seam 뒤에 있다(NICE는 계약 대기 — nice.provider.ts).
+ * 공급자별 프로토콜은 `identity-provider.ts` 경계 뒤에 둔다. NICE 구현은 계약 후 추가한다.
  */
 @Injectable()
 export class IdentityService {
@@ -37,10 +36,10 @@ export class IdentityService {
     return this.config.get("IDENTITY_DEV_BYPASS") === "true";
   }
 
-  /** Begin verification. The signed request id binds the provider result to the authenticated user. */
+  /** Dev builds may begin the manual bypass; production stays closed until NICE is implemented. */
   async start(userId: string): Promise<IdentityStart> {
     if (this.devBypass()) return { mode: "dev" };
-    // NICE 경로는 계약 대기 중이다(nice.provider.ts). 그전까지 운영에선 시작 자체가 불가능하다 —
+    // NICE 경로는 계약 대기 중이다. 그전까지 운영에선 시작 자체가 불가능하다 —
     // 반쯤 동작하는 본인인증을 내보내는 것보다 명확히 막는 편이 안전하다.
     void userId;
     throw new ServiceUnavailableException("본인인증이 현재 구성되지 않았습니다");
@@ -120,43 +119,4 @@ export class IdentityService {
     return createHash("sha256").update(`${kind}:${phone}`).digest("hex");
   }
 
-  /** 인증 요청을 사용자에게 묶는 서명 키. 공급자와 무관하다(NICE 콜백도 같은 방식으로 검증한다). */
-  private stateSecret(): string | undefined {
-    return this.config.get<string>("IDENTITY_STATE_SECRET");
-  }
-
-  private createRequestId(userId: string): string {
-    const nonce = randomBytes(12).toString("hex");
-    const encodedUser = Buffer.from(userId, "utf8").toString("base64url");
-    const body = `${encodedUser}.${nonce}`;
-    return `mingles.${body}.${this.sign(body)}`;
-  }
-
-  private assertRequestOwner(requestId: string, userId: string): void {
-    const parts = requestId.split(".");
-    if (parts.length !== 4 || parts[0] !== "mingles") throw new BadRequestException("유효하지 않은 인증 요청입니다");
-    const body = `${parts[1]}.${parts[2]}`;
-    const expected = this.sign(body);
-    const actualBuffer = Buffer.from(parts[3], "utf8");
-    const expectedBuffer = Buffer.from(expected, "utf8");
-    let requestUser = "";
-    try {
-      requestUser = Buffer.from(parts[1], "base64url").toString("utf8");
-    } catch {
-      throw new BadRequestException("유효하지 않은 인증 요청입니다");
-    }
-    if (
-      actualBuffer.length !== expectedBuffer.length ||
-      !timingSafeEqual(actualBuffer, expectedBuffer) ||
-      requestUser !== userId
-    ) {
-      throw new BadRequestException("현재 계정에서 시작한 인증 요청이 아닙니다");
-    }
-  }
-
-  private sign(body: string): string {
-    const secret = this.stateSecret();
-    if (!secret) throw new ServiceUnavailableException("본인인증이 현재 구성되지 않았습니다");
-    return createHmac("sha256", secret).update(body).digest("base64url").slice(0, 24);
-  }
 }

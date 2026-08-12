@@ -15,7 +15,7 @@ export interface OpenAICompatChatConfig {
  * value is supported") 대신 `reasoning_effort`를 받는다 — 그래서 effort가 설정되면 temperature를
  * 빼고 effort를 싣는다. 예전 모델(gpt-4o 등)은 그대로 temperature를 쓴다.
  */
-export function buildChatBody(
+function buildChatBody(
   cfg: { model: string; reasoningEffort?: string },
   messages: Array<{ role: string; content: string }>,
   temperature: number,
