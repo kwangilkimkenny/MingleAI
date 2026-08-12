@@ -11,7 +11,15 @@ import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // 운영에선 verbose/debug를 끈다. 인터넷 봇이 하루 종일 `/.env`·`/.git/HEAD`·CVE 경로를
+    // 긁어대는데(2026-08-12 실측) 그 404까지 남기면 진짜 오류가 묻힌다. 404는 필터가 verbose로
+    // 내려보내므로 여기서 걸러진다 — 우리 클라의 잘못된 경로를 쫓을 땐 이 배열에 "verbose"를 넣는다.
+    logger:
+      process.env.NODE_ENV === "production"
+        ? ["error", "warn", "log"]
+        : ["error", "warn", "log", "debug", "verbose"],
+  });
   app.use(helmet({ contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false }));
   app.use((request: Request, response: Response, next: NextFunction) => {
     const supplied = request.header("x-request-id");

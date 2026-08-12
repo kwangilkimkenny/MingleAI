@@ -68,3 +68,53 @@ describe("AllExceptionsFilter Korean messages", () => {
     expect(res.message).toBe("일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.");
   });
 });
+
+/**
+ * 로그 레벨 분리 — 2026-08-12 운영 로그에서 봇 스캔(`/.env`, `/.git/HEAD`, `/@vite/env`,
+ * Jira·Exchange CVE 경로)이 전부 ERROR로 찍혀 진짜 5xx를 덮고 있었다.
+ */
+describe("AllExceptionsFilter 로그 레벨", () => {
+  function levelsFor(exception: unknown) {
+    const filter = new AllExceptionsFilter();
+    const logger = (filter as unknown as { logger: Record<string, jest.Mock> }).logger;
+    logger.error = jest.fn();
+    logger.warn = jest.fn();
+    logger.verbose = jest.fn();
+    const { host } = hostFor();
+    filter.catch(exception, host);
+    return logger;
+  }
+
+  it("5xx는 error + 스택 — 우리 잘못이다", () => {
+    const logger = levelsFor(new Error("boom"));
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][1]).toContain("boom"); // stack
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("404는 verbose — 대부분 스캐너다", () => {
+    const logger = levelsFor(new NotFoundException());
+    expect(logger.verbose).toHaveBeenCalledTimes(1);
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("404가 아닌 4xx는 warn, 스택은 남기지 않는다(정상 흐름의 일부다)", () => {
+    for (const ex of [
+      new BadRequestException(),
+      new ForbiddenException(),
+      new HttpException("Unauthorized", HttpStatus.UNAUTHORIZED),
+      new HttpException("Too Many Requests", HttpStatus.TOO_MANY_REQUESTS),
+    ]) {
+      const logger = levelsFor(ex);
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.warn.mock.calls[0][1]).toBeUndefined();
+      expect(logger.error).not.toHaveBeenCalled();
+    }
+  });
+
+  it("503(서비스 불가)은 error로 남는다 — 공급자 장애를 놓치면 안 된다", () => {
+    const logger = levelsFor(new ServiceUnavailableException());
+    expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+});

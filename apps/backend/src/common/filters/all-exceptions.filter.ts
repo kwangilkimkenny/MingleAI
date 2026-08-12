@@ -90,10 +90,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const { message, details } = localize(rawMessage, status);
 
-    this.logger.error(
-      `${request.method} ${request.url} ${status}`,
-      exception instanceof Error ? exception.stack : undefined,
-    );
+    this.log(request.method, request.url, status, response.getHeader("x-request-id"), exception);
 
     response.status(status).json({
       statusCode: status,
@@ -103,5 +100,37 @@ export class AllExceptionsFilter implements ExceptionFilter {
       path: request.url,
       requestId: response.getHeader("x-request-id"),
     });
+  }
+
+  /**
+   * 상태코드별로 로그 레벨을 가른다.
+   *
+   * 예전엔 전부 `error`(+스택)였다. 그 결과 운영 로그가 인터넷 봇 스캔으로 도배됐다 —
+   * `/.env`, `/.git/HEAD`, `/login.action`, `/@vite/env`, Jira·Exchange CVE 경로… 전부 404인데
+   * ERROR로 찍혀서 **진짜 5xx가 그 속에 묻혔다**(2026-08-12 운영 로그 실측). 알림을 ERROR에
+   * 걸면 100% 오탐이 된다.
+   *
+   * - 5xx: 우리 잘못이다 → error + 스택
+   * - 4xx(404 제외): 클라이언트 잘못이다 → warn, 스택 없음(정상 흐름의 일부다)
+   * - 404: 대부분 스캐너다 → verbose. 우리 클라의 오타 추적이 필요하면 로그 레벨을 낮춰서 본다.
+   */
+  private log(
+    method: string,
+    url: string,
+    status: number,
+    requestId: unknown,
+    exception: unknown,
+  ): void {
+    // requestId는 응답 본문에도 실린다 — 사용자가 신고한 오류를 로그에서 바로 집어내려면 짝이 맞아야 한다.
+    const line = `${method} ${url} ${status}${requestId ? ` [${String(requestId)}]` : ""}`;
+    if (status >= 500) {
+      this.logger.error(line, exception instanceof Error ? exception.stack : undefined);
+      return;
+    }
+    if (status === HttpStatus.NOT_FOUND) {
+      this.logger.verbose(line);
+      return;
+    }
+    this.logger.warn(line);
   }
 }
