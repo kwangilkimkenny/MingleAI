@@ -2,8 +2,6 @@
 
 import { type ReactNode, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/lib/store/auth";
 import styles from "./page.module.css";
 
 /**
@@ -149,14 +147,10 @@ function DownloadPreview() {
 }
 
 export default function Home() {
-  const router = useRouter();
-  const token = useAuthStore((s) => s.token);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // 로그인 상태면 프로필로. (v1의 /dashboard는 제거됐다 — 여기로 보내면 404다.)
-    if (token) router.replace("/profile");
-  }, [token, router]);
+  // 로그인 상태를 보고 어디론가 보내지 않는다. 웹에는 소비자 홈이 없고(2026-08-12 소비자 화면
+  // 삭제) 관리자는 /login으로 직접 들어온다 — 예전 `/profile` 리다이렉트는 이제 404였다.
 
   // 히어로 패럴랙스 + 두 번째 섹션의 캐릭터 분리/컬러 전환을 스크롤 진행도로 제어한다.
   useEffect(() => {
@@ -276,8 +270,6 @@ export default function Home() {
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
-
-  if (token) return null;
 
   return (
     <div className={styles.page} ref={rootRef}>
