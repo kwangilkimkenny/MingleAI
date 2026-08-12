@@ -27,10 +27,8 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
       NAVER_CLIENT_SECRET: z.string().min(1).optional(),
       GOOGLE_CLIENT_ID: z.string().min(1).optional(),
       GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
-      PORTONE_STORE_ID: z.string().min(1).optional(),
-      PORTONE_IDENTITY_CHANNEL_KEY: z.string().min(1).optional(),
-      PORTONE_API_SECRET: z.string().min(20).optional(),
-      PORTONE_IDENTITY_STATE_SECRET: z.string().min(32).optional(),
+      // 인증 요청을 사용자에게 묶는 서명 키(공급자 무관).
+      IDENTITY_STATE_SECRET: z.string().min(32).optional(),
       // NICE 직계약 경로(2026-08-10 결정). 코드는 nice.provider.ts에 자리만 있고 계약 대기 중이다.
       NICE_CLIENT_ID: z.string().min(1).optional(),
       NICE_CLIENT_SECRET: z.string().min(1).optional(),
@@ -75,22 +73,15 @@ export function validateEnvironment(raw: Record<string, unknown>): Record<string
   if (common.IDENTITY_DEV_BYPASS === "true")
     throw new Error("IDENTITY_DEV_BYPASS must not be true in production");
 
-  // 본인인증 공급자는 **하나만** 완비되면 된다 — PortOne이든 NICE든. 예전엔 PortOne 4개 키를
-  // 강제해서, NICE로 가기로 한 뒤에는 운영 부팅 자체가 막혔다(2026-08-11).
-  const hasPortOne =
-    Boolean(common.PORTONE_STORE_ID) &&
-    Boolean(common.PORTONE_IDENTITY_CHANNEL_KEY) &&
-    Boolean(common.PORTONE_API_SECRET) &&
-    Boolean(common.PORTONE_IDENTITY_STATE_SECRET);
+  // 본인인증(NICE)이 없으면 운영에서 부팅하지 않는다. 나이·성별·1인1계정의 유일한 근거라
+  // 이게 없으면 신고·차단·연령 제한이 전부 종이호랑이가 된다.
   const hasNice =
     Boolean(common.NICE_CLIENT_ID) &&
     Boolean(common.NICE_CLIENT_SECRET) &&
     Boolean(common.NICE_PRODUCT_ID) &&
     Boolean(common.NICE_RETURN_URL);
-  if (!hasPortOne && !hasNice) {
-    throw new Error(
-      "An identity verification provider must be fully configured in production (PortOne or NICE)",
-    );
+  if (!hasNice) {
+    throw new Error("NICE identity verification must be fully configured in production");
   }
 
   return common;

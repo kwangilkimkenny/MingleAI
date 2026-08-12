@@ -21,12 +21,11 @@
 - [ ] 운영 DB 백업 후 같은 커밋에서 `prisma migrate status`와 `prisma migrate deploy` 성공.
 - [ ] 카카오·네이버·구글 중 실제 제공할 로그인 콘솔/redirect URI와 backend·mobile Client ID 일치 확인.
 - [ ] 실 본인확인 사업자 연동. `IDENTITY_DEV_BYPASS`는 production에서 사용할 수 없다.
-      공급자는 **하나만** 완비하면 운영 부팅이 열린다(2026-08-11).
-      - **NICE 직계약**(선택한 경로): 계약 후 `NICE_CLIENT_ID` / `NICE_CLIENT_SECRET` /
-        `NICE_PRODUCT_ID` / `NICE_RETURN_URL`. ⚠️ 코드는 `auth/identity/nice.provider.ts`에
-        자리만 있고 **미구현** — 계약 규격(암호화 토큰·복호화 필드)을 받은 뒤 그 파일만 채우면 된다.
-        실 키 없이 추측으로 쓰지 않았다. 동작하는 것처럼 보이는 본인인증이 제일 위험하다.
-      - **PortOne V2**(대안): 구현·검증 완료. NICE 계약이 늦어지면 이쪽으로 먼저 열 수 있다.
+      공급자는 **NICE 하나**다(2026-08-12 PortOne 경로 삭제 — 키도 계약도 없어 실효가 0이었다).
+      계약 후 `NICE_CLIENT_ID` / `NICE_CLIENT_SECRET` / `NICE_PRODUCT_ID` / `NICE_RETURN_URL`
+      (+ 요청 서명용 `IDENTITY_STATE_SECRET`). ⚠️ 코드는 `auth/identity/nice.provider.ts`에
+      자리만 있고 **미구현** — 계약 규격(암호화 토큰·복호화 필드)을 받은 뒤 그 파일만 채우면 된다.
+      실 키 없이 추측으로 쓰지 않았다. 동작하는 것처럼 보이는 본인인증이 제일 위험하다.
 - [ ] preview 빌드를 최소 Android 1대/iPhone 1대에 설치해 가입→본인확인→매칭→3개 라운드→상호선택→채팅→신고/차단→탈퇴를 검증.
 - [ ] LiveKit 카메라·마이크, 블루투스 장치 전환, 백그라운드/복귀, 권한 거부·재허용을 실기기에서 검증.
 - [ ] 개인정보 처리방침·이용약관의 사업자명, 연락처, 위탁사, 국외 이전, 보유기간을 법무 검토 후 공개 URL로 배포.
@@ -41,7 +40,7 @@
   삭제·재생성뿐이고 그건 업로드 데이터 삭제라 미뤘다. 콘솔 내부 이름이라 사용자 노출은 없다.)
 - ⚠️ **운영은 2026-08-10 배포에서 멈춰 있다.** 그 이후 모든 배포가 부팅 단계에서 거절된다:
 
-      Error: An identity verification provider must be fully configured in production (PortOne or NICE)
+      Error: NICE identity verification must be fully configured in production
 
   본인인증 키가 하나도 없기 때문이고, 이는 **의도된 방어**다(성인 확인 없는 소개팅 운영 금지).
   따라서 그 이후의 코드 변경 — 프로필 노출 차단, 성별 위조 차단, 첨부 URL 호스트 검증,

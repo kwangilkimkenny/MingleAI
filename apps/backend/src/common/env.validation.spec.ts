@@ -7,10 +7,10 @@ const productionEnv = {
   PUBLIC_BASE_URL: "https://api.mingles.kr",
   SOCKET_CORS_ORIGINS: "https://app.mingles.kr,https://admin.mingles.kr",
   KAKAO_CLIENT_ID: "public-client-id",
-  PORTONE_STORE_ID: "store-test",
-  PORTONE_IDENTITY_CHANNEL_KEY: "channel-key-test",
-  PORTONE_API_SECRET: "portone-api-secret-at-least-twenty-characters",
-  PORTONE_IDENTITY_STATE_SECRET: "portone-state-secret-at-least-thirty-two-characters",
+  NICE_CLIENT_ID: "nice-client",
+  NICE_CLIENT_SECRET: "nice-secret",
+  NICE_PRODUCT_ID: "2101979031",
+  NICE_RETURN_URL: "https://api.mingles.kr/auth/identity/nice/callback",
 };
 
 describe("validateEnvironment", () => {
@@ -36,46 +36,12 @@ describe("validateEnvironment", () => {
     ["cleartext CORS", { SOCKET_CORS_ORIGINS: "http://app.mingles.kr" }],
     ["dev login", { DEV_AUTH_ENABLED: "true" }],
     ["identity bypass", { IDENTITY_DEV_BYPASS: "true" }],
-    ["missing PortOne store", { PORTONE_STORE_ID: undefined }],
-    ["missing PortOne channel", { PORTONE_IDENTITY_CHANNEL_KEY: undefined }],
-    ["missing PortOne API secret", { PORTONE_API_SECRET: undefined }],
-    ["missing PortOne state secret", { PORTONE_IDENTITY_STATE_SECRET: undefined }],
+    ["missing NICE client id", { NICE_CLIENT_ID: undefined }],
+    ["missing NICE client secret", { NICE_CLIENT_SECRET: undefined }],
+    ["missing NICE product id", { NICE_PRODUCT_ID: undefined }],
+    ["missing NICE return url", { NICE_RETURN_URL: undefined }],
   ])("rejects production configuration with %s", (_label, override) => {
     expect(() => validateEnvironment({ ...productionEnv, ...override })).toThrow();
-  });
-
-  // 2026-08-11: 공급자는 하나만 완비되면 된다(PortOne 또는 NICE). 예전엔 PortOne 4개를 강제해
-  // NICE로 갈아타는 순간 운영 부팅이 막혔다.
-  it("accepts NICE alone as the identity provider", () => {
-    const {
-      PORTONE_STORE_ID: _a,
-      PORTONE_IDENTITY_CHANNEL_KEY: _b,
-      PORTONE_API_SECRET: _c,
-      PORTONE_IDENTITY_STATE_SECRET: _d,
-      ...withoutPortOne
-    } = productionEnv;
-    expect(() =>
-      validateEnvironment({
-        ...withoutPortOne,
-        NICE_CLIENT_ID: "nice-client",
-        NICE_CLIENT_SECRET: "nice-secret",
-        NICE_PRODUCT_ID: "2101979031",
-        NICE_RETURN_URL: "https://api.mingles.kr/auth/identity/nice/callback",
-      }),
-    ).not.toThrow();
-  });
-
-  it("rejects a half-configured NICE setup (no provider is fully usable)", () => {
-    const {
-      PORTONE_STORE_ID: _a,
-      PORTONE_IDENTITY_CHANNEL_KEY: _b,
-      PORTONE_API_SECRET: _c,
-      PORTONE_IDENTITY_STATE_SECRET: _d,
-      ...withoutPortOne
-    } = productionEnv;
-    expect(() =>
-      validateEnvironment({ ...withoutPortOne, NICE_CLIENT_ID: "nice-client" }),
-    ).toThrow();
   });
 
   it("rejects a cleartext NICE return URL", () => {

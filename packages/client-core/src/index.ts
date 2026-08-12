@@ -22,7 +22,6 @@ export {
   submitConsents,
   startIdentityVerification,
   completeIdentityVerification,
-  completeProviderIdentityVerification,
   refreshSession,
   logoutSession,
   deleteAccount,

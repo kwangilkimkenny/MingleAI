@@ -16,14 +16,8 @@ export interface IdentityPayload {
   phone: string;
 }
 
-export type IdentityVerificationStart =
-  | { mode: "dev" }
-  | {
-      mode: "portone";
-      storeId: string;
-      channelKey: string;
-      identityVerificationId: string;
-    };
+/** 공급자는 NICE 하나다(2026-08-12 PortOne 경로 삭제). nice 갈래는 계약 후 구현된다. */
+export type IdentityVerificationStart = { mode: "dev" };
 
 /** Which social providers are usable (keys configured server-side) — used to show buttons. */
 export function getSocialProviders(): Promise<{ providers: string[] }> {
@@ -62,15 +56,6 @@ export function submitConsents(scopes: ConsentScope[]): Promise<void> {
 
 export function startIdentityVerification(): Promise<IdentityVerificationStart> {
   return apiFetch("/auth/identity/start", { method: "POST" });
-}
-
-export function completeProviderIdentityVerification(
-  identityVerificationId: string,
-): Promise<{ ok: true }> {
-  return apiFetch<{ ok: true }>("/auth/identity/complete-provider", {
-    method: "POST",
-    body: JSON.stringify({ identityVerificationId }),
-  });
 }
 
 export function completeIdentityVerification(payload: IdentityPayload): Promise<{ ok: true }> {

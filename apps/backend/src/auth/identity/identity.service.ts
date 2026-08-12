@@ -19,11 +19,8 @@ export interface DevIdentityPayload {
   phone: string;
 }
 
-/** @deprecated `IdentityStart`(identity-provider.ts)의 portone 갈래를 쓴다. 기존 호출부 호환용. */
-export type PortOneIdentityStart = Extract<IdentityStart, { mode: "portone" }>;
-
 /**
- * 실명 본인인증. 공급자(PortOne / NICE / dev bypass)가 무엇이든 이 서비스의 일은 같다 —
+ * 실명 본인인증. 공급자(NICE / dev bypass)가 무엇이든 이 서비스의 일은 같다 —
  * **공급자 서버에서 다시 읽은** 신원만 저장하고, CI로 1인 1계정을 강제하고, 나이·성별을
  * 프로필의 권위값으로 반영한다. 앱이 보낸 이름·생년월일은 절대 신뢰하지 않는다.
  *
@@ -43,17 +40,10 @@ export class IdentityService {
   /** Begin verification. The signed request id binds the provider result to the authenticated user. */
   async start(userId: string): Promise<IdentityStart> {
     if (this.devBypass()) return { mode: "dev" };
-    const storeId = this.config.get<string>("PORTONE_STORE_ID");
-    const channelKey = this.config.get<string>("PORTONE_IDENTITY_CHANNEL_KEY");
-    if (!storeId || !channelKey || !this.portOneSecret() || !this.stateSecret()) {
-      throw new ServiceUnavailableException("본인인증이 현재 구성되지 않았습니다");
-    }
-    return {
-      mode: "portone",
-      storeId,
-      channelKey,
-      identityVerificationId: this.createRequestId(userId),
-    };
+    // NICE 경로는 계약 대기 중이다(nice.provider.ts). 그전까지 운영에선 시작 자체가 불가능하다 —
+    // 반쯤 동작하는 본인인증을 내보내는 것보다 명확히 막는 편이 안전하다.
+    void userId;
+    throw new ServiceUnavailableException("본인인증이 현재 구성되지 않았습니다");
   }
 
   /** Complete verification: persist the verified identity, enforce one-account-per-person via CI,
@@ -70,57 +60,6 @@ export class IdentityService {
       di: this.devHash("di", payload.phone),
     };
     return this.persistVerifiedIdentity(userId, identity);
-  }
-
-  /** Complete a production verification after checking both request ownership and PortOne status. */
-  async completePortOne(userId: string, identityVerificationId: string): Promise<{ ok: true }> {
-    this.assertRequestOwner(identityVerificationId, userId);
-    const apiSecret = this.portOneSecret();
-    if (!apiSecret) throw new ServiceUnavailableException("본인인증이 현재 구성되지 않았습니다");
-
-    let response: Response;
-    try {
-      response = await fetch(
-        `https://api.portone.io/identity-verifications/${encodeURIComponent(identityVerificationId)}`,
-        {
-          headers: { Authorization: `PortOne ${apiSecret}` },
-          signal: AbortSignal.timeout(10_000),
-        },
-      );
-    } catch {
-      throw new BadGatewayException("인증기관 응답을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요");
-    }
-    if (!response.ok) {
-      throw new BadGatewayException("인증기관에서 인증 결과를 확인하지 못했습니다");
-    }
-    const result = (await response.json()) as {
-      id?: string;
-      status?: string;
-      verifiedCustomer?: {
-        ci?: string;
-        di?: string;
-        name?: string;
-        birthDate?: string;
-        gender?: string;
-        phoneNumber?: string;
-      };
-    };
-    if (result.id !== identityVerificationId || result.status !== "VERIFIED") {
-      throw new BadRequestException("완료된 본인인증이 아닙니다");
-    }
-    const customer = result.verifiedCustomer;
-    const gender = customer?.gender === "FEMALE" ? "female" : customer?.gender === "MALE" ? "male" : null;
-    if (!customer?.ci || !customer.name || !customer.birthDate || !customer.phoneNumber || !gender) {
-      throw new BadRequestException("인증기관에서 필수 본인정보를 제공하지 않았습니다");
-    }
-    return this.persistVerifiedIdentity(userId, {
-      name: customer.name,
-      birth: customer.birthDate,
-      gender,
-      phone: customer.phoneNumber,
-      ci: customer.ci,
-      di: customer.di,
-    });
   }
 
   private async persistVerifiedIdentity(userId: string, identity: VerifiedIdentity): Promise<{ ok: true }> {
@@ -181,12 +120,9 @@ export class IdentityService {
     return createHash("sha256").update(`${kind}:${phone}`).digest("hex");
   }
 
-  private portOneSecret(): string | undefined {
-    return this.config.get<string>("PORTONE_API_SECRET");
-  }
-
+  /** 인증 요청을 사용자에게 묶는 서명 키. 공급자와 무관하다(NICE 콜백도 같은 방식으로 검증한다). */
   private stateSecret(): string | undefined {
-    return this.config.get<string>("PORTONE_IDENTITY_STATE_SECRET");
+    return this.config.get<string>("IDENTITY_STATE_SECRET");
   }
 
   private createRequestId(userId: string): string {

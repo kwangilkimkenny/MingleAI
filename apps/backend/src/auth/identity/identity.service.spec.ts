@@ -3,13 +3,6 @@ import { IdentityService } from "./identity.service";
 
 const bypassConfig = { get: (k: string) => (k === "IDENTITY_DEV_BYPASS" ? "true" : undefined) } as any;
 const offConfig = { get: () => undefined } as any;
-const providerValues: Record<string, string> = {
-  PORTONE_STORE_ID: "store-test",
-  PORTONE_IDENTITY_CHANNEL_KEY: "channel-key-test",
-  PORTONE_API_SECRET: "api-secret-for-tests",
-  PORTONE_IDENTITY_STATE_SECRET: "state-secret-for-tests-that-is-long-enough",
-};
-const providerConfig = { get: (key: string) => providerValues[key] } as any;
 
 const payload = { name: "홍길동", birth: "1996-05-02", gender: "female" as const, phone: "01012345678" };
 
@@ -65,72 +58,30 @@ describe("IdentityService.complete (dev bypass)", () => {
   });
 });
 
-describe("IdentityService (PortOne production flow)", () => {
+// PortOne 경로는 2026-08-12 삭제(키·계약 없이 실효 0, 보안 경로에 안 쓰는 분기를 두는 값이 더 컸다).
+// 공급자는 NICE 하나이고 계약 대기 중이므로, 지금 운영에서 인증 시작은 명시적으로 막힌다.
+describe("IdentityService (공급자 미구성)", () => {
   const prisma = {
     user: { findFirst: jest.fn().mockResolvedValue(null), update: jest.fn().mockResolvedValue({}) },
     profile: { findFirst: jest.fn().mockResolvedValue(null), update: jest.fn() },
   } as any;
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-    jest.clearAllMocks();
+  it("dev bypass가 꺼져 있으면 start가 503으로 막는다", async () => {
+    const config = { get: () => undefined } as any;
+    await expect(new IdentityService(config, prisma).start("user-1")).rejects.toThrow(
+      "본인인증이 현재 구성되지 않았습니다",
+    );
   });
 
-  it("returns a signed, user-bound provider request", async () => {
-    const result = await new IdentityService(providerConfig, prisma).start("user-1");
-    expect(result).toMatchObject({
-      mode: "portone",
-      storeId: "store-test",
-      channelKey: "channel-key-test",
-      identityVerificationId: expect.stringMatching(/^mingles\./),
-    });
-  });
-
-  it("re-reads verified attributes from PortOne and persists them", async () => {
-    const service = new IdentityService(providerConfig, prisma);
-    const start = await service.start("user-1");
-    if (start.mode !== "portone") throw new Error("expected provider mode");
-    jest.spyOn(global, "fetch").mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: start.identityVerificationId,
-        status: "VERIFIED",
-        verifiedCustomer: {
-          ci: "verified-ci",
-          di: "verified-di",
-          name: "홍길동",
-          birthDate: "1996-05-02",
-          gender: "FEMALE",
-          phoneNumber: "01012345678",
-        },
+  it("dev bypass가 꺼져 있으면 complete도 막는다(개발용 입력이 운영에 새지 않게)", async () => {
+    const config = { get: () => undefined } as any;
+    await expect(
+      new IdentityService(config, prisma).complete("user-1", {
+        name: "홍길동",
+        birth: "1996-05-02",
+        gender: "female",
+        phone: "01012345678",
       }),
-    } as Response);
-
-    await expect(service.completePortOne("user-1", start.identityVerificationId)).resolves.toEqual({ ok: true });
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining(encodeURIComponent(start.identityVerificationId)),
-      expect.objectContaining({ headers: { Authorization: "PortOne api-secret-for-tests" } }),
-    );
-    expect(prisma.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "user-1" },
-        data: expect.objectContaining({
-          identityCi: "verified-ci",
-          identityDi: "verified-di",
-          verifiedGender: "female",
-        }),
-      }),
-    );
-  });
-
-  it("rejects a request id that belongs to another account before calling PortOne", async () => {
-    const service = new IdentityService(providerConfig, prisma);
-    const start = await service.start("user-1");
-    if (start.mode !== "portone") throw new Error("expected provider mode");
-    const fetchSpy = jest.spyOn(global, "fetch");
-    await expect(service.completePortOne("user-2", start.identityVerificationId)).rejects.toThrow(
-      BadRequestException,
-    );
-    expect(fetchSpy).not.toHaveBeenCalled();
+    ).rejects.toThrow("본인인증이 현재 구성되지 않았습니다");
   });
 });
