@@ -240,7 +240,8 @@
 }
 
 .editorialVertical {
-  top: 50%;
+  /* 워드마크 블록 아래로 내린다 — 50%에 두면 기울어진 아래쪽 티커와 글자가 교차했다. */
+  top: 68%;
   right: clamp(9px, 1.5vw, 24px);
   color: rgba(242, 188, 200, 0.62);
   font-size: clamp(8px, 0.62vw, 10px);
@@ -249,11 +250,21 @@
   transform: translate3d(0, calc(var(--p, 0) * -72px), 0) rotate(1deg);
 }
 
-/* 워드마크 블록 — 히어로 패딩을 뚫고 화면 양 끝까지 쓴다(full-bleed). */
+/* 워드마크 블록 — 히어로 패딩을 뚫고 화면 양 끝까지 쓴다(full-bleed).
+ *
+ * 기울기는 **블록 하나에만** 건다(2026-08-12). 예전엔 워드마크와 티커 두 줄이 각자
+ * `transform-origin: left center`로 -5deg 돌아서, 폭이 넓을수록 오른쪽 끝이 tan5×폭만큼
+ * 치솟았다(1920에서 168px) — 위 티커가 우상단 `01—ROTATION` 라벨 위로 올라타 글자가 겹쳤다.
+ * 블록을 중심 기준으로 한 번 돌리면 상승폭이 절반이고 세 줄이 서로 평행하게 유지된다.
+ */
 .brandBlock {
   position: relative;
   z-index: 1;
   margin: 0 calc(-1 * clamp(20px, 5vw, 56px));
+  /* cqw 기준점 — 아래 .brand 폰트 크기가 스크롤바를 뺀 실제 폭을 따라간다. */
+  container-type: inline-size;
+  transform: rotate(-5deg);
+  transform-origin: center;
 }
 
 /* MINGLES의 투명 컨테이너가 0→100%로 자란다. 글자는 찌그러뜨리지 않고 컨테이너
@@ -273,14 +284,17 @@
   padding: clamp(3px, 0.45vw, 7px) 0 clamp(5px, 0.65vw, 10px);
   background: transparent;
   box-shadow: none;
-  font-size: 22.5vw;
+  /* MINGLES 일곱 글자의 실측 폭 = 4.445em(Archivo Black + letter-spacing -0.095em).
+     100/4.445 = 22.49 → 22.3으로 잡아 1% 여유를 둔다. 단위는 **cqw**여야 한다:
+     22.5vw는 세로 스크롤바 폭까지 포함한 값이라 컨테이너보다 15px 넓어져 마지막 S가
+     잘렸다(2026-08-12). cqw는 컨테이너 실제 폭 기준이라 어느 해상도에서도 안 잘린다.
+     -5deg 회전이 폭을 h×sin5(1920에서 ~31px)만큼 더 먹으므로 21.6까지 낮춰 여유를 둔다. */
+  font-size: 21.6cqw;
   line-height: 0.74;
   letter-spacing: -0.095em;
   font-weight: 400;
   text-align: center;
   white-space: nowrap;
-  transform-origin: left center;
-  transform: rotate(-5deg);
   animation: brandExpand 1.6s cubic-bezier(0.4, 0, 0.2, 1) 0.08s forwards;
 }
 
@@ -292,8 +306,10 @@
   position: relative;
   z-index: 2;
   display: block;
-  flex: 0 0 100vw;
-  width: 100vw;
+  /* 컨테이너가 0→100%로 열리는 동안 글자가 줄어들지 않도록 폭을 고정한다.
+     100vw(스크롤바 포함) 대신 컨테이너 폭. */
+  flex: 0 0 100cqw;
+  width: 100cqw;
   color: transparent;
   background: linear-gradient(90deg, #f2bcc8 0%, #fff8f0 58%, #ffffff 100%);
   background-clip: text;
@@ -340,11 +356,10 @@
   }
 }
 
+/* 기울기는 .brandBlock이 통째로 준다 — 여기서 또 돌리면 세 줄이 부채꼴로 벌어진다. */
 .ticker {
   overflow: hidden;
   mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
-  transform: rotate(-5deg);
-  transform-origin: left center;
 }
 .tickerTop {
   margin-bottom: clamp(4px, 0.8vw, 12px);
@@ -1236,6 +1251,28 @@
   }
 }
 
+/* 태블릿 세로 — 뷰포트가 세로로 길어 100vh sticky 안에서 콘텐츠가 가운데 띠로 몰리고
+   위쪽에 300px 공백이 남았다(834×1112 실측 2026-08-12). 캐릭터는 뷰포트 바닥에 고정돼
+   구도에서 떨어져 나갔다. 폰과 활자를 키워 세로를 채운다(캐릭터 크기는 page.tsx가 계산). */
+@media (min-width: 721px) and (orientation: portrait) {
+  .featurePanel > .iphone,
+  .featurePanelReverse > .iphone {
+    width: clamp(250px, 32vw, 320px);
+  }
+  .featurePanel {
+    gap: clamp(28px, 4vw, 48px);
+  }
+  .featureCopy h2 {
+    font-size: clamp(38px, 6vw, 52px);
+  }
+  .featureCopy p {
+    font-size: 16px;
+  }
+  .featureCopy ul {
+    font-size: 14px;
+  }
+}
+
 @media (max-width: 720px) {
   .featureStage {
     min-height: 260vh;
@@ -1307,18 +1344,20 @@
     font-size: 12px;
   }
   .characterBubble {
-    /* 세로 화면에서도 말풍선이 각 캐릭터의 머리 바로 위에 머물도록 한다. */
-    top: 48%;
-    width: min(100px, 25vw);
-    border-radius: 15px;
-    padding: 9px 8px;
-    font-size: 9px;
+    /* 9px·25vw였을 땐 두 줄로 쪼개지고 화면 끝에 붙어 잘렸다(2026-08-12).
+       키운 만큼 폰 목업 위쪽으로 올린다 — 46%에 두면 다운로드 화면 문구를 덮는다. */
+    top: 19%;
+    width: min(146px, 39vw);
+    border-radius: 16px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.4;
   }
   .manBubble {
-    left: 0;
+    left: 12px;
   }
   .womanBubble {
-    right: 0;
+    right: 12px;
   }
 }
 

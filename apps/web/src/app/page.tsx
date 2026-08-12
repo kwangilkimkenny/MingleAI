@@ -185,6 +185,8 @@ export default function Home() {
           const vh = window.innerHeight;
           const compact = vw <= 900;
           const mobile = vw < 720;
+          // 태블릿 세로: 화면이 길어 캐릭터가 작으면 아래쪽에만 붙어 구도에서 떨어진다.
+          const tallPortrait = !mobile && vh > vw * 1.15;
           const mix = (from: number, to: number) => from + (to - from) * progress;
           const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
           const smoothstep = (value: number) => value * value * (3 - 2 * value);
@@ -224,13 +226,19 @@ export default function Home() {
 
           const manStartW = compact ? vw * 0.38 : Math.min(280, Math.max(130, vw * 0.18));
           const womanStartW = compact ? vw * 0.38 : Math.min(250, Math.max(120, vw * 0.16));
-          const manEndW = mobile ? vw * 0.52 : Math.min(460, Math.max(240, vw * 0.3));
+          const manEndW = mobile
+            ? vw * 0.52
+            : tallPortrait
+              ? vw * 0.42
+              : Math.min(460, Math.max(240, vw * 0.3));
           const womanEndW = manEndW;
 
           const manStartX = vw - vw * 0.06 - manStartW;
           const womanStartX = compact ? vw - vw * 0.44 - womanStartW : vw - vw * 0.26 - womanStartW;
-          const manSettledX = mobile ? -vw * 0.16 : -vw * 0.03;
-          const womanSettledX = mobile ? vw + vw * 0.16 - womanEndW : vw + vw * 0.03 - womanEndW;
+          // 세로 화면에서는 캐릭터를 더 바깥으로 민다 — 안 그러면 가운데 폰 목업이 얼굴을 덮는다.
+          const settledOut = mobile ? 0.16 : tallPortrait ? 0.13 : 0.03;
+          const manSettledX = -vw * settledOut;
+          const womanSettledX = vw + vw * settledOut - womanEndW;
 
           const manStartY = vh - manStartW * (1405 / 1024);
           const womanStartY = vh - womanStartW * (1400 / 1024);
