@@ -116,8 +116,6 @@ export default function UserTable({ users, onRefresh }: UserTableProps) {
               <TableCell>이름</TableCell>
               <TableCell>나이/성별</TableCell>
               <TableCell>상태</TableCell>
-              <TableCell align="right">파티</TableCell>
-              <TableCell align="right">예약</TableCell>
               <TableCell>가입일</TableCell>
               <TableCell></TableCell>
             </TableRow>
@@ -147,12 +145,6 @@ export default function UserTable({ users, onRefresh }: UserTableProps) {
                   ) : (
                     <Chip label="프로필 없음" size="small" variant="outlined" />
                   )}
-                </TableCell>
-                <TableCell align="right">
-                  {user.profile?.partyCount ?? 0}
-                </TableCell>
-                <TableCell align="right">
-                  {user.profile?.reservationCount ?? 0}
                 </TableCell>
                 <TableCell>{formatDate(user.createdAt)}</TableCell>
                 <TableCell>

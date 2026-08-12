@@ -12,7 +12,6 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import ReportIcon from "@mui/icons-material/Report";
 import LogoutIcon from "@mui/icons-material/Logout";
-import HomeIcon from "@mui/icons-material/Home";
 import { useAuthStore } from "@/lib/store/auth";
 
 const NAV_ITEMS = [
@@ -77,12 +76,6 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
 
       <Divider />
       <List>
-        <ListItemButton onClick={() => router.push("/dashboard")}>
-          <ListItemIcon>
-            <HomeIcon />
-          </ListItemIcon>
-          <ListItemText primary="사용자 홈으로" />
-        </ListItemButton>
         <ListItemButton
           onClick={() => {
             logout();

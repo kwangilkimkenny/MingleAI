@@ -42,7 +42,8 @@ export default function StatsCard({
             sx={{
               p: 1.5,
               borderRadius: 2,
-              bgcolor: `${color}.light`,
+              // 다크 배경에서 `${color}.light` 채움은 아이콘과 대비가 안 난다 — 중립 틴트 위에 색 아이콘.
+              bgcolor: "action.hover",
               color: `${color}.main`,
             }}
           >

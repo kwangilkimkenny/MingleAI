@@ -5,7 +5,8 @@ import Grid from "@mui/material/Grid2";
 import Skeleton from "@mui/material/Skeleton";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import EventIcon from "@mui/icons-material/Event";
+import PeopleIcon from "@mui/icons-material/People";
+import HowToRegIcon from "@mui/icons-material/HowToReg";
 import ReportIcon from "@mui/icons-material/Report";
 import StatsCard from "./StatsCard";
 import { getAdminStats, type AdminStats } from "@/lib/api/admin";
@@ -24,8 +25,8 @@ export default function AdminStatsGrid() {
   if (loading) {
     return (
       <Grid container spacing={3}>
-        {[1, 2, 3, 4].map((i) => (
-          <Grid key={i} size={{ xs: 6, md: 3 }}>
+        {[1, 2, 3].map((i) => (
+          <Grid key={i} size={{ xs: 12, md: 4 }}>
             <Card>
               <CardContent>
                 <Skeleton height={80} />
@@ -41,18 +42,24 @@ export default function AdminStatsGrid() {
 
   return (
     <Grid container spacing={3}>
-      <Grid size={{ xs: 6, md: 3 }}>
-      </Grid>
-      <Grid size={{ xs: 6, md: 3 }}>
+      <Grid size={{ xs: 12, md: 4 }}>
         <StatsCard
-          title="예약"
-          value={stats.totalReservations}
-          icon={EventIcon}
-          color="info"
-          subtitle="확정된 예약"
+          title="가입 계정"
+          value={stats.totalUsers}
+          icon={PeopleIcon}
+          subtitle="소셜 로그인 누적"
         />
       </Grid>
-      <Grid size={{ xs: 6, md: 3 }}>
+      <Grid size={{ xs: 12, md: 4 }}>
+        <StatsCard
+          title="활성 프로필"
+          value={stats.activeUsers}
+          icon={HowToRegIcon}
+          color="info"
+          subtitle="정지·삭제 제외"
+        />
+      </Grid>
+      <Grid size={{ xs: 12, md: 4 }}>
         <StatsCard
           title="대기 중 신고"
           value={stats.pendingReports}

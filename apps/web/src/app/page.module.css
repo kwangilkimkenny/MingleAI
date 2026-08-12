@@ -131,81 +131,6 @@
   font-family: var(--font-serif), "Apple SD Gothic Neo", serif;
 }
 
-/* ── 상단 바 ─────────────────────────────────────── */
-.nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 22px clamp(20px, 5vw, 56px);
-}
-.wordmark {
-  font-size: 20px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink);
-  font-weight: 600;
-}
-.navLinks {
-  display: flex;
-  align-items: center;
-  gap: clamp(14px, 3vw, 32px);
-  font-size: 14px;
-}
-.navLinks a {
-  color: var(--ink-soft);
-  text-decoration: none;
-}
-.navLinks a:hover {
-  color: var(--ink);
-}
-
-/* ── 버튼 ───────────────────────────────────────── */
-.pill,
-.pillGhost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 14px 26px;
-  font-size: 15px;
-  font-family: inherit;
-  text-decoration: none;
-  cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    background-color 0.18s ease,
-    color 0.18s ease;
-}
-.pill {
-  background: var(--ink);
-  color: var(--on-ink);
-  border: 1px solid var(--ink);
-}
-.pillGhost {
-  background: transparent;
-  color: var(--ink);
-  border: 1px dashed var(--hair);
-}
-.pill:hover,
-.pillGhost:hover {
-  transform: translateY(-2px);
-}
-.pillGhost:hover {
-  border-style: solid;
-  border-color: var(--ink);
-}
-.pillSmall {
-  padding: 9px 18px;
-  font-size: 13px;
-}
-/* 스토어 배지는 링크가 나오기 전까지 비활성 — 죽은 링크를 쓰지 않는다. */
-.pillDisabled {
-  opacity: 0.45;
-  pointer-events: none;
-}
-
 /* ── 히어로: 워드마크 + 흐르는 라인 ─────────────────
  * 헤더 바를 두지 않는다. 워드마크가 곧 헤드라인이고, 그 라인을 따라 핑크 텍스트가
  * 한 방향으로 끝없이 흘러간다(레퍼런스의 large type + scrolling animation). */
@@ -532,19 +457,6 @@
   }
 }
 
-.heroFoot {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px 22px;
-}
-.heroCtas {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
 @media (prefers-reduced-motion: reduce) {
   .brand {
     width: 100%;
@@ -997,8 +909,8 @@
 }
 
 .featureCopy > small {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
   letter-spacing: 0.04em;
 }
 
@@ -1111,6 +1023,8 @@
   background: linear-gradient(180deg, transparent 54%, #1a120c 100%);
 }
 
+/* VOICE 단계 프리뷰다 — 얼굴은 아직 공개되지 않는다. 예전엔 "음성 보호 중" 배지 옆에
+   상대 얼굴이 선명하게 보여서 제품의 핵심 약속을 화면 스스로 부정했다(2026-08-12). */
 .callPortrait {
   position: absolute;
   bottom: -3%;
@@ -1118,6 +1032,7 @@
   width: 94%;
   height: auto;
   transform: translateX(-50%);
+  filter: blur(11px) brightness(0.72) saturate(0.7);
   animation: previewBreath 5s ease-in-out infinite;
 }
 
@@ -1364,22 +1279,23 @@
     backdrop-filter: blur(9px);
     text-align: center;
   }
+  /* 활자 하한 12px — 그 아래로 내려간 목록·캡션은 실기기에서 읽히지 않았다(2026-08-12). */
   .featureKicker {
     margin-bottom: 8px;
-    font-size: 8px;
+    font-size: 10px;
   }
   .featureCopy h2 {
     margin-bottom: 10px;
     font-size: 27px;
   }
   .featureCopy p {
-    font-size: 12px;
-    line-height: 1.55;
+    font-size: 13px;
+    line-height: 1.6;
   }
   .featureCopy ul {
-    gap: 4px;
+    gap: 6px;
     margin: 10px 0 8px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .featureCopy li {
     padding-left: 0;
@@ -1388,7 +1304,7 @@
     display: none;
   }
   .featureCopy > small {
-    font-size: 8px;
+    font-size: 12px;
   }
   .characterBubble {
     /* 세로 화면에서도 말풍선이 각 캐릭터의 머리 바로 위에 머물도록 한다. */

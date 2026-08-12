@@ -1,9 +1,9 @@
 import { apiFetch } from "./client";
 
+/** `GET /admin/stats`가 실제로 주는 값. 여기 없는 필드를 화면에 그리면 undefined가 찍힌다. */
 export interface AdminStats {
   totalUsers: number;
   activeUsers: number;
-  totalReservations: number;
   pendingReports: number;
 }
 
@@ -20,8 +20,6 @@ export interface AdminUser {
     location: string;
     status: string;
     riskScore: number;
-    partyCount: number;
-    reservationCount: number;
   } | null;
 }
 

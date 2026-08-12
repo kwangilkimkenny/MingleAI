@@ -21,7 +21,7 @@ Writing tips:
   - **폰트**: 로컬 Pretendard Regular/SemiBold만 `app/_layout.tsx` `useFonts`로 로드(2026-07-23 Gaegu 폐기; 로드 전 브랜드 로딩 상태). 전 UI Pretendard — `type.*`/`fonts.*` 토큰 사용, 하드코딩 fontFamily 금지.
   - **RN `<Button>` 금지**(플랫폼 기본 파란색이 팔레트 밖) — 항상 `DoodleButton`.
 - `apps/backend` (`@mingle/backend`) — NestJS 10 REST + Socket.io gateways(`MessengerGateway`/`SpeedDateGateway`, 기본 네임스페이스), Prisma/PostgreSQL.
-- `apps/web` (`@mingle/web`) — Next.js 15.5.21(SWC 동일 버전 고정), ESLint 9 flat config. **v2 역할 = 관리자 콘솔 + 최소 소비자 웹**(프로필·데이트플랜·알림·세이프티).
+- `apps/web` (`@mingle/web`) — Next.js 15.5.21(SWC 동일 버전 고정), ESLint 9 flat config. **v2 역할 = 공개 랜딩 `/` + 비공개 관리자 콘솔, 그게 전부**(2026-08-12 사용자 결정 — 소비자 웹 화면 `(main)` 프로필·데이트플랜·알림·세이프티 전부 삭제, 소비자 경험은 앱 전용). 라우트는 `/`·법적 3종(`/terms`·`/privacy`·`/account-deletion`)·`/login`(관리자)·`/admin/*`뿐. **admin은 색인 금지**(`app/robots.ts` + `(admin)`/`(auth)` layout `robots:{index:false}`) — 화면 추가 시 같이 챙길 것. 콘솔 테마 = 랜딩과 같은 브랜드 다크(`lib/theme.ts` MUI `mode:"dark"`, 검정 배경·블러시 `#F2BCC8` primary·명조 헤딩 `var(--font-serif)`; v1 핑크 `#E91E63` 폐기). 랜딩 스타일은 `app/page.module.css` 단일 모듈(:root 팔레트 주석 참고). **관리자 화면에 상태·수치를 그릴 땐 실제 응답만** — 예전 대시보드는 "정상" 3줄과 예약/파티 카운트를 하드코딩해 서버가 죽어도 초록이었다.
 - `packages/client-core` (`@mingle/client-core`) — 플랫폼 불문 데이터 계층(API·소켓·zustand auth). **mobile/web보다 먼저 빌드.**
 - `packages/shared` (`@mingle/shared`) — 공유 타입. **가장 먼저 빌드**(dual-package — 아래 gotcha).
 - `packages/mcp`, `packages/mingleai-mcp` — v1 MCP 서버, v2 제품 경로와 분리(선택적 dev 도구; v1 타입 참조로 빌드 깨져 루트 `pnpm build` 필터에서 제외).
