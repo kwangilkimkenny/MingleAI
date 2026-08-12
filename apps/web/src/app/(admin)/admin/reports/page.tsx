@@ -12,18 +12,21 @@ import Skeleton from "@mui/material/Skeleton";
 import Alert from "@mui/material/Alert";
 import { getSafetyReports, type SafetyReport } from "@/lib/api/admin";
 import SafetyReportTable from "@/components/admin/reports/SafetyReportTable";
+import LoadError from "@/components/admin/LoadError";
 
 export default function AdminReportsPage() {
   const [reports, setReports] = useState<SafetyReport[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("pending");
 
   const limit = 20;
 
   const loadReports = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await getSafetyReports({
         status: status || undefined,
@@ -32,8 +35,11 @@ export default function AdminReportsPage() {
       });
       setReports(res.reports);
       setTotal(res.total);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      // 신고 목록이 비어 보이는 것과 못 불러온 것은 조치 여부가 갈린다 — 절대 섞지 않는다.
+      setReports([]);
+      setTotal(0);
+      setError(err instanceof Error ? err.message : null);
     } finally {
       setLoading(false);
     }
@@ -52,7 +58,7 @@ export default function AdminReportsPage() {
         신고 관리
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        총 {total}건의 신고
+        {error ? "목록을 불러오지 못했습니다" : `총 ${total}건의 신고`}
       </Typography>
 
       {pendingCount > 0 && status === "pending" && (
@@ -86,6 +92,8 @@ export default function AdminReportsPage() {
             <Skeleton key={i} height={60} sx={{ mb: 1 }} />
           ))}
         </Box>
+      ) : error !== null ? (
+        <LoadError message={error} onRetry={loadReports} />
       ) : reports.length === 0 ? (
         <Box textAlign="center" py={8}>
           <Typography color="text.secondary">

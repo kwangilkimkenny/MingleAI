@@ -14,12 +14,14 @@ import InputAdornment from "@mui/material/InputAdornment";
 import SearchIcon from "@mui/icons-material/Search";
 import { getAdminUsers, type AdminUser } from "@/lib/api/admin";
 import UserTable from "@/components/admin/users/UserTable";
+import LoadError from "@/components/admin/LoadError";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
 
@@ -27,6 +29,7 @@ export default function AdminUsersPage() {
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await getAdminUsers({
         search: search || undefined,
@@ -36,8 +39,11 @@ export default function AdminUsersPage() {
       });
       setUsers(res.users);
       setTotal(res.total);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      // 실패했으면 이전 목록도 남기지 않는다 — 오래된 행을 현재 상태로 오해한다.
+      setUsers([]);
+      setTotal(0);
+      setError(err instanceof Error ? err.message : null);
     } finally {
       setLoading(false);
     }
@@ -55,7 +61,7 @@ export default function AdminUsersPage() {
         사용자 관리
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        총 {total}명의 사용자
+        {error ? "목록을 불러오지 못했습니다" : `총 ${total}명의 사용자`}
       </Typography>
 
       <Box display="flex" gap={2} mb={3}>
@@ -99,6 +105,8 @@ export default function AdminUsersPage() {
             <Skeleton key={i} height={60} sx={{ mb: 1 }} />
           ))}
         </Box>
+      ) : error !== null ? (
+        <LoadError message={error} onRetry={loadUsers} />
       ) : users.length === 0 ? (
         <Box textAlign="center" py={8}>
           <Typography color="text.secondary">

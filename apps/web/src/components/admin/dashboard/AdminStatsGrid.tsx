@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Grid from "@mui/material/Grid2";
 import Skeleton from "@mui/material/Skeleton";
 import Card from "@mui/material/Card";
@@ -9,18 +9,30 @@ import PeopleIcon from "@mui/icons-material/People";
 import HowToRegIcon from "@mui/icons-material/HowToReg";
 import ReportIcon from "@mui/icons-material/Report";
 import StatsCard from "./StatsCard";
+import LoadError from "@/components/admin/LoadError";
 import { getAdminStats, type AdminStats } from "@/lib/api/admin";
 
 export default function AdminStatsGrid() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     getAdminStats()
       .then(setStats)
-      .catch(console.error)
+      // 실패하면 카드가 통째로 사라져서 지표가 원래 없는 화면처럼 보였다 — 실패를 남긴다.
+      .catch((err: unknown) => {
+        setStats(null);
+        setError(err instanceof Error ? err.message : null);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (loading) {
     return (
@@ -38,7 +50,7 @@ export default function AdminStatsGrid() {
     );
   }
 
-  if (!stats) return null;
+  if (!stats) return <LoadError message={error ?? undefined} onRetry={load} />;
 
   return (
     <Grid container spacing={3}>
