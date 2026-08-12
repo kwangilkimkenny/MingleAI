@@ -16,6 +16,7 @@
     "@mui/icons-material": "^6.4.0",
     "@mui/material": "^6.4.0",
     "@mui/material-nextjs": "^6.4.0",
+    "animejs": "^4.5.0",
     "next": "15.5.21",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

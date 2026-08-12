@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // `next dev`와 `next build`를 동시에 실행해도 서로의 청크를 덮어쓰지 않는다.
+  // 같은 .next를 공유하면 실행 중인 dev HTML이 존재하지 않는 개발 청크를 가리킬 수 있다.
+  distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   transpilePackages: ["@mingle/shared"],
   async headers() {
     const scriptSrc = process.env.NODE_ENV === "production"

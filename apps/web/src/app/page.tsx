@@ -1,6 +1,15 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef } from "react";
+import {
+  animate,
+  createTimeline,
+  stagger,
+  steps,
+  svg as animeSvg,
+  type JSAnimation,
+  type Timeline,
+} from "animejs";
 import Image from "next/image";
 import styles from "./page.module.css";
 
@@ -148,6 +157,7 @@ function DownloadPreview() {
 
 export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const brandLetters = "MINGLES".split("");
 
   // 로그인 상태를 보고 어디론가 보내지 않는다. 웹에는 소비자 홈이 없고(2026-08-12 소비자 화면
   // 삭제) 관리자는 /login으로 직접 들어온다 — 예전 `/profile` 리다이렉트는 이제 404였다.
@@ -159,18 +169,240 @@ export default function Home() {
     const showcase = root.querySelector<HTMLElement>(`.${styles.showcase}`);
     const featureThree = root.querySelector<HTMLElement>(`.${styles.featureThree}`);
     const featureFour = root.querySelector<HTMLElement>(`.${styles.featureFour}`);
+    const brand = root.querySelector<HTMLElement>(`.${styles.brand}`);
+    const brandWord = root.querySelector<HTMLElement>(`.${styles.brandWord}`);
+    const brandLight = root.querySelector<HTMLElement>(`.${styles.brandLight}`);
+    const letters = root.querySelectorAll<HTMLElement>(`.${styles.brandLetter}`);
+    const editorialCopy = root.querySelectorAll<HTMLElement>(`.${styles.heroEditorial} p`);
+    const flash = root.querySelector<HTMLElement>(`.${styles.heroFlash}`);
+    const signalPath = root.querySelector<SVGPathElement>(`.${styles.signalLive}`);
+    const signalPulse = root.querySelector<SVGGElement>(`.${styles.signalPulse}`);
+    const signalPulseHalo = root.querySelector<SVGCircleElement>(`.${styles.signalPulseHalo}`);
+    const signalHeart = root.querySelector<SVGSVGElement>(`.${styles.signalHeart}`);
+    const trackRight = root.querySelector<HTMLElement>(`.${styles.trackRight}`);
+    const trackLeft = root.querySelector<HTMLElement>(`.${styles.trackLeft}`);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     let raf = 0;
+    let lastScrollY = window.scrollY;
+    let lastScrollAt = performance.now();
+    let previousHeroProgress = Math.min(1, window.scrollY / Math.max(1, window.innerHeight));
+    let tickerEase: JSAnimation | null = null;
+    let flashAnimation: JSAnimation | null = null;
+    let signalMotion: JSAnimation | null = null;
+    let signalDraw: JSAnimation | null = null;
+    let signalBeat: JSAnimation | null = null;
+    let signalHeartBeat: JSAnimation | null = null;
+    let intro: Timeline | null = null;
+    const tickers: JSAnimation[] = [];
+
+    // Anime.js가 티커의 루프와 스크롤 속도 반응을 함께 맡는다. CSS 키프레임을 조회해
+    // playbackRate를 바꾸던 구조보다 생명주기 정리와 동작 재현이 명확하다.
+    if (!reduceMotion.matches && trackRight && trackLeft) {
+      tickers.push(
+        animate(trackRight, {
+          translateX: ["-50%", "0%"],
+          duration: 30000,
+          ease: "linear",
+          loop: true,
+        }),
+        animate(trackLeft, {
+          translateX: ["0%", "-50%"],
+          duration: 26000,
+          ease: "linear",
+          loop: true,
+        }),
+      );
+    }
+
+    // 펄스의 x/y를 별도 퍼센트 수식으로 근사하지 않고 실제 SVG 곡선에 결합한다.
+    // 경로가 반응형으로 늘어나도 Anime.js가 현재 CTM을 기준으로 정확한 위치를 계산한다.
+    if (!reduceMotion.matches && signalPath && signalPulse) {
+      signalMotion = animate(signalPulse, {
+        ...animeSvg.createMotionPath(signalPath),
+        duration: 1000,
+        ease: "linear",
+        autoplay: false,
+      });
+      signalDraw = animate(animeSvg.createDrawable(signalPath), {
+        draw: "0 1",
+        duration: 1000,
+        ease: "linear",
+        autoplay: false,
+      });
+      if (signalPulseHalo) {
+        signalBeat = animate(signalPulseHalo, {
+          keyframes: [
+            { r: 9, opacity: 0.92, duration: 0 },
+            { r: 18, opacity: 0, duration: 720, ease: "outExpo" },
+            { r: 9, opacity: 0, duration: 180 },
+          ],
+          loop: true,
+        });
+      }
+      if (signalHeart) {
+        signalHeartBeat = animate(signalHeart, {
+          keyframes: [
+            { scale: 1, duration: 0 },
+            { scale: 1.14, duration: 160, ease: "outQuad" },
+            { scale: 1, duration: 210, ease: "inOutSine" },
+            { scale: 1.08, duration: 130, ease: "outQuad" },
+            { scale: 1, duration: 260, ease: "outExpo" },
+            { scale: 1, duration: 520 },
+          ],
+          loop: true,
+        });
+      }
+    }
+
+    const setTickerSpeed = (speed: number) => {
+      for (const ticker of tickers) ticker.speed = speed;
+    };
+
+    const settleTicker = (from: number) => {
+      tickerEase?.cancel();
+      const state = { speed: from };
+      setTickerSpeed(state.speed);
+      tickerEase = animate(state, {
+        speed: 1,
+        duration: 900,
+        ease: "outExpo",
+        onUpdate: () => setTickerSpeed(state.speed),
+      });
+    };
+
+    const settleTickerSpeed = () => {
+      if (reduceMotion.matches || root.dataset.tickerLock) return;
+      const now = performance.now();
+      const scrollY = window.scrollY;
+      const elapsed = Math.max(16, now - lastScrollAt);
+      const velocity = Math.abs(scrollY - lastScrollY) / elapsed;
+      const boostedSpeed = Math.max(tickers[0]?.speed ?? 1, 1 + Math.min(1.5, velocity * 1.8));
+      settleTicker(boostedSpeed);
+      lastScrollY = scrollY;
+      lastScrollAt = now;
+    };
+
+    // 왼쪽에서 열리는 워드마크, 빛 번짐, 활자 인쇄, 불규칙 카피를 하나의 Anime.js
+    // 타임라인에 묶는다. 가짜 로딩 지연 없이 첫 페인트 직후 바로 시작한다.
+    if (!reduceMotion.matches && brand && brandWord && brandLight) {
+      root.dataset.heroIntro = "running";
+      intro = createTimeline({ autoplay: false })
+        .add(
+          brand,
+          {
+            width: ["0%", "100%"],
+            duration: 1250,
+            ease: "inOutQuart",
+          },
+          40,
+        )
+        .add(
+          letters,
+          {
+            "--letter-opacity": [0, 1],
+            "--letter-y": ["38%", "0%"],
+            "--letter-rotate": ["2deg", "0deg"],
+            "--letter-blur": ["8px", "0px"],
+            duration: 420,
+            delay: stagger(46),
+            ease: "outBack(1.35)",
+          },
+          180,
+        )
+        .add(
+          brandLight,
+          {
+            keyframes: [
+              { translateX: "-140%", opacity: 0, duration: 0 },
+              { translateX: "45%", opacity: 1, duration: 340, ease: "outQuad" },
+              { translateX: "520%", opacity: 0, duration: 1010, ease: "outExpo" },
+            ],
+          },
+          120,
+        )
+        .add(
+          editorialCopy,
+          {
+            "--intro-opacity": [0, 1],
+            "--intro-y": ["18px", "0px"],
+            duration: 620,
+            delay: stagger(64, { from: "center" }),
+            ease: "outExpo",
+          },
+          260,
+        )
+        .add(
+          brandWord,
+          {
+            keyframes: [
+              { "--word-x": "3px", "--word-y": "-1px", duration: 45 },
+              { "--word-x": "-2px", "--word-y": "1px", duration: 45 },
+              { "--word-x": "0px", "--word-y": "0px", duration: 70 },
+            ],
+            ease: steps(2),
+          },
+          780,
+        )
+        .call(() => {
+          root.dataset.tickerLock = "true";
+          for (const ticker of tickers) ticker.pause();
+        }, 1080)
+        .call(() => {
+          delete root.dataset.tickerLock;
+          root.dataset.heroIntro = "complete";
+          for (const ticker of tickers) ticker.resume();
+        }, 1280);
+      intro.play();
+    } else {
+      root.dataset.heroIntro = "complete";
+    }
+
+    const playPrintCut = () => {
+      if (!flash) return;
+      flashAnimation?.cancel();
+      flashAnimation = animate(flash, {
+        keyframes: [
+          { opacity: 0.9, backgroundColor: "#f2bcc8", duration: 70, ease: steps(1) },
+          { opacity: 1, backgroundColor: "#000000", duration: 110, ease: steps(1) },
+          { opacity: 0.35, backgroundColor: "#ffffff", duration: 90, ease: steps(1) },
+          { opacity: 0, backgroundColor: "transparent", duration: 90, ease: steps(1) },
+        ],
+      });
+    };
+
     const onScroll = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        // 0→1로 정규화한 히어로 진행도. CSS가 이 값으로 컷아웃을 민다.
-        const p = Math.min(1, window.scrollY / Math.max(1, window.innerHeight));
+        const scrollY = window.scrollY;
+
+        // 0→1로 정규화한 히어로 진행도. 캐릭터와 연결 신호만 스크롤에 반응한다.
+        // MINGLES 워드마크는 진입 애니메이션이 끝난 위치를 그대로 유지한다.
+        const p = Math.min(1, scrollY / Math.max(1, window.innerHeight));
         root.style.setProperty("--p", String(p));
+        const heroIsCompact = window.innerWidth <= 720;
+        const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+        const smoothstep = (value: number) => value * value * (3 - 2 * value);
+        const identityReveal = reduceMotion.matches
+          ? 1
+          : smoothstep(clamp01((p - 0.18) / (heroIsCompact ? 0.62 : 0.5)));
+        const collision = reduceMotion.matches
+          ? 0
+          : 1 - Math.abs(clamp01((p - 0.28) / 0.32) * 2 - 1);
+        root.style.setProperty("--identity-reveal", identityReveal.toFixed(3));
+        root.style.setProperty("--identity-blur", `${((1 - identityReveal) * 4).toFixed(2)}px`);
+        root.style.setProperty("--copy-collision", collision.toFixed(3));
+        root.dataset.identityStage = identityReveal > 0.78 ? "face" : identityReveal > 0.4 ? "profile" : "voice";
+
+        // 히어로의 인쇄물이 다음 장으로 넘어가는 짧은 2프레임 컷. 역스크롤에는 반복하지 않는다.
+        if (!reduceMotion.matches && previousHeroProgress < 0.9 && p >= 0.9) {
+          playPrintCut();
+        }
+        previousHeroProgress = p;
         // 문서 전체 진행도 — 섹션 경계와 무관하게 이어지는 스파인이 이 값으로 그려진다.
         const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-        root.style.setProperty("--s", String(Math.min(1, window.scrollY / max)));
+        root.style.setProperty("--s", String(Math.min(1, scrollY / max)));
 
         if (showcase && featureThree) {
           const rect = featureThree.getBoundingClientRect();
@@ -188,9 +420,6 @@ export default function Home() {
           // 태블릿 세로: 화면이 길어 캐릭터가 작으면 아래쪽에만 붙어 구도에서 떨어진다.
           const tallPortrait = !mobile && vh > vw * 1.15;
           const mix = (from: number, to: number) => from + (to - from) * progress;
-          const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
-          const smoothstep = (value: number) => value * value * (3 - 2 * value);
-
           // 마지막 다운로드 섹션의 sticky 이동량을 별도로 정규화한다.
           const showcaseTravel = Math.max(1, showcaseRect.height - vh);
           const showcaseProgress = clamp01(-showcaseRect.top / showcaseTravel);
@@ -211,8 +440,30 @@ export default function Home() {
           };
           const third = stageProgress(featureThree);
           const fourth = stageProgress(featureFour);
-          const thirdExit = smoothstep(clamp01((third.scroll - 0.72) / 0.28));
+          // 첫 기능 패널은 완전히 나타난 뒤 충분히 읽을 수 있도록 섹션의 마지막
+          // 14%에서만 퇴장한다. 이전 72% 시작점은 등장 직후 바로 사라지는 인상을 줬다.
+          const thirdExit = smoothstep(clamp01((third.scroll - 0.86) / 0.14));
           const fourthExit = smoothstep(clamp01((fourth.scroll - 0.72) / 0.28));
+          // 캐릭터가 좌우 목적지에 정착한 후 전기 신호를 채운다. 완충 상태를 잠깐
+          // 유지한 다음에야 기기와 설명이 나타나므로 세 장면이 서로 겹치지 않는다.
+          const charactersSettled = smoothstep(clamp01((progress - 0.92) / 0.08));
+          const signalCharge = reduceMotion.matches
+            ? 1
+            : smoothstep(clamp01((third.scroll - 0.02) / 0.34));
+          const signalExit = reduceMotion.matches
+            ? 1
+            : smoothstep(clamp01((third.scroll - 0.42) / 0.12));
+          const firstFeatureReveal = reduceMotion.matches
+            ? third.entry
+            : smoothstep(clamp01((third.scroll - 0.42) / 0.14));
+          const signalOpacity = reduceMotion.matches ? 0 : charactersSettled * (1 - signalExit);
+          root.style.setProperty("--hero-link", signalCharge.toFixed(3));
+          root.style.setProperty("--signal-opacity", signalOpacity.toFixed(3));
+          root.style.setProperty("--signal-charge", signalCharge.toFixed(3));
+          signalMotion?.seek(signalMotion.duration * signalCharge, true);
+          signalDraw?.seek(signalDraw.duration * signalCharge, true);
+          root.dataset.signalStage =
+            signalCharge >= 0.995 ? "charged" : signalOpacity > 0.02 ? "charging" : "idle";
           // 마지막 장면은 다시 페이드아웃하지 않는다. sticky 구간 동안 그대로 유지되고,
           // 섹션 끝에서는 화면 전체가 문서 흐름을 따라 자연스럽게 위로 스크롤된다.
           root.style.setProperty("--showcase-p", reveal.toFixed(3));
@@ -221,7 +472,10 @@ export default function Home() {
           root.style.setProperty("--home-bg-blur", `${((1 - sceneEntry) * 14).toFixed(2)}px`);
           root.style.setProperty("--home-bg-scale", (1.12 - sceneEntry * 0.12).toFixed(3));
           root.style.setProperty("--home-bg-clip", `${((1 - sceneEntry) * 14).toFixed(2)}%`);
-          root.style.setProperty("--feature-three-p", (third.entry * (1 - thirdExit)).toFixed(3));
+          root.style.setProperty(
+            "--feature-three-p",
+            (firstFeatureReveal * (1 - thirdExit)).toFixed(3),
+          );
           root.style.setProperty("--feature-four-p", (fourth.entry * (1 - fourthExit)).toFixed(3));
 
           const manStartW = compact ? vw * 0.38 : Math.min(280, Math.max(130, vw * 0.18));
@@ -251,7 +505,7 @@ export default function Home() {
           const womanX = mix(womanStartX, womanSettledX) + fourthExit * vw * 0.18;
           const heroGray = 1 - progress;
           const manDim = fourth.entry;
-          const womanDim = third.entry * (1 - fourth.entry);
+          const womanDim = firstFeatureReveal * (1 - fourth.entry);
 
           root.style.setProperty("--man-x", `${manX.toFixed(2)}px`);
           root.style.setProperty("--man-y", `${mix(manStartY, manEndY).toFixed(2)}px`);
@@ -271,35 +525,104 @@ export default function Home() {
       });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", settleTickerSpeed, { passive: true });
+    window.addEventListener("resize", onScroll);
     onScroll();
 
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", settleTickerSpeed);
+      window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
+      tickerEase?.cancel();
+      flashAnimation?.revert();
+      signalMotion?.revert();
+      signalDraw?.revert();
+      signalBeat?.revert();
+      signalHeartBeat?.revert();
+      intro?.revert();
+      for (const ticker of tickers) ticker.revert();
     };
   }, []);
 
   return (
     <div className={styles.page} ref={rootRef}>
       <div className={styles.spine} aria-hidden />
-      <Image
-        className={`${styles.morphCharacter} ${styles.morphCharacterMan}`}
-        src="/renaissance-man-cutout.png"
-        alt=""
-        aria-hidden
-        width={620}
-        height={850}
-        priority
-      />
-      <Image
-        className={`${styles.morphCharacter} ${styles.morphCharacterWoman}`}
-        src="/renaissance-woman-cutout.png"
-        alt=""
-        aria-hidden
-        width={620}
-        height={850}
-        priority
-      />
+      <div className={`${styles.morphFigure} ${styles.morphFigureMan}`} aria-hidden>
+        <Image
+          className={`${styles.morphCharacter} ${styles.morphCharacterBase}`}
+          src="/renaissance-man-cutout.png"
+          alt=""
+          width={620}
+          height={850}
+          priority
+        />
+        <Image
+          className={`${styles.morphCharacter} ${styles.morphCharacterEcho}`}
+          src="/renaissance-man-cutout.png"
+          alt=""
+          width={620}
+          height={850}
+          priority
+        />
+        <div className={styles.identityMask}>
+          <span data-stage="voice">VOICE DISGUISED</span>
+          <span data-stage="profile">PROFILE UNLOCKED</span>
+          <span data-stage="face">FACE REVEALED</span>
+        </div>
+      </div>
+      <div className={`${styles.morphFigure} ${styles.morphFigureWoman}`} aria-hidden>
+        <Image
+          className={`${styles.morphCharacter} ${styles.morphCharacterBase}`}
+          src="/renaissance-woman-cutout.png"
+          alt=""
+          width={620}
+          height={850}
+          priority
+        />
+        <Image
+          className={`${styles.morphCharacter} ${styles.morphCharacterEcho}`}
+          src="/renaissance-woman-cutout.png"
+          alt=""
+          width={620}
+          height={850}
+          priority
+        />
+        <div className={styles.identityMask}>
+          <span data-stage="voice">VOICE DISGUISED</span>
+          <span data-stage="profile">PROFILE UNLOCKED</span>
+          <span data-stage="face">FACE REVEALED</span>
+        </div>
+      </div>
+      <div className={styles.heroSignal} aria-hidden>
+        <svg viewBox="0 0 1000 170" preserveAspectRatio="none">
+          <path
+            className={styles.signalRail}
+            d="M20 96 C105 78 178 110 250 94 L340 94 L365 88 L382 108 L405 45 L432 142 L458 72 L482 96 L520 96 L542 87 L565 110 L590 50 L616 136 L642 70 L670 96 C760 112 845 76 980 96"
+            pathLength="1"
+          />
+          <path
+            className={styles.signalLive}
+            d="M20 96 C105 78 178 110 250 94 L340 94 L365 88 L382 108 L405 45 L432 142 L458 72 L482 96 L520 96 L542 87 L565 110 L590 50 L616 136 L642 70 L670 96 C760 112 845 76 980 96"
+            pathLength="1"
+          />
+          <circle className={styles.signalAnchor} cx="20" cy="96" r="6" />
+          <circle className={styles.signalAnchor} cx="980" cy="96" r="6" />
+          <g className={styles.signalPulse}>
+            <circle className={styles.signalPulseHalo} r="15" />
+            <circle className={styles.signalPulseCore} r="6" />
+          </g>
+        </svg>
+        <span className={`${styles.signalEndpoint} ${styles.signalEndpointLeft}`}>YOU</span>
+        <span className={styles.signalAi}>
+          <svg className={styles.signalHeart} viewBox="0 0 32 30" aria-hidden>
+            <path d="M16 28S2 19.7 2 10.4C2 5.7 5.5 2 9.9 2c2.7 0 5.1 1.4 6.1 3.6C17 3.4 19.4 2 22.1 2 26.5 2 30 5.7 30 10.4 30 19.7 16 28 16 28Z" />
+          </svg>
+          <span className={styles.signalAiText}>AI</span>
+        </span>
+        <span className={`${styles.signalEndpoint} ${styles.signalEndpointRight}`}>MATCH</span>
+      </div>
+      <div className={styles.heroFlash} aria-hidden />
       {/* 히어로 — 타이틀+설명+버튼 스택이 아니라, 활자 자체가 레이아웃이다.
           세 줄이 좌/우로 엇갈리고 판화 컷아웃이 행 사이에 끼어든다. */}
       {/* 히어로 — 워드마크가 곧 헤드라인이다. 별도 헤더 바 없음.
@@ -322,8 +645,21 @@ export default function Home() {
             </div>
           </div>
 
-          <h1 className={styles.brand}>
-            <span>MINGLES</span>
+          <h1 className={styles.brand} aria-label="MINGLES">
+            <span className={styles.brandLight} aria-hidden />
+            <span className={`${styles.brandEcho} ${styles.brandEchoBack}`} aria-hidden>
+              MINGLES
+            </span>
+            <span className={`${styles.brandEcho} ${styles.brandEchoFront}`} aria-hidden>
+              MINGLES
+            </span>
+            <span className={styles.brandWord} aria-hidden>
+              {brandLetters.map((letter, index) => (
+                <span className={styles.brandLetter} key={`${letter}-${index}`}>
+                  {letter}
+                </span>
+              ))}
+            </span>
           </h1>
 
           <div className={`${styles.ticker} ${styles.tickerBottom}`} aria-hidden>
@@ -356,7 +692,7 @@ export default function Home() {
             <span>03—DATE</span>
           </p>
           <p className={styles.editorialHome} aria-hidden>
-            MEET AT HOME
+            <span>MEET AT</span> <strong>HOME</strong>
           </p>
           <p className={styles.editorialAssist} aria-hidden>
             <span>YOU TALK</span>

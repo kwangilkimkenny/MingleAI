@@ -54,6 +54,11 @@
   --man-brightness: 1;
   --woman-brightness: 1;
   --character-opacity: 0.3;
+  --hero-link: 0;
+  --identity-reveal: 0;
+  --identity-blur: 4px;
+  --signal-opacity: 0;
+  --copy-collision: 0;
 
   background-color: var(--paper);
   color: var(--ink-soft);
@@ -158,6 +163,8 @@
 .heroEditorial p {
   position: absolute;
   margin: 0;
+  opacity: var(--intro-opacity, 0);
+  translate: 0 var(--intro-y, 18px);
   will-change: transform;
 }
 
@@ -174,7 +181,11 @@
   font-size: clamp(10px, 0.95vw, 14px);
   line-height: 1.08;
   letter-spacing: 0.08em;
-  transform: translate3d(calc(var(--p, 0) * 24px), calc(var(--p, 0) * -64px), 0)
+  transform: translate3d(
+      calc(var(--p, 0) * 24px + var(--copy-collision) * 14px),
+      calc(var(--p, 0) * -64px - var(--copy-collision) * 8px),
+      0
+    )
     rotate(-7deg);
 }
 
@@ -216,8 +227,17 @@
   font-size: clamp(24px, 3.2vw, 52px);
   line-height: 0.88;
   letter-spacing: -0.07em;
-  transform: translate3d(calc(var(--p, 0) * -42px), calc(var(--p, 0) * -78px), 0)
+  transform: translate3d(
+      calc(var(--p, 0) * -42px + var(--copy-collision) * 9vw),
+      calc(var(--p, 0) * -78px - var(--copy-collision) * 10px),
+      0
+    )
     rotate(3deg);
+}
+
+.editorialHome span,
+.editorialHome strong {
+  display: inline;
 }
 
 .editorialAssist {
@@ -229,8 +249,21 @@
   line-height: 0.92;
   letter-spacing: -0.045em;
   text-align: right;
-  transform: translate3d(calc(var(--p, 0) * 36px), calc(var(--p, 0) * -108px), 0)
+  transform: translate3d(
+      calc(var(--p, 0) * 36px - var(--copy-collision) * 8vw),
+      calc(var(--p, 0) * -108px + var(--copy-collision) * 8px),
+      0
+    )
     rotate(-4deg);
+}
+
+[data-identity-stage="profile"] .editorialHome,
+[data-identity-stage="face"] .editorialHome,
+[data-identity-stage="profile"] .editorialAssist,
+[data-identity-stage="face"] .editorialAssist {
+  text-shadow:
+    3px 0 0 rgba(242, 188, 200, 0.62),
+    -2px 0 0 rgba(255, 255, 255, 0.28);
 }
 
 .editorialAssist strong {
@@ -284,28 +317,26 @@
   padding: clamp(3px, 0.45vw, 7px) 0 clamp(5px, 0.65vw, 10px);
   background: transparent;
   box-shadow: none;
-  /* MINGLES 일곱 글자의 실측 폭 = 4.445em(Archivo Black + letter-spacing -0.095em).
-     100/4.445 = 22.49 → 22.3으로 잡아 1% 여유를 둔다. 단위는 **cqw**여야 한다:
+  /* MINGLES 일곱 글자를 화면 높이까지 더 강하게 채운다. 커진 글자가 좌우에서
+     끊기지 않도록 자간을 함께 조여 full-bleed 폭 안에 응축한다. 단위는 **cqw**여야 한다:
      22.5vw는 세로 스크롤바 폭까지 포함한 값이라 컨테이너보다 15px 넓어져 마지막 S가
-     잘렸다(2026-08-12). cqw는 컨테이너 실제 폭 기준이라 어느 해상도에서도 안 잘린다.
-     -5deg 회전이 폭을 h×sin5(1920에서 ~31px)만큼 더 먹으므로 21.6까지 낮춰 여유를 둔다. */
-  font-size: 21.6cqw;
+     잘린다(2026-08-12). cqw는 컨테이너 실제 폭을 기준으로 계산된다. */
+  font-size: 23.5cqw;
   line-height: 0.74;
-  letter-spacing: -0.095em;
+  letter-spacing: -0.125em;
   font-weight: 400;
   text-align: center;
   white-space: nowrap;
-  animation: brandExpand 1.6s cubic-bezier(0.4, 0, 0.2, 1) 0.08s forwards;
 }
 
 .page h1.brand {
   font-family: var(--font-display), "Arial Black", sans-serif;
 }
 
-.brand span {
+.brandWord {
   position: relative;
   z-index: 2;
-  display: block;
+  display: flex;
   /* 컨테이너가 0→100%로 열리는 동안 글자가 줄어들지 않도록 폭을 고정한다.
      100vw(스크롤바 포함) 대신 컨테이너 폭. */
   flex: 0 0 100cqw;
@@ -315,11 +346,63 @@
   background-clip: text;
   -webkit-background-clip: text;
   filter: drop-shadow(0 0 12px rgba(242, 188, 200, 0.2));
+  translate: var(--word-x, 0) var(--word-y, 0);
+}
+
+.brandLetter {
+  display: inline-block;
+  flex: 0 0 auto;
+  color: #fff;
+  opacity: var(--letter-opacity, 0);
+  translate: 0 var(--letter-y, 38%);
+  rotate: var(--letter-rotate, 2deg);
+  filter: blur(var(--letter-blur, 8px));
+  will-change: transform, translate, opacity;
+}
+
+.brandLetter:nth-child(1) {
+  color: #f2bcc8;
+}
+.brandLetter:nth-child(2) {
+  color: #f4c8d1;
+}
+.brandLetter:nth-child(3) {
+  color: #f6d4da;
+}
+.brandLetter:nth-child(4) {
+  color: #f9e0e3;
+}
+.brandLetter:nth-child(5) {
+  color: #fbeaec;
+}
+.brandLetter:nth-child(6) {
+  color: #fdf4f4;
+}
+
+.brandEcho {
+  position: absolute;
+  z-index: 1;
+  inset: 0 auto auto 0;
+  display: block;
+  width: 100cqw;
+  pointer-events: none;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(242, 188, 200, 0.42);
+  opacity: 0.12;
+}
+
+.brandEchoBack {
+  transform: none;
+}
+
+.brandEchoFront {
+  z-index: 3;
+  -webkit-text-stroke-color: rgba(255, 255, 255, 0.24);
+  transform: none;
 }
 
 /* 확장 방향을 따라가는 빛의 전면. 박스가 다 열린 뒤 오른쪽으로 빠져나간다. */
-.brand::after {
-  content: "";
+.brandLight {
   position: absolute;
   z-index: 1;
   top: -30%;
@@ -330,30 +413,7 @@
   background: linear-gradient(90deg, transparent, rgba(255, 248, 240, 0.72), transparent);
   filter: blur(18px);
   transform: translateX(-140%);
-  animation: brandLightSweep 1.35s ease-out 0.12s forwards;
-}
-
-@keyframes brandExpand {
-  0% {
-    width: 0;
-  }
-  100% {
-    width: 100%;
-  }
-}
-
-@keyframes brandLightSweep {
-  0% {
-    transform: translateX(-140%);
-    opacity: 0;
-  }
-  22% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(520%);
-    opacity: 0;
-  }
+  opacity: 0;
 }
 
 /* 기울기는 .brandBlock이 통째로 준다 — 여기서 또 돌리면 세 줄이 부채꼴로 벌어진다. */
@@ -376,23 +436,10 @@
   width: max-content;
 }
 .trackRight {
-  animation: marqueeRight 30s linear infinite;
+  transform: translateX(-50%);
 }
 .trackLeft {
-  animation: marqueeLeft 26s linear infinite;
-}
-@keyframes marqueeRight {
-  from {
-    transform: translateX(-50%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-@keyframes marqueeLeft {
-  to {
-    transform: translateX(-50%);
-  }
+  transform: translateX(0);
 }
 
 .tickerSet {
@@ -414,45 +461,276 @@
   opacity: 0.5;
 }
 
-/* 히어로부터 두 번째 섹션까지 같은 두 이미지가 이동한다. JS는 좌표·폭·채도만
- * 보간하고 DOM을 교체하지 않으므로 스크롤 경계에서 캐릭터가 튀지 않는다. */
-.morphCharacter {
+/* 히어로부터 두 번째 섹션까지 같은 두 인물 레이어가 이동한다. 바깥 래퍼는 좌표를,
+ * 안쪽 두 장은 흑백 원판과 핑크 실크스크린 잔상을 담당한다. */
+.morphFigure {
   position: fixed;
   top: auto;
   left: auto;
   bottom: 0;
-  height: auto;
   z-index: 1;
   pointer-events: none;
   opacity: var(--character-opacity);
-  will-change: top, left, width, filter, opacity;
+  will-change: top, left, width, opacity;
 }
 
-.morphCharacterMan {
+.morphFigureMan {
   top: var(--man-y, auto);
   left: var(--man-x, auto);
   right: 6vw;
   width: var(--man-w, clamp(130px, 18vw, 280px));
-  filter: grayscale(var(--man-gray)) brightness(var(--man-brightness));
 }
 
-.morphCharacterWoman {
+.morphFigureWoman {
   top: var(--woman-y, auto);
   left: var(--woman-x, auto);
   right: 26vw;
   width: var(--woman-w, clamp(120px, 16vw, 250px));
+}
+
+.morphCharacter {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.morphFigureMan .morphCharacterBase {
+  filter: grayscale(var(--man-gray)) brightness(var(--man-brightness)) blur(var(--identity-blur));
+}
+
+.morphFigureWoman .morphCharacterBase {
   transform: scaleX(-1);
-  filter: grayscale(var(--woman-gray)) brightness(var(--woman-brightness));
+  filter: grayscale(var(--woman-gray)) brightness(var(--woman-brightness)) blur(var(--identity-blur));
+}
+
+.morphCharacterEcho {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  opacity: calc(var(--hero-link) * 0.48);
+  mix-blend-mode: screen;
+  filter: brightness(0) saturate(100%) invert(84%) sepia(15%) saturate(875%) hue-rotate(296deg)
+    brightness(101%) contrast(90%);
+  transform: translate3d(calc(var(--hero-link) * -10px), calc(var(--hero-link) * 7px), 0);
+}
+
+.morphFigureWoman .morphCharacterEcho {
+  transform: scaleX(-1) translate3d(calc(var(--hero-link) * -10px), calc(var(--hero-link) * 7px), 0);
+}
+
+.identityMask {
+  position: absolute;
+  z-index: 4;
+  top: 22%;
+  left: 50%;
+  width: 74%;
+  height: clamp(19px, 2.5vw, 30px);
+  overflow: hidden;
+  border: 1px solid rgba(242, 188, 200, 0.72);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 6px, rgba(242, 188, 200, 0.2) 6px 8px),
+    #050505;
+  color: #fff;
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(5px, 0.64vw, 9px);
+  letter-spacing: 0.12em;
+  opacity: calc(1 - var(--identity-reveal));
+  visibility: visible;
+  transform: translateX(-50%) rotate(-3deg) scaleX(calc(1 - var(--identity-reveal) * 0.22));
+  transform-origin: center;
+  transition:
+    opacity 0.16s ease,
+    border-color 0.18s ease;
+}
+
+[data-identity-stage="face"] .identityMask {
+  display: none;
+}
+
+.identityMask span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: translateY(100%);
+  transition:
+    opacity 0.16s ease,
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-identity-stage="voice"] .identityMask [data-stage="voice"],
+[data-identity-stage="profile"] .identityMask [data-stage="profile"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.heroSignal {
+  position: fixed;
+  z-index: 3;
+  top: 48%;
+  left: clamp(140px, 22vw, 380px);
+  right: clamp(140px, 22vw, 380px);
+  bottom: auto;
+  height: clamp(110px, 11vw, 160px);
+  opacity: var(--signal-opacity);
+  transform: translateY(-50%);
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+
+.heroSignal svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.signalRail,
+.signalLive {
+  fill: none;
+}
+
+.signalRail {
+  stroke: rgba(255, 255, 255, 0.38);
+  stroke-width: 2;
+  stroke-dasharray: 0.008 0.012;
+  vector-effect: non-scaling-stroke;
+}
+
+.signalLive {
+  stroke: #ffd1db;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter:
+    drop-shadow(0 0 3px rgba(0, 0, 0, 0.9))
+    drop-shadow(0 0 7px rgba(255, 255, 255, 0.7))
+    drop-shadow(0 0 14px rgba(242, 188, 200, 1));
+}
+
+.signalAnchor {
+  fill: #000;
+  stroke: #ffd1db;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 6px rgba(242, 188, 200, 0.78));
+}
+
+.signalPulse {
+  filter: drop-shadow(0 0 10px rgba(242, 188, 200, 1));
+  will-change: transform;
+}
+
+.signalPulseHalo {
+  fill: rgba(242, 188, 200, 0.22);
+  stroke: rgba(255, 255, 255, 0.54);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.signalPulseCore {
+  fill: #fff;
+  stroke: #f2bcc8;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.signalEndpoint {
+  position: absolute;
+  border: 1.5px solid rgba(255, 209, 219, 0.92);
+  padding: 5px 9px;
+  background: rgba(0, 0, 0, 0.9);
+  color: #ffd1db;
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(8px, 0.75vw, 11px);
+  line-height: 1;
+  letter-spacing: 0.14em;
+  box-shadow:
+    0 0 0 3px rgba(0, 0, 0, 0.56),
+    0 0 14px rgba(242, 188, 200, 0.28);
+}
+
+.signalEndpointLeft {
+  top: 56.47%;
+  left: 2%;
+  transform: translate(0, 14px);
+}
+
+.signalEndpointRight {
+  top: 56.47%;
+  left: 98%;
+  transform: translate(-100%, 14px);
+}
+
+.signalAi {
+  position: absolute;
+  z-index: 2;
+  top: 56.47%;
+  left: 50%;
+  display: grid;
+  width: clamp(28px, 2.5vw, 38px);
+  aspect-ratio: 32 / 30;
+  place-items: center;
+  transform: translate(-50%, -50%);
+}
+
+.signalHeart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  fill: #ffd1db;
+  stroke: #fff;
+  stroke-width: 1.15;
+  transform-origin: center;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 9px rgba(255, 177, 196, 0.92))
+    drop-shadow(0 0 22px rgba(242, 188, 200, 0.72));
+}
+
+.signalAiText {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  color: #fff;
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(8px, 0.72vw, 11px);
+  line-height: 1;
+  letter-spacing: 0.2em;
+  text-shadow:
+    0 0 4px #fff,
+    0 0 13px rgba(255, 177, 196, 0.96),
+    0 0 24px rgba(242, 188, 200, 0.72);
+  transform: translateX(calc(-50% + 0.1em));
+}
+
+[data-signal-stage="charged"] .signalHeart {
+  filter:
+    drop-shadow(0 0 4px #fff)
+    drop-shadow(0 0 12px rgba(255, 177, 196, 1))
+    drop-shadow(0 0 30px rgba(242, 188, 200, 0.94));
+}
+
+.heroFlash {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  background: var(--blush-ink);
+  opacity: 0;
+  pointer-events: none;
 }
 
 @media (max-width: 900px) {
-  .morphCharacterMan {
+  .morphFigureMan {
     width: var(--man-w, 38vw);
   }
-  .morphCharacterWoman {
+  .morphFigureWoman {
     width: var(--woman-w, 38vw);
   }
-  .morphCharacterWoman {
+  .morphFigureWoman {
     right: 44vw;
   }
 
@@ -472,15 +750,149 @@
   }
 }
 
+@media (max-width: 720px) {
+  .hero {
+    min-height: 100svh;
+    padding-top: 12px;
+    padding-bottom: 18px;
+  }
+  .brandBlock {
+    transform: translateY(-1.5vh) rotate(-6deg);
+  }
+  .brand {
+    /* 좁은 화면에서도 단어 폭은 유지하면서 세로 존재감을 데스크톱과 같은 비율로 키운다. */
+    padding: 2px 0 6px;
+    font-size: 28cqw;
+    line-height: 0.7;
+    letter-spacing: -0.215em;
+  }
+  .tickerTop {
+    margin-bottom: 2px;
+  }
+  .tickerBottom {
+    margin-top: 1px;
+  }
+  .tickerItem {
+    padding-right: 0.75em;
+    font-size: 9px;
+    letter-spacing: 0.09em;
+  }
+  .tickerItem::after {
+    padding-left: 0.75em;
+  }
+  .editorialMatch {
+    top: 4.5%;
+    left: 5vw;
+    font-size: clamp(11px, 3.25vw, 14px);
+    letter-spacing: 0.055em;
+  }
+  .editorialMatch strong {
+    margin-top: 3px;
+    font-size: 1.5em;
+  }
+  .editorialSequence {
+    top: 6%;
+    right: 4vw;
+    gap: 4px;
+    font-size: clamp(8px, 2.3vw, 10px);
+    letter-spacing: 0.1em;
+  }
+  .editorialSequence span:nth-child(2) {
+    transform: translateX(-10%);
+  }
+  .editorialSequence span:nth-child(3) {
+    transform: translateX(2%);
+  }
+  .editorialHome {
+    top: 21%;
+    left: 4vw;
+    width: auto;
+    font-size: clamp(39px, 12.5vw, 54px);
+    line-height: 0.76;
+    letter-spacing: -0.09em;
+    transform: translate3d(calc(var(--p, 0) * -22px), calc(var(--p, 0) * -54px), 0)
+      rotate(-4deg);
+  }
+  .editorialHome span,
+  .editorialHome strong {
+    display: block;
+  }
+  .editorialHome strong {
+    margin-left: 18vw;
+    color: var(--blush-ink);
+    font-size: 1.2em;
+    -webkit-text-stroke: 1px rgba(255, 255, 255, 0.34);
+  }
+  .editorialAssist {
+    top: 59%;
+    right: 5vw;
+    bottom: auto;
+    font-size: clamp(21px, 6.4vw, 28px);
+    line-height: 0.82;
+    transform: translate3d(calc(var(--p, 0) * 22px), calc(var(--p, 0) * -74px), 0)
+      rotate(5deg);
+  }
+  .editorialAssist strong {
+    margin-top: 4px;
+    font-size: 1.35em;
+  }
+  .editorialVertical {
+    top: 66%;
+    right: 2vw;
+    font-size: 7px;
+    letter-spacing: 0.24em;
+    transform: translate3d(0, calc(var(--p, 0) * -58px), 0) rotate(1deg);
+  }
+  .heroSignal {
+    top: 43%;
+    left: 9vw;
+    right: 9vw;
+    bottom: auto;
+    height: 120px;
+  }
+  .signalEndpoint {
+    padding: 4px 6px;
+    font-size: 7px;
+  }
+  .signalAi {
+    width: 27px;
+  }
+  .signalAiText {
+    bottom: calc(100% + 5px);
+    font-size: 7px;
+  }
+  .identityMask {
+    height: 18px;
+    font-size: 5px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .brand {
     width: 100%;
-    animation: none;
   }
-  .brand::after,
-  .trackRight,
-  .trackLeft {
-    animation: none;
+  .brandLight {
+    display: none;
+  }
+  .brandLetter {
+    opacity: 1;
+    translate: 0 0;
+    rotate: 0deg;
+    transform: none;
+    filter: none;
+  }
+  .brandEcho,
+  .morphCharacterEcho,
+  .heroSignal,
+  .heroFlash,
+  .identityMask {
+    display: none;
+  }
+  .morphFigureMan .morphCharacterBase {
+    filter: grayscale(var(--man-gray)) brightness(var(--man-brightness));
+  }
+  .morphFigureWoman .morphCharacterBase {
+    filter: grayscale(var(--woman-gray)) brightness(var(--woman-brightness));
   }
   .editorialMatch,
   .editorialSequence,
@@ -488,6 +900,10 @@
   .editorialAssist,
   .editorialVertical {
     transform: none;
+  }
+  .heroEditorial p {
+    opacity: 1;
+    translate: 0 0;
   }
 }
 
@@ -808,6 +1224,10 @@
   isolation: isolate;
 }
 
+.featureThree {
+  margin-top: 0;
+}
+
 .featureFour {
   margin-top: -100vh;
 }
@@ -824,6 +1244,7 @@
 }
 
 .featurePanel {
+  --feature-panel-p: var(--feature-three-p);
   position: relative;
   z-index: 2;
   display: grid;
@@ -832,12 +1253,15 @@
   justify-content: center;
   gap: clamp(36px, 5vw, 72px);
   width: min(980px, calc(100vw - 48px));
-  opacity: var(--feature-three-p);
-  will-change: opacity;
+  opacity: var(--feature-panel-p);
+  filter: blur(calc((1 - var(--feature-panel-p)) * 10px));
+  transform: translateY(calc((1 - var(--feature-panel-p)) * 28px))
+    scale(calc(0.96 + var(--feature-panel-p) * 0.04));
+  will-change: opacity, filter, transform;
 }
 
 .featureFour .featurePanel {
-  opacity: var(--feature-four-p);
+  --feature-panel-p: var(--feature-four-p);
 }
 
 .featurePanel > .iphone {
